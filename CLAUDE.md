@@ -425,6 +425,31 @@ Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group
      - `Ctrl+P` sur un document ouvert ouvre **le choix des colonnes**, pas l'impression
        directe : une feuille de huit colonnes partie sans avoir été choisie est une feuille
        jetée. La liste des manquants reste dans sa propre modale 📋.
+   - **Imprimer la grille élèves × documents** (v1.10.0) — l'impression de la **vue globale**,
+     et ce n'est pas la même feuille que celle d'un document : on ne ramasse pas un papier à
+     la fois. Une colonne par document retenu, une ligne par élève, un pied qui totalise
+     `rendus / attendus`. Accessible de la liste des documents **et** du 🧺 Ramassage (qui
+     présélectionne alors ce qu'on a dans les mains).
+     - ⚠️ **Les TROIS états sur le papier aussi** : `✓` rendu · `☐` attendu et pas rendu ·
+       `—` sans objet. Le tiret n'est pas une case vide — c'est toute la différence entre
+       « il ne l'a pas rendu » et « il ne l'a jamais reçu ».
+     - ⚠️ **Bâtie sur `_ramRows`, pas réécrite** : c'est elle qui sait déjà qui est attendu
+       sur quoi. Une seconde implémentation aurait dérivé au premier document qui change de
+       classe.
+     - ⚠️ **Bornée au ROSTER de la classe.** `_ramRows` part de `_docExpected`, qui couvre
+       **toutes** les classes du document : un papier partagé 5C + 5D faisait entrer un élève
+       de 5D sur une feuille titrée « 5C » — quelqu'un qui n'est pas dans la salle où l'on
+       passe dans les rangs. Trouvé par le test des totaux, jamais à l'œil. ⚠️ **Le même
+       travers dort dans la grille à l'ÉCRAN** : `_ramRows` y remonte aussi ces élèves-là.
+       Laissé en l'état — c'est un écran audité, et l'arbitrage appartient à l'utilisateur.
+     - ⚠️ **Les élèves partis sont masqués** (on ne ramasse rien auprès d'eux) **et le
+       sous-titre le DIT** : un décompte qui rétrécit sans raison visible fait chercher une
+       panne qui n'existe pas. Même leçon que le toast de `ramSetColonne`.
+     - Le pied compte sur les **lignes imprimées**, pas sur le document entier : un total
+       qu'on ne retrouve pas en comptant la colonne au-dessus fait douter de toute la feuille.
+     - Option « porter les réponses des familles sous les coches » : la feuille de ramassage
+       devient un récapitulatif. ⚠️ **Les champs `par: 'prof'` n'y descendent pas** — l'avis
+       du PP se donne au bureau, pas dans une allée.
    - ⚠️ **Une case a TROIS états.** Rendu, pas rendu, et **sans objet** — l'élève arrivé en novembre n'a jamais eu la fiche de rentrée, celui parti en mars n'a pas eu la fiche d'orientation. Un tiret, pas une case vide : confondre les deux, c'est réclamer un papier à quelqu'un qui ne l'a jamais reçu. `ramSetRendu` **refuse** d'écrire pour un élève non attendu.
    - ⚠️ **Salve d'undo** (`_ramArmUndo`, motif `_relArmUndo`) : cocher vingt-cinq cases est UN geste. Sans elle, une seule passe viderait la pile de quinze niveaux. En revanche « tout cocher une colonne » est un acte délibéré et massif → son propre `pushUndo()`, et **rien n'est empilé si la colonne était déjà dans l'état demandé**.
    - ⚠️ **Pas de re-rendu à chaque case** : la grille se reconstruirait sous le curseur en pleine passe. Seuls les compteurs sont rafraîchis (`_ramRefreshCounters`).
@@ -619,6 +644,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 20 | **Impression de la vue globale** : grille élèves × documents (`_gridPrintCell`, `_gridPrintRows`, `_gridPrintTotals`, `_gridPrintSubtitle`), trois états sur le papier, totaux en pied, réponses en option, depuis la liste **et** depuis le ramassage ; 9 tests de plus | ✅ **fait** (2026-09-10, v1.10.0) |
 | 19 | **Impression d'un document** avec choix des colonnes : calcul pur (`_docPrintColumns`, `_docPrintKeys`, `_docPrintFiltres`, `_docPrintCell`, `_docPrintRows`, `_docPrintSubtitle`) testé avant l'UI (11 tests), modale de sélection, orientation déduite, PDF par la fenêtre d'impression | ✅ **fait** (2026-09-10, v1.9.0) |
 | 18 | **Installable comme application** : 5 icônes PNG générées par script, manifeste complet (`id`, `icons` `any` + `maskable`), icône iOS liée, préchargement des icônes tolérant aux absences, 8 tests dont la mesure réelle des dimensions dans l'IHDR | ✅ **fait** (2026-09-10, v1.8.0) |
 | 17 | Colonne **Naissance** saisissable en série · **touches de saisie** du carnet · fiche : Documents repliable avec les choix visibles · **années à deux chiffres** complétées | ✅ **fait** (2026-09-09, v1.7.0) |
@@ -731,6 +757,19 @@ Deux défauts trouvés, tous deux **des rappels des règles déjà écrites ici*
    qui pousse la page au lieu de défiler dans son cadre*. Mesuré : 364 px pour 320 de large,
    ramené à 320 après `flex-wrap:wrap`. ⚠️ **Un bouton de plus dans une barre en `flex` est
    un test responsive à refaire**, si petit soit-il.
+
+**2026-09-10, v1.10.0 (grille élèves × documents imprimée) : 0 écart**, clair et sombre —
+la modale de la grille, la liste des documents et le 🧺 Ramassage avec leur nouveau bouton,
+en 1400 px **et** en 320 px (aucun débordement horizontal cette fois : la leçon 17 a servi).
+Rendu papier vérifié à la largeur d'une A4 portrait.
+
+Un défaut trouvé, et **par un test, pas à l'œil** :
+18. **Un document partagé entre deux classes faisait entrer les élèves de l'autre** sur la
+   feuille. `_ramRows` bâtit ses lignes à partir de `_docExpected`, qui couvre toutes les
+   classes du document ; le fixture du ramassage n'a jamais eu de papier partagé, donc rien
+   ne l'avait jamais exercé. → `_gridPrintRows` est bornée au roster de la classe imprimée.
+   ⚠️ Leçon : **une fixture qui ne contient pas le cas ne peut pas voir le défaut** — c'est
+   le même constat qu'au défaut 7, où quatre candidats partout cachaient le cas à un seul.
 
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la

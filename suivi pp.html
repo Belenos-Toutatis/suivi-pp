@@ -1059,6 +1059,10 @@ body.el-projecting #main { padding-top: 8px; }
   .print-t th { background: #eee; font-size: 8.5pt; }
   .print-t tr { page-break-inside: avoid; }
   .print-c { text-align: center; font-size: 12pt; line-height: 1; }
+  .print-c small { font-size: 7.5pt; font-weight: 400; }
+  .print-doc-th { max-width: 30mm; }
+  .print-na { color: #777; }        /* « sans objet » : un tiret gris, jamais une case vide */
+  .print-t tfoot th { background: #f4f4f4; font-size: 8.5pt; }
   .print-rem { white-space: pre-line; min-width: 45mm; }
   .print-list { columns: 2; font-size: 11pt; line-height: 1.8; }
 }
@@ -1578,6 +1582,45 @@ body.el-projecting #main { padding-top: 8px; }
   </div>
 </div>
 
+<!-- ═══════════════ IMPRIMER LA GRILLE ÉLÈVES × DOCUMENTS ═══════════════ -->
+<div id="mgridprint" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:580px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();gridPrintOk()}">
+    <h2>🖨 Imprimer la grille élèves × documents</h2>
+    <div class="fg"><label>Documents à mettre en colonnes</label>
+      <div id="mgridp-docs" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <div class="tb-hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-g btn-sm" onclick="gridPrintTout(true)">Tout cocher</button>
+        <button class="btn btn-g btn-sm" onclick="gridPrintTout(false)">Rien</button>
+        <span>Une feuille pour passer dans les rangs avec plusieurs papiers à la fois.</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:190px"><label for="mgridp-filtre">Élèves</label>
+        <select id="mgridp-filtre" data-autofocus onchange="_gridPrintRefresh()" style="max-width:100%">
+          <option value="tous">tous les élèves</option>
+          <option value="incomplets">seulement ceux à qui il manque un papier</option>
+        </select></div>
+      <div class="fg" style="flex:1;min-width:150px"><label for="mgridp-sort">Ordre</label>
+        <select id="mgridp-sort" onchange="_gridPrintRefresh()" style="max-width:100%"></select></div>
+      <div class="fg" style="flex:1;min-width:140px"><label for="mgridp-orient">Orientation</label>
+        <select id="mgridp-orient" onchange="_gridPrintRefresh()" style="max-width:100%">
+          <option value="portrait">portrait</option>
+          <option value="landscape">paysage</option>
+          <option value="auto">automatique — paysage dès 5 documents</option>
+        </select></div>
+    </div>
+    <div class="fg" style="display:flex;flex-direction:column;gap:5px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mgridp-rep" style="width:16px;height:16px" onchange="_gridPrintRefresh()"> Porter les réponses des familles sous les coches <span class="tb-hint">— la feuille devient un récapitulatif</span></label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mgridp-partis" style="width:16px;height:16px" onchange="_gridPrintRefresh()"> Inclure les élèves partis <span class="tb-hint">— on ne ramasse rien auprès d'eux</span></label>
+    </div>
+    <div class="al al-i" id="mgridp-hint"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mgridprint')">Annuler</button>
+      <button class="btn btn-p" id="mgridp-ok" onclick="gridPrintOk()">🖨 Imprimer…</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ ÉLECTION — nouvelle / modalités ═══════════════ -->
 <div id="mel" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:600px;width:100%">
@@ -1691,8 +1734,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.9.0';
-const APP_BUILD_DATE = '2026-09-10T14:08:00Z';
+const APP_VERSION    = '1.10.0';
+const APP_BUILD_DATE = '2026-09-10T14:31:33Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5971,6 +6014,84 @@ function _docPrintSubtitle(doc, filtre, nbLignes) {
   return bits.join(' · ');
 }
 
+
+// ── La grille élèves × documents, sur papier ──
+// La vue globale a son impression à elle, et ce n'est pas la même feuille : on ne ramasse
+// pas un document à la fois. On passe dans les rangs avec trois papiers, et c'est une
+// grille qu'on veut en main — celle du 🧺 Ramassage, mais imprimée.
+// ⚠️ Bâtie sur `_ramRows`, PAS réécrite : c'est elle qui sait déjà qui est attendu sur
+// quoi, et qui porte les trois états. Une seconde implémentation dériverait de la première
+// au premier document qui change de classe.
+
+// Une case imprimée. ⚠️ TROIS états, comme à l'écran : ✓ rendu · ☐ attendu et pas encore
+// rendu · — sans objet. **Le tiret n'est pas une case vide** : l'élève arrivé en novembre
+// n'a jamais eu la fiche de rentrée, et lui réclamer ce papier serait la faute que cette
+// distinction existe pour empêcher.
+function _gridPrintCell(cell, sid, opts) {
+  if (!cell.attendu) return { etat: 'sansobjet', txt: '—' };
+  const etat = cell.rendu ? 'rendu' : 'attente';
+  const txt = cell.rendu ? '✓' : '☐';
+  if (!opts || !opts.reponses) return { etat, txt };
+  // Les réponses portées sur le papier, sous la coche : seulement celles des FAMILLES,
+  // l'avis du PP n'ayant rien à faire sur une feuille qu'on promène dans les rangs.
+  const d = S.documents[cell.docId], stu = S.eleves[sid];
+  const rep = (d && stu) ? (d.champs || []).filter(c => c.par !== 'prof')
+    .map(c => _docPrintCell(d, stu, 'ch:' + c.id)).filter(Boolean).join(' · ') : '';
+  return { etat, txt, rep };
+}
+
+// Les lignes de la grille imprimée : un élève par ligne, un document par colonne.
+// ⚠️ Les élèves PARTIS sont masqués par défaut — on ne ramasse rien auprès d'eux — mais
+// leur nombre est dit dans le sous-titre. Un décompte qui rétrécit sans raison visible
+// est exactement ce qui fait chercher une panne inexistante (leçon de `ramSetColonne`).
+function _gridPrintRows(docIds, classId, opts) {
+  const o = opts || {};
+  // ⚠️ Borné au ROSTER de la classe. `_ramRows` bâtit ses lignes à partir de
+  // `_docExpected`, qui couvre TOUTES les classes du document : un papier partagé entre
+  // la 5C et la 5D faisait entrer un élève de la 5D sur une feuille titrée « 5C » —
+  // quelqu'un qui n'est pas dans la salle où l'on passe dans les rangs. Trouvé par le
+  // test des totaux, pas à l'œil.
+  const roster = new Set((S.classes[classId] || { eleves: [] }).eleves);
+  return _ramRows(docIds, classId, o.sort || 'nom')
+    .filter(r => roster.has(r.sid))
+    .filter(r => o.inclurePartis || r.actif)
+    .filter(r => o.filtre !== 'incomplets' || r.reste > 0)
+    .map(r => ({ sid: r.sid, nom: r.nom, prenom: r.prenom, actif: r.actif, reste: r.reste,
+                 cells: r.cells.map(c => _gridPrintCell(c, r.sid, o)) }));
+}
+
+// Pied de tableau : rendus / attendus par document. ⚠️ Comptés sur les lignes IMPRIMÉES,
+// pas sur le document entier : un total qu'on ne retrouve pas en comptant la colonne
+// au-dessus fait douter de toute la feuille.
+function _gridPrintTotals(rows, nbDocs) {
+  return Array.from({ length: nbDocs }, (_, i) => {
+    let rendus = 0, attendus = 0;
+    for (const r of rows) {
+      const c = r.cells[i];
+      if (c && c.etat !== 'sansobjet') { attendus++; if (c.etat === 'rendu') rendus++; }
+    }
+    return { rendus, attendus };
+  });
+}
+
+// Ce qui fait qu'une feuille retrouvée plus tard se relit seule — et qui DIT ce qu'elle
+// ne montre pas : les élèves partis qu'on a laissés de côté.
+function _gridPrintSubtitle(classId, docIds, rows, opts) {
+  const o = opts || {};
+  const cls = S.classes[classId];
+  const bits = [cls ? `${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}` : ''].filter(Boolean);
+  const n = docIds.length;
+  bits.push(`${n} document${n > 1 ? 's' : ''}`);
+  bits.push(`${rows.length} élève${rows.length > 1 ? 's' : ''}${o.filtre === 'incomplets' ? ' — il leur manque au moins un papier' : ''}`);
+  if (!o.inclurePartis) {
+    const roster = new Set((S.classes[classId] || { eleves: [] }).eleves);
+    const partis = _ramRows(docIds, classId, 'nom').filter(r => roster.has(r.sid) && !r.actif).length;
+    if (partis) bits.push(`${partis} élève${partis > 1 ? 's' : ''} parti${partis > 1 ? 's' : ''} non imprimé${partis > 1 ? 's' : ''}`);
+  }
+  bits.push(`imprimé le ${_fmtDateFr(_todayYmd())}`);
+  return bits.join(' · ');
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ONGLET DOCUMENTS — liste, puis tableau des retours d'un document
 // ═══════════════════════════════════════════════════════════════════════════
@@ -6028,6 +6149,7 @@ function renderDocuments() {
   const toolbar = `<div class="tb">
       <button class="btn btn-p btn-sm" onclick="openDocNew()">+ Nouveau document</button>
       <button class="btn btn-s btn-sm" onclick="openRamassage()" title="Cocher les retours de PLUSIEURS documents en une seule passe — ramasser des papiers, ou vérifier que les signatures sont là, en repassant une seule fois dans les rangs">🧺 Ramasser…</button>
+      <button class="btn btn-g btn-sm" onclick="openGridPrint()" title="Imprimer la grille élèves × documents — ou l'enregistrer en PDF : une seule feuille pour plusieurs papiers">🖨 Imprimer la grille…</button>
       ${nbArch ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox"${_docShowArchived ? ' checked' : ''} onchange="_docShowArchived=this.checked;renderDocuments()"> ${nbArch} archivé${nbArch > 1 ? 's' : ''}</label>` : ''}
       <span class="tb-hint" style="margin-left:auto">Un document = un papier distribué. On y suit le retour, et ce que la famille a coché dessus.</span>
     </div>`;
@@ -6358,6 +6480,7 @@ function _renderRamassage(el) {
       ${_sortPickerHTML(_ramSort, 'setRamSort(this.value)', cls)}
       ${partis ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Ils restent comptés dans les manquants du document, mais on ne peut rien ramasser auprès d'eux"><input type="checkbox"${_ramShowGone ? ' checked' : ''} onchange="_ramShowGone=this.checked;renderDocuments()"> ${partis} parti${partis > 1 ? 's' : ''}</label>` : ''}
       <span class="tb-hint" id="ram-hint" style="margin-left:auto"></span>
+      <button class="btn btn-g btn-sm" onclick="openGridPrint()" title="Imprimer cette grille — ou l'enregistrer en PDF — pour la remplir au stylo dans les rangs">🖨 Imprimer…</button>
     </div>`;
 
   const pick = `<div class="ram-pick">${dispo.map(d => {
@@ -6668,6 +6791,77 @@ function docPrintOk() {
   _docPrintOpts = { filtre: document.getElementById('mdocp-filtre').value, orientation: document.getElementById('mdocp-orient').value };
   closeMod2('mdocprint');
   printDoc(doc.id, { colonnes: _docPrintSel[doc.id], filtre: _docPrintOpts.filtre, orientation: _docPrintOpts.orientation, sort: _docSort });
+}
+
+
+// ── Imprimer la grille élèves × documents (vue globale, et ramassage) ──
+// ⚠️ Même politique que le choix des colonnes d'un document : la sélection vit pour la
+// SESSION, rien dans `S`. Et la liste proposée est celle du ramassage (`_ramDocsDisponibles`),
+// pas une seconde règle à soi : un document archivé, ou dont le retour ne se suit pas, n'a
+// pas plus sa place sur la feuille qu'il n'en a dans les rangs.
+let _gridPrintSel = null;      // ids retenus, ou null = tout ce qui est disponible
+let _gridPrintOpts = { filtre: 'tous', orientation: 'portrait', sort: 'nom', reponses: false, inclurePartis: false };
+
+function openGridPrint() {
+  const cls = getCls();
+  if (!cls) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
+  const dispo = _ramDocsDisponibles(cls.id);
+  if (!dispo.length) return toast('⚠️ Aucun document à imprimer dans cette classe.', 'warn');
+  // Ouvert depuis le ramassage, on part de ce qu'on a en main ; sinon de tout.
+  const pre = _ramSel && _ramSel.length ? _ramSel : (_gridPrintSel || dispo.map(d => d.id));
+  const choisis = new Set(pre.filter(id => dispo.some(d => d.id === id)));
+  document.getElementById('mgridp-docs').innerHTML = dispo.map(d =>
+    `<label class="tagpick" style="background:var(--paper-warm)" title="${_escAttr(d.dateEcheance ? 'À rendre pour le ' + _fmtDateFr(d.dateEcheance) : 'Sans échéance')}">
+      <input type="checkbox" data-gk="${_escAttr(d.id)}"${choisis.has(d.id) ? ' checked' : ''} onchange="_gridPrintRefresh()"> ${_escName(d.titre)}</label>`).join('');
+  // Sélecteur de tri SANS le choix de salle : changer de salle re-rend l'onglet sous la
+  // modale, qui garderait un menu périmé. Un mode caduc replie sur « par nom », comme partout.
+  const cur = _sortModeNorm(_ramSel ? _ramSort : _gridPrintOpts.sort, cls, []);
+  document.getElementById('mgridp-sort').innerHTML = _sortModes(cls)
+    .map(m => `<option value="${_escAttr(m.key)}"${m.key === cur ? ' selected' : ''}>${_escName(m.label)}</option>`).join('');
+  document.getElementById('mgridp-filtre').value = _gridPrintOpts.filtre;
+  document.getElementById('mgridp-orient').value = _gridPrintOpts.orientation;
+  document.getElementById('mgridp-rep').checked = !!_gridPrintOpts.reponses;
+  document.getElementById('mgridp-partis').checked = !!_gridPrintOpts.inclurePartis;
+  openMod('mgridprint');
+  _gridPrintRefresh();
+}
+function _gridPrintChoix() {
+  return [...document.querySelectorAll('#mgridp-docs input[data-gk]')].filter(c => c.checked).map(c => c.dataset.gk);
+}
+function gridPrintTout(on) {
+  for (const c of document.querySelectorAll('#mgridp-docs input[data-gk]')) c.checked = !!on;
+  _gridPrintRefresh();
+}
+function _gridPrintLire() {
+  return { filtre: document.getElementById('mgridp-filtre').value,
+           orientation: document.getElementById('mgridp-orient').value,
+           sort: document.getElementById('mgridp-sort').value,
+           reponses: document.getElementById('mgridp-rep').checked,
+           inclurePartis: document.getElementById('mgridp-partis').checked };
+}
+function _gridPrintRefresh() {
+  const cls = getCls(), box = document.getElementById('mgridp-hint');
+  if (!cls || !box) return;
+  const ids = _gridPrintChoix(), o = _gridPrintLire();
+  const kind = (o.orientation === 'portrait' || o.orientation === 'landscape') ? o.orientation : _docPrintOrientation(ids.length + 1);
+  const n = ids.length ? _gridPrintRows(ids, cls.id, o).length : 0;
+  const resume = `${ids.length} document${ids.length > 1 ? 's' : ''} · ${n} élève${n > 1 ? 's' : ''} · ${kind === 'landscape' ? 'paysage' : 'portrait'}`;
+  const serre = kind === 'portrait' && ids.length >= 5;
+  box.innerHTML = `<strong>${_escName(resume)}</strong><br>Pour un <strong>PDF</strong>, choisissez « Enregistrer au format PDF » comme destination dans la fenêtre d'impression.`
+    + (serre ? `<br>⚠️ ${ids.length} documents en portrait : ce sera serré. Le paysage tient mieux à partir de cinq.` : '')
+    + (ids.length ? (n ? '' : '<br>⚠️ Aucun élève ne correspond à ce filtre.') : '<br>⚠️ Cochez au moins un document.');
+  const ok = document.getElementById('mgridp-ok');
+  if (ok) ok.disabled = !ids.length || !n;
+}
+function gridPrintOk() {
+  const cls = getCls();
+  if (!cls) return;
+  const ids = _gridPrintChoix();
+  if (!ids.length) return toast('⚠️ Cochez au moins un document.', 'warn');
+  _gridPrintSel = ids;
+  _gridPrintOpts = _gridPrintLire();
+  closeMod2('mgridprint');
+  printDocsGrid(cls.id, ids, _gridPrintOpts);
 }
 
 // ── Modale de définition (nouveau / réglages) ──
@@ -7593,6 +7787,32 @@ function printDoc(docId, opts) {
 }
 function _docPrintCellClass(key) {
   return key === 'rendu' ? 'print-c' : key === 'note' ? 'print-rem' : '';
+}
+
+// La grille élèves × documents sur papier. Une colonne par document retenu, trois états
+// par case, un pied qui totalise ce que la feuille montre.
+function printDocsGrid(classId, docIds, opts) {
+  const cls = S.classes[classId];
+  const ids = (Array.isArray(docIds) ? docIds : []).filter(id => S.documents[id]);
+  if (!cls || !ids.length) return toast('⚠️ Choisissez au moins un document.', 'warn');
+  const o = opts || {};
+  const rows = _gridPrintRows(ids, classId, o);
+  if (!rows.length) return toast('⚠️ Aucun élève à imprimer avec ce filtre.', 'warn');
+  const kind = (o.orientation === 'portrait' || o.orientation === 'landscape') ? o.orientation : _docPrintOrientation(ids.length + 1);
+  const tot = _gridPrintTotals(rows, ids.length);
+  const th = ids.map(id => {
+    const d = S.documents[id];
+    const ech = d.dateEcheance ? `<br><small>pour le ${_escName(_fmtDateFr(d.dateEcheance))}</small>` : '';
+    return `<th class="print-c print-doc-th">${_escName(d.titre)}${ech}</th>`;
+  }).join('');
+  const cell = c => `<td class="print-c${c.etat === 'sansobjet' ? ' print-na' : ''}">${_escName(c.txt)}${c.rep ? `<br><small>${_escName(c.rep)}</small>` : ''}</td>`;
+  const html = `<h1>${_escName('Documents — ' + cls.nom)}</h1>
+    <p class="print-sub">${_escName(_gridPrintSubtitle(classId, ids, rows, o))}</p>
+    <table class="print-t"><thead><tr><th>Élève</th>${th}</tr></thead>
+    <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}</td>${r.cells.map(cell).join('')}</tr>`).join('')}</tbody>
+    <tfoot><tr><th>Rendus</th>${tot.map(t => `<th class="print-c">${t.rendus} / ${t.attendus}</th>`).join('')}</tr></tfoot></table>
+    <p class="print-sub">✓ rendu · ☐ pas encore rendu · — sans objet : l'élève n'a pas reçu ce papier.</p>`;
+  _printHTML(html, kind);
 }
 
 function printDocMissing(docId) {

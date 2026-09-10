@@ -176,3 +176,105 @@ test('le PORTRAIT est le défaut — le paysage et l\'automatique restent à un 
   assert.deepStrictEqual((menu.match(/<option value="([a-z]+)"/g) || []).map(m => m.split('"')[1]),
     ['portrait', 'landscape', 'auto'], 'les trois orientations, le portrait en tête');
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LA GRILLE ÉLÈVES × DOCUMENTS SUR PAPIER — la vue globale
+// On ne ramasse pas un document à la fois : c'est une grille qu'on veut en main.
+// Bâtie sur _ramRows, donc ces tests vérifient l'assemblage — pas le calcul du
+// ramassage, déjà tenu par ramassage.test.js.
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('_gridPrintCell : TROIS états, et le tiret n\'est pas une case vide', () => {
+  ev(FIXTURE);
+  const cells = evObj(`_ramRows(['d1','d2'], '5C', 'nom')`);
+  const cell = (sid, i, o) => evObj(`_gridPrintCell(_ramRows(['d1','d2'],'5C','nom').find(r => r.sid === '${sid}').cells[${i}], '${sid}', ${JSON.stringify(o || {})})`);
+  assert.deepStrictEqual(cell('s1', 0), { etat: 'rendu', txt: '✓' });      // rendu
+  assert.deepStrictEqual(cell('s3', 0), { etat: 'attente', txt: '☐' });    // attendu, pas rendu
+  // ⚠️ s4 est parti avant la distribution de d1 : il n'a JAMAIS eu ce papier. Le tiret
+  // le dit ; une case vide le ferait réclamer à quelqu'un qui ne l'a jamais reçu.
+  assert.deepStrictEqual(cell('s4', 0), { etat: 'sansobjet', txt: '—' });
+  assert.strictEqual(cell('s4', 1).etat, 'attente');                        // mais d2, si : il était là
+  assert.ok(cells.length >= 4);
+});
+
+test('_gridPrintCell : les réponses des FAMILLES seulement, et sur demande', () => {
+  ev(FIXTURE);
+  const c = (o) => evObj(`_gridPrintCell(_ramRows(['d1'],'5C','nom').find(r => r.sid === 's1').cells[0], 's1', ${JSON.stringify(o)})`);
+  assert.strictEqual(c({}).rep, undefined);                 // par défaut, la feuille reste une feuille de coches
+  // ⚠️ « Avis PP » est un champ PROF : il n'a rien à faire sur une feuille qu'on promène
+  // dans les rangs. Seuls LATIN (opt1) et DNL (opts) descendent.
+  assert.strictEqual(c({ reponses: true }).rep, 'LATIN · DNL');
+});
+
+test('_gridPrintRows : les élèves partis sont masqués par défaut, retrouvables sur demande', () => {
+  ev(FIXTURE);
+  ev(`S.eleves.s2.departureDate = '2025-09-01'`);            // parti, mais attendu sur d2 (distribué le 02/09 ? non : parti avant)
+  ev(`S.eleves.s3.departureDate = '2099-01-01'`);            // départ futur : toujours actif
+  const ids = o => evObj(`_gridPrintRows(['d1','d2'], '5C', ${JSON.stringify(o)})`).map(r => r.sid);
+  assert.ok(!ids({}).includes('s4'));                        // s4 est parti : hors feuille
+  assert.ok(ids({ inclurePartis: true }).includes('s4'));
+});
+
+test('_gridPrintRows : le filtre « incomplets » ne garde que ceux à qui il manque un papier', () => {
+  ev(FIXTURE);
+  // s1 a rendu d1 ET d2 → complet. s2 a rendu d1 mais pas d2. s3 n'a rien rendu.
+  const ids = evObj(`_gridPrintRows(['d1','d2'], '5C', { filtre:'incomplets' })`).map(r => r.sid);
+  assert.ok(!ids.includes('s1'));
+  assert.deepStrictEqual(ids, ['s2', 's3']);
+});
+
+test('_gridPrintRows : l\'ordre suit le tri demandé, et un tri caduc ne perd personne', () => {
+  ev(FIXTURE);
+  assert.deepStrictEqual(evObj(`_gridPrintRows(['d1'], '5C', { sort:'prenom' })`).map(r => r.sid), ['s3', 's1', 's2']);
+  // ⚠️ Invariant de tout l'app : un tri ne perd JAMAIS un élève.
+  assert.strictEqual(evObj(`_gridPrintRows(['d1'], '5C', { sort:'pat-inconnu' })`).length, 3);
+});
+
+test('_gridPrintTotals : rendus / attendus par colonne, comptés sur les LIGNES IMPRIMÉES', () => {
+  ev(FIXTURE);
+  const t = evObj(`_gridPrintTotals(_gridPrintRows(['d1','d2'], '5C', {}), 2)`);
+  // d1 : s1 et s2 ont rendu, s3 non → 2/3 (s4 parti n'est pas imprimé, et n'était pas attendu).
+  assert.deepStrictEqual(t[0], { rendus: 2, attendus: 3 });
+  // d2 : seul s1 a rendu, sur les trois élèves imprimés de 5C.
+  assert.deepStrictEqual(t[1], { rendus: 1, attendus: 3 });
+  // ⚠️ Le total doit se retrouver en comptant la colonne au-dessus : avec le filtre
+  // « incomplets », s1 disparaît de la feuille ET du total.
+  const f = evObj(`_gridPrintTotals(_gridPrintRows(['d1','d2'], '5C', { filtre:'incomplets' }), 2)`);
+  assert.deepStrictEqual(f[0], { rendus: 1, attendus: 2 });
+});
+
+test('_gridPrintSubtitle : dit ce que la feuille NE montre pas', () => {
+  ev(FIXTURE);
+  const s = ev(`_gridPrintSubtitle('5C', ['d1','d2'], _gridPrintRows(['d1','d2'],'5C',{}), {})`);
+  assert.match(s, /5C/);
+  assert.match(s, /2 documents/);
+  assert.match(s, /3 élèves/);
+  // ⚠️ s4 est masqué parce qu'il est parti : le sous-titre le DIT. Un décompte qui
+  // rétrécit sans raison visible fait chercher une panne qui n'existe pas.
+  assert.match(s, /1 élève parti non imprimé/);
+  assert.ok(!/parti/.test(ev(`_gridPrintSubtitle('5C', ['d1'], [], { inclurePartis:true })`)));
+  assert.match(ev(`_gridPrintSubtitle('5C', ['d1'], [], { filtre:'incomplets' })`), /il leur manque au moins un papier/);
+});
+
+test('_ramDocsDisponibles gouverne la liste : ni archivés, ni documents sans suivi de retour', () => {
+  ev(FIXTURE);
+  // ⚠️ La grille imprimée n'a pas sa propre règle : c'est celle du ramassage. d3 ne suit
+  // pas son retour — une colonne de cases à cocher pour lui ferait courir après rien.
+  assert.deepStrictEqual([...ev(`_ramDocsDisponibles('5C').map(d => d.id)`)], ['d1', 'd2']);
+  ev(`S.documents.d2.archive = true`);
+  assert.deepStrictEqual([...ev(`_ramDocsDisponibles('5C').map(d => d.id)`)], ['d1']);
+});
+
+test('_gridPrintRows : un document PARTAGÉ avec une autre classe n\'y fait pas entrer ses élèves', () => {
+  ev(FIXTURE);
+  // ⚠️ d2 couvre 5C ET 5D, donc `_ramRows` — qui part de `_docExpected` — remonte aussi
+  // s5, de la 5D. Sur une feuille titrée « 5C » que l'on promène dans les rangs de la 5C,
+  // c'est quelqu'un qui n'est pas dans la salle. La grille imprimée est bornée au roster.
+  assert.ok(evObj(`_ramRows(['d2'], '5C', 'nom')`).some(r => r.sid === 's5'), 'sanity : _ramRows le remonte bien');
+  assert.ok(!evObj(`_gridPrintRows(['d2'], '5C', {})`).some(r => r.sid === 's5'));
+  assert.ok(!evObj(`_gridPrintRows(['d2'], '5C', { inclurePartis:true })`).some(r => r.sid === 's5'));
+  // Et il est bien là quand c'est SA classe qu'on imprime.
+  assert.ok(evObj(`_gridPrintRows(['d2'], '5D', {})`).some(r => r.sid === 's5'));
+  // Le sous-titre compte sur la même base : sinon « 3 élèves » au-dessus d'un tableau de 4.
+  assert.match(ev(`_gridPrintSubtitle('5D', ['d2'], _gridPrintRows(['d2'],'5D',{}), {})`), /1 élève/);
+});
