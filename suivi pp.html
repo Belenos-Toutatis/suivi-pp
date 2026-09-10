@@ -1058,6 +1058,7 @@ body.el-projecting #main { padding-top: 8px; }
   .print-t th, .print-t td { border: 1px solid #888; padding: 2pt 4pt; text-align: left; vertical-align: top; }
   .print-t th { background: #eee; font-size: 8.5pt; }
   .print-t tr { page-break-inside: avoid; }
+  .print-c { text-align: center; font-size: 12pt; line-height: 1; }
   .print-rem { white-space: pre-line; min-width: 45mm; }
   .print-list { columns: 2; font-size: 11pt; line-height: 1.8; }
 }
@@ -1547,6 +1548,36 @@ body.el-projecting #main { padding-top: 8px; }
   </div>
 </div>
 
+<!-- ═══════════════ IMPRIMER UN DOCUMENT (ou l'enregistrer en PDF) ═══════════════ -->
+<div id="mdocprint" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();docPrintOk()}">
+    <h2 id="mdocp-title">🖨 Imprimer le document</h2>
+    <div class="fg"><label>Colonnes à imprimer</label>
+      <div id="mdocp-cols" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <div class="tb-hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-g btn-sm" onclick="docPrintTout(true)">Tout cocher</button>
+        <button class="btn btn-g btn-sm" onclick="docPrintTout(false)">Rien</button>
+        <span>La colonne <strong>Élève</strong> reste toujours là — une ligne sans nom ne désigne personne.</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:200px"><label for="mdocp-filtre">Élèves</label>
+        <select id="mdocp-filtre" data-autofocus onchange="_docPrintRefresh()" style="max-width:100%"></select></div>
+      <div class="fg" style="flex:1;min-width:160px"><label for="mdocp-orient">Orientation</label>
+        <select id="mdocp-orient" onchange="_docPrintRefresh()" style="max-width:100%">
+          <option value="auto">automatique</option>
+          <option value="portrait">portrait</option>
+          <option value="landscape">paysage</option>
+        </select></div>
+    </div>
+    <div class="al al-i" id="mdocp-hint"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mdocprint')">Annuler</button>
+      <button class="btn btn-p" id="mdocp-ok" onclick="docPrintOk()">🖨 Imprimer…</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ ÉLECTION — nouvelle / modalités ═══════════════ -->
 <div id="mel" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:600px;width:100%">
@@ -1660,8 +1691,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.8.0';
-const APP_BUILD_DATE = '2026-09-10T04:20:00Z';
+const APP_VERSION    = '1.9.0';
+const APP_BUILD_DATE = '2026-09-10T11:45:00Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5827,6 +5858,119 @@ function _docMissingText(doc) {
   return `${head}\n${names.length} manquant${names.length > 1 ? 's' : ''} sur ${st.attendus} :\n${names.join('\n')}`;
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPRESSION D'UN DOCUMENT — le tableau des retours, sur papier ou en PDF
+// Pas de bibliothèque PDF : l'app est mono-fichier et sans dépendance. Le PDF sort de
+// la fenêtre d'impression du navigateur (« Enregistrer au format PDF » comme
+// destination) — c'est dit dans la modale, sinon personne ne le devine.
+// ⚠️ Le tableau d'un document est LARGE : la fiche d'orientation porte quatre champs,
+// et une feuille qui déborde n'est plus une feuille. D'où le choix des colonnes, qui
+// est le geste demandé, et l'orientation qui s'en déduit.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Colonnes imprimables, dans l'ordre du tableau à l'écran. ⚠️ « Élève » n'est PAS une
+// colonne comme les autres : une ligne sans nom ne désigne personne, et une feuille de
+// suivi anonyme est un déchet de papier. Elle porte `fixe` et ne se décoche pas.
+// Les colonnes proposées suivent le document : pas de « Rendu » si son retour ne se
+// suit pas, pas de « Classe » s'il n'en concerne qu'une.
+function _docPrintColumns(doc) {
+  const cols = [{ key: 'eleve', label: 'Élève', fixe: true }];
+  if ((doc.classIds || []).length > 1) cols.push({ key: 'classe', label: 'Classe' });
+  if (doc.suiviRetour !== false) {
+    cols.push({ key: 'rendu', label: 'Rendu' });
+    cols.push({ key: 'date', label: 'Date de retour' });
+  }
+  for (const c of (doc.champs || [])) cols.push({ key: 'ch:' + c.id, label: c.label || '(sans libellé)', prof: c.par === 'prof' });
+  cols.push({ key: 'note', label: 'Note' });
+  return cols;
+}
+
+// Filtres de lignes RÉELLEMENT disponibles pour ce document. ⚠️ Ils dépendent de lui :
+// « ceux qui n'ont pas rendu » n'a aucun sens sur un document sans suivi de retour, et
+// « ceux dont une réponse manque » n'en a aucun sans champ obligatoire de famille.
+// Offrir un filtre qui ne peut que rendre une page vide, c'est faire chercher la panne.
+function _docPrintFiltres(doc) {
+  const out = [{ key: 'tous', label: 'tous les élèves attendus', suffixe: '' }];
+  if (doc.suiviRetour !== false) out.push({ key: 'manquants', label: 'seulement ceux qui n\'ont pas rendu', suffixe: ' — non rendus' });
+  if ((doc.champs || []).some(c => c.par !== 'prof' && c.obligatoire !== false)) {
+    out.push({ key: 'sansReponse', label: 'seulement ceux dont une réponse manque', suffixe: ' — réponse manquante' });
+  }
+  return out;
+}
+
+// Normalise une sélection de colonnes : on garde l'ORDRE du tableau, on rétablit les
+// colonnes fixes, on écarte les clés inconnues. ⚠️ Indispensable, et pas seulement par
+// prudence : la sélection survit à la session, un champ peut avoir été supprimé entre
+// deux impressions, et une clé morte ferait une colonne vide sans titre.
+// Sélection absente = tout, ce qui est le défaut le plus prévisible.
+function _docPrintKeys(doc, sel) {
+  const veut = Array.isArray(sel) ? new Set(sel.map(String)) : null;
+  return _docPrintColumns(doc).filter(c => c.fixe || !veut || veut.has(c.key)).map(c => c.key);
+}
+
+// Au-delà de cinq colonnes, le portrait serre les libellés jusqu'à l'illisible — mesuré
+// sur la fiche d'orientation (élève + rendu + date + quatre champs + note = 8).
+function _docPrintOrientation(nbColonnes) { return nbColonnes >= 6 ? 'landscape' : 'portrait'; }
+
+// Valeur TEXTE d'une cellule. Pas de HTML ici : la mise en forme se fait au rendu, et
+// une fonction qui rend du texte se teste sans DOM.
+// ⚠️ « Rendu » s'imprime ✓ / ☐ et non « oui » / « non » : la feuille sort souvent AVANT
+// le ramassage, et une case vide se coche au stylo en passant dans les rangs.
+function _docPrintCell(doc, stu, key) {
+  if (key === 'eleve')  return `${stu.nom} ${stu.prenom}`;
+  if (key === 'classe') return S.classes[stu.classe_id]?.nom || stu.classe_id || '';
+  const r = _retour(doc, stu.id);
+  if (key === 'rendu') return r.rendu ? '✓' : '☐';
+  if (key === 'date')  return r.dateRetour ? _fmtDateFr(r.dateRetour) : '';
+  if (key === 'note')  return r.note || '';
+  if (key.startsWith('ch:')) {
+    const c = _champ(doc, key.slice(3));
+    if (!c) return '';
+    const v = r.reponses[c.id];
+    const ids = Array.isArray(v) ? v : (typeof v === 'string' && v ? [v] : []);
+    return ids.map(id => (c.options || []).find(o => o.id === id)?.label || '').filter(Boolean).join(', ');
+  }
+  return '';
+}
+
+// Les lignes à imprimer : les élèves ATTENDUS (pas le roster brut — un élève parti avant
+// la distribution n'a jamais eu le papier), filtrés, puis rangés dans l'ordre demandé.
+// ⚠️ Même moteur de tri que la grille à l'écran, et pour la même raison : on imprime
+// souvent la feuille pour la parcourir dans les rangs, donc elle doit suivre le trajet.
+// ⚠️ Un filtre indisponible sur ce document replie sur « tous » — jamais sur une page
+// vide, qui ferait croire à une classe sans élève.
+function _docPrintRows(doc, keys, opts) {
+  const o = opts || {};
+  const filtres = _docPrintFiltres(doc);
+  const filtre = filtres.some(f => f.key === o.filtre) ? o.filtre : 'tous';
+  const st = _docStats(doc);
+  const garde = filtre === 'manquants' ? new Set(st.manquants)
+              : filtre === 'sansReponse' ? new Set(st.sansReponse) : null;
+  const attendus = _docExpected(doc).filter(s => !garde || garde.has(s.id));
+  const multi = (doc.classIds || []).length > 1;
+  const ordre = _sortStudents(attendus.map(s => s.id), o.sort || 'nom', getCls());
+  const exp = attendus.slice().sort((a, b) =>
+    (multi ? String(S.classes[a.classe_id]?.nom).localeCompare(String(S.classes[b.classe_id]?.nom), 'fr') : 0)
+    || (ordre.indexOf(a.id) - ordre.indexOf(b.id)));
+  return exp.map(s => ({ sid: s.id, cells: (keys || []).map(k => _docPrintCell(doc, s, k)) }));
+}
+
+// Sous-titre de la feuille : ce qu'il faut pour qu'un papier retrouvé trois semaines plus
+// tard se relise seul — quelles classes, quelles dates, où en était le compte, et ce
+// qu'on avait choisi d'imprimer. Rendu en texte, échappé une seule fois à l'affichage.
+function _docPrintSubtitle(doc, filtre, nbLignes) {
+  const bits = [(doc.classIds || []).map(c => S.classes[c]?.nom || c).join(', ')].filter(Boolean);
+  if (doc.dateDistribution) bits.push(`distribué le ${_fmtDateFr(doc.dateDistribution)}`);
+  if (doc.dateEcheance) bits.push(`à rendre pour le ${_fmtDateFr(doc.dateEcheance)}`);
+  const st = _docStats(doc);
+  if (st.rendus !== null) bits.push(`${st.rendus} / ${st.attendus} rendus`);
+  const f = _docPrintFiltres(doc).find(x => x.key === filtre) || { suffixe: '' };
+  bits.push(`${nbLignes} ligne${nbLignes > 1 ? 's' : ''}${f.suffixe}`);
+  bits.push(`imprimé le ${_fmtDateFr(_todayYmd())}`);
+  return bits.join(' · ');
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ONGLET DOCUMENTS — liste, puis tableau des retours d'un document
 // ═══════════════════════════════════════════════════════════════════════════
@@ -6075,9 +6219,10 @@ function _renderDocDetail(el, doc) {
       <strong style="font-family:var(--font-serif);font-size:1.15em">${_escName(doc.titre)}</strong>
       ${doc.archive ? '<span class="tb-hint">(archivé)</span>' : ''}
       <span class="tb-hint">${_escName((doc.classIds || []).map(c => S.classes[c]?.nom || c).join(', '))}${doc.dateDistribution ? ` · distribué le ${_escName(_fmtDateFr(doc.dateDistribution))}` : ''}${doc.dateEcheance ? ` · à rendre pour le ${_escName(_fmtDateFr(doc.dateEcheance))}` : ''}</span>
-      <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         ${suivi ? `<span class="badge${st.manquants.length ? ' warn' : ' ok'}">${st.rendus} / ${st.attendus} rendus</span>` : ''}
         ${suivi && st.manquants.length ? `<button class="btn btn-w btn-sm" onclick="openDocMissing('${_escJsAttr(doc.id)}')" title="La liste des élèves qui n'ont pas rendu, à copier pour la vie scolaire">📋 ${st.manquants.length} manquant${st.manquants.length > 1 ? 's' : ''}</button>` : ''}
+        <button class="btn btn-g btn-sm" onclick="openDocPrint('${_escJsAttr(doc.id)}')" title="Imprimer ce tableau — ou l'enregistrer en PDF — en choisissant les colonnes (Ctrl+P)">🖨 Imprimer…</button>
         <button class="btn btn-g btn-sm" onclick="openDocEdit('${_escJsAttr(doc.id)}')" title="Réglages du document">✏️ Réglages</button>
       </span>
     </div>
@@ -6446,6 +6591,74 @@ async function docMissingCopy() {
   const ta = document.getElementById('mmiss-txt');
   try { await navigator.clipboard.writeText(ta.value); toast('📋 Liste copiée.'); }
   catch (_) { ta.focus(); ta.select(); toast('Sélectionnée — Ctrl+C pour copier.', 'info'); }
+}
+
+
+// ── Imprimer / exporter en PDF le tableau d'un document ──
+// ⚠️ La sélection de colonnes vit pour la SESSION, pas dans `S` : comme celle du
+// ramassage, elle ne décrit pas la classe mais le geste en cours. Une section de plus
+// dans `S` serait une section de plus à valider, à purger et à migrer — pour mémoriser
+// une case cochée.
+let _docPrintSel = {};                                        // { [docId]: [clés] }
+let _docPrintOpts = { filtre: 'tous', orientation: 'auto' };
+let _docPrintId = null;
+
+function openDocPrint(docId) {
+  const doc = S.documents[docId];
+  if (!doc) return;
+  _docPrintId = docId;
+  document.getElementById('mdocp-title').textContent = `🖨 Imprimer — ${doc.titre}`;
+  const cols = _docPrintColumns(doc);
+  const choisies = new Set(_docPrintKeys(doc, _docPrintSel[docId]));
+  document.getElementById('mdocp-cols').innerHTML = cols.map(c =>
+    // ⚠️ La colonne fixe se signale par un cadenas, PAS par une opacité : grisée à .75,
+    // son libellé tombait à 3,01:1 en thème clair (mesuré). L'exemption WCAG des composants
+    // inactifs vaut pour la CASE, qui est bien `disabled` — pas pour le mot qu'il faut lire.
+    `<label class="tagpick" style="background:var(--paper-warm)${c.fixe ? ';cursor:default' : ''}" title="${c.fixe ? 'Toujours imprimée : une ligne sans nom ne désigne personne' : (c.prof ? 'Champ rempli par le professeur principal' : 'Colonne du tableau')}">
+      <input type="checkbox" data-ck="${_escAttr(c.key)}"${choisies.has(c.key) ? ' checked' : ''}${c.fixe ? ' disabled' : ''} onchange="_docPrintRefresh()"> ${c.fixe ? '🔒 ' : ''}${c.prof ? '👤 ' : ''}${_escName(c.label)}</label>`).join('');
+  const filtres = _docPrintFiltres(doc);
+  const fsel = document.getElementById('mdocp-filtre');
+  fsel.innerHTML = filtres.map(f => `<option value="${_escAttr(f.key)}"${f.key === _docPrintOpts.filtre ? ' selected' : ''}>${_escName(f.label)}</option>`).join('');
+  if (!filtres.some(f => f.key === _docPrintOpts.filtre)) fsel.value = 'tous';
+  document.getElementById('mdocp-orient').value = _docPrintOpts.orientation;
+  openMod('mdocprint');
+  _docPrintRefresh();
+}
+// Les colonnes cochées, dans l'ordre du tableau — la case fixe étant `disabled`, elle
+// ne remonte pas d'elle-même : `_docPrintKeys` la rétablit.
+function _docPrintChoix() {
+  return [...document.querySelectorAll('#mdocp-cols input[data-ck]')].filter(c => c.checked).map(c => c.dataset.ck);
+}
+function docPrintTout(on) {
+  for (const c of document.querySelectorAll('#mdocp-cols input[data-ck]:not([disabled])')) c.checked = !!on;
+  _docPrintRefresh();
+}
+// Ce que donnera l'impression, AVANT de l'envoyer : nombre de colonnes, de lignes, et
+// orientation retenue. Sans ce compte, on découvre au papier qu'un filtre ne rendait
+// qu'une ligne — ou que huit colonnes sont parties en portrait.
+function _docPrintRefresh() {
+  const doc = S.documents[_docPrintId];
+  const box = document.getElementById('mdocp-hint');
+  if (!doc || !box) return;
+  const keys = _docPrintKeys(doc, _docPrintChoix());
+  const filtre = document.getElementById('mdocp-filtre').value;
+  const orient = document.getElementById('mdocp-orient').value;
+  const kind = (orient === 'portrait' || orient === 'landscape') ? orient : _docPrintOrientation(keys.length);
+  const n = _docPrintRows(doc, ['eleve'], { filtre, sort: _docSort }).length;
+  const resume = `${keys.length} colonne${keys.length > 1 ? 's' : ''} · ${n} ligne${n > 1 ? 's' : ''} · ${kind === 'landscape' ? 'paysage' : 'portrait'}`;
+  box.innerHTML = `<strong>${_escName(resume)}</strong><br>Pour un <strong>PDF</strong>, choisissez « Enregistrer au format PDF » comme destination dans la fenêtre d'impression.`
+    + (n ? '' : '<br>⚠️ Aucun élève ne correspond à ce filtre.');
+  const ok = document.getElementById('mdocp-ok');
+  if (ok) ok.disabled = !n;
+}
+function docPrintOk() {
+  const doc = S.documents[_docPrintId];
+  if (!doc) return;
+  const choix = _docPrintChoix();
+  _docPrintSel[doc.id] = _docPrintKeys(doc, choix);
+  _docPrintOpts = { filtre: document.getElementById('mdocp-filtre').value, orientation: document.getElementById('mdocp-orient').value };
+  closeMod2('mdocprint');
+  printDoc(doc.id, { colonnes: _docPrintSel[doc.id], filtre: _docPrintOpts.filtre, orientation: _docPrintOpts.orientation, sort: _docSort });
 }
 
 // ── Modale de définition (nouveau / réglages) ──
@@ -7345,6 +7558,34 @@ function printSynthese() {
       <td class="print-rem">${_printContactHTML(r)}${_escName(r.remarque)}</td></tr>`).join('')}</tbody></table>`;
   _printHTML(html, 'landscape');
 }
+// Le tableau des retours sur papier. Les colonnes viennent de la modale, l'ordre du tri
+// courant de l'écran — c'est la même feuille qu'on a sous les yeux, en plus étroit.
+function printDoc(docId, opts) {
+  const doc = S.documents[docId];
+  if (!doc) return;
+  const o = opts || {};
+  const keys = _docPrintKeys(doc, o.colonnes);
+  const cols = _docPrintColumns(doc).filter(c => keys.includes(c.key));
+  const filtres = _docPrintFiltres(doc);
+  const filtre = filtres.some(f => f.key === o.filtre) ? o.filtre : 'tous';
+  const rows = _docPrintRows(doc, keys, { filtre, sort: o.sort });
+  if (!rows.length) return toast('⚠️ Aucun élève à imprimer avec ce filtre.', 'warn');
+  const kind = (o.orientation === 'portrait' || o.orientation === 'landscape') ? o.orientation : _docPrintOrientation(keys.length);
+  // ⚠️ « 👤 » ne s'imprime pas : l'emoji sort en noir plein ou en carré selon la police
+  // installée. Sur le papier, l'avis du PP se marque en toutes lettres.
+  const th = cols.map(c => `<th>${c.prof ? 'PP — ' : ''}${_escName(c.label)}</th>`).join('');
+  const td = (k, v) => `<td class="${_docPrintCellClass(k)}">${k === 'eleve' ? `<strong>${_escName(v)}</strong>` : _escName(v)}</td>`;
+  const html = `<h1>${_escName(doc.titre)}</h1>
+    <p class="print-sub">${_escName(_docPrintSubtitle(doc, filtre, rows.length))}</p>
+    ${doc.description ? `<p class="print-sub">${_escName(doc.description)}</p>` : ''}
+    <table class="print-t"><thead><tr>${th}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${r.cells.map((v, i) => td(keys[i], v)).join('')}</tr>`).join('')}</tbody></table>`;
+  _printHTML(html, kind);
+}
+function _docPrintCellClass(key) {
+  return key === 'rendu' ? 'print-c' : key === 'note' ? 'print-rem' : '';
+}
+
 function printDocMissing(docId) {
   const d = S.documents[docId];
   if (!d) return;
@@ -8581,7 +8822,11 @@ document.addEventListener('keydown', e => {
     const tab = document.querySelector('.tab.on')?.id.replace('tab-', '');
     if (tab === 'synthese') { e.preventDefault(); printSynthese(); return; }
     if (tab === 'delegues' && _elCurrent()?.clos) { e.preventDefault(); electionPrintPV(); return; }
-    if (tab === 'documents' && _docView && S.documents[_docView]) { e.preventDefault(); printDocMissing(_docView); return; }
+    // ⚠️ Sur un document ouvert, Ctrl+P ouvre le choix des COLONNES plutôt que d'imprimer
+    // droit : le tableau est large, et une feuille de huit colonnes partie sans avoir été
+    // choisie est une feuille jetée. La liste des manquants reste à un clic, dans sa
+    // propre modale 📋.
+    if (tab === 'documents' && _docView && S.documents[_docView]) { e.preventDefault(); openDocPrint(_docView); return; }
   }
 });
 

@@ -395,6 +395,29 @@ Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group
 3. **📄 Documents** — liste des documents (avec compteurs `rendus / attendus` et `réponses manquantes`), puis un tableau par document : élèves × (`Rendu` · `Date` · un groupe de colonnes par champ). Bouton « liste des manquants » (à copier ou imprimer pour la vie scolaire).
    ⚠️ **Un document ne se « ramasse » pas toujours** : très souvent on VÉRIFIE qu'une signature est là, carnet par carnet, en passant dans les rangs. Le tableau d'un document porte donc le même sélecteur de tri que les autres grilles — place et ordre de ramassage compris.
    **🧺 Ramassage** — le geste réel n'est pas « un document à la fois » : on passe dans les rangs avec trois papiers différents à récupérer. D'où une troisième vue de l'onglet, une grille **élèves × documents** où l'on coche les retours de plusieurs documents en une seule passe. Colonnes choisies à la volée, date du ramassage réglable (on saisit souvent le soir), compteurs vivants par colonne et par élève, « tout cocher » par colonne, flèches pour descendre une colonne.
+   - **Imprimer, ou enregistrer en PDF** (v1.9.0) — le tableau des retours part sur le papier
+     avec **les colonnes qu'on choisit**. ⚠️ Il n'y a **aucune bibliothèque PDF** : l'app est
+     mono-fichier et sans dépendance, le PDF sort de la fenêtre d'impression du navigateur
+     (« Enregistrer au format PDF » comme destination). C'est **dit dans la modale**, sinon
+     personne ne le devine — et « exporter un PDF » était la demande, pas « imprimer ».
+     - ⚠️ **Le choix des colonnes n'est pas un confort** : la fiche d'orientation fait huit
+       colonnes, et une feuille qui déborde n'est plus une feuille. L'orientation s'en déduit
+       (`_docPrintOrientation` : paysage à partir de six), réglable à la main.
+     - ⚠️ **« Élève » ne se décoche pas.** Une ligne sans nom ne désigne personne, et une
+       feuille de suivi anonyme est un déchet de papier. Elle porte `fixe`, et
+       `_docPrintKeys` la **rétablit** même absente de la sélection.
+     - ⚠️ **Le retour s'imprime `☐` / `✓`**, jamais « oui » / « non » : la feuille sort
+       souvent AVANT le ramassage et se coche au stylo dans les rangs.
+     - ⚠️ **Un filtre indisponible replie sur « tous »**, jamais sur une page vide : un
+       document sans suivi de retour a une liste de manquants vide *par construction*, et
+       prendre le filtre au mot ferait chercher la panne du côté de la classe.
+       `_docPrintFiltres` n'offre d'ailleurs que ce que le document permet.
+     - Les colonnes se retiennent **pour la session**, par document (`_docPrintSel`) — rien
+       dans `S` : comme la sélection de ramassage, elles décrivent le geste, pas la classe.
+       Une clé morte (champ supprimé entre deux impressions) est écartée à la relecture.
+     - `Ctrl+P` sur un document ouvert ouvre **le choix des colonnes**, pas l'impression
+       directe : une feuille de huit colonnes partie sans avoir été choisie est une feuille
+       jetée. La liste des manquants reste dans sa propre modale 📋.
    - ⚠️ **Une case a TROIS états.** Rendu, pas rendu, et **sans objet** — l'élève arrivé en novembre n'a jamais eu la fiche de rentrée, celui parti en mars n'a pas eu la fiche d'orientation. Un tiret, pas une case vide : confondre les deux, c'est réclamer un papier à quelqu'un qui ne l'a jamais reçu. `ramSetRendu` **refuse** d'écrire pour un élève non attendu.
    - ⚠️ **Salve d'undo** (`_ramArmUndo`, motif `_relArmUndo`) : cocher vingt-cinq cases est UN geste. Sans elle, une seule passe viderait la pile de quinze niveaux. En revanche « tout cocher une colonne » est un acte délibéré et massif → son propre `pushUndo()`, et **rien n'est empilé si la colonne était déjà dans l'état demandé**.
    - ⚠️ **Pas de re-rendu à chaque case** : la grille se reconstruirait sous le curseur en pleine passe. Seuls les compteurs sont rafraîchis (`_ramRefreshCounters`).
@@ -589,6 +612,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 19 | **Impression d'un document** avec choix des colonnes : calcul pur (`_docPrintColumns`, `_docPrintKeys`, `_docPrintFiltres`, `_docPrintCell`, `_docPrintRows`, `_docPrintSubtitle`) testé avant l'UI (11 tests), modale de sélection, orientation déduite, PDF par la fenêtre d'impression | ✅ **fait** (2026-09-10, v1.9.0) |
 | 18 | **Installable comme application** : 5 icônes PNG générées par script, manifeste complet (`id`, `icons` `any` + `maskable`), icône iOS liée, préchargement des icônes tolérant aux absences, 8 tests dont la mesure réelle des dimensions dans l'IHDR | ✅ **fait** (2026-09-10, v1.8.0) |
 | 17 | Colonne **Naissance** saisissable en série · **touches de saisie** du carnet · fiche : Documents repliable avec les choix visibles · **années à deux chiffres** complétées | ✅ **fait** (2026-09-09, v1.7.0) |
 | 16 | **Fiche élève complète** au clic sur le nom (`_ficheAge`, `_fichePlaces`, `_ficheCarnet`, `_ficheDocuments`, `_ficheElections`) | ✅ **fait** (2026-09-09, v1.6.0) |
@@ -684,6 +708,22 @@ Trouvé par le test de la synthèse, corrigé dans les élections :
    siège vacant signalé. Test ajouté. Leçon : un test d'un autre onglet a vu ce que les 21
    tests de l'arithmétique, tous écrits avec quatre candidats, ne pouvaient pas voir — les
    fixtures se ressemblent trop entre elles.
+
+**2026-09-10, v1.9.0 (impression d'un document) : 0 écart**, clair et sombre — la modale de
+choix des colonnes (huit colonnes de la fiche d'orientation, les trois filtres, les deux
+sélecteurs) et le tableau derrière elle, plus la même passe en **320 px**.
+
+Deux défauts trouvés, tous deux **des rappels des règles déjà écrites ici** :
+16. **Le libellé de la colonne fixe à 3,01:1.** Je l'avais grisé à `opacity:.75` pour dire
+   « verrouillée ». Or l'exemption WCAG des composants inactifs vaut pour la CASE — bien
+   `disabled` — pas pour le mot qu'il faut lire à côté. → cadenas 🔒 et contraste plein.
+   L'opacité dit « indisponible » ; elle ne doit jamais dire « obligatoire ».
+17. **44 px de débordement horizontal à 320 px**, causés par le bouton ajouté : le `<span>`
+   de fin de la barre du document est en `display:flex` **sans `flex-wrap`**, donc il pousse
+   la page au lieu de passer à la ligne. Même famille que les défauts 11 à 13 — *un contenu
+   qui pousse la page au lieu de défiler dans son cadre*. Mesuré : 364 px pour 320 de large,
+   ramené à 320 après `flex-wrap:wrap`. ⚠️ **Un bouton de plus dans une barre en `flex` est
+   un test responsive à refaire**, si petit soit-il.
 
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la
