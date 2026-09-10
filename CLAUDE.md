@@ -85,6 +85,7 @@ Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sono
 - `index.html` — redirection depuis la racine GitHub Pages (meta refresh + `location.replace`), pour éviter l'URL avec `%20`
 - `.nojekyll` — **indispensable**, sinon Jekyll prend `README.md` comme index et ignore `index.html`
 - `manifest.json`, `sw.js` (network-first)
+- `icons/` — les 5 PNG d'installation (192 et 512 en `any` et `maskable`, plus l'icône iOS 180)
 - `README.md`, `LICENSE` (MIT), `CLAUDE.md`
 - `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
 - `test/harness.js`, `test/*.test.js`, `package.json` (`npm test` → `node --test "test/*.test.js"`)
@@ -588,6 +589,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 18 | **Installable comme application** : 5 icônes PNG générées par script, manifeste complet (`id`, `icons` `any` + `maskable`), icône iOS liée, préchargement des icônes tolérant aux absences, 8 tests dont la mesure réelle des dimensions dans l'IHDR | ✅ **fait** (2026-09-10, v1.8.0) |
 | 17 | Colonne **Naissance** saisissable en série · **touches de saisie** du carnet · fiche : Documents repliable avec les choix visibles · **années à deux chiffres** complétées | ✅ **fait** (2026-09-09, v1.7.0) |
 | 16 | **Fiche élève complète** au clic sur le nom (`_ficheAge`, `_fichePlaces`, `_ficheCarnet`, `_ficheDocuments`, `_ficheElections`) | ✅ **fait** (2026-09-09, v1.6.0) |
 | 15 | Tri aussi dans le **tableau d'un document** (vérifier des signatures dans les rangs) · **date de naissance** + départage automatique par l'âge · **journal des contacts** avec les familles | ✅ **fait** (2026-09-09, v1.5.0) |
@@ -795,6 +797,48 @@ trois règles responsive ci-dessus. Avec leur méta-test : trois ensembles vides
 ⚠️ Et ce qui n'existe nulle part n'est jamais mesuré : les deux défauts ci-dessus dormaient
 depuis les étapes 2 et 5. **Une donnée de démo exhaustive est un instrument d'audit**, pas
 seulement une commodité d'accueil.
+
+## Installation comme application (PWA)
+
+Installable depuis la v1.8.0. Tout le reste était en place depuis l'étape 1 — manifeste,
+service worker, métas iOS : **il ne manquait que les icônes**, et c'est justement le seul
+critère qui bloque tout.
+
+- ⚠️ **Chrome REFUSE d'installer une PWA sans icône PNG d'au moins 192 px déclarée dans le
+  manifeste.** Un favicon SVG en `data:`, même parfait, ne satisfait pas ce critère : le
+  menu « Installer » n'apparaît simplement pas, sans le moindre message. Il faut de VRAIS
+  fichiers PNG, en 192 **et** 512.
+- ⚠️ **`purpose: "maskable"` n'est pas un doublon décoratif.** Android rogne l'icône dans un
+  cercle de 80 % du côté : une icône dessinée bord à bord perd ses coins. La version
+  maskable porte donc le même dessin, plus petit, centré dans ce cercle, sur un fond qui va
+  bord à bord. Les deux `purpose` coexistent — sans `any`, les surfaces qui ne masquent pas
+  afficheraient l'icône rétrécie au milieu de son fond.
+- ⚠️ **iOS IGNORE totalement les icônes du manifeste.** Sans `<link rel="apple-touch-icon">`,
+  « Ajouter à l'écran d'accueil » sur iPhone pose une **capture de la page** comme icône.
+  Et ce fichier-là est un **carré plein** : iOS applique son propre masque arrondi, donc des
+  coins transparents fournis par nous s'afficheraient en noir.
+- ⚠️ **Les icônes se préchargent dans `sw.js`.** Une app installée dont l'icône n'est pas en
+  cache la perd au premier lancement hors-ligne, et l'OS ne va pas la rechercher plus tard :
+  il garde le carré vide.
+- ⚠️ **`cache.addAll` est écarté au profit d'un `add` par fichier.** `addAll` rejette EN BLOC
+  dès qu'une ressource répond 404 : l'installation du service worker échoue entièrement et
+  l'app perd le hors-ligne **sans que rien ne le signale**. Un fichier renommé et oublié dans
+  `FILES` ne doit coûter que sa propre absence. L'échec est toléré, jamais silencieux
+  (`console.warn`).
+- Le dessin reprend **littéralement le favicon** (page claire, filet rouge de marge, lignes
+  Seyès) : une icône qui ne ressemble pas à l'écran qu'elle ouvre ne se reconnaît pas dans une
+  grille de trente. Seules les lignes ont été assombries — le `#c8d2e0` du favicon, calibré
+  pour un onglet de navigateur, disparaît à 48 px sur un écran d'accueil ; l'icône utilise
+  `#64768d`.
+- Les icônes sont **générées par script** (`scripts/gen_icons.py`, PIL, supersampling ×4),
+  pas dessinées à la main : refaire les cinq tailles après une retouche de couleur doit être
+  une commande, pas une séance.
+
+⚠️ **Le test qui compte** (`test/pwa.test.js`) lit les dimensions RÉELLES dans le chunk IHDR
+de chaque PNG et les compare à ce que `sizes` déclare. Un manifeste qui annonce 512×512 en
+pointant une image de 48 px passe toute vérification textuelle et fait échouer l'installation
+en silence. Vérifié non vacant : icône réduite à 48 px → test 264 tombe ; lien iOS retiré →
+265 ; icône sortie du préchargement → 266.
 
 ## Version & publication
 

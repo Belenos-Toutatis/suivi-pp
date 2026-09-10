@@ -10,6 +10,23 @@ fichiers que vous exportez vous-même.
 
 👉 **[Lancer l'application](https://belenos-toutatis.github.io/suivi-pp/suivi%20pp.html)**
 
+### L'installer comme une application
+
+Elle s'installe sur le téléphone, la tablette ou l'ordinateur : elle s'ouvre alors en
+plein écran, sans barre d'adresse, avec sa propre icône, et **fonctionne sans connexion**
+— utile en salle où le wifi ne porte pas.
+
+| Appareil | Geste |
+|---|---|
+| **Android** (Chrome, Edge) | Ouvrir le lien, puis le menu **⋮** → *Installer l'application* — ou la bannière « Installer » qui s'affiche d'elle-même. |
+| **iPhone / iPad** | ⚠️ **Safari obligatoire** (Chrome sur iOS ne sait pas le faire). Bouton **Partager** ⬆️ → *Sur l'écran d'accueil*. |
+| **Ordinateur** (Chrome, Edge) | L'icône **⊕** dans la barre d'adresse, ou le menu **⋮** → *Installer*. |
+| **Firefox** | Pas d'installation possible : Firefox ne l'implémente pas sur ordinateur. L'app reste parfaitement utilisable dans un onglet. |
+
+Les données restent **dans le navigateur de l'appareil**. Installer l'app ne les envoie
+nulle part, et ne les synchronise pas non plus entre appareils : pour cela, il y a la
+sauvegarde dans un dossier Nextcloud (onglet 💾 Données).
+
 ---
 
 ## Ce que l'app fait

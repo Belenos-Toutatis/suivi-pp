@@ -1,8 +1,30 @@
-const CACHE = 'suivi-pp-v1';
-const FILES = ['suivi pp.html', 'manifest.json'];
+const CACHE = 'suivi-pp-v2';
+// ⚠️ Les ICÔNES sont préchargées comme le reste. Une app installée dont l'icône
+// n'est pas en cache perd son icône au premier lancement hors-ligne : l'OS ne va
+// pas la rechercher plus tard, il garde le carré vide. C'est aussi ce que sert
+// l'écran de démarrage (background_color + icône) pendant que l'app se charge.
+const FILES = [
+  'suivi pp.html',
+  'index.html',
+  'manifest.json',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-maskable-192.png',
+  'icons/icon-maskable-512.png',
+  'icons/apple-touch-icon-180.png',
+];
 
+// ⚠️ Fichier par fichier, PAS `addAll` : celui-ci rejette EN BLOC dès qu'une seule
+// ressource répond 404, et l'installation entière échoue — le service worker ne
+// s'active jamais et l'app perd le hors-ligne sans que rien ne le signale. Un
+// fichier renommé et oublié ici ne doit coûter que sa propre absence, pas tout le
+// cache. L'échec est donc toléré, mais JAMAIS silencieux.
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(
+    FILES.map(f => c.add(f).catch(err => {
+      console.warn('[sw] préchargement impossible :', f, err && err.message);
+    }))
+  )));
   self.skipWaiting();
 });
 

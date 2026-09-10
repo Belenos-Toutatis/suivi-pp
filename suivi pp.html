@@ -22,13 +22,20 @@
 <link rel="manifest" href="manifest.json">
 <!-- Favicon en data: SVG — évite un 404 sur /favicon.ico et donne son identité à
      l'onglet sans ajouter de fichier. `img-src 'self' data:` de la CSP l'autorise.
-     ⚠️ Ne remplace PAS les icônes du manifest (192/512 px, fichiers réels), encore
-     à produire : sans elles, l'installation PWA reste possible mais sans icône propre. -->
+     ⚠️ Ne remplace PAS les icônes du manifest : Chrome REFUSE d'installer une PWA
+     dont le manifeste n'offre aucune icône PNG d'au moins 192 px. Elles sont dans
+     icons/ depuis la v1.8.0 ; un favicon SVG ne satisfait pas ce critère. -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23f4f6fa'/%3E%3Crect x='6' y='3' width='2' height='26' fill='%23b03d2e'/%3E%3Cg stroke='%23c8d2e0' stroke-width='1.6'%3E%3Cpath d='M10 10h16M10 16h16M10 22h11'/%3E%3C/g%3E%3C/svg%3E">
 <meta name="theme-color" content="#1a252f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Suivi PP">
+<!-- ⚠️ iOS IGNORE totalement les icônes du manifest. Sans ce lien, « Ajouter à
+     l'écran d'accueil » sur iPhone/iPad pose une CAPTURE de la page comme icône.
+     Carré plein sans coins arrondis : iOS applique son propre masque, et des coins
+     transparents fournis par nous s'afficheraient en noir. -->
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
@@ -1653,8 +1660,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.7.2';
-const APP_BUILD_DATE = '2026-09-10T04:00:29Z';
+const APP_VERSION    = '1.8.0';
+const APP_BUILD_DATE = '2026-09-10T04:20:00Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
