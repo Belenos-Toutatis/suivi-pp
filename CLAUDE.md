@@ -91,7 +91,6 @@ Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sono
 - `icons/` — les 5 PNG d'installation (192 et 512 en `any` et `maskable`, plus l'icône iOS 180)
 - `README.md`, `LICENSE` (MIT), `CLAUDE.md`
 - `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
-- `.sync-exclude.lst` — **retire ce dossier de la synchronisation Nextcloud** (cf. *Deux machines, un seul transport*)
 - `test/harness.js`, `test/*.test.js`, `package.json` (`npm test` → `node --test "test/*.test.js"`)
   ⚠️ Le glob, pas `node --test test/` : sous Node 22, l'argument-répertoire `test` échoue en `MODULE_NOT_FOUND`. Le glob a en prime l'avantage de n'exécuter que les `*.test.js`, donc `harness.js` n'est plus compté comme un test.
 
@@ -892,42 +891,49 @@ seulement une commodité d'accueil.
 ⚠️ **Ce dossier vit dans une arborescence Nextcloud, mais il ne doit PAS être synchronisé
 par Nextcloud.** Il est un dépôt git, et git assure déjà le transport entre les postes via
 `github.com/Belenos-Toutatis/suivi-pp`. Deux mécanismes qui recopient les mêmes fichiers
-sans rien savoir l'un de l'autre, c'est une panne qui attend son heure.
+sans rien savoir l'un de l'autre, c'est une panne qui attend son heure : le 2026-06-19,
+cinq fichiers **internes de `.git`** sont entrés en conflit dans le projet voisin.
 
-Ce n'est pas théorique — mesuré le 2026-09-10 sur le journal du client :
+### Où se pose l'exclusion — et où elle ne sert à RIEN
 
-- **232 entrées** de ce projet suivies par Nextcloud, dont **176 dans `.git`** ;
-- trois fichiers réécrits en **CRLF** par-dessus la version posée par git, donnant un diff de
-  **10 824 lignes pour zéro changement réel** — `git diff --ignore-all-space` était vide ;
-- une **copie de conflit de la base de sync elle-même** (`.sync_*.sync-conflict-20260619`).
+⚠️ **Le client ne lit qu'UN fichier d'exclusion « dans l'arbre » : `~/Nextcloud/.sync-exclude.lst`,
+à la RACINE du dossier synchronisé.** Un `.sync-exclude.lst` déposé dans un sous-dossier est
+**inerte** — il n'est même pas lu, il est synchronisé comme un fichier ordinaire.
 
-Le diff n'est que le symptôme visible. Le vrai danger est un `.git` livré à moitié pendant
-que git écrit dedans : là, on ne répare pas à la main.
+C'est l'erreur commise le 2026-09-10 : le nom `.sync-exclude.lst` apparaît dans le binaire du
+client, j'en ai conclu qu'il marchait partout. **Le nom d'un fichier dans un binaire dit qu'il
+est connu, pas où il est cherché.** Corrigé après que l'utilisateur a signalé que la
+vérification ne renvoyait pas zéro.
 
-**Le dispositif** : un fichier `.sync-exclude.lst` à la racine du dossier, contenant `*`
-et `.*`. Le client Nextcloud (vérifié sur 4.0.6 : la chaîne `.sync-exclude.lst` est bien
-dans le binaire, et il n'existe pas de marqueur `.nosync`) lit ce fichier et ignore le
-dossier et tout son contenu.
+La règle est donc, à la racine (`~/Nextcloud/.sync-exclude.lst`), un chemin relatif :
 
-⚠️ **Le fichier est VERSIONNÉ, exprès.** Il arrive donc sur les autres machines par
-`git pull`, et l'exclusion s'y applique sans que personne ait à y penser. C'est le seul
-chemin possible : une fois l'exclusion active, Nextcloud ne peut plus le livrer lui-même.
+```
+gestion élèves/PP/Suivi PP
+```
 
-⚠️ **Pour toute instance travaillant sur une autre machine** — la marche à suivre, une fois
-le `git pull` fait :
+💡 **Ce fichier est lui-même synchronisé par Nextcloud** : il atteint donc les autres machines
+tout seul, sans git et sans geste. Et le client l'a relu **sans redémarrage** (constaté :
+exclusion effective en moins de 12 s).
 
-1. **Redémarrer le client Nextcloud.** La liste d'exclusion est lue au démarrage ; tant
-   qu'il tourne, il continue de synchroniser comme avant.
-2. **Vérifier**, plutôt que supposer, en interrogeant le journal du client :
-   `sqlite3 "file:$HOME/Nextcloud/.sync_*.db?mode=ro&immutable=1" "SELECT count(*) FROM metadata WHERE path LIKE '%Suivi PP%';"`
-   Le compte doit tomber à zéro (232 avant l'exclusion sur le poste Linux).
-3. **Ne rien supprimer côté serveur.** Une copie devenue périmée là-bas ne gêne personne, et
-   GitHub fait autorité.
+⚠️ **Les dossiers de DONNÉES ne sont pas visés.** `gestion élèves/PP/Suivi PP json/`
+(9 fichiers) est un dossier VOISIN, pas un sous-dossier : le motif ne l'atteint pas, et sa
+synchronisation continue. C'est le partage à garder en tête — **le code par git, les données
+par Nextcloud**, et les deux ne se croisent jamais.
 
-⚠️ **Ce qui n'est PAS concerné** : les données d'élèves de l'app (`suivi-pp-*.json`) ne
-vivent pas dans ce dossier — elles ont le leur, et leur synchronisation Nextcloud continue
-telle quelle. C'est même le point : Nextcloud reste le bon outil pour les DONNÉES, git
-pour le CODE.
+### Comment le VÉRIFIER — deux pièges de mesure
+
+⚠️ **Compter les entrées du journal de sync ne prouve RIEN.** La table `metadata` est un
+registre de ce qui a été synchronisé par le passé ; elle ne se vide pas quand on exclut. Le
+compte est resté à 222 alors que l'exclusion était en place.
+
+⚠️ **Et lire ce journal avec `immutable=1` renvoie un instantané PÉRIMÉ** : SQLite ignore
+alors le WAL, où sont justement les écritures récentes. Il faut copier les trois fichiers
+(`.db`, `-wal`, `-shm`) et interroger la copie.
+
+**Le seul test valable est une SONDE, avec son TÉMOIN** : déposer un fichier dans le dossier
+censé être exclu *et* un autre dans un dossier certainement synchronisé, puis regarder lequel
+arrive. Sans le témoin, « rien n'est arrivé » peut simplement vouloir dire que le client ne
+tournait pas — c'est exactement ce qui s'est produit à la première tentative.
 
 ⚠️ **Corollaire à ne pas perdre de vue** : le dossier n'est plus sauvegardé par Nextcloud.
 Le filet, c'est GitHub — donc **le travail non commité n'est protégé par rien**. Commiter
