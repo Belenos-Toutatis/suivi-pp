@@ -43,6 +43,7 @@ Quatre enseignements tirés de ces fichiers, tous structurants :
 | Bornes de période (2026-09-09) | `prefs.periodStarts = { semestre: ['02-01'], trimestre: ['12-01','03-15'] }` — début des périodes 2 et 3 en `MM-DD`, défauts à confirmer avec le calendrier de l'établissement. L'année scolaire va du 1er août au 31 juillet. |
 | Ramassage (2026-09-09) | On ramasse plusieurs documents **en même temps**, donc on doit pouvoir valider les retours **sur un seul écran**. Grille élèves × documents dans l'onglet Documents, une case par croisement. ⚠️ La case a **trois** états, pas deux : rendu, pas rendu, et **sans objet** (l'élève n'était pas là à la date du document). Seul le retour se coche ici — les réponses portées sur le papier restent dans le tableau du document. |
 | Données de démo (2026-09-09) | Posées **au premier lancement** (aucune sauvegarde locale — pas seulement « aucune classe » : sinon la démo reviendrait après chaque effacement), rechargeables et effaçables depuis 💾 Données. Année scolaire = celle d'« aujourd'hui − 10 mois », donc **toujours entièrement passée** : sans ce recul, relevés et échéances tomberaient dans le futur et la moitié des signalements ne se verrait jamais. |
+| Branches et versions (2026-09-10) | **Un seul projet, une seule version.** Le travail atterrit sur `main`, qui est la version — pas de branche de fonctionnalité qui vit à côté, pas de PR à fusionner plus tard. `APP_VERSION` avance à chaque livraison. ⚠️ Corollaire : la barre de qualité est à tenir **avant** de pousser (tests verts, audit de contraste rejoué), puisqu'il n'y a pas de sas de relecture. |
 | Import Plan de classe (2026-09-09) | **On ne reprend PAS toutes les classes du fichier** — on est PP d'une seule. L'app liste les divisions (classes virtuelles exclues) et l'utilisateur coche la sienne. |
 
 Pas de texte libre comme *champ de document* : le mot libre vit sur l'élève (`stu.remarque`), pas sur le formulaire.
@@ -401,8 +402,14 @@ Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group
      (« Enregistrer au format PDF » comme destination). C'est **dit dans la modale**, sinon
      personne ne le devine — et « exporter un PDF » était la demande, pas « imprimer ».
      - ⚠️ **Le choix des colonnes n'est pas un confort** : la fiche d'orientation fait huit
-       colonnes, et une feuille qui déborde n'est plus une feuille. L'orientation s'en déduit
-       (`_docPrintOrientation` : paysage à partir de six), réglable à la main.
+       colonnes, et une feuille qui déborde n'est plus une feuille.
+     - **Portrait par DÉFAUT** (arbitré avec l'utilisateur le 2026-09-10) : c'est l'orientation
+       habituelle de ce genre de feuille — celle des classeurs et des bannettes de la vie
+       scolaire. Le paysage et l'« automatique » (`_docPrintOrientation` : paysage dès six
+       colonnes) restent au menu, parce qu'on ne sait qu'en essayant ce qui se présente le
+       mieux. ⚠️ Le résumé **prévient** quand le portrait va serrer (« 8 colonnes en portrait :
+       ce sera serré ») — il informe, il ne corrige pas à sa place : une colonne étroite reste
+       souvent préférable à une page en travers dans un classeur.
      - ⚠️ **« Élève » ne se décoche pas.** Une ligne sans nom ne désigne personne, et une
        feuille de suivi anonyme est un déchet de papier. Elle porte `fixe`, et
        `_docPrintKeys` la **rétablit** même absente de la sélection.

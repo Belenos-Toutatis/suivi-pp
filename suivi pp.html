@@ -1565,9 +1565,9 @@ body.el-projecting #main { padding-top: 8px; }
         <select id="mdocp-filtre" data-autofocus onchange="_docPrintRefresh()" style="max-width:100%"></select></div>
       <div class="fg" style="flex:1;min-width:160px"><label for="mdocp-orient">Orientation</label>
         <select id="mdocp-orient" onchange="_docPrintRefresh()" style="max-width:100%">
-          <option value="auto">automatique</option>
           <option value="portrait">portrait</option>
           <option value="landscape">paysage</option>
+          <option value="auto">automatique — paysage dès 6 colonnes</option>
         </select></div>
     </div>
     <div class="al al-i" id="mdocp-hint"></div>
@@ -1692,7 +1692,7 @@ body.el-projecting #main { padding-top: 8px; }
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
 const APP_VERSION    = '1.9.0';
-const APP_BUILD_DATE = '2026-09-10T11:45:00Z';
+const APP_BUILD_DATE = '2026-09-10T14:08:00Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6600,7 +6600,11 @@ async function docMissingCopy() {
 // dans `S` serait une section de plus à valider, à purger et à migrer — pour mémoriser
 // une case cochée.
 let _docPrintSel = {};                                        // { [docId]: [clés] }
-let _docPrintOpts = { filtre: 'tous', orientation: 'auto' };
+// ⚠️ Portrait par DÉFAUT, pas « automatique » : c'est l'orientation habituelle de ce
+// genre de feuille, celle des classeurs et des bannettes de la vie scolaire. Le paysage
+// reste à un clic, et l'« automatique » aussi — le résumé de la modale prévient quand le
+// portrait va serrer, ce qui laisse voir ce qui se présente le mieux plutôt que d'en décider.
+let _docPrintOpts = { filtre: 'tous', orientation: 'portrait' };
 let _docPrintId = null;
 
 function openDocPrint(docId) {
@@ -6646,7 +6650,12 @@ function _docPrintRefresh() {
   const kind = (orient === 'portrait' || orient === 'landscape') ? orient : _docPrintOrientation(keys.length);
   const n = _docPrintRows(doc, ['eleve'], { filtre, sort: _docSort }).length;
   const resume = `${keys.length} colonne${keys.length > 1 ? 's' : ''} · ${n} ligne${n > 1 ? 's' : ''} · ${kind === 'landscape' ? 'paysage' : 'portrait'}`;
+  // ⚠️ On PRÉVIENT que le portrait va serrer, on ne corrige pas à sa place : c'est lui
+  // qui a la feuille en main, et une colonne étroite reste souvent préférable à une page
+  // en travers dans un classeur. Le seuil est celui de l'orientation automatique.
+  const serre = kind === 'portrait' && keys.length >= 6;
   box.innerHTML = `<strong>${_escName(resume)}</strong><br>Pour un <strong>PDF</strong>, choisissez « Enregistrer au format PDF » comme destination dans la fenêtre d'impression.`
+    + (serre ? `<br>⚠️ ${keys.length} colonnes en portrait : ce sera serré. Le paysage tient mieux à partir de six.` : '')
     + (n ? '' : '<br>⚠️ Aucun élève ne correspond à ce filtre.');
   const ok = document.getElementById('mdocp-ok');
   if (ok) ok.disabled = !n;

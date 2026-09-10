@@ -6,6 +6,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 const { loadApp } = require('./harness.js');
 
 const app = loadApp();
@@ -159,4 +161,18 @@ test('_docPrintSubtitle : la feuille se relit seule trois semaines plus tard', (
   assert.match(s, /imprimé le/);
   // Sans suivi du retour, aucun compte de rendus ne s'invente.
   assert.ok(!/rendus/.test(ev(`_docPrintSubtitle(S.documents.d3, 'tous', 4)`)));
+});
+
+test('le PORTRAIT est le défaut — le paysage et l\'automatique restent à un clic', () => {
+  ev(FIXTURE);
+  // ⚠️ C'est l'orientation habituelle de ce genre de feuille (classeurs, bannettes de la
+  // vie scolaire). Le seuil de `_docPrintOrientation` ne sert donc plus qu'au mode
+  // « automatique », qu'on choisit exprès — et la modale prévient quand ça va serrer.
+  assert.strictEqual(ev(`_docPrintOpts.orientation`), 'portrait');
+  // Le menu se lit dans la SOURCE : le DOM du harnais est stubé, et une assertion sur
+  // `querySelectorAll` y passerait au vert sur une liste vide — pire que pas de test.
+  const html = fs.readFileSync(path.join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const menu = html.slice(html.indexOf('id="mdocp-orient"'), html.indexOf('id="mdocp-orient"') + 400);
+  assert.deepStrictEqual((menu.match(/<option value="([a-z]+)"/g) || []).map(m => m.split('"')[1]),
+    ['portrait', 'landscape', 'auto'], 'les trois orientations, le portrait en tête');
 });
