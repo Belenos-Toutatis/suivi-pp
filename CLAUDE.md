@@ -44,6 +44,8 @@ Quatre enseignements tirés de ces fichiers, tous structurants :
 | Ramassage (2026-09-09) | On ramasse plusieurs documents **en même temps**, donc on doit pouvoir valider les retours **sur un seul écran**. Grille élèves × documents dans l'onglet Documents, une case par croisement. ⚠️ La case a **trois** états, pas deux : rendu, pas rendu, et **sans objet** (l'élève n'était pas là à la date du document). Seul le retour se coche ici — les réponses portées sur le papier restent dans le tableau du document. |
 | Données de démo (2026-09-09) | Posées **au premier lancement** (aucune sauvegarde locale — pas seulement « aucune classe » : sinon la démo reviendrait après chaque effacement), rechargeables et effaçables depuis 💾 Données. Année scolaire = celle d'« aujourd'hui − 10 mois », donc **toujours entièrement passée** : sans ce recul, relevés et échéances tomberaient dans le futur et la moitié des signalements ne se verrait jamais. |
 | Branches et versions (2026-09-10) | **Un seul projet, une seule version.** Le travail atterrit sur `main`, qui est la version — pas de branche de fonctionnalité qui vit à côté, pas de PR à fusionner plus tard. `APP_VERSION` avance à chaque livraison. ⚠️ Corollaire : la barre de qualité est à tenir **avant** de pousser (tests verts, audit de contraste rejoué), puisqu'il n'y a pas de sas de relecture. |
+| Postes de travail (2026-09-10) | **Plusieurs machines, jamais en même temps** — elles ne sont pas au même endroit, donc travailler sur l'une signifie ne pas travailler sur l'autre. Le risque d'écriture concurrente est donc écarté par l'usage, pas par un verrou. ⚠️ Reste le cas asynchrone : refermer un portable avant la fin d'un téléversement, puis reprendre ailleurs. C'est pourquoi le dépôt sort de la sync (ci-dessous). |
+| Sessions distantes (2026-09-10) | **Écartées.** Une session dans le nuage ferait très bien le code, les tests et la documentation — mais pas les audits qui demandent de REGARDER l'écran (contraste sur 20 états × 2 thèmes, responsive 320→1920). Or ce sont eux qui ont trouvé les défauts 4 et 6, invisibles à tout test. Arbitré par l'utilisateur : *« si tu ne peux plus faire les vérifications qui demandent de regarder l'écran, ça ne m'intéresse pas »*. |
 | Import Plan de classe (2026-09-09) | **On ne reprend PAS toutes les classes du fichier** — on est PP d'une seule. L'app liste les divisions (classes virtuelles exclues) et l'utilisateur coche la sienne. |
 
 Pas de texte libre comme *champ de document* : le mot libre vit sur l'élève (`stu.remarque`), pas sur le formulaire.
@@ -89,6 +91,7 @@ Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sono
 - `icons/` — les 5 PNG d'installation (192 et 512 en `any` et `maskable`, plus l'icône iOS 180)
 - `README.md`, `LICENSE` (MIT), `CLAUDE.md`
 - `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
+- `.sync-exclude.lst` — **retire ce dossier de la synchronisation Nextcloud** (cf. *Deux machines, un seul transport*)
 - `test/harness.js`, `test/*.test.js`, `package.json` (`npm test` → `node --test "test/*.test.js"`)
   ⚠️ Le glob, pas `node --test test/` : sous Node 22, l'argument-répertoire `test` échoue en `MODULE_NOT_FOUND`. Le glob a en prime l'avantage de n'exécuter que les `*.test.js`, donc `harness.js` n'est plus compté comme un test.
 
@@ -883,6 +886,52 @@ trois règles responsive ci-dessus. Avec leur méta-test : trois ensembles vides
 ⚠️ Et ce qui n'existe nulle part n'est jamais mesuré : les deux défauts ci-dessus dormaient
 depuis les étapes 2 et 5. **Une donnée de démo exhaustive est un instrument d'audit**, pas
 seulement une commodité d'accueil.
+
+## Deux machines, un seul transport
+
+⚠️ **Ce dossier vit dans une arborescence Nextcloud, mais il ne doit PAS être synchronisé
+par Nextcloud.** Il est un dépôt git, et git assure déjà le transport entre les postes via
+`github.com/Belenos-Toutatis/suivi-pp`. Deux mécanismes qui recopient les mêmes fichiers
+sans rien savoir l'un de l'autre, c'est une panne qui attend son heure.
+
+Ce n'est pas théorique — mesuré le 2026-09-10 sur le journal du client :
+
+- **232 entrées** de ce projet suivies par Nextcloud, dont **176 dans `.git`** ;
+- trois fichiers réécrits en **CRLF** par-dessus la version posée par git, donnant un diff de
+  **10 824 lignes pour zéro changement réel** — `git diff --ignore-all-space` était vide ;
+- une **copie de conflit de la base de sync elle-même** (`.sync_*.sync-conflict-20260619`).
+
+Le diff n'est que le symptôme visible. Le vrai danger est un `.git` livré à moitié pendant
+que git écrit dedans : là, on ne répare pas à la main.
+
+**Le dispositif** : un fichier `.sync-exclude.lst` à la racine du dossier, contenant `*`
+et `.*`. Le client Nextcloud (vérifié sur 4.0.6 : la chaîne `.sync-exclude.lst` est bien
+dans le binaire, et il n'existe pas de marqueur `.nosync`) lit ce fichier et ignore le
+dossier et tout son contenu.
+
+⚠️ **Le fichier est VERSIONNÉ, exprès.** Il arrive donc sur les autres machines par
+`git pull`, et l'exclusion s'y applique sans que personne ait à y penser. C'est le seul
+chemin possible : une fois l'exclusion active, Nextcloud ne peut plus le livrer lui-même.
+
+⚠️ **Pour toute instance travaillant sur une autre machine** — la marche à suivre, une fois
+le `git pull` fait :
+
+1. **Redémarrer le client Nextcloud.** La liste d'exclusion est lue au démarrage ; tant
+   qu'il tourne, il continue de synchroniser comme avant.
+2. **Vérifier**, plutôt que supposer, en interrogeant le journal du client :
+   `sqlite3 "file:$HOME/Nextcloud/.sync_*.db?mode=ro&immutable=1" "SELECT count(*) FROM metadata WHERE path LIKE '%Suivi PP%';"`
+   Le compte doit tomber à zéro (232 avant l'exclusion sur le poste Linux).
+3. **Ne rien supprimer côté serveur.** Une copie devenue périmée là-bas ne gêne personne, et
+   GitHub fait autorité.
+
+⚠️ **Ce qui n'est PAS concerné** : les données d'élèves de l'app (`suivi-pp-*.json`) ne
+vivent pas dans ce dossier — elles ont le leur, et leur synchronisation Nextcloud continue
+telle quelle. C'est même le point : Nextcloud reste le bon outil pour les DONNÉES, git
+pour le CODE.
+
+⚠️ **Corollaire à ne pas perdre de vue** : le dossier n'est plus sauvegardé par Nextcloud.
+Le filet, c'est GitHub — donc **le travail non commité n'est protégé par rien**. Commiter
+devient le geste de sauvegarde, pas une formalité de fin de tâche.
 
 ## Installation comme application (PWA)
 
