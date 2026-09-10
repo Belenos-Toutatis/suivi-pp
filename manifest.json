@@ -1,0 +1,11 @@
+{
+  "name": "Suivi PP",
+  "short_name": "Suivi PP",
+  "description": "Suivi des élèves dont on est professeur principal : relevés de carnet, documents administratifs, élection des délégués",
+  "scope": "./",
+  "start_url": "suivi%20pp.html",
+  "display": "standalone",
+  "background_color": "#f4f6fa",
+  "theme_color": "#1a252f",
+  "orientation": "any"
+}

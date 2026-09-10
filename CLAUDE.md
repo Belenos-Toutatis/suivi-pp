@@ -1,0 +1,853 @@
+# Suivi PP — Contexte projet
+
+## Application
+
+PWA **mono-fichier** de suivi des élèves dont l'utilisateur est **professeur principal**.
+Quatre besoins, dans cet ordre d'importance :
+
+1. **Relevés de carnet** — combien d'observations chaque élève a dans son carnet, à différentes dates de l'année.
+2. **Documents administratifs** — qui m'a rendu quoi, et quand.
+3. **Réponses portées sur ces documents** — le choix de la famille (participation à Devoirs Faits, options d'orientation…), avec un **avis du PP** quand il y en a un.
+4. **Élection des délégués de classe** — candidatures, dépouillement, procès-verbal.
+
+L'utilisateur est enseignant de physique-chimie au collège, PP d'une classe de cycle 4. Il est l'auteur et l'unique utilisateur de l'app.
+
+### Ce que l'app remplace — à lire AVANT de concevoir quoi que ce soit
+
+Le suivi existe déjà, en tableur, dans `../PP/`. **Ces fichiers sont la spécification réelle** ; les lire vaut mieux que toute supposition :
+
+- **`../PP/5C PP.xlsx`**, feuille `Papiers_2` — la source principale. Colonnes :
+  `Position · Nom · Prénom · DF · Observation 01/10/2024 · Observation 15/10/2024 · … (8 dates) · Remarque · Colonne1`,
+  plus `Fiche de renseignement` et `Fiche d'orientation` marquées `X`.
+- **`../PP/DF 5C.ods`** — `Classe · Nom · Prénom · DF` avec les valeurs **`OUI` / `NON` / `ULYSS`**.
+- **`../PP/élection délégués.xlsx`** — le dépouillement : 4 feuilles (`1er tour` · `Résultats 1er tour` · `2nd tour` · `Résultats 2nd tour`), **une ligne par bulletin numéroté**, **une colonne par binôme** (titulaire en ligne 1, suppléant en ligne 2), et on coche.
+- **`../PP/délégué election.md`** (+ `.html`, `délégué role.md`, `5c délégué.pdf`, `5e élections délégués 2025.pdf`) — la présentation Marp projetée à la classe avant le vote. **Elle énonce la procédure exacte de l'utilisateur** : c'est la spécification de l'onglet Délégués.
+- **`../PP/options rentrée 2026.xlsx`**, feuille `demandes options` — `DIV · NOM · PRENOM · option 1 demandée · Avis PP option 1 · option 2 demandée · Avis PP option 2 · OPT1 actuelle · OPT2 actuelle`. Options observées : `LATIN`, `BILINGUE`, `CATHO F`, `DNL`…
+
+Quatre enseignements tirés de ces fichiers, tous structurants :
+
+1. ⚠️ **Le nombre d'observations relevé est un CUMUL, pas un incrément.** Vérifié colonne par colonne : les valeurs d'un même élève sont monotones non décroissantes (`7 · 8 · 8 · 10 · 11 · 14 · 16 · 18`, `10 · 13 · 14 · 14 · 15 · 20 · 27 · 38`). L'utilisateur lit un total dans le carnet ou dans Pronote et le recopie. **Toute la conception du modèle en découle** (cf. *Relevés de carnet*).
+2. ⚠️ **Le tableur ne calcule PAS l'évolution** — c'est précisément ce que l'app doit apporter : « combien depuis le dernier relevé ». Un cumul de 38 ne dit rien sans savoir qu'il était à 27 il y a trois semaines.
+3. Certaines cellules d'observation valent **`A`** = élève absent au moment du relevé, donc rien à relever. À distinguer d'un zéro et d'un vide.
+4. La colonne `Remarque` contient du **texte libre multi-ligne**, et notamment le journal des contacts : *« Peu d'apprentissage… Appel à la mère le 11/10/2024 et le 29/11/2024 »*. Le besoin d'un mot libre par élève est donc réel, indépendamment des documents.
+
+### Décisions déjà arbitrées avec l'utilisateur (2026-09-09)
+
+| Question | Réponse |
+|---|---|
+| Origine des élèves | **Import CSV/Pronote autonome** (module repris de Plan de classe) **+** lecture d'un export JSON de Plan de classe |
+| Modèle des observations | **Compteur par date** (pas une entrée par observation) |
+| Réponses des documents | **Rendu / pas rendu + date de retour**, **choix unique** dans une liste paramétrable, **choix multiple** |
+| Hébergement | **Nouveau dépôt GitHub séparé** — origine distincte, donc `localStorage` et service worker propres |
+| Périodes (2026-09-09) | **Au choix de l'utilisateur** : `prefs.periodMode` = `'semestre'` (défaut) ou `'trimestre'`, réglable dans Données. Rien n'est stocké par période, tout se recalcule. |
+| Bornes de période (2026-09-09) | `prefs.periodStarts = { semestre: ['02-01'], trimestre: ['12-01','03-15'] }` — début des périodes 2 et 3 en `MM-DD`, défauts à confirmer avec le calendrier de l'établissement. L'année scolaire va du 1er août au 31 juillet. |
+| Ramassage (2026-09-09) | On ramasse plusieurs documents **en même temps**, donc on doit pouvoir valider les retours **sur un seul écran**. Grille élèves × documents dans l'onglet Documents, une case par croisement. ⚠️ La case a **trois** états, pas deux : rendu, pas rendu, et **sans objet** (l'élève n'était pas là à la date du document). Seul le retour se coche ici — les réponses portées sur le papier restent dans le tableau du document. |
+| Données de démo (2026-09-09) | Posées **au premier lancement** (aucune sauvegarde locale — pas seulement « aucune classe » : sinon la démo reviendrait après chaque effacement), rechargeables et effaçables depuis 💾 Données. Année scolaire = celle d'« aujourd'hui − 10 mois », donc **toujours entièrement passée** : sans ce recul, relevés et échéances tomberaient dans le futur et la moitié des signalements ne se verrait jamais. |
+| Import Plan de classe (2026-09-09) | **On ne reprend PAS toutes les classes du fichier** — on est PP d'une seule. L'app liste les divisions (classes virtuelles exclues) et l'utilisateur coche la sienne. |
+
+Pas de texte libre comme *champ de document* : le mot libre vit sur l'élève (`stu.remarque`), pas sur le formulaire.
+
+## Projet de référence — `plan de classe.html`
+
+Chemin absolu : `/home/ewenner/Nextcloud/gestion élèves/Plan de classe/plan de classe.html` (49 253 lignes, v2.48.0, commit `9956b6b`).
+Son `CLAUDE.md` voisin est une mine : il documente ~80 pièges payés au prix fort. **Le lire pour toute question de convention plutôt que de réinventer.**
+
+⚠️ **Règle n° 1 : on COPIE le code de référence, on ne le réécrit pas.** Ces modules ont été audités (contraste, fuzz, rétrocompatibilité, XSS, sync deux postes). Une réécriture « propre » repart de zéro sur tous ces fronts. Copier, renommer les clés `localStorage`, adapter les sections de `S`, garder les commentaires en place.
+
+⚠️ **Les numéros de ligne ci-dessous datent du commit `9956b6b`** et dériveront. Ce sont des repères de départ : chercher par **nom de fonction** (`grep -n "function _impAnalyze"`), jamais par ligne seule.
+
+### À reprendre tel quel
+
+| Module | Fonctions | Lignes (indicatif) |
+|---|---|---|
+| **Import d'élèves** | `_IMP_FIELDS`, `_impNormHeader`, `_impGuessField`, `_impNormGroupe/Civ/Amen/Date/Tags`, `_impSplitCodes`, `_impStripClassPrefix`, `_impDefaultCodeInterp`, `_impSplitFullName`, `_impSplitLine`, `_impDetect`, `_impGuessFieldFromValues`, `_impAnalyze`, `_impRefresh`, `_impRenderMapping/Codes/Preview`, `_impFileSelected`, `importStudents` | **14612 – 15355** |
+| **Sauvegarde & horloge vectorielle** | `save`, `load`, `pushUndo`, `undoLast`, `redoLast`, `_clockBumpSelf`, `_clockBumpForward`, `_clockMergeMax`, `_clockOnLoad`, `_clockCompare` | 9053 – 9300 |
+| **Sync auto + conflits** | `autoSaveSchedule`, `autoSaveDoIt`, `autoReloadCheck`, `_versionRelation`, `_contentFingerprint`, `_openConflictModal`, `_conflictKeepMine`, `_conflictTakeOther`, `_stashVersionToFile`, `_applyReloadedData` | 28171 – 28700 |
+| **Versions & historique** | `listAndShowFiles`, `loadFromHandle`, `_makeNamedCheckpoint`, `_fileKind`, `_versionSummary`, `_fmtBytes`, rotation des backups | 28865 – 29130 |
+| **Dernier fichier chargé (IndexedDB)** | `_idbPut`, `saveLastFile`, `_getLastFileRecord`, `_migrateLastFileToIdb`, `idbSaveHandleKey`, `idbLoadHandleKey` | 28735 – 29210 |
+| **Jauge de mémoire locale** | `_byteLen`, `_probeLsHeadroom`, `_lsCapacity`, `_lsKeyBreakdown`, `_isAppLsKey`, `_storageBreakdown`, `_purgeLegacyStorage`, `_renderStorageGauge` | 33614 – 33900 |
+| **Validation & robustesse** | `_validateImport`, `_sanitizeCoreSections`, `_auditState`, `_logRuntimeError` | 7259, 15457, 29314 |
+| **UI sans dialogue natif** | `toast`, `openMod`, `closeMod`, `appAlert`, `_uiConfirm`, `_uiPrompt`, `_modalReturnTo` / `_afterModalClose` | 13517, 13656, 13835, 19067, 19104 |
+| **Échappement & couleur** | `_escAttr`, `_escName`, `_escJsAttr`, `_html`, `_csvCellGuard`, `_safeColor`, `_contrastTextColor`, `_wcagContrast` | 9649 – 9720, 40969, 41013 |
+| **Design system** | tout le bloc `<style>` de tête : `@font-face` base64 ×3, tokens `:root`, bloc `html[data-theme="dark"]`, bloc `@media print { html[data-theme="dark"] }`, filet rouge `body::before`, lignes Seyès, `--sp-*`, `--radius-*` | début du `<style>` |
+| **Mise à jour** | `APP_VERSION` / `APP_BUILD_DATE` / `checkForUpdate` / `_passiveUpdateCheck` / modale `mabout` | en tête du `<script>` |
+| **Harnais de tests** | `test/harness.js` + la structure de `test/*.test.js` | dépôt de référence |
+
+### À NE PAS reprendre
+
+Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sonomètre, minuteur, évaluations, bulletins, mentions de conseil, disciplines, classes recomposées. Rien de tout cela n'a de place ici — l'app ne connaît ni salle ni note.
+
+💡 En revanche, **`stu.tags`** (les codes Pronote type `4B-LATIN`, `3B-BIL-LCE`) mérite d'être conservé du module d'import : c'est exactement la matière des choix d'options, et le panneau « Codes de groupes rencontrés » sait déjà les reconnaître.
+
+## Fichiers du projet
+
+- `suivi pp.html` — l'application entière (HTML + CSS + JS dans un seul fichier)
+- `index.html` — redirection depuis la racine GitHub Pages (meta refresh + `location.replace`), pour éviter l'URL avec `%20`
+- `.nojekyll` — **indispensable**, sinon Jekyll prend `README.md` comme index et ignore `index.html`
+- `manifest.json`, `sw.js` (network-first)
+- `README.md`, `LICENSE` (MIT), `CLAUDE.md`
+- `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
+- `test/harness.js`, `test/*.test.js`, `package.json` (`npm test` → `node --test "test/*.test.js"`)
+  ⚠️ Le glob, pas `node --test test/` : sous Node 22, l'argument-répertoire `test` échoue en `MODULE_NOT_FOUND`. Le glob a en prime l'avantage de n'exécuter que les `*.test.js`, donc `harness.js` n'est plus compté comme un test.
+
+Nom de dépôt proposé : **`suivi-pp`** sous `Belenos-Toutatis` → `belenos-toutatis.github.io/suivi-pp/`.
+
+Clés `localStorage` préfixées **`suiviPP`** (`suiviPP_v1` pour les données, `suiviPP_theme`, `suiviPP_deviceId`, `suiviPP_autoSync`…). ⚠️ Le préfixe doit être **différent** de `planClasse`, et `_isAppLsKey` doit être adapté en conséquence.
+Fichiers de sync : `suivi-pp-auto.json`, `suivi-pp-bk-*.json`, `suivi-pp-checkpoint-*.json`, `suivi-pp-conflit-{mienne|autre}-*.json`.
+
+## Modèle de données
+
+```js
+S = {
+  version, savedAt,
+  clock:      { [deviceId]: compteur },          // horloge vectorielle (cf. Plan de classe)
+  salles:     { [salleId]: salle },              // repris de Plan de classe, pour TRIER seulement
+  classes:    { [classId]: cls },
+  eleves:     { [sid]: stu },
+  releves:    { [classId]: { [ymd]: releve } },  // relevés de carnet
+  documents:  { [docId]: doc },
+  elections:  { [classId]: { [electionId]: election } },
+  prefs:      { periodMode: 'semestre'|'trimestre', … },
+  cur:        classId,
+}
+
+cls = {
+  id, nom,                 // '5C'
+  annee,                   // '2025-26'
+  eleves: [ ...sids ],
+  ord,                     // ordre d'affichage
+  // Placement repris de Plan de classe — une place DIFFÉRENTE par salle :
+  rooms:    { [salleId]: { seating: { 'r,c': sid } } },   // clé = PLACE, valeur = élève
+  salleCur, // salle où l'on est entré : c'est elle qui décide de l'ordre
+}
+
+salle = {
+  id,                      // PRÉFIXÉ 'pdc_…' à l'import (cf. plus bas)
+  nom, rows, cols,
+  patterns: [ { id, nom, order: [ 'r,c', … ] } ],   // ordres de ramassage DESSINÉS là-bas
+}
+
+stu = {
+  id, nom, prenom, classe_id,
+  naissance,               // 'YYYY-MM-DD' | null — départage d'une égalité aux délégués
+  civilite,                // 'M' | 'F' | null
+  groupe,                  // 1 | 2 | 3 | null   (repris de l'import)
+  tags: [ ...tagIds ],     // codes Pronote : LATIN, BILINGUE, DNL…
+  // aménagements, repris du même import que Plan de classe (mêmes noms de champs
+  // pour qu'un JSON de l'une soit lisible par l'autre) :
+  ppre, pap, gevasco, ulis, ulis_incl, upe2a, upe2a_incl, pai,
+  agrandissement, tiers_temps,
+  arrivalDate, departureDate,   // 'YYYY-MM-DD' | null — départ = 1er jour d'absence
+  remarque,                // texte libre du PP (la colonne « Remarque » du tableur)
+  // Journal des contacts avec la famille — DATÉ et qualifié, à côté du texte libre.
+  journal: [ { id, date: 'YYYY-MM-DD', ts, type: 'appel'|'rencontre'|'courriel'|'mot'|'autre', texte } ],
+}
+
+releve = {
+  date: 'YYYY-MM-DD',      // = la clé dans S.releves[classId]
+  label,                   // optionnel : « avant conseil S1 »
+  ts,                      // horodatage de création
+  counts: { [sid]: n | 'A' },   // CUMUL relevé, ou 'A' (absent : rien à relever)
+}
+
+doc = {
+  id, titre, description,
+  classIds: [ ...classIds ],
+  dateDistribution, dateEcheance,   // 'YYYY-MM-DD' | null
+  suiviRetour: true,       // faut-il suivre le retour du papier ? (certains documents sont purement informatifs)
+  champs: [ champ ],       // 0, 1 ou plusieurs réponses à porter
+  retours: { [sid]: retour },
+  archive: false,          // rangé hors de la vue courante sans être supprimé
+  ord,
+}
+
+champ = {
+  id, label,
+  type: 'choix' | 'multi',
+  par: 'famille' | 'prof',           // « Avis PP option 1 » est un champ 'prof'
+  options: [ { id, label, color } ],
+  obligatoire: bool,
+}
+
+retour = {
+  rendu: bool,
+  dateRetour: 'YYYY-MM-DD' | null,
+  reponses: { [champId]: optionId | [ ...optionIds ] },   // string si 'choix', tableau si 'multi'
+  note: '',                           // mot sur CE retour (« manque la signature du père »)
+}
+```
+
+### Relevés de carnet — le cumul est la seule vérité stockée
+
+⚠️ **`counts[sid]` est le TOTAL lu dans le carnet à cette date, jamais un incrément.** C'est ce que l'utilisateur a sous les yeux quand il saisit. Stocker un delta l'obligerait à soustraire de tête à chaque relevé, et une saisie oubliée deviendrait indétectable.
+
+- **L'évolution est CALCULÉE, jamais stockée** : `delta = n − dernier cumul connu strictement antérieur`, en **sautant les `'A'`** et les vides (un élève absent au relevé du 15/10 se compare au 01/10, pas à rien). Premier relevé d'un élève → le delta vaut le cumul lui-même.
+- ⚠️ **Un cumul qui DIMINUE est signalé, jamais corrigé.** C'est presque toujours une faute de frappe, mais ce peut aussi être un carnet remplacé en cours d'année. La cellule porte un repère, l'infobulle dit ce qui est attendu, et **rien n'est réécrit** — le même arbitrage que la note hors barème de Plan de classe.
+- **`'A'` n'est ni `0` ni le vide.** `0` = carnet vu, aucune observation (une information). `''` = pas relevé (une absence d'information). `'A'` = élève absent, le relevé ne le concerne pas. Les trois s'affichent différemment et se traitent différemment dans le calcul du delta. Réutiliser la convention `codeAbsent` de Plan de classe : le code est **paramétrable**, donc aucun texte visible ne l'écrit en dur (cf. `_codeA()` là-bas).
+- La clé est **la date**, pas un id : on ne relève pas les carnets deux fois le même jour, et la clé date rend le tri chronologique gratuit et les doublons impossibles. Corollaire : corriger une date = déplacer l'entrée, à faire dans une seule fonction (`releveSetDate`) qui refuse d'écraser une date existante.
+- **Total de période** : somme des deltas des relevés dont la date tombe dans la période — c'est-à-dire `cumul(dernier relevé de la période) − cumul(dernier relevé d'avant la période)`. ⚠️ Ne PAS additionner les cumuls, faute classique qui compte chaque observation autant de fois qu'il y a eu de relevés depuis.
+
+### Documents — un même papier porte plusieurs réponses
+
+Le cas Devoirs Faits est le plus simple : `suiviRetour: true` + un champ `choix` à trois options `OUI / NON / ULYSS`. ⚠️ **Trois, pas deux** : le tableur réel porte cette troisième valeur (dispositif alternatif). Un booléen « participe » aurait été trop étroit — d'où le choix unique paramétrable dès la v1.
+
+Le cas orientation est le plus riche : plusieurs champs sur le même document, dont des champs **`par: 'prof'`** (« Avis PP option 1 »). Cette distinction n'est pas cosmétique : le compteur « réponses manquantes » ne doit compter que ce qu'on **attend des familles**, sinon un document est éternellement incomplet parce que le PP n'a pas encore rendu son avis.
+
+- **`rendu` et `reponses` sont deux axes indépendants.** Un papier peut être rendu sans réponse cochée (illisible, à relancer), et une réponse peut être connue avant le papier (dit à l'oral au rendez-vous). Ne pas dériver l'un de l'autre.
+- **L'ordre des documents se règle à la main**, en tirant la **poignée ⋮** de la ligne (`docReorder`) ; les flèches ↑ ↓ restent au CLAVIER sur la poignée focalisée (`docMove`), parce qu'un glisser n'existe pas pour qui n'a ni souris ni écran tactile.
+  - ⚠️ **Ne rien déplacer dans le DOM pendant le glisser.** Première version : la ligne suivait le curseur par `insertBefore`. Mais la poignée est DANS cette ligne, et déplacer la ligne **reparente l'élément qui détient la capture du pointeur** : la capture saute, les `pointermove` cessent d'arriver, et le glisser se fige après un seul saut. Symptôme remonté à l'usage : « on ne peut le déplacer que d'une position ». On DESSINE donc l'insertion (trait rouge sur la ligne cible) et on ne touche à l'ordre qu'au relâchement.
+  - ⚠️ **Recalculer la cible sur le `pointerup`**, pas se fier au dernier `pointermove` : un relâchement peut tomber là où rien n'a été survolé (geste rapide, stylet), et la ligne atterrirait ailleurs que sous le doigt.
+  - `touch-action: none` sur la poignée est ce qui rend le glisser possible au DOIGT : sans lui, le navigateur lit le mouvement comme un défilement et n'envoie jamais de `pointermove`. Le glisser natif HTML5 (`draggable`) est écarté pour la même raison — il ne marche pas au tactile.
+  - `Échap` pendant le glisser annule, comme partout ailleurs.
+- ⚠️ `docReorder` **renumérote tous les `ord` avant de repositionner** : ils sont posés à la création avec la taille du catalogue et finissent dupliqués (import, duplication, données de démo), et réordonner des valeurs identiques ne changerait rien — la poignée paraîtrait cassée. Puis il **redistribue les mêmes places** entre les seuls documents affichés : les archivés masqués et ceux des autres classes gardent la leur. Sémantique **retirer-puis-réinsérer**, pas échanger : un glisser traverse plusieurs lignes d'un coup.
+- **Dupliquer un document** est le geste central de la rentrée suivante : mêmes champs, mêmes options, retours vides. Prévoir le bouton dès la v1 (miroir de `_evalDuplicate`).
+- Les **modèles** livrés dans les données de démo doivent couvrir les trois formes réelles : Devoirs Faits (choix à 3), fiche de renseignement (retour seul, aucun champ), fiche d'orientation (choix multiple d'options + avis PP).
+
+## Élection des délégués de classe
+
+### Cadre réglementaire
+
+⚠️ **Les références d'articles ci-dessous sont données de mémoire et doivent être vérifiées sur Légifrance ou Éduscol avant d'être imprimées sur un procès-verbal.** Ce qui suit est fiable sur le fond, pas nécessairement sur la numérotation.
+
+- **Deux délégués titulaires et deux suppléants par division**, au collège comme au lycée (Code de l'éducation, partie réglementaire, chapitre sur les représentants des élèves — art. R. 421-28 sauf erreur).
+- **Mandat annuel**, élection **avant la fin de la septième semaine de l'année scolaire**.
+- **Tous les élèves de la division sont électeurs et éligibles**, sans condition.
+- Le texte prévoit un **scrutin uninominal à deux tours**. **Majorité absolue** des suffrages exprimés au premier tour, **majorité relative** au second.
+- L'élection est organisée par l'établissement, en pratique par le **professeur principal**, après une information sur le rôle des délégués (heure de vie de classe).
+- Les délégués siègent au **conseil de classe** et forment l'**assemblée générale des délégués**, qui élit les représentants au conseil d'administration et au CVC / CVL.
+
+⚠️ **La pratique de l'utilisateur s'écarte de la lettre du texte, et c'est légitime — ne pas la « corriger ».** Sa présentation `../PP/délégué election.md` décrit :
+
+- des **candidatures en binôme** : chaque candidat titulaire se présente **avec son suppléant**, affichés ensemble avant le vote ;
+- un bulletin où l'élève inscrit **0, 1 ou 2 noms** de candidats — donc un scrutin **plurinominal** (on élit les deux titulaires d'un seul vote), là où le texte dit « uninominal » ;
+- **bulletin vierge = blanc**, bulletin avec **trop de noms, des marques ou des inscriptions inappropriées = nul** ;
+- **second tour avec les mêmes candidats** si personne n'atteint la majorité absolue ;
+- **égalité de voix → le candidat le plus jeune est élu** ;
+- **deux assesseurs**, élèves volontaires non candidats, qui surveillent le vote, ramassent et comptent les bulletins, puis **signent le procès-verbal**.
+
+Ces variantes (uninominal ou plurinominal, binôme ou suppléants élus à part, départage par le plus jeune ou par le plus âgé) diffèrent d'un établissement à l'autre. **Conséquence de conception : les modalités sont des RÉGLAGES de l'élection, pas des constantes du code.** Les valeurs par défaut sont celles de sa présentation.
+
+### Modèle
+
+```js
+election = {
+  id, classId,
+  date,                    // 'YYYY-MM-DD'
+  titre,                   // « Élection des délégués — 5C — 2025-26 »
+  // modalités, figées à la création et rappelées sur le PV :
+  nbTitulaires: 2,
+  nbSupplants: 2,
+  binome: true,            // un candidat titulaire se présente avec son suppléant
+  nomsParBulletin: 2,      // nombre max de noms qu'un bulletin peut porter
+  majoriteAbsolueT1: true, // majorité absolue au 1er tour, relative au 2nd
+  departage: 'plusJeune',  // 'plusJeune' | 'plusAge' | 'manuel'
+  assesseurs: [ sid, sid ],
+  inscrits: 25,            // effectif de la division (calculé, corrigible)
+  tours: [ tour ],         // 1 ou 2 tours
+  elus: { titulaires: [candId, …], suppleants: [candId, …] },
+  clos: bool,              // verrouille la saisie et autorise le PV
+  note: '',
+  affichage: {             // projection en direct
+    ordre: 'tirage',       // 'tirage' | 'alpha' | 'score'  — 'score' réordonne les barres, non recommandé
+    pourcentages: true,    // afficher le % à côté des voix (toujours avec son dénominateur)
+    ligneMajorite: true,
+  },
+}
+
+candidat = {
+  id,
+  sidTitulaire,            // un élève de la classe
+  sidSuppleant,            // null si binome === false
+  nomTitulaire, nomSuppleant,   // identité minimale figée, pour que le PV survive à une suppression d'élève
+  color,                   // couleur de sa barre à la projection (palette par défaut, modifiable)
+  ordre,                   // rang d'affichage figé (tirage au sort ou alphabétique)
+  retire: bool,            // candidature retirée entre les deux tours
+}
+
+tour = {
+  n: 1 | 2,
+  candidats: [ candidat ],      // au 2nd tour : les mêmes, moins les retraits
+  bulletins: [ bulletin ],      // dépouillement bulletin par bulletin
+  votantsAnnonces,              // bulletins comptés dans l'urne AVANT ouverture — saisi, sert d'axe à la projection
+  siegesAPourvoir,              // 2 au 1er tour, moins ceux déjà pourvus au 2nd
+  clos: bool,
+}
+
+bulletin = {
+  n,                            // numéro d'ordre, comme la colonne A de son classeur
+  voix: [ candId, … ],          // 0 à nomsParBulletin entrées
+  statut: 'valide' | 'blanc' | 'nul',
+  motifNul: '',                 // « trois noms », « inscription inappropriée »
+}
+```
+
+### La saisie se fait bulletin par bulletin
+
+C'est déjà sa méthode (une ligne par bulletin numéroté, une colonne par binôme, on coche), et il faut la garder pour deux raisons : c'est ce qu'il fait pendant que les assesseurs annoncent, et cela laisse une **trace vérifiable** — si un total est contesté, on remonte au bulletin.
+
+- La grille de dépouillement est **élèves-candidats en colonnes × bulletins en lignes**, un nouveau bulletin ajouté à chaque validation, navigation au clavier.
+- **Les totaux sont CALCULÉS, jamais saisis.** Aucun champ « nombre de voix » : il se désynchroniserait du dépouillement au premier bulletin corrigé.
+- Le **statut est déduit puis corrigeable** : 0 nom → blanc, plus de `nomsParBulletin` noms → nul. ⚠️ Un bulletin nul pour cause d'inscription inappropriée porte 1 ou 2 noms valides et ne peut donc pas être déduit — d'où `statut` inscriptible à la main et `motifNul`.
+
+### ⚠️ L'arithmétique — le piège à ne pas manquer
+
+**Les suffrages exprimés se comptent en BULLETINS, pas en voix.** Avec deux noms par bulletin, le total des voix vaut presque le double du nombre de votants : calculer la majorité absolue sur les voix diviserait tous les pourcentages par deux et **personne ne serait jamais élu au premier tour**. C'est l'erreur silencieuse la plus probable de tout ce projet.
+
+```
+inscrits            = effectif de la division
+votants             = bulletins déposés
+blancs              = bulletins sans aucun nom
+nuls                = bulletins invalides
+suffrages exprimés  = votants − blancs − nuls          ← le dénominateur
+voix d'un candidat  = bulletins valides portant son nom
+majorité absolue    = strictement plus de la moitié des suffrages exprimés
+                      soit  voix > exprimés / 2   (jamais « ≥ 50 % », jamais d'arrondi)
+```
+
+- **Blancs et nuls sont décomptés séparément et n'entrent PAS dans les suffrages exprimés.** Ils apparaissent quand même sur le PV : c'est une information politique, pas du bruit.
+- **Majorité absolue = strictement supérieure à la moitié.** Sur 24 exprimés il faut 13 voix, pas 12. Écrire le test en entiers (`voix * 2 > exprimes`) plutôt qu'en flottants.
+- Sont élus titulaires les `nbTitulaires` candidats en tête **qui satisfont la règle du tour** — majorité absolue au premier, majorité relative au second. ⚠️ Un tour peut n'élire **qu'un seul** titulaire sur deux : un candidat atteint la majorité absolue, l'autre non. Le second tour ne porte alors que sur le siège restant. **Ne pas supposer que les deux sièges se pourvoient au même tour.**
+- ⚠️ **`votantsAnnonces` n'est pas `bulletins.length`.** Le premier est le comptage de l'urne par les assesseurs avant ouverture, le second l'avancement du dépouillement. Les confondre rend l'axe de la projection élastique et supprime le contrôle contre le bourrage. **Un écart entre les deux à la clôture est signalé** — c'est précisément l'anomalie que ce double comptage existe pour détecter.
+- **Vérité disponible en cours de dépouillement** : `voix × 2 > votantsAnnonces` ⇒ le candidat est **définitivement** au-dessus de la majorité absolue, puisque `exprimés ≤ votants`. C'est le seul verdict anticipé que l'app s'autorise (cf. *Projection en direct*).
+- **Départage** : appliqué seulement si l'égalité porte sur le dernier siège attribuable. Depuis le 2026-09-09, `stu.naissance` existe et `_elDepartageAge` tranche automatiquement en `plusJeune` / `plusAge`.
+  - ⚠️ La date est **FIGÉE sur la candidature** (`cand.naissanceTitulaire`), comme l'est déjà le nom : les élections sont l'exception assumée à la purge, et un PV signé doit rester relisible — motif de départage compris — après le départ de l'élève. La date figée PRIME sur celle de l'élève vivant.
+  - ⚠️ `_elDepartageAge` retourne **null** — « je ne sais pas » — dès qu'une date manque, que deux candidats partagent la même date sur le dernier siège disputé, ou que le mode est `manuel`. **null n'est pas un échec, c'est un refus délibéré de trancher** : l'app rend la main et demande. Un élu que personne ne peut justifier devant la classe est contestable, et vaut moins que rien.
+  - La décision MANUELLE de l'utilisateur passe avant la règle automatique : s'il a tranché, c'est qu'il a écarté la règle en connaissance de cause.
+- Si `binome`, le suppléant est élu **avec** son titulaire — pas de calcul séparé.
+
+### Projection en direct du dépouillement
+
+**Le dépouillement se fait devant la classe, et les élèves voient les résultats évoluer graphiquement bulletin par bulletin.** C'est l'usage principal de l'onglet, pas un ornement : la publicité du dépouillement est ce qui rend le résultat incontestable, et voir la courbe monter est ce qui fait comprendre le vote à des élèves de cycle 4.
+
+#### Deux surfaces simultanées
+
+L'enseignant saisit, la classe regarde. Les deux vues affichent le même état au même instant.
+
+- **Par défaut, une seule page en deux volets** : grille de dépouillement à gauche, graphique à droite, le graphique dimensionné pour être lisible du fond de la salle. ⚠️ **C'est le mode à construire en premier, parce qu'il n'a aucun mode de défaillance** — il marche que le vidéoprojecteur duplique l'écran ou qu'il l'étende, et rien ne peut le bloquer.
+- **En option, une fenêtre flottante projetable**, reprise de `_timerFillWindow` / `_noiseFillWindow` : Picture-in-Picture (`documentPictureInPicture.requestWindow`, toujours au premier plan) avec repli `window.open`. L'enseignant garde sa grille sur le portable, la classe voit le graphique en plein écran sur le second. ⚠️ **Le repli `window.open` peut être bloqué par le navigateur** (constaté dans le projet de référence) : la fenêtre flottante est un confort, jamais le seul chemin.
+- Le calcul et l'état vivent **dans la fenêtre principale** ; la fenêtre projetée est un pur affichage rafraîchi à chaque bulletin, comme `_timerRender` pousse dans le document de la popup.
+
+#### ⚠️ Un pourcentage en cours de dépouillement est trompeur
+
+C'est le vrai piège, et il est pédagogique autant que technique. Le dénominateur (les suffrages exprimés) **grandit à mesure qu'on dépouille** :
+
+- un candidat à « 100 % » après trois bulletins n'a rien gagné ;
+- **le pourcentage d'un candidat peut BAISSER alors que ses voix montent** — arithmétiquement normal, mais devant une classe cela passe pour une erreur de comptage et ouvre la contestation ;
+- le seuil de majorité exprimé **en voix** n'est connu qu'à la fin, puisqu'il dépend du nombre de blancs et de nuls encore à découvrir.
+
+**Conséquences de conception, à ne pas contourner :**
+
+1. **La grandeur principale affichée est le nombre de VOIX, pas le pourcentage.** Les barres ont pour longueur des voix. Le pourcentage est une mention secondaire, et **toujours accompagnée de son dénominateur** : « 7 voix — 58 % des 12 bulletins dépouillés ». Un pourcentage nu, sans dire sur quoi il porte, est un chiffre faux.
+2. **L'axe est fixe, gradué sur le nombre de VOTANTS**, connu avant d'ouvrir le premier bulletin : les assesseurs comptent les bulletins de l'urne avant de les lire, c'est le contrôle d'usage contre le bourrage. Un axe qui se redimensionne à chaque bulletin rend la progression illisible et efface justement ce qu'on veut montrer.
+3. **Un indicateur « dépouillés X / Y »** en permanence, et la part restante visible sur l'axe. Sans lui, personne dans la salle ne sait où en est le décompte.
+4. **La ligne de majorité absolue est mobile et ne peut que DESCENDRE** : elle vaut la moitié des exprimés, or les exprimés ne sont que les bulletins valides. Chaque blanc et chaque nul la fait baisser. À dessiner comme un repère qui se déplace, avec son étiquette — c'est un excellent support d'explication, pas un défaut.
+
+#### « Déjà élu » — le seul verdict que l'arithmétique autorise en cours de route
+
+Un candidat est **définitivement au-dessus de la majorité absolue** dès que `voix × 2 > votants`, quoi que contiennent les bulletins restants : les exprimés ne peuvent jamais dépasser les votants, donc le seuil final ne peut qu'être plus bas. C'est rigoureux, calculable à chaque bulletin, et spectaculaire à projeter.
+
+⚠️ **Ne PAS afficher de candidat « éliminé » en cours de dépouillement.** L'énoncé symétrique est bien plus fragile — un bulletin plurinominal ajoute une voix à deux candidats à la fois, et le nombre d'exprimés final reste inconnu. Annoncer devant la classe une élimination qui se démentirait au bulletin suivant serait humiliant pour l'élève concerné et ruinerait la crédibilité du décompte. **En cas de doute, l'app ne dit rien** : elle affiche des voix, elle ne prophétise pas.
+
+#### Lisibilité et déroulement
+
+- **Ordre d'affichage figé** (`election.affichage.ordre`), par défaut l'ordre du tirage ou l'ordre alphabétique — **pas le classement**. Des barres qui se réordonnent à chaque bulletin sont impossibles à suivre du regard : on perd le fil de « sa » barre. Le classement reste disponible en réglage pour qui veut l'effet podium, mais ce n'est pas le défaut.
+- **Transitions douces** sur la croissance des barres (~250 ms) : c'est ce qui rend la progression perceptible d'un bulletin au suivant. ⚠️ Elles doivent être neutralisables (`*{transition:none!important}`) pour l'audit de contraste, sinon une barre saisie à mi-parcours produit de faux écarts.
+- **Taille bornée en `vw` ET en `vh`.** Leçon payée dans le projet de référence sur le minuteur : sur un vidéoprojecteur large, c'est la largeur qui contraint, et des caractères dimensionnés en `vh` seul débordent de l'écran sans prévenir. Vérifier sur plusieurs géométries, du 1920 × 1080 au 1024 × 768.
+- **Couleur par binôme** (`candidat.color`, palette par défaut, modifiable) avec l'encre dérivée par `_contrastTextColor` : les couleurs sont éditables, donc aucun blanc figé sur les barres.
+- **Blancs et nuls affichés à part**, dans un bloc discret — jamais comme des barres en concurrence avec les candidats, ce ne sont pas des prétendants aux sièges.
+- **Correction instantanée d'un bulletin mal lu**, devant la classe, sans casser le graphique. `pushUndo()` **par bulletin** ici — pas le motif de salve `_evalArmUndo` : chaque bulletin est un acte délibéré et distinct, et il doit s'annuler seul. `Ctrl+Z` doit fonctionner depuis la vue de projection.
+- Au niveau de charge en jeu (une trentaine de bulletins, quelques candidats), **reconstruire tout le graphique à chaque bulletin suffit**. Ne pas bâtir de machinerie d'animation incrémentale pour ça.
+
+#### ⚠️ Secret du vote — deux règles qui touchent l'affichage
+
+- **Ne jamais projeter le numéro de bulletin.** La numérotation existe pour l'audit (remonter à un bulletin si un total est contesté), pas pour l'écran. Projetée, elle rend le dépouillement traçable bulletin par bulletin.
+- **Rappeler de mêler les bulletins avant de dépouiller.** Lus dans l'ordre de dépôt dans l'urne, et des élèves se souvenant de l'ordre dans lequel ils sont passés, les votes redeviennent attribuables. C'est le seul point de la procédure où l'app peut aider par un simple rappel affiché à l'ouverture du dépouillement — à mettre là plutôt que dans une documentation que personne ne relira.
+
+### Procès-verbal imprimable
+
+Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisation `@media print`), portant : établissement et classe, date, modalités appliquées (les réglages de l'élection, en clair), la liste des candidats, inscrits / votants / blancs / nuls / exprimés, le tableau des voix par candidat et par tour, les élus, les **deux assesseurs et le professeur principal avec des lignes de signature**.
+
+⚠️ **Le PV n'est imprimable que `clos: true`.** Un PV signé qui ne correspond plus au dépouillement affiché est un faux ; clore verrouille la saisie, et rouvrir demande une confirmation explicite.
+
+### Après l'élection
+
+- Les élus sont reportés sur l'élève (`stu.delegue = 'titulaire' | 'suppleant' | null`, dérivé de l'élection close la plus récente de sa classe) pour être visibles dans la **Synthèse** et dans la liste des élèves — un PP a besoin de savoir qui sont ses délégués sans rouvrir l'élection.
+- ⚠️ **Ne pas stocker `stu.delegue` en dur** : le dériver de `S.elections`, sinon une correction du dépouillement laisse un ancien délégué marqué. Si un cache est nécessaire, le recalculer dans `postLoadHook`.
+- Prévoir la **démission ou le départ d'un délégué** en cours d'année : le suppléant devient titulaire. Ce n'est pas une nouvelle élection — un champ `remplacements: [{ date, candId, motif }]` sur l'élection suffit, sans toucher au dépouillement.
+
+## Écrans
+
+Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group` à deux étages ici).
+
+1. **👥 Élèves** — liste triable, import, ajout/édition, remarque libre, aménagements, arrivée/départ.
+   **Fiche complète** — cliquer le NOM d'un élève ouvre tout ce que l'app sait de lui sur un écran : identité et âge, options, aménagements, présence, place dans chaque salle, délégué ; l'histoire complète du carnet (trous compris) et les totaux de période ; tous les documents avec leurs réponses en clair ; les élections où il apparaît ; sa remarque, et son journal de contacts en entier.
+   - ⚠️ **Écran de LECTURE.** Les corrections se font là où elles se faisaient déjà — dupliquer la saisie ici, c'est dupliquer les gardes-fous et n'en corriger qu'un seul un jour. Les deux boutons de pied mènent à l'édition et à la remarque, et **y reviennent** (`_modalReturnTo`).
+   - ⚠️ La fiche est un **dossier**, pas une vue courante : elle montre les documents archivés et les relevés où l'élève n'a rien. Une case vide au 8 décembre est une information quand on prépare un rendez-vous.
+   - ⚠️ Un document `suiviRetour: false` s'affiche « rien à rendre », **jamais « non rendu »** : sinon la fiche fait courir après un papier qui n'existe pas.
+   - La section **Documents est repliable** (elle est la plus longue, et on ne l'ouvre pas à chaque consultation) — mais les **choix portés** sur les papiers restent visibles repliés : c'est souvent la seule chose qu'on vient y chercher, et la cacher derrière un clic reviendrait à cacher l'essentiel avec l'accessoire. Le pli se souvient d'une fiche à l'autre. Reprend la structure de l'onglet Élèves de Plan de classe, moins tout ce qui touche au placement.
+2. **📓 Carnets** — grille **élèves × relevés**. **Touches de saisie** sous la cellule active : les six valeurs probables (inchangé, +1 … +5), plus « absent » et « vide ». Toucher une touche écrit et passe à l'élève suivant — la boucle qui rend la saisie au doigt plus rapide qu'au clavier.
+   - ⚠️ La **première** proposition est la valeur INCHANGÉE : d'un relevé à l'autre, « rien de neuf dans ce carnet » est le cas le plus fréquent, il doit être le plus facile à atteindre.
+   - ⚠️ `_carnetSuggestions` ne regarde JAMAIS la valeur déjà dans la cellule : on peut être en train de corriger une faute de frappe, et proposer des incréments à partir d'elle la propagerait.
+   - ⚠️ Le bandeau **suit** la cellule au défilement, il ne se referme pas. Première version : il se cachait sur tout `scroll` — or donner le focus à une cellule la fait défiler dans la vue, donc il disparaissait à l'instant même où il s'ouvrait. Invisible en test unitaire, systématique à l'usage.
+   - ⚠️ Huit touches à 42 px font 376 px : plus qu'un écran de téléphone, et c'est là qu'elles servent. Elles passent à la ligne (`flex-wrap` + `max-width: calc(100vw - 10px)`).
+ Une colonne par date, saisie du cumul au clavier (`Tab`/`Entrée` comme le tableur d'éval), colonne **Δ depuis le relevé précédent**, colonne **total de la période**, en-tête `+ Nouveau relevé`. Tri par Δ décroissant = la liste des élèves à voir en priorité.
+3. **📄 Documents** — liste des documents (avec compteurs `rendus / attendus` et `réponses manquantes`), puis un tableau par document : élèves × (`Rendu` · `Date` · un groupe de colonnes par champ). Bouton « liste des manquants » (à copier ou imprimer pour la vie scolaire).
+   ⚠️ **Un document ne se « ramasse » pas toujours** : très souvent on VÉRIFIE qu'une signature est là, carnet par carnet, en passant dans les rangs. Le tableau d'un document porte donc le même sélecteur de tri que les autres grilles — place et ordre de ramassage compris.
+   **🧺 Ramassage** — le geste réel n'est pas « un document à la fois » : on passe dans les rangs avec trois papiers différents à récupérer. D'où une troisième vue de l'onglet, une grille **élèves × documents** où l'on coche les retours de plusieurs documents en une seule passe. Colonnes choisies à la volée, date du ramassage réglable (on saisit souvent le soir), compteurs vivants par colonne et par élève, « tout cocher » par colonne, flèches pour descendre une colonne.
+   - ⚠️ **Une case a TROIS états.** Rendu, pas rendu, et **sans objet** — l'élève arrivé en novembre n'a jamais eu la fiche de rentrée, celui parti en mars n'a pas eu la fiche d'orientation. Un tiret, pas une case vide : confondre les deux, c'est réclamer un papier à quelqu'un qui ne l'a jamais reçu. `ramSetRendu` **refuse** d'écrire pour un élève non attendu.
+   - ⚠️ **Salve d'undo** (`_ramArmUndo`, motif `_relArmUndo`) : cocher vingt-cinq cases est UN geste. Sans elle, une seule passe viderait la pile de quinze niveaux. En revanche « tout cocher une colonne » est un acte délibéré et massif → son propre `pushUndo()`, et **rien n'est empilé si la colonne était déjà dans l'état demandé**.
+   - ⚠️ **Pas de re-rendu à chaque case** : la grille se reconstruirait sous le curseur en pleine passe. Seuls les compteurs sont rafraîchis (`_ramRefreshCounters`).
+   - Les élèves **partis** sont masqués par défaut (on ne ramasse rien auprès d'eux) mais restent comptés dans les manquants du document, où l'information est juste.
+   - **Les réponses se relèvent DANS la grille.** Le papier revient et on lit la case cochée dessus : rouvrir le document ensuite, élève par élève, c'est refaire une seconde fois le tour de la classe. Pastilles plutôt que menu déroulant — un appui au lieu de deux, ce qui compte debout dans une allée — et un second appui sur la même option l'efface, pour corriger une lecture erronée sans viser une croix.
+     - Seuls les champs `par: 'famille'` descendent dans les rangs : l'avis du PP se donne au bureau, et le compter ici ferait clignoter une ligne pour un travail qui n'est pas le geste en cours. Idem pour le compteur « à lire », qui ne prend que les champs **obligatoires** des familles.
+     - ⚠️ **Relever un choix VAUT constat de retour** (arbitrage de l'utilisateur, 2026-09-09) : si on lit la case cochée sur le papier, c'est qu'on l'a en main, et le cocher à part serait deux gestes pour un seul fait. Le retour se coche donc tout seul, **à la date du ramassage** — et si le papier était déjà daté, sa date ne bouge pas. Deux bornes : **retirer** une réponse ne décoche RIEN (on corrige une lecture, on ne rend pas le papier), et la règle ne vaut **que dans les rangs** — le tableau du document garde les deux axes séparés, parce que c'est là qu'on note une réponse donnée à l'oral avant que le papier revienne.
+     - ⚠️ **Repli par colonne**, et repli d'office des documents à plusieurs champs de famille. Un champ à trois options tient sur une ligne ; deux champs de quatre options font des lignes de **130 px**, soit trois mille pixels de défilement pour vingt-cinq élèves — la grille devenait illisible avant d'avoir servi. Mesuré sur la fiche d'orientation des données de démo.
+   - ⚠️ **Un bouton de masse n'agit que sur ce qui est AFFICHÉ.** « Tous » itérait tous les
+     élèves attendus, partis compris — il marquait donc « rendu » pour quelqu'un dont la
+     ligne est masquée : un papier déclaré recueilli en mains propres auprès d'une personne
+     qui n'était pas dans la salle, sans rien à l'écran pour le montrer. `ramSetColonne`
+     prend désormais une liste explicite d'élèves, et le toast **dit** combien sont restés
+     hors de vue — sinon le compteur de la colonne stagnerait sous son total sans raison
+     apparente. (Trouvé en relecture croisée, pas par les tests : mes fixtures d'origine
+     couvraient le calcul, pas la politique d'affichage.)
+   - La sélection ne vit **que pour la passe en cours** : rien n'est ajouté à `S`, donc rien à purger ni à déclarer dans `_validateImport`. Elle est filtrée sur la **classe courante** — changer de classe avec le ramassage ouvert laissait sinon des colonnes de l'autre classe, peuplées de ses élèves à elle.
+4. **🗳 Délégués** — candidatures (binômes), **dépouillement projeté en direct** (grille de saisie à gauche, graphique lisible du fond de la salle à droite), résultats calculés, procès-verbal imprimable. Un bloc par élection, historisé : on garde celle de l'an dernier. **C'est l'écran le plus exigeant du projet** : il est utilisé une fois par an, devant 25 témoins, sans possibilité de reprendre plus tard.
+5. **📊 Synthèse** — une ligne par élève, tout ce qui est connu : cumul d'observations, Δ récent, documents non rendus, réponses portées, délégué ou suppléant, remarque. **C'est l'écran de préparation du conseil de classe et des appels aux parents** — il est la raison d'être de l'app, pas un bonus.
+6. **💾 Données** — sync auto, versions & backups, jauge de mémoire locale, export/import JSON, RGPD, à propos.
+
+**Impression** (`@media print`, orientation imposée avant `window.print()`) : la synthèse en paysage, la liste des manquants d'un document en portrait, le procès-verbal d'élection en portrait. ⚠️ Reprendre le bloc `@media print { html[data-theme="dark"] { … } }` : sans lui, imprimer en thème sombre pose de l'ambre sur blanc (244 écarts mesurés dans le projet de référence).
+
+## Trier les élèves : nom, prénom, place, ordre de ramassage
+
+Les quatre grilles (Élèves, Carnets, Ramassage, Synthèse) partagent un sélecteur « Trier »
+(`_sortPickerHTML`) et un moteur commun (`_sortStudents`). Chaque écran y ajoute ses modes
+propres (Δ, cumul, non rendus…) ; les modes de place et de ramassage viennent, eux, du
+placement importé.
+
+- **« Par place » se CALCULE** de la géométrie : rang par rang, de gauche à droite.
+  ⚠️ Comparaison **numérique** sur le rang puis la colonne — en lexical, `'10,0'` passerait
+  avant `'9,0'`, ce qui reste invisible tant qu'une salle a moins de dix rangs.
+- **« Ramassage » ne se calcule PAS** : c'est une séquence de tables dessinée à la main
+  dans Plan de classe, propre à chaque salle, et il peut y en avoir plusieurs (serpentin,
+  deux allées, par paillasses). Rien ne la déduit — c'est un choix pédagogique, pas une
+  géométrie.
+- ⚠️ **Un tri ne perd JAMAIS un élève.** Ceux que la salle ou le pattern ne couvrent pas
+  sont rejetés en fin de liste, alphabétiquement — jamais retirés. Un élève absent de la
+  grille de ramassage est un papier qu'on ne réclamera pas. C'est l'invariant central, et
+  il est testé sur tous les modes.
+- Tout repli est alphabétique et silencieux : salle inconnue, salle sans placement,
+  pattern inconnu, mode inconnu. Un tri ne doit jamais être une impasse.
+- Les modes de place n'apparaissent au menu **que si la salle courante porte de quoi les
+  calculer** : un tri offert mais sans effet fait douter de l'import plus qu'il ne sert.
+- ⚠️ **Un mode de tri devient CADUC quand la salle change** (le pattern de la 102 n'existe pas au labo). Le sélecteur affiche alors « par nom » — ce que le tri fait réellement. Sans cette normalisation, le menu annonçait un ordre de ramassage pendant que la liste était alphabétique : **l'écran mentait sur ce qu'il faisait**, et on ne cherche pas la cause d'un ordre qu'on croit avoir demandé. Le mode reste mémorisé : revenir dans la salle le fait reprendre.
+  ⚠️ Le test de cette garantie porte sur le **HTML produit**, pas sur le helper : `_sortModeOk` avait d'abord été écrit puis jamais branché, et un helper que rien n'appelle certifie une garantie inexistante.
+- ⚠️ **Le sélecteur de salle n'est pas un ornement** : un élève n'a pas la même place d'une
+  pièce à l'autre. `cls.salleCur` est la salle où l'on est entré, et c'est elle qui décide.
+
+⚠️ **`_purgeStudentRefs` doit vider les places.** Un élève supprimé qui reste assis
+réapparaît en tête de la grille triée par place, sous forme d'un id que plus rien ne
+nomme. Le test balayant le voit — vérifié en cassant la purge exprès.
+
+## Import des élèves — deux voies
+
+### 1. CSV / tableur (voie principale)
+
+Module repris intégralement. À adapter :
+- **Retirer** de `_IMP_FIELDS` ce qui n'a pas de sens ici (rien à retirer d'urgent : tous les champs importés existent dans `stu`).
+- **Retirer** tout le volet « salle des nouvelles classes » (`_impRoomChoiceHTML`, `_impDefaultRoomChoice`, `_impSetRoom`) — il n'y a pas de salle.
+- **Garder** le panneau « Codes de groupes rencontrés » : c'est lui qui transforme `4B-LATIN` en tag `LATIN`.
+- **Garder** le décodage **UTF-8 strict puis repli Windows-1252** (`_impFileSelected`) : les exports Pronote/SIECLE sont en 1252 et « Léa » devient « LÃ©a » sans ce repli.
+- **Garder** la création des classes inconnues (`_impClassIdFromLabel` : « 5ème C » → `5C`, libellé complet conservé comme nom).
+
+### 2. Export JSON de Plan de classe
+
+`importFromPlanDeClasse(json)` : lit un `plan-classe-*.json`, ne prend que `classes` (id, nom, année, roster) et `eleves` (identité, civilité, groupe, tags, aménagements, dates d'arrivée/départ), **ignore tout le reste** (salles, sièges, tablettes, évaluations, appels…).
+
+- ⚠️ **Lecture seule et à sens unique.** Aucune écriture vers le fichier de Plan de classe, aucun couplage de format : les deux apps évoluent séparément, et la seconde ne doit jamais dépendre d'un champ interne de la première. Passer le JSON par une **liste blanche explicite** des champs repris, pas par une copie d'objet.
+- ⚠️ **Les ids d'élèves sont conservés** quand on importe depuis Plan de classe — c'est ce qui permet de réimporter plus tard sans créer de doublons, et de reconnaître un élève déjà présent. La détection de doublon garde en plus le filet nom+prénom+classe (sans accents ni casse) du module CSV.
+- Les tags de Plan de classe (`S.tags`) portent `{id, abbr, name, color}` : reprendre le catalogue en même temps que `stu.tags`, sinon les tags arrivent sans libellé.
+- **Salles, places et patterns** (depuis le 2026-09-09) : liste blanche `{nom, rows, cols, collectPatterns}` — ni cases vides, ni îlots, ni emplois du temps, ni tablettes. Un champ repris « au cas où » est un champ dont personne ne sait plus, six mois après, s'il est à jour.
+  - ⚠️ **Les ids de salle sont PRÉFIXÉS `pdc_`.** Plan de classe les nomme `s1`, `s2` — des compteurs locaux, sans unicité entre deux fichiers d'origines différentes. Sans préfixe, la « Salle 102 » d'un collègue écraserait la nôtre au premier import croisé.
+  - ⚠️ Le placement vit dans `cls.rooms[salleId].seating`. `cls.seating`, là-bas, est un **accesseur non énumérable** qui redirige vers la salle active : il n'existe pas dans le JSON, et le chercher ne donnerait rien.
+  - Une place occupée par un élève qu'on n'a pas repris est **écartée** — sinon `_auditState` signalerait à juste titre un élève fantôme assis.
+  - Réimporter **met à jour** : la salle homonyme et le placement sont remplacés, pas empilés. C'est LE chemin de mise à jour des places — 💾 Données → 🪑 Depuis Plan de classe.
+  - ⚠️ L'écran de choix **annonce le placement AVANT l'import** (« 🪑 25 places · 1 ordre de ramassage », ou « aucun placement »), et le compte rendu le confirme après. Sans ce repère, un export fait sans avoir placé personne donne un import qui ne change rien, et on cherche pourquoi.
+
+## Sauvegarde, sync, stockage
+
+Reprendre l'architecture de Plan de classe **sans la simplifier** — chaque pièce répond à un incident vécu :
+
+- `localStorage` pour les données (`suiviPP_v1`), écrit à chaque `save()`, **synchrone** (un `beforeunload` doit pouvoir persister les dernières frappes).
+- **Sync auto** vers un dossier Nextcloud académique (`nuage03.apps.education.fr`) via File System Access API, debounce 5 s, handle persisté en IndexedDB.
+- **Horloge vectorielle** (`S.clock`) pour classer la version disque : `equal` / `ahead` / `behind` / `diverged`. ⚠️ **Ne pas retomber sur une comparaison de `lastModified`** : Nextcloud retouche le mtime sans changer le contenu, ce qui produisait un flot de faux conflits.
+- **Résolution de conflit non destructive** : les deux issues archivent l'autre version dans un fichier avant d'écrire. ⚠️ **Si l'archivage échoue, la résolution est annulée** — jamais d'écrasement sans copie.
+- **Backups horodatés** avec rotation par paliers (10 min < 1 h, 1 h < 48 h, 1 j < 14 j, 1 sem < 120 j) + dédup par empreinte de contenu, et **checkpoints nommés** avant une opération risquée.
+- **Copie du dernier fichier chargé dans IndexedDB, pas dans `localStorage`** : elle y doublait l'occupation (mesuré 1,07 Mo + 1,07 Mo chez l'utilisateur, soit le plafond de son navigateur atteint en fin d'année).
+- **Jauge d'occupation** dans la modale ⓘ : capacité **mesurée** par sonde dichotomique, pas supposée. ⚠️ `navigator.storage.estimate().usage` **ne compte pas `localStorage`** — s'en servir affichait « 2 Ko » à côté d'un mégaoctet réel.
+- ⚠️ **Compression écartée sciemment** : `CompressionStream` est asynchrone alors que `beforeunload` appelle `save()` de façon synchrone, et un seul octet altéré détruit un fichier gzip entier là où un JSON en clair reste réparable à la main.
+
+**Volume attendu ici : très faible** — une classe de 25 élèves, une dizaine de relevés, une dizaine de documents. Quelques dizaines de kilo-octets. Le dispositif complet n'en est pas moins justifié : c'est le filet de sécurité, et une donnée de PP perdue (retours de fiches d'orientation) ne se reconstitue pas.
+
+## Design system
+
+Reprendre le design « carnet du prof » **à l'identique** : tokens, polices embarquées, filet rouge de marge, lignes Seyès, thème sombre, bloc de neutralisation à l'impression.
+
+⚠️ **Les quatre règles qui ont coûté le plus cher dans le projet de référence :**
+
+1. **Tout token de couleur se déclare à TROIS endroits** : `:root`, `html[data-theme="dark"]`, et le bloc `@media print { html[data-theme="dark"] { … } }`. Un token oublié dans le troisième s'imprime en couleurs de nuit sur papier blanc.
+2. **Un fond clair posé pour le mode clair a besoin d'une variante sombre** — pas seulement d'une encre adaptée. Un pastel laissé tel quel fait un trou de lumière dans le bleu nuit.
+3. **Un accent utilisé en FOND et en TEXTE a besoin de deux valeurs** (`--x-bg` et `--x-fg`) : l'arbitrage s'inverse avec le thème.
+4. **Jamais `color:#fff` en dur sur un fond coloré** — surtout pas sur une couleur choisie par l'utilisateur (les couleurs d'options de documents le seront). Toujours `_contrastTextColor(bg)`, qui tranche par contraste WCAG réel via `_wcagContrast`.
+
+**Méthode d'audit du contraste** (à rejouer après toute retouche de couleur) : injecter un auditeur qui parcourt le DOM, calcule le fond effectif en remontant les parents transparents et l'opacité cumulée, puis le contraste de chaque nœud portant du texte propre. Seuil 4,5:1 (3,0 pour le grand texte). Quatre conditions sans lesquelles la mesure ne vaut rien :
+- **des données partout** — un onglet vide passe pour un onglet propre ;
+- **les sous-états** autant que les onglets ;
+- **les modales**, statiques (forcer la classe `on`) comme dynamiques (par leur vrai ouvreur) ;
+- **transitions neutralisées** (`*{transition:none!important;animation:none!important}`) — une puce saisie à mi-parcours produit de faux écarts.
+
+## Conventions de développement
+
+- **Tout dans un seul fichier HTML.** CSS dans le `<style>` de tête, JS dans le `<script>` de fin de body. **Aucune dépendance externe**, aucun CDN — l'app doit fonctionner hors-ligne, en `file://` comme en HTTPS.
+- **`pushUndo()` AVANT toute mutation**, jamais après (sinon l'undo capture le mauvais état). Pour une **saisie continue** (cumul d'un relevé qu'on tape, cases d'un ramassage qu'on coche), utiliser le motif `_evalArmUndo()` de la référence : un snapshot par salve de frappe, verrou libéré 2 s après la dernière mutation, sinon la pile d'undo sature.
+  ⚠️ **Tout verrou de salve se désarme dans `_applyReloadedData`.** Un verrou encore armé après un rechargement de sync fait SAUTER le `pushUndo()` de la mutation suivante — laquelle porte sur l'état fraîchement rechargé, jamais capturé, et le Ctrl+Z ne remonte plus. `_relUndoArmed` y était ; `_ramUndoArmed`, ajouté plus tard, avait été oublié. Le désarmement n'est pas une précaution décorative : c'est la condition pour que la règle ci-dessus tienne encore après une synchronisation.
+  ⚠️ Et **armer la salve seulement une fois la mutation certaine** : armer puis renoncer pose un snapshot sans mutation, et le premier Ctrl+Z ne fait rien de visible.
+- **Zéro dialogue natif.** Ni `alert`, ni `confirm`, ni `prompt` : l'anti-popup du navigateur les bloque silencieusement et le bouton paraît cassé. Utiliser `_uiConfirm`, `_uiPrompt`, `appAlert`, ou `toast(msg, 'warn')` pour une précondition non bloquante. ⚠️ `_uiConfirm` **n'est pas bloquant au sens JS** : tout ce qui suivait le `confirm()` va dans `onOk` / `onCancel`.
+- **Échappement au rendu**, systématique : `_escName` / `_escAttr` pour toute donnée utilisateur injectée en `innerHTML`, `_escJsAttr` pour un texte passé à un handler inline (le navigateur HTML-décode l'attribut **avant** de parser le JS, donc `_escAttr` seul laisse un breakout), `_csvCellGuard` avant tout quoting de cellule exportée (une cellule commençant par `=` `+` `-` `@` est une formule à l'import tableur). Préférer le template balisé `_html` pour le code neuf.
+- **CSP en `<meta>`** dès le premier commit : `connect-src 'self' https://api.github.com`, `img-src 'self' data: blob:`, et ⚠️ **`font-src 'self' data:`** — sans lui, `default-src 'self'` bloque les trois polices embarquées en base64 et l'app retombe en silence sur les polices système.
+- **États vides actionnables** : un état vide dit QUOI faire. Reprendre `_emptyStateHTML(icon, titre, hint)`.
+- **Retour de modale** : `_modalReturnTo[id]` pour qu'un panneau ouvert en parenthèse (réglages d'un document depuis son tableau) revienne d'où il vient, sur les trois voies de fermeture (bouton, fond, Échap).
+- **Auto-focus et Entrée** : chaque modale à formulaire porte `data-autofocus` sur son premier champ utile et valide à `Entrée`. Sans `data-autofocus`, `openMod` focalise la boîte `.mb` elle-même — sinon le focus reste **derrière** la modale et le piège à focus ne s'enclenche jamais.
+- **Pas de conception 100 % clavier**, mais les **raccourcis existants ne se cassent pas** : `Échap`, `Ctrl+Z` / `Ctrl+Y`, `Ctrl+P`, validation à `Entrée`. ⚠️ Le garde de `Ctrl+Z` doit tester la **saisie de texte** (`_isTextEntryTarget`), pas `tag === 'INPUT'` : une case à cocher garde le focus sans avoir d'undo natif, et le raccourci y devenait muet.
+- Pour un développement long : travailler sur une copie `suivi pp new.html`, puis remplacer une fois validé.
+
+### ⚠️ Champs `<input type="date">` — l'année telle que tapée
+
+Un champ date livre l'année **exactement comme elle est saisie** : taper « 21 / 05 / 13 »
+produit `0013-05-21`, pas `2013-05-21`. La date est alors rejetée comme illisible — juste
+après que l'utilisateur a correctement saisi le jour et le mois, et le message l'accuse
+d'une faute qu'il n'a pas commise. Sur une saisie en série de vingt-cinq dates de
+naissance, c'est vingt-cinq fois.
+
+⚠️ **Et la correction n'est pas que dans le calcul : elle est dans le MOMENT.** Un champ
+date devient « complet » dès le premier chiffre d'année tapé, et `change` part avec l'an
+0001. Normaliser et réécrire le champ à cet instant **remet le segment année à zéro** :
+taper « 1 » puis « 3 » donnait alors 2001 puis 2003 au lieu de 2013. On attend donc que le
+champ soit **quitté** (`blur`, ou `change` reçu alors qu'il n'a plus le focus) pour
+normaliser, enregistrer et réafficher. Un test qui ne vérifierait que `_ymdCompleteAnnee`
+passerait sans rien garantir — celui qui compte pilote `document.activeElement`.
+
+⚠️ **Et on n'ouvre JAMAIS le sélecteur natif (`showPicker`) en arrivant sur le champ
+suivant.** Posé en croyant aider au tactile — où il ne sert à rien, toucher un champ date
+ouvrant déjà le sélecteur — il affichait le calendrier par-dessus le clavier : il fallait
+une seconde frappe d'Entrée pour le refermer avant de pouvoir taper. Vingt-cinq frappes
+perdues sur une classe. Un test de source l'interdit pour qu'on ne le « répare » pas une
+troisième fois.
+
+`_ymdCompleteAnnee(v)` complète les années à **deux** chiffres : `20xx`, ou `19xx` si
+`20xx` tombait dans le futur (personne n'est né l'an prochain). ⚠️ **Trois chiffres ne se
+devinent pas** — « 202 » peut être 2020 saisi trop vite, 1202 ou 0202 : deviner écrirait
+une date fausse sans que rien ne le signale. Appelé sur toute date saisie à la main
+(naissance dans la liste et dans la fiche, date de relevé, date de contact) ; **tout
+nouveau champ date se branche là**.
+
+### Invariants de fiabilité
+
+- **Suppression d'un élève = `_purgeStudentRefs(sid)`, source unique de vérité.** Ici : le roster de sa classe, `releve.counts[sid]` de tous les relevés, `doc.retours[sid]` de tous les documents. ⚠️ **Les élections sont une EXCEPTION assumée**, comme les appels de Plan de classe : un procès-verbal signé est un document historique, on n'en retire pas un candidat parce qu'il a changé d'établissement en mars. `election.candidats[].sidTitulaire` et `assesseurs` survivent donc — à déclarer dans les exceptions du test de balayage, avec cette justification. Corollaire : l'élection doit porter l'**identité minimale** (nom, prénom) de ses candidats et assesseurs, sinon le PV devient illisible après suppression (même raisonnement que `attRecord.eleves` là-bas). ⚠️ **Tout nouveau champ indexé par sid se purge LÀ**, ou s'ajoute aux exceptions du test de balayage avec sa justification écrite.
+- **Suppression d'une classe = `_purgeClassRefs(classId)`** : `S.releves[classId]`, `S.elections[classId]`, retrait de `doc.classIds` (et suppression du document s'il ne concerne plus aucune classe vivante), suppression de ses élèves.
+- **`_validateImport`** : liste blanche des sections de `S`, rejet explicite de `__proto__` / `constructor` / `prototype` par un scan récursif des clés. ⚠️ Ajouter une section à `S` impose de l'ajouter à cette liste.
+- **`_sanitizeCoreSections()` en tête de `postLoadHook`** : une section absente ou du mauvais type est recréée, une entrée non-objet est supprimée avec un `console.warn`. ⚠️ Une exception dans `postLoadHook` interrompt le chargement et laisse un état à moitié migré, **sans message** : toute migration doit supposer que sa section peut manquer.
+- **Gestionnaire d'erreurs global** (`window.onerror` + `unhandledrejection`) → toast discret + journal `window.__suiviPPErrors`. Rend visibles les pannes que les `catch {}` avalent.
+
+### Tests (`test/`, `npm test`)
+
+Reprendre `test/harness.js` : il extrait le gros `<script>` inline, le charge dans un contexte `vm` avec un DOM stubé, neutralise `init()` et expose `__TESTEVAL(code)` pour exécuter du code dans la portée lexicale du script. **Aucune dépendance**, Node ≥ 18.
+
+Familles à couvrir dès le début :
+- **Calcul des deltas et des totaux de période** — le cœur métier : cumuls, `'A'` intercalé, vides, cumul décroissant, premier relevé, changement de période.
+- **Dépouillement et attribution des sièges** — l'autre cœur métier, et le plus piégeux : exprimés comptés en bulletins et non en voix, majorité absolue strictement supérieure à la moitié (13 sur 24, pas 12), un seul siège pourvu au premier tour, égalité sur le dernier siège, blancs et nuls hors dénominateur, bulletin nul portant des noms valides. **Écrire ces tests avant la grille.**
+- **État intermédiaire de la projection** — c'est du calcul pur, donc testable sans DOM, et personne ne le vérifiera à la main devant une classe : `voix × 2 > votantsAnnonces` déclenche « déjà élu » et rien d'autre ne le déclenche · le pourcentage porte bien sur les bulletins dépouillés et non sur `votantsAnnonces` · **un cas où le pourcentage d'un candidat baisse pendant que ses voix montent** (le comportement contre-intuitif doit être figé par un test, sinon quelqu'un le « corrigera » un jour) · seuil de majorité qui descend à l'arrivée d'un blanc · aucun « éliminé » émis en cours de route.
+- **Purge en cascade** — deux versions : la liste énumérative, **et** un test *balayant* qui monte un état maximal, supprime, puis cherche le moindre reste dans `JSON.stringify(S)`. Le second est le seul qui voit un champ **nouveau**.
+- **Rétrocompatibilité** — une fixture JSON par changement de modèle, rejouée par le chemin d'import complet. ⚠️ **Ne jamais régénérer une fixture existante** : elle fige un état historique, c'est sa valeur.
+- **Fuzz** — mutations reproductibles (graine fixe) d'une fixture réelle : le chemin d'import doit **refuser ou aboutir**, jamais lever.
+- **Sync deux postes** — deux sandboxes, deux `localStorage`, deux `_DEVICE_ID`, et la classification vérifiée à chaque étape jusqu'à la résolution de conflit.
+- **Lint anti-XSS** — échec si un champ de donnée utilisateur (`nom`, `prenom`, `titre`, `label`, `remarque`…) est interpolé en clair dans une ligne contenant un fragment HTML.
+- ⚠️ **Chaque test balayant porte un méta-test** qui injecte un cas volontairement fautif et vérifie que le détecteur le voit. Sans lui, une régression du parcours rend la suite silencieusement vacante — pire que pas de test.
+
+⚠️ `node --test` exécute **tout** `.js` sous `test/` : un utilitaire y passerait pour un test en échec. Les scripts vont dans `scripts/`.
+
+## État de la construction
+
+| # | Étape | État |
+|---|---|---|
+| 1 | Squelette : design system, CSP, `S`, sauvegarde locale, horloge vectorielle, undo, modales, nav 6 onglets, export/import JSON, harnais + 27 tests | ✅ **fait** (2026-09-09, v0.1.0) |
+| 2 | Onglet Élèves + import CSV / Pronote, gestion des classes et du catalogue d'options, 35 tests de plus | ✅ **fait** (2026-09-09, v0.2.0) |
+| 3 | Import depuis un export JSON de Plan de classe, avec **choix de la classe** ; réglage semestre/trimestre + code absent dans Données | ✅ **fait** (2026-09-09, v0.3.0) |
+| 4 | Onglet Carnets : calcul pur (`_relDelta`, `_relPeriodTotal`, `_periods` avec bornes réglables) testé AVANT la grille, grille avec saisie clavier, undo par salve, modale nouveau/modifier/supprimer | ✅ **fait** (2026-09-09, v0.4.0) |
+| 5 | Onglet Documents : calcul pur (`_docStats`, `_docExpected`, `docDuplicate`, `_champParseOptions`) testé avant l'UI, liste + tableau des retours, éditeur de champs, liste des manquants, 3 modèles | ✅ **fait** (2026-09-09, v0.5.0) |
+| 6 | Onglet Délégués : arithmétique testée avant tout (21 tests), grille de dépouillement, graphique deux volets + mode projection, clôture / second tour / départage manuel, PV imprimable, `_delegueOf` dérivé | ✅ **fait** (2026-09-09, v0.6.0) — fenêtre flottante PiP non faite (optionnelle) |
+| 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
+| 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
+| 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 17 | Colonne **Naissance** saisissable en série · **touches de saisie** du carnet · fiche : Documents repliable avec les choix visibles · **années à deux chiffres** complétées | ✅ **fait** (2026-09-09, v1.7.0) |
+| 16 | **Fiche élève complète** au clic sur le nom (`_ficheAge`, `_fichePlaces`, `_ficheCarnet`, `_ficheDocuments`, `_ficheElections`) | ✅ **fait** (2026-09-09, v1.6.0) |
+| 15 | Tri aussi dans le **tableau d'un document** (vérifier des signatures dans les rangs) · **date de naissance** + départage automatique par l'âge · **journal des contacts** avec les familles | ✅ **fait** (2026-09-09, v1.5.0) |
+| 14 | **Tri des élèves par nom / prénom / place / ordre de ramassage** dans les 4 grilles, sélecteur de salle, import des salles + placements + patterns depuis Plan de classe | ✅ **fait** (2026-09-09, v1.4.0) |
+| 13 | Poignée ⋮ de réordonnancement (glisser souris/tactile, trait d'insertion, `Échap`, clavier) ; un choix relevé vaut constat de retour | ✅ **fait** (2026-09-09, v1.3.0) |
+| 12 | **Réponses au ramassage** (pastilles dans la grille, repli par colonne) + **réordonnancement des documents** (`docReorder`) | ✅ **fait** (2026-09-09, v1.2.0) |
+| 11 | **Ramassage** : grille élèves × documents pour cocher les retours de plusieurs papiers en une passe (`_ramRows` pur et testé, salve d'undo, colonne entière, clavier) | ✅ **fait** (2026-09-09, v1.1.0) |
+| 10 | Audits complets : contraste (20 états × 2 thèmes + rendu papier simulé), impression (orientation rendue portable), responsive 320 → 1920 px, clavier des 19 modales ; 11 tests statiques du design system | ✅ **fait** (2026-09-09, v1.0.0) |
+
+### Scores de référence — audit de contraste
+
+**2026-09-09, v0.1.0 (squelette) : 0 écart**, en thème clair comme en thème sombre.
+Parcours : les 6 onglets + les 5 modales (`mconfirm2`, `mprompt2`, `mAppDialog`, `mupdate`,
+`mabout`) + le bandeau RGPD, avec des données injectées, contenus de modales peuplés
+(les cinq variantes de bouton, les trois `.al`), et transitions neutralisées.
+Seuil 4,5:1 (3,0 pour le grand texte).
+
+Deux défauts trouvés et corrigés à cette passe, tous deux exemplaires des règles du design system :
+1. **Bandeau RGPD à 1,63:1 en thème sombre.** Sa surface est un jaune de surligneur dans les
+   deux thèmes (c'est un avertissement), mais son encre était `var(--ink-deep)`, qui s'inverse
+   et devenait l'ambre de nuit sur l'or. → tokens dédiés `--rgpd-bg` / `--rgpd-fg` / `--rgpd-btn-*`,
+   déclarés aux **trois** endroits. Illustration littérale de la règle 2 : *un fond clair posé
+   pour le mode clair a besoin de sa propre encre, pas seulement d'un thème*.
+2. **Boutons imprimés en thème sombre.** Les fonds de bouton de nuit (`#3b5a8c`, `#9c3529`…)
+   sont posés en dur : le bloc de neutralisation d'impression, qui n'agit que sur les TOKENS,
+   ne les ramenait pas au clair, et l'encre de papier rétablie tombait sur un fond de nuit.
+   → `.tb, button, .btn { display:none }` dans `@media print`. Aucun contrôle n'a sa place sur
+   le papier : fermer le piège par construction vaut mieux que d'énumérer des couleurs.
+
+**2026-09-09, v0.2.0 (onglet Élèves + import) : 0 écart**, clair et sombre.
+Parcours élargi : les 6 onglets avec une classe réelle importée (6 élèves, 2 classes,
+3 options, aménagements, dates d'arrivée) + les 10 modales peuplées — dont l'import avec
+son panneau de mappage, son panneau de codes et un aperçu portant des lignes en erreur.
+
+Un défaut trouvé et corrigé, du même genre que les deux précédents :
+3. **Pastilles de groupe invisibles.** `--g1` / `--g2` / `--g3` vivaient dans le `<style>`
+   de la référence **hors** du bloc design system repris (ligne 602 contre 789-1019) : les
+   pastilles tombaient sur un fond transparent avec une encre claire. Rétablis en tokens,
+   avec leur encre nommée (`--gN-on`) — blanche pour les trois, mesuré 5,97 · 4,91 · 5,87:1,
+   contre 4,28 · 3,52 · 4,20 pour l'encre ambre du thème sombre. ⚠️ Ces trois couleurs **ne
+   varient pas** avec le thème (la couleur porte le sens du groupe) : une seule déclaration
+   dans `:root`, et rien à faire dans le bloc d'impression — la règle des trois endroits ne
+   s'applique qu'aux tokens qui, eux, changent.
+
+**2026-09-09, v0.3.0 (import Plan de classe + réglages) : 0 écart**, clair et sombre — 6 onglets
+avec une classe de 25 élèves importée du fixture `v2026-08-02.json` de la référence, bloc
+Réglages, et la modale de choix des classes peuplée (6 divisions, mention « déjà connus »).
+
+**2026-09-09, v0.4.0 (Carnets) : 0 écart**, clair et sombre — grille de 6 élèves × 9 relevés
+(un `A`, des vides, un cumul décroissant, un élève parti, une colonne vide), modale de relevé
+peuplée. Seule remontée : une case à cocher (`value="on"`) prise pour du texte par l'auditeur
+élargi aux `<input>` — faux positif, pas un défaut.
+
+Un défaut de rendu (pas de contraste) trouvé en route :
+4. **Cellules blanches en thème sombre.** Les `<input>` sans attribut `type` sont des champs
+   texte, mais `input[type="text"]` ne les sélectionne pas : ils gardaient le blanc du
+   navigateur. → `input:not([type])` ajouté à la règle générique. L'audit de contraste ne
+   pouvait pas le voir (noir sur blanc passe) : c'est la capture d'écran qui l'a montré —
+   raison de plus pour REGARDER l'écran, pas seulement mesurer.
+
+**2026-09-09, v0.5.0 (Documents) : 0 écart**, clair et sombre — liste (3 documents, badges
+rendus / sans réponse / avis), tableau des retours de la fiche d'orientation (sélecteurs colorés
+par option, encre dérivée), modale de définition peuplée du modèle orientation (4 champs,
+pastilles), liste des manquants.
+
+Un défaut trouvé et corrigé :
+5. **Badge neutre `.badge.z` à 4,12:1 en clair** — `--pencil` sur `--paper-deep`. Passé à
+   `--ink-blue-soft` : 9,12:1 en clair, 7,07:1 en sombre (mesuré). Leçon : `--pencil` est
+   calibré sur le papier, pas sur `--paper-deep` ; une encre secondaire posée sur une surface
+   plus foncée que le fond doit être remesurée.
+
+**2026-09-09, v0.6.0 (Délégués) : 0 écart**, clair et sombre — liste des élections, élection
+en cours (grille de 13 bulletins avec un blanc et un nul × 4 binômes + graphique), mode
+projection, élection close (résultats), modale des modalités.
+
+Un défaut de mise en page trouvé à l'écran (pas par la mesure) :
+6. **Le mode projection ne prenait que la moitié de l'écran.** La grille `.el-split` restait
+   à deux colonnes alors que le volet gauche n'était plus rendu : le graphique occupait la
+   colonne 1 sur 2, noms tronqués, barres minuscules. → `.el-split.proj { grid-template-columns:
+   1fr }` + noms et pourcentages en `nowrap` / ellipse. ⚠️ À revérifier sur le vrai
+   vidéoprojecteur avant le jour J (1024 × 768 et 1920 × 1080) — les tailles sont bornées en
+   `vw` ET `vh`, mais seule la salle dira si le fond lit.
+
+**2026-09-09, v0.7.0 (Synthèse) : 0 écart**, clair et sombre — 25 élèves, relevés, trois
+documents avec retours partiels, élection close (badges délégué), remarque multi-ligne.
+
+Trouvé par le test de la synthèse, corrigé dans les élections :
+7. **Un second tour VIDE laissait l'élection « en cours » pour toujours.** Un seul binôme pour
+   deux sièges : le premier tour l'élisait, un siège restait, et `electionCloreTour` ouvrait
+   un second tour sans candidat — jamais clôturable, donc `_delegueOf` ne trouvait rien.
+   → second tour seulement s'il reste des sièges ET des candidats ; sinon l'élection se clôt,
+   siège vacant signalé. Test ajouté. Leçon : un test d'un autre onglet a vu ce que les 21
+   tests de l'arithmétique, tous écrits avec quatre candidats, ne pouvaient pas voir — les
+   fixtures se ressemblent trop entre elles.
+
+**Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
+la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la
+synthèse serait sortie en portrait sans que rien ne le signale. Depuis l'étape 10, un
+`@page` ANONYME (`{ size: A4 landscape }`), lui universel, est injecté le temps de
+l'impression puis **retiré à `afterprint`** — sans ce retrait il imposerait son orientation
+à l'impression suivante, qui n'a pas la même. Vérifié dans le navigateur sur les trois
+chemins (synthèse paysage, manquants portrait, PV portrait) : bonne orientation posée,
+bonne classe de zone, tout nettoyé ensuite. ⚠️ **L'orientation sur du VRAI papier reste
+non vérifiée** — `window.print` est mocké, aucune imprimante ici. C'est le seul point de
+l'étape 10 qui demande une vérification humaine : une page de chaque, sur Chromium et sur
+Firefox.
+
+**2026-09-09, v0.8.0 (Sauvegarde & sync) : 0 écart**, clair et sombre — 6 onglets, plus les
+modales Versions & historique (5 sortes de fichiers, panneau de résumé déplié), Versions
+divergentes et Stratégie de sauvegarde.
+
+Un défaut STRUCTUREL trouvé, qui dépasse cette étape :
+8. **Un `<button>` n'hérite pas de `color`.** Sans classe `.btn`, il prend la couleur système
+   `buttontext` (noire) : les boutons ℹ️ de la liste des versions tombaient à **1,18:1** sur le
+   fond de nuit. Corrigé une fois pour toutes par `button { color: inherit; font-family: inherit }`
+   placé AVANT les classes de bouton (qui posent leur propre encre et gagnent par spécificité).
+   ⚠️ Ici l'emoji restait visible — le prochain bouton nu à libellé texte, lui, aurait été
+   invisible. À garder en tête pour tout bouton sans classe.
+
+**2026-09-09, v0.9.0 (données de démo) : 0 écart**, clair et sombre — le parcours le plus
+large jusqu'ici, parce que c'est la démo qui le permet : les 6 onglets peuplés, le détail
+d'un document à choix unique **et** d'un document à choix multiple, l'élection en cours,
+son mode projection, l'élection close, plus 8 modales peuplées (édition d'élève, remarque
+multi-ligne, options, définition de document, liste des manquants, modalités d'élection,
+les deux confirmations de remplacement d'état, à propos).
+
+Deux défauts trouvés — et tous deux **seulement parce que la démo existe** :
+9. **Pastille PAI à 4,41:1.** Aucun élève des fixtures précédentes ne portait `pai` : la
+   couleur n'avait jamais été mesurée. Le défaut n'était pas dans le choix de l'encre —
+   `_contrastTextColor` faisait déjà de son mieux — mais dans le FOND : sur le rose vif
+   `#ec4899`, la meilleure encre possible plafonne à 4,41. Passé au rose foncé `#c2185b`
+   (5,87:1 en encre claire). ⚠️ Leçon : un accent posé en fond doit être choisi pour
+   qu'une encre réelle passe ; `_contrastTextColor` ne rattrape pas une couleur trop claire.
+10. **`avisManquants` comptait les champs PROF facultatifs.** Asymétrie avec
+   `reponsesManquantes`, qui filtre sur `obligatoire`. Conséquence sur la fiche
+   d'orientation de la démo : « 21 avis » en attente sur 24 élèves, parce que « Avis PP
+   option 2 » est compté pour tout élève n'ayant demandé qu'une option — un compteur
+   devenu du bruit. Filtré des deux côtés : 11 avis, qui veulent dire quelque chose.
+
+**2026-09-09, v1.0.0 (audits complets) : 0 écart.** Le parcours le plus large du projet :
+**20 états × 2 thèmes** (les 6 onglets, le détail d'un document à choix unique et d'un à
+choix multiple, la liste et le détail des élections, la projection, l'élection close, et
+9 modales peuplées) en 1864 px, **puis les mêmes 17 états × 2 thèmes en 320 px** — les
+seuils de mise en page changent, donc les fonds aussi, donc la mesure doit être refaite.
+
+Trois audits de plus, tous nouveaux :
+
+**Rendu papier — MESURÉ, enfin.** On ne peut pas émuler le média `print` depuis la page,
+mais on peut extraire les blocs `@media print` de la feuille de style et les réinjecter
+hors media query : le rendu papier s'affiche alors à l'écran et l'auditeur le mesure.
+**0 écart, en thème sombre comme en clair**, sur la synthèse (378 nœuds) et le PV (110) —
+et la capture d'écran confirme du noir sur blanc. C'est la vérification que le bloc de
+neutralisation d'impression fait ce qu'il promet ; jusqu'ici on le croyait sur parole.
+
+**Responsive — 320 · 375 · 768 · 1024 · 1920 px.** Trois défauts structurels, tous du même
+genre : *un contenu qui pousse la page au lieu de défiler dans son cadre*.
+11. **Quatre tableaux larges sans conteneur de défilement** (élèves, documents, élections,
+   candidatures) : 653 px de débordement de la liste des élèves à 375 px. Sur téléphone,
+   c'est la barre du haut et les ONGLETS qui glissent hors de l'écran — on ne peut plus
+   changer d'onglet. → `.rel-wrap` sur les six tableaux concernés (les listes de classes
+   et d'options ont suivi, par uniformité).
+12. **Les volets de l'élection refusaient de rétrécir.** La grille passait bien à une
+   colonne sous 1000 px, mais un enfant de grille vaut `min-width: auto` : il ne descend
+   pas sous la largeur mini de son contenu, et le `overflow-x` du tableau à l'intérieur
+   ne peut alors JAMAIS s'enclencher. C'est le volet qui poussait la page, pas le tableau.
+   → `min-width: 0` sur `.el-left` et `.el-right`, et `minmax(0, 1fr)` partout.
+13. **Un `<select>` se dimensionne sur son option la plus longue**, sans regarder son
+   conteneur — et le `<label>` flex qui l'enveloppe a le même `min-width: auto`. Il
+   fallait les deux pour que le `max-width` morde.
+Et un défaut de LISIBILITÉ, sur l'écran qui ne pardonne pas :
+14. **Les noms tronqués en projection.** « Aaliyah LAMB… » projeté devant la classe désigne
+   un élève à moitié. L'ellipse posée à l'étape 6 réglait la mise en page au détriment du
+   texte — inversion des priorités sur le seul écran public de l'app. → le nom revient à
+   la ligne en projection (il y a de la hauteur, pas de la largeur) ; l'ellipse reste dans
+   la vue à deux volets, où l'infobulle porte le nom entier. Vérifié en 1024 × 768 et
+   1920 × 1080, les deux géométries de vidéoprojecteur.
+
+**Clavier — les 19 modales, une par une**, sur cinq critères : le focus arrive à
+l'intérieur, `Tab` y tourne en rond dans les deux sens, `Échap` ferme, `Entrée` valide
+là où c'est prévu (élève, relevé, option — avec l'undo qui rattrape), et le focus
+**revient à l'élément qui a ouvert**. Ce dernier point manquait :
+15. **Le focus n'était pas rendu à la fermeture.** Il retombait sur `<body>`, donc `Tab`
+   repartait du haut de la page : ouvrir une modale depuis la 20e ligne d'un tableau de
+   25 élèves et la refermer faisait perdre sa place. → l'ouvreur est mémorisé à
+   l'ouverture et refocalisé à la fermeture, s'il existe encore (un rendu a pu le
+   remplacer) et s'il est visible.
+
+**Exemption assumée : les contrôles DÉSACTIVÉS.** Un bouton `disabled` porte
+`opacity: .55`, ce qui fait tomber le rapport mesuré (2,31:1 sur le bouton « Importer »
+de la modale d'import, à vide). WCAG 1.4.3 exclut explicitement les composants inactifs,
+et c'est cette pâleur qui DIT « indisponible ». L'auditeur les écarte désormais — mais
+c'est un choix, pas un oubli : si un bouton grisé devient illisible à l'usage, l'opacité
+est le réglage à revoir.
+
+**Onze tests statiques du design system** (`test/design-system.test.js`) tiennent
+désormais ce qu'aucun audit à l'écran ne peut voir : la symétrie des tokens entre les
+trois blocs (83 · 83 · 83) dans les deux sens, l'exigence qu'un token *utilisé* ait une
+valeur en thème clair (les tokens hérités inutilisés dorment jusqu'au jour où quelqu'un
+s'en sert), l'absence d'encre figée derrière un fond dynamique, la pose ET le retrait des
+orientations d'impression, la présence d'une boîte focalisable dans chaque modale, et les
+trois règles responsive ci-dessus. Avec leur méta-test : trois ensembles vides sont
+« symétriques », une découpe cassée rendrait tout le fichier vacant.
+
+⚠️ La mesure vaut pour ce qui existe. Elle est à rejouer à chaque étape, sur des écrans pleins.
+⚠️ Et ce qui n'existe nulle part n'est jamais mesuré : les deux défauts ci-dessus dormaient
+depuis les étapes 2 et 5. **Une donnée de démo exhaustive est un instrument d'audit**, pas
+seulement une commodité d'accueil.
+
+## Version & publication
+
+```js
+const APP_VERSION    = '0.1.0';                 // semver affiché
+const APP_BUILD_DATE = '2026-09-09T00:00:00Z';  // sert UNIQUEMENT à la détection de MAJ
+const APP_UPDATE_TOLERANCE_MS = 10 * 60 * 1000;
+const APP_REPO_USER  = 'Belenos-Toutatis';
+const APP_REPO_NAME  = 'suivi-pp';
+```
+
+⚠️ **À bumper avant CHAQUE push** : `APP_BUILD_DATE` toujours, à l'heure UTC **réelle** (`date -u +"%Y-%m-%dT%H:%M:%SZ"`, jamais une estimation — une date en avance fait s'annoncer l'app périmée à elle-même), et `APP_VERSION` quand la livraison le mérite.
+⚠️ La détection interroge les commits **qui touchent le fichier de l'app** (`?path=<fichier>&sha=main&per_page=1`), pas le dernier commit du dépôt : sinon un commit de documentation déclenche une fausse alerte de mise à jour.
+
+Commits en français, à l'impératif ou au constat, terminés par :
+```
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+```
+
+## Ordre de travail pour démarrer
+
+1. **Squelette** : `suivi pp.html` avec le `<style>` complet copié de la référence (tokens + polices + filet + Seyès + thème sombre + neutralisation print), la CSP, `S` vide, `save`/`load`/`pushUndo`/`postLoadHook`/`_sanitizeCoreSections`/`_validateImport`, `toast`/`openMod`/`_uiConfirm`/`_uiPrompt`/`appAlert`, les helpers d'échappement et de contraste, la nav à 6 onglets. Plus `index.html`, `.nojekyll`, `manifest.json`, `sw.js`, `package.json`, `test/harness.js`.
+2. **Onglet Élèves** + **module d'import CSV** (le plus gros bloc à copier). À la fin de cette étape, l'app sait charger une classe réelle.
+3. **Import depuis un JSON de Plan de classe** — court, et il donne immédiatement de vraies données à manipuler.
+4. **Onglet Carnets** : relevés, saisie du cumul, deltas, totaux de période. **Écrire les tests de calcul AVANT l'affichage** — c'est la logique la plus facile à se tromper et la plus coûteuse à déboguer dans une grille.
+5. **Onglet Documents** : définition d'un document, champs, tableau de retours, duplication.
+6. **Onglet Délégués**, dans cet ordre : le calcul et ses tests → la grille de dépouillement → le graphique en deux volets → le PV → (optionnel) la fenêtre projetable. Indépendant du reste — il ne lit que le roster, donc il peut se faire dès l'étape 3 s'il y a urgence de rentrée (l'élection tombe **avant la fin de la septième semaine**, soit mi-octobre). ⚠️ **À répéter en conditions réelles avant le jour J** : brancher un second écran, vérifier la lisibilité depuis le fond, et faire un dépouillement blanc avec correction d'un bulletin. Cet écran ne pardonne pas — il sert une fois par an, en public.
+7. **Onglet Synthèse** + impressions.
+8. **Sauvegarde/sync complète** : sync auto, horloge vectorielle, conflits, backups, checkpoints, jauge de mémoire, modale ⓘ.
+9. **Données de démo** (`createDemo`) couvrant tout ce qui existe : une classe de 25 élèves fictifs, 8 relevés avec cumuls croissants, un `'A'`, un cumul décroissant à signaler, les trois documents modèles, des retours partiels, et une élection close à deux tours dont le premier n'a pourvu qu'un siège, plus une élection **en cours de dépouillement** (pour pouvoir régler la projection sans avoir à ressaisir des bulletins à chaque essai). **Intention documentaire : chaque fonctionnalité doit être rencontrable sans avoir à la créer.**
+10. **Audits** : contraste (les 4 conditions), impression, responsive téléphone/tablette, clavier des modales. Consigner les scores de référence dans ce fichier.
+
+💡 Étapes 1 à 4 = l'app est déjà utile. Ne pas repousser l'utilisable derrière l'exhaustif.
+
+## Hors périmètre, volontairement
+
+⚠️ **Révision du 2026-09-09 — les PLACES rentrent dans le périmètre, pas les plans de salle.**
+On reprend de Plan de classe la position de chaque élève et les **patterns de ramassage**
+(la séquence de tables que l'enseignant marche pour récupérer les copies), **uniquement
+pour trier des listes**. On ne dessine aucun plan, on n'édite aucune place, on ne crée
+aucun pattern : cela reste le métier de l'autre application. La distinction tient en une
+phrase — *savoir dans quel ordre passer* n'est pas *afficher une salle*.
+
+Notes et moyennes (c'est Plan de classe et Pronote), **l'ÉDITION** des plans de salle, appel/absences, bulletins et remarques de bulletin, mentions de conseil de classe, élections autres que celle des délégués de la division (CVC, conseil d'administration, éco-délégués — le PP ne les organise pas), export XLSX/ODS (le CSV suffit à ce volume ; le module `_NotesExport` de la référence reste disponible si le besoin apparaît).
+
+## Questions à poser à l'utilisateur avant de les décider seul
+
+Aucune ne bloque le démarrage — les étapes 1 à 3 se font sans réponse — mais chacune change du code s'il faut y revenir après :
+
+1. **Plusieurs classes, ou une seule ?** Le modèle est multi-classes (le PP peut suivre une classe par an, et les documents d'options observés couvrent 4 divisions). À confirmer : veut-il voir plusieurs classes en même temps, ou une seule à la fois avec un sélecteur ? *(Indice du 2026-09-09 : « on n'est PP que d'une seule » — une à la fois, avec le sélecteur.)*
+2. ~~**Périodes**~~ — **répondu le 2026-09-09 : au choix**, réglage dans Données (cf. table des arbitrages).
+3. ~~**Journal des contacts.**~~ — **répondu le 2026-09-09 : oui.** `stu.journal = [{ id, date, ts, type, texte }]`, types `appel · rencontre · courriel · mot · autre`. ⚠️ **Il ne REMPLACE pas `stu.remarque`** : les observations qui ne sont pas des contacts (« peu d'apprentissage des leçons ») n'ont pas de date et n'en veulent pas. Les deux cohabitent dans la même modale. Le dernier contact remonte sur le bouton 📋 de la liste (« ai-je déjà appelé, et quand ? » est la question qu'on se pose en parcourant), dans la Synthèse et sur son impression.
+4. ~~**Date de naissance des élèves.**~~ — **répondu le 2026-09-09 : ajoutée** (`stu.naissance`, saisie à la main, reconnue à l'import CSV et repris de Plan de classe). Elle débloque le départage automatique par l'âge. ⚠️ **Donnée personnelle de plus** : à mentionner dans le texte RGPD, et le champ reste facultatif — l'app fonctionne sans, elle demande alors de trancher.
+5. **Modalités exactes de son établissement** : uninominal ou plurinominal, suppléants élus avec les titulaires ou séparément, départage. Les défauts viennent de sa propre présentation, mais le règlement intérieur de l'établissement prime — à vérifier une fois avant la première élection réelle.
+6. **Éco-délégués.** Beaucoup d'établissements en élisent aussi, souvent par le même PP et selon la même procédure. Un simple champ « type d'élection » suffirait ; ne rien construire avant de savoir si le besoin existe.
+7. **Alerte d'échéance.** Un document a une `dateEcheance` : faut-il un signalement à l'ouverture (« 3 fiches d'orientation manquantes, échéance dans 2 jours ») ?

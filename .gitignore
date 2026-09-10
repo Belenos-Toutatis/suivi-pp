@@ -1,0 +1,23 @@
+# Sauvegardes locales / données utilisateur — ne jamais publier
+suivi-pp-*.json
+
+# Éditeurs
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# Système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Fichiers temporaires
+*.tmp
+*.bak
+.tmp-*
+
+# Copies de conflit créées par Nextcloud
+*.sync-conflict-*
