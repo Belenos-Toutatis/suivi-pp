@@ -798,6 +798,22 @@ seulement une commodité d'accueil.
 
 ## Version & publication
 
+**Publié le 2026-09-10** : dépôt public `Belenos-Toutatis/suivi-pp`, commit initial `640c64f`
+(v1.7.2, 30 fichiers, 315 tests), GitHub Pages servi depuis `main` à la racine.
+URL de l'app : `https://belenos-toutatis.github.io/suivi-pp/suivi%20pp.html`.
+
+Trois choses n'ont pu être vérifiées qu'une fois en ligne, et le sont désormais :
+les **trois polices embarquées se chargent** en HTTPS (la CSP `font-src 'self' data:`
+tient — c'était le point où `default-src 'self'` aurait fait retomber l'app sur les
+polices système, en silence), le **service worker s'enregistre** (impossible en
+`file://`, donc jamais exercé jusque-là), et la **détection de mise à jour** répond 200
+depuis l'origine `github.io` sans que la CSP la bloque.
+
+⚠️ **`.gitignore` est la seule barrière entre un dépôt PUBLIC et des données d'élèves.**
+`suivi-pp-*.json` y est, donc les sauvegardes de sync n'y vont pas. Vérifier
+`git status --short` avant chaque commit reste le geste : un fichier exporté à la main
+sous un autre nom (`5C.json`, `classe.json`) passerait la barrière.
+
 ```js
 const APP_VERSION    = '0.1.0';                 // semver affiché
 const APP_BUILD_DATE = '2026-09-09T00:00:00Z';  // sert UNIQUEMENT à la détection de MAJ
