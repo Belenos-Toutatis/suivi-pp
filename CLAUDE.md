@@ -990,6 +990,23 @@ tournait pas — c'est exactement ce qui s'est produit à la première tentative
 Le filet, c'est GitHub — donc **le travail non commité n'est protégé par rien**. Commiter
 devient le geste de sauvegarde, pas une formalité de fin de tâche.
 
+### Identité git — à poser sur chaque poste
+
+⚠️ **Un poste neuf n'a pas d'identité git**, et `git commit` y échoue avec *« Author identity
+unknown »* — au moment précis où l'on veut sauvegarder (constaté le 2026-09-11 sur le
+portable Windows : `user.email` auto-détecté en `emman@CMONSURFACE.(none)`). L'identité est
+une configuration **par machine**, elle ne voyage ni par git ni par Nextcloud. Les commits du
+dépôt sont signés `Belenos Toutatis <emmanuel.wenner@gmail.com>` ; sur un poste où elle
+manque, la poser une fois :
+
+```
+git config --global user.name "Belenos Toutatis"
+git config --global user.email "emmanuel.wenner@gmail.com"
+```
+
+En attendant, `git -c user.name=… -c user.email=… commit` dépanne pour un commit, sans
+rien écrire dans la configuration — c'est ce qui a servi pour `3c5d959`.
+
 ## Installation comme application (PWA)
 
 Installable depuis la v1.8.0. Tout le reste était en place depuis l'étape 1 — manifeste,
