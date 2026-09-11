@@ -431,3 +431,53 @@ test('_fichePdcHint : prévient seulement quand la classe vient de Plan de class
   assert.match(ev(`_fichePdcHint(S.classes['5C'])`), /Plan de classe/);
   assert.doesNotMatch(ev(`_fichePdcHint(S.classes['5C'])`), /dernier import/);
 });
+
+test('moveStudentToClass : un seul chemin pour la modale et la fiche, relevés laissés en place', () => {
+  ev(FIXTURE_DOCS);
+  ev(`S.classes['5D'] = { id:'5D', nom:'5D', annee:'2025-26', eleves:[], ord:1 };
+      S.releves['5C'] = { '2025-10-01': { date:'2025-10-01', ts:1, counts: { s1: 7 } } };`);
+  assert.strictEqual(ev(`moveStudentToClass('s1', '5D')`), true);
+  assert.deepStrictEqual(evObj(`[S.classes['5C'].eleves, S.classes['5D'].eleves, S.eleves.s1.classe_id]`), [['s2'], ['s1'], '5D']);
+  assert.strictEqual(evObj(`S.releves['5C']['2025-10-01'].counts.s1`), 7, 'le relevé reste sous l\'ancienne classe');
+  assert.strictEqual(ev(`moveStudentToClass('s1', '5D')`), false, 'déjà là');
+  assert.strictEqual(ev(`moveStudentToClass('s1', 'nope')`), false);
+  assert.strictEqual(ev(`moveStudentToClass('fantome', '5C')`), false);
+});
+
+test('la fiche corrige les réponses, la date et la note d\'un document par les fonctions du tableau', () => {
+  ev(FIXTURE_DOCS);
+  ev(`_ficheSid = 's1';`);
+  ev(`ficheDocReponse('d1', 'opt1', 'bil')`);
+  assert.strictEqual(evObj(`S.documents.d1.retours.s1.reponses.opt1`), 'bil');
+  ev(`ficheDocToggle('d1', 'opts', 'dnl')`);
+  assert.deepStrictEqual(evObj(`S.documents.d1.retours.s1.reponses.opts`), ['catho']);
+  ev(`ficheDocToggle('d1', 'opts', 'dnl')`);
+  assert.deepStrictEqual(evObj(`S.documents.d1.retours.s1.reponses.opts.slice().sort()`), ['catho', 'dnl']);
+  ev(`ficheDocDate('d1', '2025-10-02')`);
+  assert.strictEqual(evObj(`S.documents.d1.retours.s1.dateRetour`), '2025-10-02');
+  ev(`ficheDocNote('d1', '  signature du père manquante ')`);
+  assert.strictEqual(evObj(`S.documents.d1.retours.s1.note`), 'signature du père manquante');
+  assert.strictEqual(evObj(`S.documents.d1.retours.s1.rendu`), true, 'le retour ne bouge pas');
+});
+
+test('la fiche corrige et supprime un contact par journalSetTexte / journalRemove', () => {
+  ev(FIXTURE_DOCS);
+  const id = ev(`_ficheSid = 's1'; journalAdd('s1', '2025-10-03', 'appel', 'Mère jointe').id`);
+  ev(`ficheJournalEdit('${id}', ' Mère jointe, rappel prévu ')`);
+  assert.strictEqual(evObj(`S.eleves.s1.journal[0].texte`), 'Mère jointe, rappel prévu');
+  ev(`ficheJournalEdit('${id}', '   ')`);
+  assert.strictEqual(evObj(`S.eleves.s1.journal[0].texte`), 'Mère jointe, rappel prévu', 'un texte vide ne s\'écrit pas');
+  ev(`pushUndo(); journalRemove('s1', '${id}');`);
+  assert.deepStrictEqual(evObj(`S.eleves.s1.journal`), []);
+});
+
+test('ficheSetPlace : assied l\'élève par seatSet, « aucune » libère', () => {
+  ev(FIXTURE_DOCS);
+  ev(`_ficheSid = 's1'; S.salles.sa1 = { id:'sa1', nom:'102', rows:2, cols:2, patterns:[] };`);
+  ev(`ficheSetPlace('sa1', '1,1')`);
+  assert.strictEqual(ev(`_seatOf(S.classes['5C'], 'sa1', 's1')`), '1,1');
+  ev(`ficheSetPlace('sa1', '0,0')`);
+  assert.strictEqual(ev(`_seatOf(S.classes['5C'], 'sa1', 's1')`), '0,0', 'déplacé, pas dupliqué');
+  ev(`ficheSetPlace('sa1', '')`);
+  assert.strictEqual(ev(`_seatOf(S.classes['5C'], 'sa1', 's1')`), null);
+});

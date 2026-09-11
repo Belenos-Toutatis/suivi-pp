@@ -89,8 +89,10 @@ Et ce qui se corrige d'un geste s'y corrige sur place : une pastille **`+`** à 
 Remarque, Contacts et Incidents pour ajouter ; un clic sur le groupe, les options ou les
 aménagements pour les changer (la fiche prévient si la classe se met à jour depuis
 *Plan de classe* — la correction est alors à reporter là-bas aussi) ; un clic sur l'état
-d'un document pour le cocher rendu. Les deux boutons du bas mènent à l'édition complète,
-et y ramènent.
+d'un document pour le cocher rendu — et, dans le même esprit, les dates, la civilité, la
+classe, la place, chaque cumul du carnet, les réponses et la note de chaque document, le
+texte de chaque contact se corrigent directement dans la fiche. Les deux boutons du bas
+mènent à l'édition complète, et y ramènent.
 
 **Le journal des contacts.** À côté du texte libre, chaque élève porte la liste **datée**
 de ce qui s'est dit avec la famille : appel, rencontre, courriel, mot dans le carnet. Le

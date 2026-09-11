@@ -1103,7 +1103,10 @@ body.el-projecting #main { padding-top: 8px; }
 .fi-sec > h3 { font-size: .98em; margin: 0 0 6px; border-bottom: 1px solid var(--rule-line); padding-bottom: 3px; }
 .fi-grid { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: .93em; }
 .fi-grid dt { color: var(--pencil); font: italic 12px var(--font-serif); }
-.fi-grid dd { margin: 0; }
+/* ⚠️ min-width: 0 — un enfant de grille refuse sinon de descendre sous la largeur de
+   son contenu, et un <select> aux options longues (les places) poussait la fiche à
+   414 px pour 318 : défauts 12 et 13, une fois de plus. */
+.fi-grid dd { margin: 0; min-width: 0; }
 .fi-vide { color: var(--pencil-soft); font: italic 12px var(--font-serif); }
 .fi-j { border-left: 3px solid var(--rule-line); padding: 2px 0 2px 9px; margin-bottom: 7px; }
 .fi-j-h { font-size: .82em; color: var(--pencil); font-family: var(--font-mono); }
@@ -1134,6 +1137,9 @@ body.el-projecting #main { padding-top: 8px; }
 .fi-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; margin: 6px 0 8px; padding: 8px; background: var(--paper-warm); border-radius: var(--radius-md); }
 .fi-form label { display: flex; flex-direction: column; gap: 2px; font: italic 12px var(--font-serif); color: var(--pencil); }
 .fi-doc-btn { cursor: pointer; }
+.fi-doc-champ { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-top: 3px; }
+.fi-doc-champ .optchip { font-size: .78em; }
+.fi-grid dd .rel-inp { width: 60px; }
 /* Grille d'une salle (Données et réglages) : une table, pas un plan. */
 .salle-grid { border-collapse: separate; border-spacing: 4px; }
 .salle-td { width: 74px; height: 40px; text-align: center; vertical-align: middle; border: 1px solid var(--rule-line); border-radius: var(--radius-md); background: var(--paper); font-size: .78em; position: relative; padding: 2px 4px; }
@@ -1890,8 +1896,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.16.1';
-const APP_BUILD_DATE = '2026-09-11T15:37:29Z';
+const APP_VERSION    = '1.17.0';
+const APP_BUILD_DATE = '2026-09-11T15:47:27Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4054,7 +4060,7 @@ function openFiche(sid) {
 }
 function ficheEdit(k) { _ficheEdit = _ficheEdit === k ? null : k; _ficheRender(); }
 // Mutation depuis la fiche : undo, sauvegarde, liste rafraîchie (par _withStudent), puis la fiche.
-function _ficheMut(fn, msg) { _withStudent(_ficheSid, fn, msg); _ficheRender(); }
+function _ficheMut(fn, msg) { let ok = true; _withStudent(_ficheSid, s => { ok = fn(s) !== false; }, msg); _ficheRender(); return ok; }
 function ficheSetGroupe(g) { _ficheMut(s => { s.groupe = [1, 2, 3].includes(+g) ? +g : null; }); }
 function ficheToggleTag(tid) {
   if (!S.tags[tid]) return;
@@ -4064,6 +4070,75 @@ function ficheToggleTag(tid) {
 function ficheToggleStatus(key) { _ficheMut(s => { if (s[key]) s[key] = false; else _setStudentStatusExclusive(s, key); }); }
 function ficheCycleUlis() { _ficheMut(s => { if (s.ulis_incl) { s.ulis_incl = false; s.ulis = false; } else if (s.ulis) _setStudentStatusExclusive(s, 'ulis_incl'); else _setStudentStatusExclusive(s, 'ulis'); }); }
 function ficheCycleUpe2a() { _ficheMut(s => { if (s.upe2a_incl) { s.upe2a_incl = false; s.upe2a = false; } else if (s.upe2a) _setStudentStatusExclusive(s, 'upe2a_incl'); else _setStudentStatusExclusive(s, 'upe2a'); }); }
+// ── Identité, en place ──
+function ficheSaveNom() {
+  const n = document.getElementById('fi-nom')?.value.trim(), p = document.getElementById('fi-prn')?.value.trim();
+  if (!n || !p) return toast('⚠️ Nom et prénom sont obligatoires.', 'warn');
+  _ficheEdit = null;
+  _ficheMut(s => { s.nom = n; s.prenom = p; });
+  refreshSelector();
+}
+function ficheCycleCivilite() { _ficheMut(s => { s.civilite = s.civilite === 'M' ? 'F' : s.civilite === 'F' ? null : 'M'; }); }
+// Une date saisie en place — naissance, arrivée, départ — avec les mêmes gardes-fous que
+// la modale ✏️, et la même règle de MOMENT : on n'écrit qu'une fois le champ quitté
+// (cf. « Champs <input type="date"> — l'année telle que tapée »).
+function ficheDateChange(inp, champ) { if (document.activeElement !== inp) ficheSetDate(inp, champ); }
+function ficheSetDate(inp, champ) {
+  const s = S.eleves[_ficheSid];
+  if (!s || !inp) return;
+  const v = inp.value ? _ymdCompleteAnnee(inp.value) : null;
+  if (v && v !== inp.value) inp.value = v;
+  if ((v || null) === (s[champ] || null)) return;
+  if (v && !_ymdValid(v)) { toast('⚠️ Date illisible.', 'warn'); inp.value = s[champ] || ''; return; }
+  const nai = champ === 'naissance' ? v : s.naissance, arr = champ === 'arrivalDate' ? v : s.arrivalDate, dep = champ === 'departureDate' ? v : s.departureDate;
+  if (nai && arr && nai > arr) { toast('⚠️ La naissance ne peut pas suivre l\'arrivée en classe.', 'warn'); inp.value = s[champ] || ''; return; }
+  if (arr && dep && dep < arr) { toast('⚠️ Le départ ne peut pas précéder l\'arrivée.', 'warn'); inp.value = s[champ] || ''; return; }
+  _ficheMut(st => { st[champ] = v; });
+}
+function ficheSetClasse(cid) {
+  const s = S.eleves[_ficheSid];
+  if (!s || !cid || cid === s.classe_id) return;
+  _ficheEdit = null;
+  _ficheMut(() => moveStudentToClass(_ficheSid, cid));
+  refreshSelector();
+  toast(`${s.prenom} ${s.nom} déplacé(e) vers ${S.classes[cid]?.nom || cid}. Ses relevés restent rattachés à son ancienne classe.`);
+}
+function ficheSetPlace(salleId, pos) {
+  const cls = S.classes[S.eleves[_ficheSid]?.classe_id];
+  if (!cls) return;
+  if (!pos) { const cur = _seatOf(cls, salleId, _ficheSid); if (cur) _ficheMut(() => seatSet(cls, salleId, cur, null)); return; }
+  if (!_ficheMut(() => seatSet(cls, salleId, pos, _ficheSid))) toast('⚠️ Place refusée.', 'warn');
+}
+// ── Carnet : un cumul corrigé depuis la fiche, par releveSetCount (mêmes règles que la grille) ──
+function ficheSetCumul(ymd, inp) {
+  const s = S.eleves[_ficheSid];
+  if (!s) return;
+  const cid = s.classe_id;
+  const avant = _relValue(S.releves[cid]?.[ymd] || { counts: {} }, _ficheSid);
+  const montre = avant === null ? '' : (avant === REL_ABSENT ? _codeA() : String(avant));
+  if (inp.value.trim() === montre) return;
+  pushUndo();
+  if (!releveSetCount(cid, ymd, _ficheSid, inp.value)) { undoLast(); toast(`⚠️ Saisie refusée : un nombre entier, « ${_codeA()} » pour absent, ou rien.`, 'warn'); inp.value = montre; return; }
+  save();
+  renderCarnets();
+  _ficheRender();
+}
+// ── Documents : réponses, date de retour, note — par les fonctions du tableau ──
+function ficheDocReponse(docId, champId, optId) { _docMut(docId, d => docSetReponse(d, _ficheSid, champId, optId)); _ficheRender(); }
+function ficheDocToggle(docId, champId, optId) { _docMut(docId, d => docToggleReponse(d, _ficheSid, champId, optId)); _ficheRender(); }
+function ficheDocDate(docId, ymd) { _docMut(docId, d => docSetDateRetour(d, _ficheSid, ymd), false); _ficheRender(); }
+function ficheDocNote(docId, txt) { _docMut(docId, d => docSetNote(d, _ficheSid, txt), false); }
+// ── Contacts : corriger ou supprimer une entrée existante ──
+function ficheJournalEdit(id, txt) {
+  if (!String(txt || '').trim()) { toast('⚠️ Un contact sans texte se supprime, il ne se vide pas.', 'warn'); _ficheRender(); return; }
+  pushUndo(); journalSetTexte(_ficheSid, id, txt); save(); renderStudents();
+}
+function ficheJournalRemove(id) {
+  const e = _journalOf(_ficheSid).find(x => x.id === id);
+  if (!e) return;
+  _uiConfirm({ title: '🗑 Supprimer ce contact ?', message: `${_fmtDateFr(e.date)} — ${_journalType(e.type).label}\n« ${e.texte} »\n\nRécupérable par Ctrl+Z.`, okLabel: 'Supprimer', okClass: 'btn-d',
+    onOk: () => { pushUndo(); journalRemove(_ficheSid, id); save(); renderStudents(); _ficheRender(); } });
+}
 function ficheSaveRemarque() {
   const a = document.getElementById('fi-rem-edit');
   const s = S.eleves[_ficheSid];
@@ -4117,7 +4192,11 @@ function _ficheRender() {
   if (!stu || !box) return;
   const cls = S.classes[stu.classe_id] || null;
   const t = document.getElementById('mfiche-title');
-  if (t) t.textContent = `👤 ${stu.prenom} ${stu.nom}`;
+  if (t) t.innerHTML = _ficheEdit === 'nom'
+    ? `👤 <input type="text" id="fi-nom" data-fi-focus value="${_escAttr(stu.nom)}" placeholder="NOM" maxlength="60" style="width:180px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
+       <input type="text" id="fi-prn" value="${_escAttr(stu.prenom)}" placeholder="Prénom" maxlength="60" style="width:150px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
+       <button class="btn btn-p btn-sm" onclick="ficheSaveNom()">✓</button> <button class="btn btn-g btn-sm" onclick="ficheEdit('nom')">Annuler</button>`
+    : `👤 ${_escName(stu.prenom)} ${_escName(stu.nom)} <button class="fi-plus" onclick="ficheEdit('nom')" title="Corriger le nom ou le prénom">✎</button>`;
 
   const vide = txt => `<span class="fi-vide">${txt}</span>`;
   // `plus` : { onclick, title, icone } — la pastille à côté du titre, pour ajouter sans quitter la fiche.
@@ -4152,18 +4231,41 @@ function _ficheRender() {
   const amen = _amenLabel(stu);
   const del = _delegueOf(stu.id);
   const places = _fichePlaces(cls, stu.id);
+  // Chaque champ d'identité se corrige en place : date directement dans le champ (écrite
+  // une fois le champ quitté), civilité qui cycle au clic, classe et place par sélecteur.
+  const dateInp = (champ, val, extra = '') => `<input type="date" value="${_escAttr(val || '')}" max="${champ === 'naissance' ? _escAttr(_todayYmd()) : ''}" ${extra}
+      onchange="ficheDateChange(this,'${champ}')" onblur="ficheSetDate(this,'${champ}')" style="max-width:150px">`;
+  const classes = Object.values(S.classes).sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0) || String(a.nom).localeCompare(String(b.nom), 'fr'));
+  const edClasse = _ficheEdit !== 'classe' ? '' : `<div class="fi-editor"><select data-fi-focus onchange="ficheSetClasse(this.value)">${
+      classes.map(c => `<option value="${_escAttr(c.id)}"${c.id === stu.classe_id ? ' selected' : ''}>${_escName(c.nom)}${c.annee ? ` (${_escName(c.annee)})` : ''}</option>`).join('')}</select>
+      <span class="tb-hint">changement en cours d'année : les relevés déjà faits restent rattachés à l'ancienne classe</span></div>`;
+  const sallesTri = Object.values(S.salles).sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr'));
+  // ⚠️ `flex-wrap: nowrap` : en colonne ET avec repli, une ligne flex se dimensionne sur
+  // le contenu de ses items, pas sur le conteneur — le label débordait de 120 px à 320 px.
+  const edPlace = _ficheEdit !== 'place' ? '' : `<div class="fi-editor" style="flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:4px">${sallesTri.length ? sallesTri.map(sa => {
+      const cur = _seatOf(cls, sa.id, stu.id), seating = (_room(cls, sa.id) || { seating: {} }).seating;
+      let opts = `<option value="">— aucune —</option>`;
+      for (let r = 0; r < sa.rows; r++) for (let c = 0; c < sa.cols; c++) {
+        const pos = `${r},${c}`, occ = seating[pos] && seating[pos] !== stu.id ? S.eleves[seating[pos]] : null;
+        opts += `<option value="${pos}"${pos === cur ? ' selected' : ''}${occ ? ' disabled' : ''}>rang ${r + 1}, place ${c + 1}${occ ? ` — ${_escName(occ.prenom)} ${_escName(occ.nom)}` : ''}</option>`;
+      }
+      // ⚠️ Un <select> se dimensionne sur son option la plus longue (« rang 5, place 7 —
+      // Prénom NOM ») et le label flex vaut min-width:auto : sans les deux bornes, 414 px
+      // pour 318 à 320 px de large (défaut 13, encore).
+      return `<label class="tb-hint" style="display:flex;gap:6px;align-items:center;min-width:0">${_escName(sa.nom)} <select style="flex:1;min-width:0;max-width:100%" onchange="ficheSetPlace('${_escJsAttr(sa.id)}',this.value)">${opts}</select></label>`;
+    }).join('') : vide('Aucune salle — à créer dans 💾 Données et réglages.')}${pdcHint}</div>`;
   const identite = dl([
-    [`Classe`, `${_escName(cls?.nom || stu.classe_id)}${cls?.annee ? ` <span class="fi-vide">${_escName(cls.annee)}</span>` : ''}`],
-    [`Naissance`, stu.naissance ? `${_escName(_fmtDateFr(stu.naissance))}${age !== null ? ` — ${age} ans` : ''}` : vide('non renseignée')],
-    [`Civilité`, stu.civilite ? _escName(civiliteFullLabel(stu.civilite)) : vide('non renseignée')],
+    [`Classe`, `<button class="fi-val" onclick="ficheEdit('classe')" title="Changer de classe">${_escName(cls?.nom || stu.classe_id)}${cls?.annee ? ` <span class="fi-vide">${_escName(cls.annee)}</span>` : ''}</button>${edClasse}`],
+    [`Naissance`, `${dateInp('naissance', stu.naissance)}${age !== null ? ` <span class="fi-vide">${age} ans</span>` : ''}`],
+    [`Civilité`, `<button class="fi-val" onclick="ficheCycleCivilite()" title="Clic pour changer : garçon → fille → non spécifié">${stu.civilite ? _escName(civiliteFullLabel(stu.civilite)) : vide('non renseignée')}</button>`],
     [`Groupe`, `<button class="fi-val" onclick="ficheEdit('groupe')" title="Changer de groupe">${stu.groupe ? `G${stu.groupe}` : vide('aucun')}</button>${edGroupe}`],
     [`Options`, `<button class="fi-val" onclick="ficheEdit('options')" title="Cocher ou décocher des options">${opts.length ? opts.map(o => _tagBadgeHTML(o)).join(' ') : vide('aucune')}</button>${edOptions}`],
     [`Aménagements`, `<button class="fi-val" onclick="ficheEdit('amen')" title="Régler les aménagements">${amen ? _escName(amen) : vide('aucun')}</button>${edAmen}`],
-    [`Présence`, _ficheePresence(stu)],
-    del ? [`Délégué`, `<span class="badge ok">${del === 'titulaire' ? '🏅 titulaire' : '🎗 suppléant'}</span>`] : null,
-    [`Place`, places.length
+    [`Présence`, `${_ficheePresence(stu)}<div class="fi-editor"><label class="tb-hint">arrivée ${dateInp('arrivalDate', stu.arrivalDate)}</label><label class="tb-hint">départ ${dateInp('departureDate', stu.departureDate)}</label></div>`],
+    del ? [`Délégué`, `<span class="badge ok" title="Dérivé de l'élection close la plus récente — se change dans 🗳 Délégués">${del === 'titulaire' ? '🏅 titulaire' : '🎗 suppléant'}</span>`] : null,
+    [`Place`, `<button class="fi-val" onclick="ficheEdit('place')" title="Changer de place">${places.length
       ? places.map(p => `${_escName(p.salleNom)} <span class="fi-vide">rang ${p.rang}, place ${p.colonne}</span>`).join('<br>')
-      : vide('aucun placement importé')],
+      : vide('aucune place')}</button>${edPlace}`],
   ]);
 
   // ── Carnet ──
@@ -4173,7 +4275,7 @@ function _ficheRender() {
         carnet.releves.map(r => `<tr>
           <td style="white-space:nowrap;font-family:var(--font-mono);font-size:.85em">${_escName(_fmtDateFr(r.ymd))}${
             r.label ? ` <span class="fi-vide">${_escName(r.label)}</span>` : ''}</td>
-          <td style="text-align:right;font-family:var(--font-mono)">${r.valeur === null ? vide('—') : _escName(String(r.valeur))}</td>
+          <td style="text-align:right"><input class="rel-inp" value="${_escAttr(r.valeur === null ? '' : String(r.valeur))}" inputmode="numeric" autocomplete="off" title="Cumul relevé ce jour — se corrige ici (nombre, « ${_escAttr(_codeA())} » pour absent, ou rien)" onchange="ficheSetCumul('${_escJsAttr(r.ymd)}',this)"></td>
           <td style="text-align:right;font-family:var(--font-mono)">${r.delta === null ? '' : (r.delta > 0 ? '+' : '') + r.delta}</td>
           <td>${r.decroissant ? '<span class="badge warn" title="Cumul inférieur au relevé précédent — signalé, jamais corrigé">▼ en baisse</span>'
                               : (r.valeur === _codeA() ? vide('absent ce jour-là') : '')}</td></tr>`).join('')}</tbody></table></div>
@@ -4193,9 +4295,21 @@ function _ficheRender() {
           : !d.attendu ? vide('non concerné')
           : d.rendu ? `<button class="badge ok fi-doc-btn" onclick="ficheToggleRendu('${_escJsAttr(d.docId)}')" title="Rendu — clic pour décocher">✓ rendu${d.dateRetour ? ` le ${_escName(_fmtDateFr(d.dateRetour))}` : ''}</button>`
                     : `<button class="badge warn fi-doc-btn" onclick="ficheToggleRendu('${_escJsAttr(d.docId)}')" title="Non rendu — clic : rendu aujourd'hui">☐ non rendu</button>`;
-        const rep = d.reponses.map(r => `<div class="tb-hint">${r.par === 'prof' ? '👤 ' : ''}${_escName(r.champ)} : <strong>${_escName(r.valeurs.join(', '))}</strong></div>`).join('');
-        return `<div style="margin-bottom:7px"><strong>${_escName(d.titre)}</strong>${d.archive ? ' ' + vide('(archivé)') : ''} ${etat}${
-          d.note ? ` <span class="fi-vide">« ${_escName(d.note)} »</span>` : ''}${rep}</div>`;
+        // Réponses, date de retour et note se corrigent ICI, par les fonctions du tableau
+        // du document (docSetReponse, docToggleReponse, docSetDateRetour, docSetNote).
+        const doc = S.documents[d.docId];
+        const ret = doc ? _retour(doc, stu.id) : { reponses: {}, note: '' };
+        const rep = d.attendu && doc ? (doc.champs || []).map(ch => {
+          const v = ret.reponses[ch.id];
+          const cur = Array.isArray(v) ? v : (v ? [v] : []);
+          const ctrl = ch.type === 'multi'
+            ? (ch.options || []).map(o => `<button class="optbtn" onclick="ficheDocToggle('${_escJsAttr(d.docId)}','${_escJsAttr(ch.id)}','${_escJsAttr(o.id)}')">${_docChipHTML(o, cur.includes(o.id), (cur.includes(o.id) ? 'Coché — clic pour retirer : ' : 'Clic pour cocher : ') + o.label)}</button>`).join('')
+            : `<select class="optsel" onchange="ficheDocReponse('${_escJsAttr(d.docId)}','${_escJsAttr(ch.id)}',this.value)"><option value="">—</option>${(ch.options || []).map(o => `<option value="${_escAttr(o.id)}"${cur[0] === o.id ? ' selected' : ''}>${_escName(o.label)}</option>`).join('')}</select>`;
+          return `<div class="fi-doc-champ"><span class="tb-hint">${ch.par === 'prof' ? '👤 ' : ''}${_escName(ch.label)} :</span> ${ctrl}</div>`;
+        }).join('') : d.reponses.map(r => `<div class="tb-hint">${r.par === 'prof' ? '👤 ' : ''}${_escName(r.champ)} : <strong>${_escName(r.valeurs.join(', '))}</strong></div>`).join('');
+        const dateNote = d.attendu && suivi ? `<div class="fi-doc-champ">${d.rendu ? `<label class="tb-hint">rendu le <input type="date" value="${_escAttr(d.dateRetour || '')}" onchange="ficheDocDate('${_escJsAttr(d.docId)}',this.value)" style="max-width:150px"></label> ` : ''}<input type="text" value="${_escAttr(ret.note || '')}" placeholder="mot sur ce retour…" maxlength="120" style="flex:1;min-width:160px;font-size:.9em" onchange="ficheDocNote('${_escJsAttr(d.docId)}',this.value)"></div>` : '';
+        return `<div style="margin-bottom:9px"><strong>${_escName(d.titre)}</strong>${d.archive ? ' ' + vide('(archivé)') : ''} ${etat}${
+          !d.attendu && d.note ? ` <span class="fi-vide">« ${_escName(d.note)} »</span>` : ''}${rep}${dateNote}</div>`;
       }).join('')
     : vide('Aucun document dans cette classe.');
 
@@ -4211,7 +4325,9 @@ function _ficheRender() {
   const journal = _journalOf(stu.id);
   const jHTML = journal.length
     ? journal.map(e => { const ty = _journalType(e.type);
-        return `<div class="fi-j"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ${ty.icon} ${_escName(ty.label)}</div>${_escName(e.texte)}</div>`;
+        return `<div class="fi-j"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ${ty.icon} ${_escName(ty.label)}
+          <span class="fi-inc-act"><button class="btn btn-d btn-sm" onclick="ficheJournalRemove('${_escJsAttr(e.id)}')" title="Supprimer ce contact">🗑</button></span></div>
+          <input type="text" value="${_escAttr(e.texte)}" maxlength="300" style="width:100%;font-size:.92em" title="Se corrige ici" onchange="ficheJournalEdit('${_escJsAttr(e.id)}',this.value)"></div>`;
       }).join('')
     : vide('Aucun contact noté avec la famille.');
 
@@ -4521,6 +4637,19 @@ function esStatusChange(cb) {
   }
 }
 
+// Changement de classe en cours d'année : on déplace l'élève d'un roster à l'autre.
+// ⚠️ Ses relevés de carnet restent indexés sous SON ANCIENNE classe : ils appartiennent
+// à l'histoire du relevé, pas à l'élève. On ne les déplace donc pas — mais on le dit.
+// Partagée par la modale ✏️ et la fiche. Sans pushUndo ni save : l'appelant s'en charge.
+function moveStudentToClass(sid, newCid) {
+  const s = S.eleves[sid];
+  if (!s || !newCid || newCid === s.classe_id || !S.classes[newCid]) return false;
+  const old = S.classes[s.classe_id];
+  if (old) old.eleves = old.eleves.filter(x => x !== sid);
+  if (!S.classes[newCid].eleves.includes(sid)) S.classes[newCid].eleves.push(sid);
+  s.classe_id = newCid;
+  return true;
+}
 function saveEdit() {
   const sid = document.getElementById('es-id').value;
   const s = S.eleves[sid];
@@ -4553,18 +4682,8 @@ function saveEdit() {
     s[k] = !!(cb && cb.checked);
   }
   s.tags = [...document.querySelectorAll('#es-tags input[data-tag]')].filter(c => c.checked).map(c => c.dataset.tag);
-  // Changement de classe en cours d'année : on déplace l'élève d'un roster à l'autre.
-  // ⚠️ Ses relevés de carnet restent indexés sous SON ANCIENNE classe : ils appartiennent
-  // à l'histoire du relevé, pas à l'élève. On ne les déplace donc pas — mais on le dit.
   const newCid = document.getElementById('es-cls').value;
-  let moved = false;
-  if (newCid && newCid !== s.classe_id && S.classes[newCid]) {
-    const old = S.classes[s.classe_id];
-    if (old) old.eleves = old.eleves.filter(x => x !== sid);
-    S.classes[newCid].eleves.push(sid);
-    s.classe_id = newCid;
-    moved = true;
-  }
+  const moved = moveStudentToClass(sid, newCid);
   save();
   closeMod2('me');
   refreshSelector();
