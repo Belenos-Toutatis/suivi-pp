@@ -84,8 +84,13 @@ passe à l'élève suivant : sur vingt-cinq carnets en main, on ne tape presque 
 **La fiche d'un élève.** Cliquez son nom dans la liste : tout ce que l'app sait de lui
 tient sur un écran — identité et âge, place dans chaque salle, l'histoire complète de son
 carnet avec ses totaux de période, tous les documents et ce qui y a été coché, les
-élections où il apparaît, sa remarque et son journal de contacts en entier. C'est un
-écran de lecture : les deux boutons du bas mènent à l'édition, et y ramènent.
+élections où il apparaît, sa remarque, son journal de contacts et ses incidents en entier.
+Et ce qui se corrige d'un geste s'y corrige sur place : une pastille **`+`** à côté de
+Remarque, Contacts et Incidents pour ajouter ; un clic sur le groupe, les options ou les
+aménagements pour les changer (la fiche prévient si la classe se met à jour depuis
+*Plan de classe* — la correction est alors à reporter là-bas aussi) ; un clic sur l'état
+d'un document pour le cocher rendu. Les deux boutons du bas mènent à l'édition complète,
+et y ramènent.
 
 **Le journal des contacts.** À côté du texte libre, chaque élève porte la liste **datée**
 de ce qui s'est dit avec la famille : appel, rencontre, courriel, mot dans le carnet. Le

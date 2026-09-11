@@ -1113,6 +1113,23 @@ body.el-projecting #main { padding-top: 8px; }
   font-size: .82em; background: var(--paper-warm); border: 1px solid var(--rule-line);
   border-radius: var(--radius-md); padding: 1px 7px; color: var(--ink-deep);
 }
+/* Pastille « + » à côté d'un titre de section de la fiche, et valeur cliquable. */
+.fi-plus {
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 20px; height: 20px; margin-left: 8px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--rule-line); background: var(--paper-warm); color: var(--ink-blue);
+  font: 700 14px/1 var(--font-mono); cursor: pointer;
+}
+.fi-plus:hover { background: var(--ink-blue); color: var(--paper); border-color: var(--ink-blue); }
+.fi-val { background: transparent; border: 1px dashed transparent; border-radius: var(--radius-sm); padding: 0 4px; margin: 0 -4px; cursor: pointer; font: inherit; color: inherit; text-align: left; }
+.fi-val:hover { border-color: var(--rule-line); background: var(--paper-warm); }
+.fi-val::after { content: ' ✎'; color: var(--pencil); font-size: .85em; }
+.fi-editor { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 6px; }
+.fi-editor .tagpick { user-select: none; }
+.fi-pdc { flex-basis: 100%; font-size: .8em; color: var(--warn-fg); }
+.fi-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; margin: 6px 0 8px; padding: 8px; background: var(--paper-warm); border-radius: var(--radius-md); }
+.fi-form label { display: flex; flex-direction: column; gap: 2px; font: italic 12px var(--font-serif); color: var(--pencil); }
+.fi-doc-btn { cursor: pointer; }
 .fi-inc-txt { white-space: pre-line; font-size: .92em; margin-top: 2px; }
 .fi-inc-act { float: right; margin-left: 8px; }
 .inst-table input[type="text"] { width: 100%; font-size: .9em; }
@@ -1853,8 +1870,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.13.0';
-const APP_BUILD_DATE = '2026-09-11T14:32:38Z';
+const APP_VERSION    = '1.14.0';
+const APP_BUILD_DATE = '2026-09-11T14:56:18Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3868,11 +3885,70 @@ function openRemarque(sid) {
 // ═══════════════════════════════════════════════════════════════════════════
 let _ficheSid = null;
 let _ficheDocsOpen = false;   // le pli des documents se souvient d'une fiche à l'autre
+// ⚠️ Révision du 2026-09-11 : la fiche n'est plus SEULEMENT un écran de lecture. Ce qui
+// s'y corrige d'un geste s'y corrige sur place — groupe, options, aménagements, remarque,
+// un contact, un retour de document — mais TOUJOURS par les mêmes fonctions que les autres
+// écrans (`_withStudent`, `_setStudentStatusExclusive`, `journalAdd`, `docSetRendu`) :
+// dupliquer la logique, c'est dupliquer les gardes-fous et n'en corriger qu'un seul un jour.
+// Un seul éditeur ouvert à la fois ; il se ferme quand on ouvre une autre fiche.
+let _ficheEdit = null;   // 'groupe' | 'options' | 'amen' | 'remarque' | 'contact' | null
 function openFiche(sid) {
   if (!S.eleves[sid]) return;
   _ficheSid = sid;
+  _ficheEdit = null;
   _ficheRender();
   openMod('mfiche');
+}
+function ficheEdit(k) { _ficheEdit = _ficheEdit === k ? null : k; _ficheRender(); }
+// Mutation depuis la fiche : undo, sauvegarde, liste rafraîchie (par _withStudent), puis la fiche.
+function _ficheMut(fn, msg) { _withStudent(_ficheSid, fn, msg); _ficheRender(); }
+function ficheSetGroupe(g) { _ficheMut(s => { s.groupe = [1, 2, 3].includes(+g) ? +g : null; }); }
+function ficheToggleTag(tid) {
+  if (!S.tags[tid]) return;
+  _ficheMut(s => { if (!Array.isArray(s.tags)) s.tags = []; const i = s.tags.indexOf(tid); if (i >= 0) s.tags.splice(i, 1); else s.tags.push(tid); });
+}
+// Aménagements : mêmes bascules que l'ancienne liste — exclusivité par _setStudentStatusExclusive.
+function ficheToggleStatus(key) { _ficheMut(s => { if (s[key]) s[key] = false; else _setStudentStatusExclusive(s, key); }); }
+function ficheCycleUlis() { _ficheMut(s => { if (s.ulis_incl) { s.ulis_incl = false; s.ulis = false; } else if (s.ulis) _setStudentStatusExclusive(s, 'ulis_incl'); else _setStudentStatusExclusive(s, 'ulis'); }); }
+function ficheCycleUpe2a() { _ficheMut(s => { if (s.upe2a_incl) { s.upe2a_incl = false; s.upe2a = false; } else if (s.upe2a) _setStudentStatusExclusive(s, 'upe2a_incl'); else _setStudentStatusExclusive(s, 'upe2a'); }); }
+function ficheSaveRemarque() {
+  const a = document.getElementById('fi-rem-edit');
+  const s = S.eleves[_ficheSid];
+  if (!a || !s) return;
+  const v = a.value.trim();
+  _ficheEdit = null;
+  if (v === (s.remarque || '')) return _ficheRender();
+  _ficheMut(st => { if (v) st.remarque = v; else delete st.remarque; });
+}
+function ficheAddContact() {
+  const champD = document.getElementById('fi-j-date');
+  const d = champD && champD.value ? _ymdCompleteAnnee(champD.value) : '';
+  if (champD && d && d !== champD.value) champD.value = d;
+  const ty = document.getElementById('fi-j-type')?.value;
+  const tx = document.getElementById('fi-j-txt');
+  if (!_ymdValid(d)) return toast('⚠️ Date du contact illisible.', 'warn');
+  if (!tx || !tx.value.trim()) { toast('⚠️ Notez ce qu\'il faut en retenir.', 'warn'); tx && tx.focus(); return; }
+  const texte = tx.value;
+  _ficheEdit = null;
+  _ficheMut(() => journalAdd(_ficheSid, d, ty, texte));
+}
+// Un retour de document coché depuis la fiche — par docSetRendu, comme le tableau et le
+// ramassage : la date du jour se pose, et décocher l'efface.
+function ficheToggleRendu(docId) {
+  const doc = S.documents[docId];
+  if (!doc || !_ficheSid) return;
+  const r = _retour(doc, _ficheSid);
+  _docMut(docId, d => docSetRendu(d, _ficheSid, !r.rendu));
+  _ficheRender();
+}
+// Ce que corrige la fiche est aussi ce que réécrit un import depuis Plan de classe :
+// groupe, options, aménagements. On le DIT à côté de l'éditeur, sinon la correction
+// disparaît au prochain import sans que rien ne l'explique.
+function _fichePdcHint(cls) {
+  const importe = !!(cls && cls.pdcImportAt) || Object.keys(S.salles || {}).some(id => String(id).startsWith('pdc_'));
+  if (!importe) return '';
+  const quand = cls && cls.pdcImportAt ? ` (dernier import le ${_escName(_fmtDateFr(cls.pdcImportAt))})` : '';
+  return `<div class="fi-pdc">🪑 Cette classe se met à jour depuis <em>Plan de classe</em>${quand} : un nouvel import remplacera cette valeur — corrige-la aussi là-bas.</div>`;
 }
 // Les deux boutons de pied de fiche mènent aux écrans de saisie, et y REVIENNENT :
 // on ouvre une fiche, on corrige un détail, on retombe sur la fiche.
@@ -3891,7 +3967,30 @@ function _ficheRender() {
   if (t) t.textContent = `👤 ${stu.prenom} ${stu.nom}`;
 
   const vide = txt => `<span class="fi-vide">${txt}</span>`;
-  const sec = (titre, contenu) => `<div class="fi-sec"><h3>${titre}</h3>${contenu}</div>`;
+  // `plus` : { onclick, title, icone } — la pastille à côté du titre, pour ajouter sans quitter la fiche.
+  const sec = (titre, contenu, plus) => `<div class="fi-sec"><h3>${titre}${plus ? ` <button class="fi-plus" onclick="${plus.onclick}" title="${_escAttr(plus.title)}">${plus.icone || '+'}</button>` : ''}</h3>${contenu}</div>`;
+  const stuTags = new Set(stu.tags || []);
+  // Pastille à bascule : fond d'accent quand cochée (encre dérivée), neutre sinon. Les
+  // groupes passent par leurs classes .gN (tokens CSS, que _contrastTextColor ne lit pas).
+  const chip = (on, label, onclick, title, bg, cls) => `<button class="tagpick${on && cls ? ' ' + cls : ''}" style="${on && cls ? '' : `background:${on ? bg : 'var(--paper-warm)'};color:${on ? _contrastTextColor(bg) : 'var(--ink-deep)'}`}" onclick="${onclick}" title="${_escAttr(title || '')}">${label}</button>`;
+  const pdcHint = _fichePdcHint(cls);
+  // Éditeurs en place : un seul ouvert à la fois (_ficheEdit).
+  const edGroupe = _ficheEdit !== 'groupe' ? '' : `<div class="fi-editor">${[1, 2, 3].map(g =>
+      chip(stu.groupe === g, `G${g}`, `ficheSetGroupe(${g})`, `Groupe ${g}`, null, `gbdg g${g}`)).join('')}${
+      chip(!stu.groupe, 'aucun', 'ficheSetGroupe(null)', 'Aucun groupe', '#1a252f')}${pdcHint}</div>`;
+  const catTags = Object.values(S.tags).sort((a, b) => String(a.abbr).localeCompare(String(b.abbr), 'fr'));
+  const edOptions = _ficheEdit !== 'options' ? '' : `<div class="fi-editor">${catTags.length
+      ? catTags.map(t => chip(stuTags.has(t.id), _escName(t.abbr), `ficheToggleTag('${_escJsAttr(t.id)}')`, t.name || t.abbr, _safeColor(t.color))).join('')
+      : vide('Aucune option au catalogue — elles arrivent avec l\'import, ou par ⚙ Options… dans l\'onglet Élèves.')}${pdcHint}</div>`;
+  const edAmen = _ficheEdit !== 'amen' ? '' : `<div class="fi-editor">${
+      chip(stu.ppre, 'PPRE', "ficheToggleStatus('ppre')", 'PPRE — exclusif avec PAP / PPS / ULIS', '#e67e22')}${
+      chip(stu.pap, 'PAP', "ficheToggleStatus('pap')", 'Plan d’accompagnement personnalisé — exclusif avec PPRE / PPS / ULIS', '#3f51b5')}${
+      chip(stu.gevasco, 'PPS', "ficheToggleStatus('gevasco')", 'GEVAsco / PPS — exclusif avec PPRE / PAP / ULIS', '#23689a')}${
+      chip(stu.ulis || stu.ulis_incl, stu.ulis_incl ? 'ULIS+' : 'ULIS', 'ficheCycleUlis()', 'ULIS : hors classe → inclusion (ULIS+) → aucun', stu.ulis_incl ? '#8e44ad' : '#27ae60')}${
+      chip(stu.upe2a || stu.upe2a_incl, stu.upe2a_incl ? 'UPE2A+' : 'UPE2A', 'ficheCycleUpe2a()', 'UPE2A : hors classe → inclusion (UPE2A+) → aucun', stu.upe2a_incl ? '#c0392b' : '#16a085')}${
+      chip(stu.pai, 'PAI', "ficheToggleStatus('pai')", 'Projet d’accueil individualisé (médical) — cumulable', '#c2185b')}${
+      chip(stu.agrandissement, '📄-A', "ficheToggleStatus('agrandissement')", 'Agrandissement des photocopies — cumulable', '#00838f')}${
+      chip(stu.tiers_temps, '⏱' + _FRAC13_HTML, "ficheToggleStatus('tiers_temps')", 'Tiers-temps — cumulable', '#00838f')}${pdcHint}</div>`;
   const dl = paires => `<dl class="fi-grid">${paires.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
 
   // ── Identité ──
@@ -3904,9 +4003,9 @@ function _ficheRender() {
     [`Classe`, `${_escName(cls?.nom || stu.classe_id)}${cls?.annee ? ` <span class="fi-vide">${_escName(cls.annee)}</span>` : ''}`],
     [`Naissance`, stu.naissance ? `${_escName(_fmtDateFr(stu.naissance))}${age !== null ? ` — ${age} ans` : ''}` : vide('non renseignée')],
     [`Civilité`, stu.civilite ? _escName(civiliteFullLabel(stu.civilite)) : vide('non renseignée')],
-    [`Groupe`, stu.groupe ? `G${stu.groupe}` : vide('aucun')],
-    [`Options`, opts.length ? opts.map(o => _tagBadgeHTML(o)).join(' ') : vide('aucune')],
-    [`Aménagements`, amen ? _escName(amen) : vide('aucun')],
+    [`Groupe`, `<button class="fi-val" onclick="ficheEdit('groupe')" title="Changer de groupe">${stu.groupe ? `G${stu.groupe}` : vide('aucun')}</button>${edGroupe}`],
+    [`Options`, `<button class="fi-val" onclick="ficheEdit('options')" title="Cocher ou décocher des options">${opts.length ? opts.map(o => _tagBadgeHTML(o)).join(' ') : vide('aucune')}</button>${edOptions}`],
+    [`Aménagements`, `<button class="fi-val" onclick="ficheEdit('amen')" title="Régler les aménagements">${amen ? _escName(amen) : vide('aucun')}</button>${edAmen}`],
     [`Présence`, _ficheePresence(stu)],
     del ? [`Délégué`, `<span class="badge ok">${del === 'titulaire' ? '🏅 titulaire' : '🎗 suppléant'}</span>`] : null,
     [`Place`, places.length
@@ -3936,10 +4035,11 @@ function _ficheRender() {
         // ⚠️ Un document `suiviRetour: false` (note d'information) n'a RIEN à rendre :
         // l'afficher « non rendu » ferait courir après un papier qui n'existe pas.
         const suivi = S.documents[d.docId]?.suiviRetour !== false;
+        // Cliquable : un papier rendu se coche ICI, sans passer par l'onglet Documents.
         const etat = !suivi ? vide('note d\'information — rien à rendre')
           : !d.attendu ? vide('non concerné')
-          : d.rendu ? `<span class="badge ok">rendu${d.dateRetour ? ` le ${_escName(_fmtDateFr(d.dateRetour))}` : ''}</span>`
-                    : '<span class="badge warn">non rendu</span>';
+          : d.rendu ? `<button class="badge ok fi-doc-btn" onclick="ficheToggleRendu('${_escJsAttr(d.docId)}')" title="Rendu — clic pour décocher">✓ rendu${d.dateRetour ? ` le ${_escName(_fmtDateFr(d.dateRetour))}` : ''}</button>`
+                    : `<button class="badge warn fi-doc-btn" onclick="ficheToggleRendu('${_escJsAttr(d.docId)}')" title="Non rendu — clic : rendu aujourd'hui">☐ non rendu</button>`;
         const rep = d.reponses.map(r => `<div class="tb-hint">${r.par === 'prof' ? '👤 ' : ''}${_escName(r.champ)} : <strong>${_escName(r.valeurs.join(', '))}</strong></div>`).join('');
         return `<div style="margin-bottom:7px"><strong>${_escName(d.titre)}</strong>${d.archive ? ' ' + vide('(archivé)') : ''} ${etat}${
           d.note ? ` <span class="fi-vide">« ${_escName(d.note)} »</span>` : ''}${rep}</div>`;
@@ -3971,8 +4071,19 @@ function _ficheRender() {
           <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersIncident('${_escJsAttr(e.id)}')" title="Modifier cette entrée">✏️</button> <button class="btn btn-d btn-sm" onclick="incidentRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer cette entrée">🗑</button></span></div>
           <strong>${_escName(e.objet)}</strong>${e.texte ? `<div class="fi-inc-txt">${_escName(e.texte)}</div>` : ''}</div>`;
       }).join('')
-    : vide('Aucun incident ni instance — tant mieux.'))
-    + `<div style="margin-top:8px"><button class="btn btn-s btn-sm" onclick="ficheVersIncident()">+ Noter un incident ou une instance</button></div>`;
+    : vide('Aucun incident ni instance — tant mieux.'));
+
+  const remHTML = _ficheEdit === 'remarque'
+    ? `<textarea id="fi-rem-edit" data-fi-focus rows="4" style="width:100%" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral.">${_escName(stu.remarque || '')}</textarea>
+       <div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="ficheSaveRemarque()">✓ Enregistrer</button><button class="btn btn-g btn-sm" onclick="ficheEdit('remarque')">Annuler</button></div>`
+    : (stu.remarque ? `<div class="fi-rem">${_escName(stu.remarque)}</div>` : vide('Aucune remarque.'));
+  const contactForm = _ficheEdit !== 'contact' ? '' : `<div class="fi-form">
+      <label>Date <input type="date" id="fi-j-date" value="${_escAttr(_todayYmd())}" style="min-width:140px"></label>
+      <label>Type <select id="fi-j-type">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}">${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></label>
+      <input type="text" id="fi-j-txt" data-fi-focus placeholder="Ce qu'il faut en retenir" maxlength="300" style="flex:1;min-width:170px"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();ficheAddContact()}">
+      <button class="btn btn-s btn-sm" onclick="ficheAddContact()">+ Noter</button>
+      <button class="btn btn-g btn-sm" onclick="ficheEdit('contact')">Annuler</button></div>`;
 
   // ⚠️ Documents REPLIABLE — c'est la section la plus longue, et on ne l'ouvre pas à
   // chaque consultation. Mais les CHOIX portés sur les papiers (Devoirs Faits : ULYSS,
@@ -3995,9 +4106,11 @@ function _ficheRender() {
     + sec('📓 Carnet', relevesHTML)
     + docsSection
     + sec('🗳 Élections', elsHTML)
-    + sec('📋 Remarque', stu.remarque ? `<div class="fi-rem">${_escName(stu.remarque)}</div>` : vide('Aucune remarque.'))
-    + sec(`📇 Contacts avec la famille${journal.length ? ` <span class="fi-vide">(${journal.length})</span>` : ''}`, jHTML)
-    + sec(`⚖️ Incidents et instances${incs.length ? ` <span class="fi-vide">(${incs.length})</span>` : ''}`, incHTML);
+    + sec('📋 Remarque', remHTML, { onclick: "ficheEdit('remarque')", title: stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', icone: stu.remarque ? '✎' : '+' })
+    + sec(`📇 Contacts avec la famille${journal.length ? ` <span class="fi-vide">(${journal.length})</span>` : ''}`, contactForm + jHTML, { onclick: "ficheEdit('contact')", title: 'Noter un contact avec la famille' })
+    + sec(`⚖️ Incidents et instances${incs.length ? ` <span class="fi-vide">(${incs.length})</span>` : ''}`, incHTML, { onclick: 'ficheVersIncident()', title: 'Noter un incident ou une instance' });
+  const f = box.querySelector('[data-fi-focus]');
+  if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5403,6 +5516,9 @@ function _pdcImport(d, classIds) {
     if (!_isPlainObj(c) || c.virtual) continue;
     let cls = S.classes[cid];
     if (!cls) { cls = _createClassBare(cid, c.nom, _pdcYear(c.année ?? c.annee)); stats.classes++; }
+    // Date du dernier import : la fiche s'en sert pour prévenir qu'un groupe, une option ou
+    // un aménagement corrigé ICI sera remplacé au prochain import s'il ne l'est pas là-bas.
+    cls.pdcImportAt = _todayYmd();
     for (const sid of (Array.isArray(c.eleves) ? c.eleves : [])) {
       const src = d.eleves[sid];
       if (!_isPlainObj(src) || !String(src.nom || '').trim() || !String(src.prenom || '').trim()) continue;

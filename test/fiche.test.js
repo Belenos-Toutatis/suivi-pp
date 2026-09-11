@@ -369,3 +369,65 @@ test('_ficheElections : classe absente → tableau vide, jamais d\'exception', (
   ev(FIXTURE_ELECTIONS);
   assert.deepStrictEqual(evObj(`_ficheElections(null, 's1')`), []);
 });
+
+// ─────────────────────────── Corrections depuis la fiche ───────────────────────────
+// ⚠️ Le point n'est pas que la fiche sache modifier — c'est qu'elle modifie PAR LES MÊMES
+// FONCTIONS que les autres écrans : undo posé, exclusivité des statuts, date de retour.
+// Le harnais n'a pas de DOM : _ficheRender rend la main, seules les mutations comptent.
+
+test('ficheSetGroupe / ficheToggleTag : mutation avec undo, depuis la fiche', () => {
+  ev(FIXTURE_DOCS);
+  ev(`S.tags.tag_1 = { id:'tag_1', abbr:'LATIN', name:'Latin', color:'#16a085' }; _ficheSid = 's1'; undoStack.length = 0;`);
+  ev(`ficheSetGroupe(2)`);
+  assert.strictEqual(evObj(`S.eleves.s1.groupe`), 2);
+  ev(`ficheSetGroupe(null)`);
+  assert.strictEqual(evObj(`S.eleves.s1.groupe`), null);
+  ev(`ficheToggleTag('tag_1')`);
+  assert.deepStrictEqual(evObj(`S.eleves.s1.tags`), ['tag_1']);
+  ev(`ficheToggleTag('tag_1')`);
+  assert.deepStrictEqual(evObj(`S.eleves.s1.tags`), []);
+  ev(`ficheToggleTag('fantome')`);
+  assert.deepStrictEqual(evObj(`S.eleves.s1.tags`), [], 'un tag inconnu ne s\'écrit pas');
+  assert.ok(evObj(`undoStack.length`) >= 4, 'un cran d\'undo par geste');
+  ev(`undoLast()`);
+  assert.deepStrictEqual(evObj(`S.eleves.s1.tags`), ['tag_1'], 'Ctrl+Z défait le dernier geste');
+});
+
+test('ficheToggleStatus : la même exclusivité que la modale (PPRE / PAP / PPS / ULIS)', () => {
+  ev(FIXTURE_DOCS);
+  ev(`_ficheSid = 's1'; ficheToggleStatus('ppre'); ficheToggleStatus('pai');`);
+  assert.deepStrictEqual(evObj(`[S.eleves.s1.ppre, S.eleves.s1.pai]`), [true, true]);
+  ev(`ficheToggleStatus('pap')`);
+  assert.deepStrictEqual(evObj(`[S.eleves.s1.ppre, S.eleves.s1.pap, S.eleves.s1.pai]`), [false, true, true], 'PAP chasse PPRE, PAI reste');
+  ev(`ficheCycleUlis()`);
+  assert.deepStrictEqual(evObj(`[S.eleves.s1.pap, S.eleves.s1.ulis, S.eleves.s1.ulis_incl]`), [false, true, false]);
+  ev(`ficheCycleUlis()`);
+  assert.deepStrictEqual(evObj(`[S.eleves.s1.ulis, S.eleves.s1.ulis_incl]`), [false, true]);
+  ev(`ficheCycleUlis()`);
+  assert.deepStrictEqual(evObj(`[S.eleves.s1.ulis, S.eleves.s1.ulis_incl]`), [false, false]);
+  ev(`ficheToggleStatus('pap'); ficheToggleStatus('pap');`);
+  assert.strictEqual(evObj(`S.eleves.s1.pap`), false, 'un second clic retire');
+});
+
+test('ficheToggleRendu : coche et décoche par docSetRendu — date du jour posée, puis effacée', () => {
+  ev(FIXTURE_DOCS);
+  ev(`_ficheSid = 's1'; S.documents.d1.retours.s1.rendu = false; S.documents.d1.retours.s1.dateRetour = null;`);
+  ev(`ficheToggleRendu('d1')`);
+  assert.strictEqual(evObj(`S.documents.d1.retours.s1.rendu`), true);
+  assert.strictEqual(evObj(`S.documents.d1.retours.s1.dateRetour`), ev(`_todayYmd()`));
+  assert.deepStrictEqual(evObj(`S.documents.d1.retours.s1.reponses`), { opt1: 'latin', opts: ['dnl', 'catho'] }, 'les réponses ne bougent pas');
+  ev(`ficheToggleRendu('d1')`);
+  assert.deepStrictEqual(evObj(`[S.documents.d1.retours.s1.rendu, S.documents.d1.retours.s1.dateRetour]`), [false, null]);
+  ev(`ficheToggleRendu('fantome')`);   // ne lève pas
+});
+
+test('_fichePdcHint : prévient seulement quand la classe vient de Plan de classe', () => {
+  ev(FIXTURE_DOCS);
+  assert.strictEqual(ev(`_fichePdcHint(S.classes['5C'])`), '');
+  ev(`S.classes['5C'].pdcImportAt = '2026-09-01';`);
+  assert.match(ev(`_fichePdcHint(S.classes['5C'])`), /Plan de classe.*01\/09\/2026/);
+  // Sans marqueur mais avec des salles importées : les données sont antérieures au marqueur.
+  ev(`delete S.classes['5C'].pdcImportAt; S.salles.pdc_s1 = { id:'pdc_s1', nom:'102', rows:1, cols:1, patterns:[] };`);
+  assert.match(ev(`_fichePdcHint(S.classes['5C'])`), /Plan de classe/);
+  assert.doesNotMatch(ev(`_fichePdcHint(S.classes['5C'])`), /dernier import/);
+});

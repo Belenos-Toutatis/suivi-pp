@@ -64,6 +64,8 @@ test('_pdcImport ne reprend QUE les classes choisies, par liste blanche, ids con
   assert.deepStrictEqual(r.tags.sort(), ['DF', 'DNL']);
   assert.strictEqual(r.e1.tags.length, 2);
   assert.strictEqual(ev(`S.classes['6A'].annee`), '2025-26');
+  // Le marqueur dont la fiche se sert pour prévenir qu'un import réécrira groupe, options, aménagements.
+  assert.strictEqual(ev(`S.classes['6A'].pdcImportAt`), ev(`_todayYmd()`));
 });
 
 test('_pdcImport laisse tomber un tag inconnu du catalogue source sans planter', () => {
