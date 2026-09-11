@@ -1136,12 +1136,11 @@ body.el-projecting #main { padding-top: 8px; }
 .fi-doc-btn { cursor: pointer; }
 /* Grille d'une salle (Données et réglages) : une table, pas un plan. */
 .salle-grid { border-collapse: separate; border-spacing: 4px; }
-.salle-td { width: 74px; height: 40px; text-align: center; vertical-align: middle; border: 1px solid var(--rule-line); border-radius: var(--radius-md); background: var(--paper); cursor: pointer; font-size: .78em; position: relative; padding: 2px 4px; }
-.salle-td:hover { background: var(--paper-warm); }
+.salle-td { width: 74px; height: 40px; text-align: center; vertical-align: middle; border: 1px solid var(--rule-line); border-radius: var(--radius-md); background: var(--paper); font-size: .78em; position: relative; padding: 2px 4px; }
+.salle-td.cliquable { cursor: pointer; }
+.salle-td.cliquable:hover, .salle-td.glissable:hover { background: var(--paper-warm); }
 .salle-td.occ { background: var(--paper-warm); }
 .salle-td.dans-ordre { border-color: var(--ink-blue); box-shadow: inset 0 0 0 1px var(--ink-blue); }
-.salle-td.sel { border-color: var(--margin-red); box-shadow: inset 0 0 0 1px var(--margin-red); }
-.salle-td select { max-width: 150px; font-size: .95em; }
 .salle-wrap { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; margin-bottom: 6px; }
 .salle-wrap > .rel-wrap { min-width: 0; max-width: 100%; }
 .salle-liste { min-width: 170px; max-width: 260px; border: 1px dashed var(--rule-line); border-radius: var(--radius-md); padding: 8px; background: var(--paper); }
@@ -1891,8 +1890,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.16.0';
-const APP_BUILD_DATE = '2026-09-11T15:27:14Z';
+const APP_VERSION    = '1.16.1';
+const APP_BUILD_DATE = '2026-09-11T15:37:29Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5821,7 +5820,7 @@ function _pdcConfirm() {
 // ═══════════════ Salles et placements — l'éditeur ═══════════════
 // État de session : la salle regardée, le mode (placer / ordre), la place sélectionnée,
 // l'ordre en cours d'édition. Rien dans S.
-let _salleEd = { id: null, mode: 'placer', sel: null, pat: null };
+let _salleEd = { id: null, mode: 'placer', pat: null };
 function _sallesEditorHTML() {
   const cls = getCls();
   const salles = Object.values(S.salles).sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr'));
@@ -5831,7 +5830,7 @@ function _sallesEditorHTML() {
     ? `<div class="pref-help" style="margin-bottom:8px">🪑 <strong>Ces salles viennent de <em>Plan de classe</em></strong>${cls && cls.pdcImportAt ? ` (dernier import le ${_escName(_fmtDateFr(cls.pdcImportAt))})` : ''} : un nouvel import (bouton <em>Depuis Plan de classe…</em> ci-dessus) <strong>remplace la salle homonyme, son placement et ses ordres de ramassage</strong>. Ce que tu corriges ici est à reporter là-bas — ou à ne plus importer.</div>`
     : `<div class="pref-help" style="margin-bottom:8px">Une grille de rangs × colonnes vue depuis ton bureau (le rang 1 juste devant toi, en bas), qui est assis où, et l'ordre dans lequel tu passes dans les rangs pour ramasser. Sert au tri <em>par place</em> et <em>ramassage</em> des grilles. Un import depuis <em>Plan de classe</em> remplacerait tout cela.</div>`;
   const nouvelle = `<div class="tb" style="margin-bottom:8px;border-radius:var(--radius-md)">
-      <select onchange="_salleEd.id=this.value;_salleEd.sel=null;_salleEd.pat=null;renderDonnees()" style="max-width:240px" title="Salle à régler">${
+      <select onchange="_salleEd.id=this.value;_salleEd.pat=null;renderDonnees()" style="max-width:240px" title="Salle à régler">${
         salles.length ? salles.map(sa => `<option value="${_escAttr(sa.id)}"${sa.id === _salleEd.id ? ' selected' : ''}>${_escName(sa.nom)} (${sa.rows} × ${sa.cols})</option>`).join('') : '<option value="">— aucune salle —</option>'}</select>
       <button class="btn btn-s btn-sm" onclick="salleAddUI()">+ Nouvelle salle</button></div>`;
   const sa = _salle(_salleEd.id);
@@ -5850,8 +5849,8 @@ function _sallesEditorHTML() {
   if (_salleEd.mode === 'ordre' && !_salleEd.pat) _salleEd.pat = pats[0] ? pats[0].id : null;
   const pat = _salleEd.mode === 'ordre' ? _pattern(sa.id, _salleEd.pat) : null;
   const modes = `<div class="tb" style="margin-bottom:6px;border-radius:var(--radius-md)">
-      <button class="btn ${_salleEd.mode === 'placer' ? 'btn-p' : 'btn-g'} btn-sm" onclick="_salleEd.mode='placer';_salleEd.sel=null;renderDonnees()">🪑 Placer les élèves</button>
-      <button class="btn ${_salleEd.mode === 'ordre' ? 'btn-p' : 'btn-g'} btn-sm" onclick="_salleEd.mode='ordre';_salleEd.sel=null;renderDonnees()">🧺 Ordre de ramassage</button>
+      <button class="btn ${_salleEd.mode === 'placer' ? 'btn-p' : 'btn-g'} btn-sm" onclick="_salleEd.mode='placer';renderDonnees()">🪑 Placer les élèves</button>
+      <button class="btn ${_salleEd.mode === 'ordre' ? 'btn-p' : 'btn-g'} btn-sm" onclick="_salleEd.mode='ordre';renderDonnees()">🧺 Ordre de ramassage</button>
       ${_salleEd.mode === 'ordre' ? `<select onchange="_salleEd.pat=this.value;renderDonnees()" style="max-width:200px">${
           pats.length ? pats.map(p => `<option value="${_escAttr(p.id)}"${p.id === _salleEd.pat ? ' selected' : ''}>${_escName(p.nom)} (${(p.order || []).length})</option>`).join('') : '<option value="">— aucun ordre —</option>'}</select>
         <button class="btn btn-s btn-sm" onclick="patternAddUI('${_escJsAttr(sa.id)}')">+ Nouvel ordre</button>${pat ? `
@@ -5859,7 +5858,7 @@ function _sallesEditorHTML() {
         <button class="btn btn-g btn-sm" onclick="patternClearUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Vider l'ordre pour le refaire">↺</button>
         <button class="btn btn-d btn-sm" onclick="patternRemoveUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Supprimer cet ordre">🗑</button>` : ''}` : ''}
       <span class="tb-hint" style="margin-left:auto">${_salleEd.mode === 'placer'
-        ? 'Clique une place, choisis l\'élève. Un élève déjà assis ailleurs y est déplacé.'
+        ? 'Glisse un élève de la liste sur une case ; un élève sur un autre pour échanger ; sur la liste pour libérer.'
         : (pat ? 'Clique les tables dans l\'ordre où tu passes ; recliquer une table la retire.' : 'Crée un ordre pour commencer.')}</span></div>`;
   // Grille
   const room = _room(cls, sa.id);
@@ -5877,21 +5876,15 @@ function _sallesEditorHTML() {
     for (let c = sa.cols - 1; c >= 0; c--) {
       const pos = `${r},${c}`;
       const st = seating[pos] ? S.eleves[seating[pos]] : null;
-      const sel = _salleEd.mode === 'placer' && _salleEd.sel === pos;
       const n = rang[pos];
-      let inner;
-      if (sel) {
-        inner = `<select data-fi-focus onchange="seatSetUI('${_escJsAttr(sa.id)}','${_escJsAttr(pos)}',this.value)" onblur="_salleEd.sel=null" title="Qui s'assied ici ?">
-          <option value="">— libre —</option>${eleves.map(e => { const ici = _seatOf(cls, sa.id, e.id); return `<option value="${_escAttr(e.id)}"${st && st.id === e.id ? ' selected' : ''}>${_escName(e.nom)} ${_escName(e.prenom)}${ici && ici !== pos ? ' (déjà placé)' : ''}</option>`; }).join('')}</select>`;
-      } else {
-        inner = `${n ? `<span class="salle-n">${n}</span>` : ''}${st ? `<span class="salle-el" title="${_escAttr(st.nom + ' ' + st.prenom)}">${_escName(court(st))}</span>` : '<span class="salle-vide">·</span>'}`;
-      }
-      // Un clic ouvre le sélecteur ; un GLISSER (case occupée, en mode placer) déplace ou
-      // échange. `_salleDragMoved` fait taire le clic qui suit un relâchement.
-      const on = _salleEd.mode === 'placer' ? `if(_salleDragMoved){_salleDragMoved=false;return}_salleEd.sel='${_escJsAttr(pos)}';renderDonnees()` : (pat ? `patternToggleUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}','${_escJsAttr(pos)}')` : '');
-      const drag = _salleEd.mode === 'placer' && st && !sel
+      const inner = `${n ? `<span class="salle-n">${n}</span>` : ''}${st ? `<span class="salle-el" title="${_escAttr(st.nom + ' ' + st.prenom)}">${_escName(court(st))}</span>` : '<span class="salle-vide">·</span>'}`;
+      // Placer : tout passe par le GLISSER (une case occupée se tire, la liste de droite
+      // fournit les autres). Le sélecteur au clic a existé (v1.15) et a été retiré : à
+      // côté du glisser, il ne servait plus à rien. Ordre : un clic ajoute ou retire la table.
+      const on = _salleEd.mode === 'ordre' && pat ? `patternToggleUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}','${_escJsAttr(pos)}')` : '';
+      const drag = _salleEd.mode === 'placer' && st
         ? ` onpointerdown="salleDragStart(event,'${_escJsAttr(st.id)}','${_escJsAttr(pos)}')" onpointermove="salleDragMove(event)" onpointerup="salleDragEnd(event)" onpointercancel="salleDragCancel()"` : '';
-      grille += `<td class="salle-td${st ? ' occ' : ''}${n ? ' dans-ordre' : ''}${sel ? ' sel' : ''}${drag ? ' glissable' : ''}" data-pos="${_escAttr(pos)}"${on && !sel ? ` onclick="${on}"` : ''}${drag} title="rang ${r + 1}, place ${c + 1}">${inner}</td>`;
+      grille += `<td class="salle-td${st ? ' occ' : ''}${n ? ' dans-ordre' : ''}${drag ? ' glissable' : ''}${on ? ' cliquable' : ''}" data-pos="${_escAttr(pos)}"${on ? ` onclick="${on}"` : ''}${drag} title="rang ${r + 1}, place ${c + 1}">${inner}</td>`;
     }
     grille += '</tr>';
   }
@@ -5913,8 +5906,8 @@ function _sallesEditorHTML() {
 // `touch-action: none` sur ce qui se tire (sinon le doigt fait défiler), RIEN ne bouge
 // dans le DOM pendant le geste (on dessine la cible, on n'agit qu'au relâchement), et la
 // cible se RECALCULE au relâchement par elementFromPoint — pas au dernier pointermove.
-// Un relâchement sans mouvement reste un CLIC (le sélecteur d'élève s'ouvre).
-let _salleDrag = null, _salleDragMoved = false;
+// Un relâchement sans mouvement (< 5 px) ne fait rien.
+let _salleDrag = null;
 function salleDragStart(e, sid, from) {
   if (_salleEd.mode !== 'placer' || (e.button !== undefined && e.button !== 0)) return;
   _salleDrag = { sid, from, x0: e.clientX, y0: e.clientY, moved: false, ghost: null, cible: null };
@@ -5964,11 +5957,9 @@ function salleDragCancel() { _salleDragClean(); }
 function salleDragEnd(e) {
   const d = _salleDrag;
   if (!d) return;
-  if (!d.moved) { _salleDragClean(); return; }          // un clic : le onclick de la case fera le reste
+  if (!d.moved) { _salleDragClean(); return; }
   const cible = _salleDropCible(e.clientX, e.clientY);
   _salleDragClean();
-  _salleDragMoved = true;                                 // le clic qui suit ne doit pas rouvrir un sélecteur
-  setTimeout(() => { _salleDragMoved = false; }, 0);
   if (!cible) return;
   const cls = getCls(), salleId = _salleEd.id;
   if (cible.classList.contains('salle-td')) {
@@ -5995,10 +5986,6 @@ function salleRemoveUI(id) {
   const n = Object.values(S.classes).filter(c => _room(c, id) && Object.keys(_room(c, id).seating).length).length;
   _uiConfirm({ title: '🗑 Supprimer la salle ?', message: `« ${sa.nom} »${n ? ` et son placement dans ${n} classe${n > 1 ? 's' : ''}` : ''}, avec ${(sa.patterns || []).length} ordre${(sa.patterns || []).length > 1 ? 's' : ''} de ramassage.\n\nAnnulable par Ctrl+Z.`,
     okLabel: 'Supprimer', okClass: 'btn-d', onOk: () => _salleMut(() => salleRemove(id)) });
-}
-function seatSetUI(salleId, pos, sid) {
-  _salleEd.sel = null;
-  if (!_salleMut(() => seatSet(getCls(), salleId, pos, sid || null))) toast('⚠️ Place refusée.', 'warn');
 }
 function patternAddUI(salleId) {
   _uiPrompt({ title: '+ Nouvel ordre de ramassage', label: 'Nom (ex. : serpentin, deux allées, par paillasses)', value: '', maxlength: 40,

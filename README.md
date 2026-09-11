@@ -112,8 +112,8 @@ d'elle-même ; un bouton liste les PDF orphelins quand vous voulez faire le mén
 **Salles et placements.** Dans 💾 Données et réglages, une grille par salle, vue depuis
 votre bureau (dessiné en bas, le rang 1 juste devant vous) : le nom, les rangs × colonnes,
 qui est assis où (les élèves sans place attendent à droite : glissez-en un sur une case,
-glissez un élève sur un autre pour les échanger, ou sur la liste pour libérer sa place ;
-un simple clic sur une case ouvre aussi la liste), et les
+glissez un élève sur un autre pour les échanger, ou sur la liste pour libérer sa place),
+et les
 ordres de ramassage (un clic sur chaque table dans l'ordre où vous passez). C'est ce qui
 alimente les tris *par place* et *ramassage* des grilles. ⚠️ Si vos salles viennent de
 *Plan de classe*, l'écran vous le rappelle : un nouvel import remplace la salle, son
