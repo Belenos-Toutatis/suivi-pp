@@ -116,7 +116,8 @@ votre bureau (dessiné en bas, le rang 1 juste devant vous) : le nom, les rangs 
 qui est assis où (les élèves sans place attendent à droite : glissez-en un sur une case,
 glissez un élève sur un autre pour les échanger, ou sur la liste pour libérer sa place),
 et les
-ordres de ramassage (un clic sur chaque table dans l'ordre où vous passez). C'est ce qui
+ordres de ramassage (un clic sur chaque table dans l'ordre où vous passez — ou un glisser
+d'une table à la suivante, qui les enchaîne). C'est ce qui
 alimente les tris *par place* et *ramassage* des grilles. ⚠️ Si vos salles viennent de
 *Plan de classe*, l'écran vous le rappelle : un nouvel import remplace la salle, son
 placement et ses ordres — une correction faite ici est à reporter là-bas, ou à ne plus

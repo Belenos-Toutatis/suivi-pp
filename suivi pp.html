@@ -1143,7 +1143,7 @@ body.el-projecting #main { padding-top: 8px; }
 /* Grille d'une salle (Données et réglages) : une table, pas un plan. */
 .salle-grid { border-collapse: separate; border-spacing: 4px; }
 .salle-td { width: 74px; height: 40px; text-align: center; vertical-align: middle; border: 1px solid var(--rule-line); border-radius: var(--radius-md); background: var(--paper); font-size: .78em; position: relative; padding: 2px 4px; }
-.salle-td.cliquable { cursor: pointer; }
+.salle-td.cliquable { cursor: pointer; touch-action: none; user-select: none; }
 .salle-td.cliquable:hover, .salle-td.glissable:hover { background: var(--paper-warm); }
 .salle-td.occ { background: var(--paper-warm); }
 .salle-td.dans-ordre { border-color: var(--ink-blue); box-shadow: inset 0 0 0 1px var(--ink-blue); }
@@ -1896,8 +1896,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.17.0';
-const APP_BUILD_DATE = '2026-09-11T15:47:27Z';
+const APP_VERSION    = '1.18.0';
+const APP_BUILD_DATE = '2026-09-11T15:52:54Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4095,13 +4095,24 @@ function ficheSetDate(inp, champ) {
   if (arr && dep && dep < arr) { toast('⚠️ Le départ ne peut pas précéder l\'arrivée.', 'warn'); inp.value = s[champ] || ''; return; }
   _ficheMut(st => { st[champ] = v; });
 }
-function ficheSetClasse(cid) {
+// ⚠️ On est PP d'UNE classe (arbitrage du 2026-09-11) : « modifier la classe » depuis
+// la fiche, c'est corriger son NOM et son année — pas déplacer l'élève. Le déplacement
+// reste possible par la modale ✏️ (changement de classe en cours d'année).
+function ficheSaveClasse() {
   const s = S.eleves[_ficheSid];
-  if (!s || !cid || cid === s.classe_id) return;
+  const cls = s && S.classes[s.classe_id];
+  const nom = document.getElementById('fi-cls-nom')?.value.trim();
+  const annee = document.getElementById('fi-cls-annee')?.value.trim();
+  if (!cls) return;
+  if (!nom) return toast('⚠️ Il faut un nom de classe.', 'warn');
   _ficheEdit = null;
-  _ficheMut(() => moveStudentToClass(_ficheSid, cid));
-  refreshSelector();
-  toast(`${s.prenom} ${s.nom} déplacé(e) vers ${S.classes[cid]?.nom || cid}. Ses relevés restent rattachés à son ancienne classe.`);
+  if (nom === cls.nom && (annee || '') === (cls.annee || '')) return _ficheRender();
+  pushUndo();
+  cls.nom = nom;            // ⚠️ l'ID ne bouge PAS : il indexe relevés, élections et rosters
+  cls.annee = annee || cls.annee;
+  save();
+  refreshSelector(); renderStudents();
+  _ficheRender();
 }
 function ficheSetPlace(salleId, pos) {
   const cls = S.classes[S.eleves[_ficheSid]?.classe_id];
@@ -4235,10 +4246,11 @@ function _ficheRender() {
   // une fois le champ quitté), civilité qui cycle au clic, classe et place par sélecteur.
   const dateInp = (champ, val, extra = '') => `<input type="date" value="${_escAttr(val || '')}" max="${champ === 'naissance' ? _escAttr(_todayYmd()) : ''}" ${extra}
       onchange="ficheDateChange(this,'${champ}')" onblur="ficheSetDate(this,'${champ}')" style="max-width:150px">`;
-  const classes = Object.values(S.classes).sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0) || String(a.nom).localeCompare(String(b.nom), 'fr'));
-  const edClasse = _ficheEdit !== 'classe' ? '' : `<div class="fi-editor"><select data-fi-focus onchange="ficheSetClasse(this.value)">${
-      classes.map(c => `<option value="${_escAttr(c.id)}"${c.id === stu.classe_id ? ' selected' : ''}>${_escName(c.nom)}${c.annee ? ` (${_escName(c.annee)})` : ''}</option>`).join('')}</select>
-      <span class="tb-hint">changement en cours d'année : les relevés déjà faits restent rattachés à l'ancienne classe</span></div>`;
+  const edClasse = _ficheEdit !== 'classe' || !cls ? '' : `<div class="fi-editor">
+      <input type="text" id="fi-cls-nom" data-fi-focus value="${_escAttr(cls.nom)}" placeholder="Nom de la classe" maxlength="40" style="width:140px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveClasse()}">
+      <input type="text" id="fi-cls-annee" value="${_escAttr(cls.annee || '')}" placeholder="2025-26" maxlength="12" style="width:90px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveClasse()}">
+      <button class="btn btn-p btn-sm" onclick="ficheSaveClasse()">✓</button> <button class="btn btn-g btn-sm" onclick="ficheEdit('classe')">Annuler</button>
+      <span class="tb-hint" style="flex-basis:100%">le nom et l'année de la classe — pour tous ses élèves</span></div>`;
   const sallesTri = Object.values(S.salles).sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr'));
   // ⚠️ `flex-wrap: nowrap` : en colonne ET avec repli, une ligne flex se dimensionne sur
   // le contenu de ses items, pas sur le conteneur — le label débordait de 120 px à 320 px.
@@ -4255,7 +4267,7 @@ function _ficheRender() {
       return `<label class="tb-hint" style="display:flex;gap:6px;align-items:center;min-width:0">${_escName(sa.nom)} <select style="flex:1;min-width:0;max-width:100%" onchange="ficheSetPlace('${_escJsAttr(sa.id)}',this.value)">${opts}</select></label>`;
     }).join('') : vide('Aucune salle — à créer dans 💾 Données et réglages.')}${pdcHint}</div>`;
   const identite = dl([
-    [`Classe`, `<button class="fi-val" onclick="ficheEdit('classe')" title="Changer de classe">${_escName(cls?.nom || stu.classe_id)}${cls?.annee ? ` <span class="fi-vide">${_escName(cls.annee)}</span>` : ''}</button>${edClasse}`],
+    [`Classe`, `<button class="fi-val" onclick="ficheEdit('classe')" title="Corriger le nom ou l'année de la classe">${_escName(cls?.nom || stu.classe_id)}${cls?.annee ? ` <span class="fi-vide">${_escName(cls.annee)}</span>` : ''}</button>${edClasse}`],
     [`Naissance`, `${dateInp('naissance', stu.naissance)}${age !== null ? ` <span class="fi-vide">${age} ans</span>` : ''}`],
     [`Civilité`, `<button class="fi-val" onclick="ficheCycleCivilite()" title="Clic pour changer : garçon → fille → non spécifié">${stu.civilite ? _escName(civiliteFullLabel(stu.civilite)) : vide('non renseignée')}</button>`],
     [`Groupe`, `<button class="fi-val" onclick="ficheEdit('groupe')" title="Changer de groupe">${stu.groupe ? `G${stu.groupe}` : vide('aucun')}</button>${edGroupe}`],
@@ -5978,7 +5990,7 @@ function _sallesEditorHTML() {
         <button class="btn btn-d btn-sm" onclick="patternRemoveUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Supprimer cet ordre">🗑</button>` : ''}` : ''}
       <span class="tb-hint" style="margin-left:auto">${_salleEd.mode === 'placer'
         ? 'Glisse un élève de la liste sur une case ; un élève sur un autre pour échanger ; sur la liste pour libérer.'
-        : (pat ? 'Clique les tables dans l\'ordre où tu passes ; recliquer une table la retire.' : 'Crée un ordre pour commencer.')}</span></div>`;
+        : (pat ? 'Clique les tables dans l\'ordre où tu passes — ou glisse d\'une table à la suivante pour les enchaîner ; recliquer une table la retire.' : 'Crée un ordre pour commencer.')}</span></div>`;
   // Grille
   const room = _room(cls, sa.id);
   const seating = room ? room.seating : {};
@@ -6002,8 +6014,11 @@ function _sallesEditorHTML() {
       // côté du glisser, il ne servait plus à rien. Ordre : un clic ajoute ou retire la table.
       const on = _salleEd.mode === 'ordre' && pat ? `patternToggleUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}','${_escJsAttr(pos)}')` : '';
       const drag = _salleEd.mode === 'placer' && st
-        ? ` onpointerdown="salleDragStart(event,'${_escJsAttr(st.id)}','${_escJsAttr(pos)}')" onpointermove="salleDragMove(event)" onpointerup="salleDragEnd(event)" onpointercancel="salleDragCancel()"` : '';
-      grille += `<td class="salle-td${st ? ' occ' : ''}${n ? ' dans-ordre' : ''}${drag ? ' glissable' : ''}${on ? ' cliquable' : ''}" data-pos="${_escAttr(pos)}"${on ? ` onclick="${on}"` : ''}${drag} title="rang ${r + 1}, place ${c + 1}">${inner}</td>`;
+        ? ` onpointerdown="salleDragStart(event,'${_escJsAttr(st.id)}','${_escJsAttr(pos)}')" onpointermove="salleDragMove(event)" onpointerup="salleDragEnd(event)" onpointercancel="salleDragCancel()"`
+        : (on ? ` onpointerdown="ordrePaintStart(event)" onpointermove="ordrePaintMove(event)" onpointerup="ordrePaintEnd(event)" onpointercancel="ordrePaintEnd(event)"` : '');
+      // En mode ordre, `if(_ordrePaintMoved)` fait taire le clic qui suit un glisser.
+      const onClick = on ? `if(_ordrePaintMoved){_ordrePaintMoved=false;return}${on}` : '';
+      grille += `<td class="salle-td${st ? ' occ' : ''}${n ? ' dans-ordre' : ''}${drag && _salleEd.mode === 'placer' ? ' glissable' : ''}${on ? ' cliquable' : ''}" data-pos="${_escAttr(pos)}"${onClick ? ` onclick="${onClick}"` : ''}${drag} title="rang ${r + 1}, place ${c + 1}">${inner}</td>`;
     }
     grille += '</tr>';
   }
@@ -6090,6 +6105,56 @@ function salleDragEnd(e) {
   }
 }
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && _salleDrag) salleDragCancel(); });
+
+// ═══════════════ Ordre de ramassage : glisser d'une table à la suivante ═══════════════
+// Le clic table par table reste ; le glisser ENCHAÎNE : chaque table survolée pour la
+// première fois s'ajoute en fin d'ordre (celles déjà dans l'ordre sont sautées). Un seul
+// cran d'undo pour toute la traînée. ⚠️ Pas de re-rendu pendant le geste — la case qui
+// détient la capture du pointeur serait remplacée et le glisser figé (leçon de docReorder) :
+// on pose le numéro dans la case à la main, et on redessine au relâchement.
+let _ordrePaint = null, _ordrePaintMoved = false;
+function ordrePaintStart(e) {
+  if (_salleEd.mode !== 'ordre' || !_salleEd.pat || (e.button !== undefined && e.button !== 0)) return;
+  _ordrePaint = { salleId: _salleEd.id, patId: _salleEd.pat, x0: e.clientX, y0: e.clientY, depart: e.currentTarget, vus: new Set(), moved: false, arme: false };
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+}
+function _ordrePaintAjoute(td) {
+  const d = _ordrePaint;
+  const pos = td && td.dataset.pos;
+  if (!pos || d.vus.has(pos)) return;
+  d.vus.add(pos);
+  const pat = _pattern(d.salleId, d.patId);
+  if (!pat || (pat.order || []).includes(pos)) return;
+  if (!d.arme) { pushUndo(); d.arme = true; }
+  patternToggle(d.salleId, d.patId, pos);
+  const n = pat.order.length;
+  td.classList.add('dans-ordre');
+  if (!td.querySelector('.salle-n')) { const b = document.createElement('span'); b.className = 'salle-n'; b.textContent = n; td.prepend(b); }
+}
+function ordrePaintMove(e) {
+  const d = _ordrePaint;
+  if (!d) return;
+  if (!d.moved) {
+    if (Math.abs(e.clientX - d.x0) < 5 && Math.abs(e.clientY - d.y0) < 5) return;
+    d.moved = true;
+    document.body.classList.add('salle-dragging-on');
+    _ordrePaintAjoute(d.depart);          // la table de départ ouvre la traînée
+  }
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const td = el && el.closest('.salle-td');
+  if (td) _ordrePaintAjoute(td);
+}
+function ordrePaintEnd(e) {
+  const d = _ordrePaint;
+  if (!d) return;
+  _ordrePaint = null;
+  document.body.classList.remove('salle-dragging-on');
+  if (!d.moved) return;                   // un clic : le onclick de la case fera le reste
+  _ordrePaintMoved = true;
+  setTimeout(() => { _ordrePaintMoved = false; }, 0);
+  if (d.arme) save();
+  renderDonnees();
+}
 
 function _salleMut(fn, msg) { pushUndo(); const ok = fn(); if (ok === false) { undoLast(); return false; } save(); renderDonnees(); if (msg) toast(msg); return true; }
 function salleAddUI() {
