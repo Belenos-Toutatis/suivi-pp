@@ -438,7 +438,7 @@ Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisati
   - Démo : une élection d'éco-délégués close (14/10), trois candidats, un tour, 18 bulletins
     à deux noms. ⚠️ Elle est plus récente que celle des délégués : un `find(e => e.clos)`
     tombe dessus — les tests désignent l'élection par son type.
-- Prévoir la **démission ou le départ d'un délégué** en cours d'année : le suppléant devient titulaire. Ce n'est pas une nouvelle élection — un champ `remplacements: [{ date, candId, motif }]` sur l'élection suffit, sans toucher au dépouillement.
+- Prévoir la **démission ou le départ d'un délégué** en cours d'année : le suppléant devient titulaire. Ce n'est pas une nouvelle élection — un champ `remplacements: [{ date, candId, motif }]` sur l'élection suffit, sans toucher au dépouillement. ⚠️ **État au 2026-09-11 (v1.28.3) : le champ existe, `_delegueOf` le lit (les promus), mais AUCUN écran ne permet de le saisir** — trouvé à l'audit, signalé à l'utilisateur, en attente de sa réponse. La désignation sans vote (`cls.delegues`, datée plus tard que l'élection) sert de contournement : elle prend la main.
 
 ## Bilans de période — préparer le conseil de classe, faire le point à mi-période
 
@@ -1504,3 +1504,5 @@ Aucune ne bloque le démarrage — les étapes 1 à 3 se font sans réponse — 
 5. **Modalités exactes de son établissement** : uninominal ou plurinominal, suppléants élus avec les titulaires ou séparément, départage. Les défauts viennent de sa propre présentation, mais le règlement intérieur de l'établissement prime — à vérifier une fois avant la première élection réelle.
 6. ~~**Éco-délégués.**~~ — **répondu le 2026-09-11 : oui**, `election.type` (cf. *Après l'élection*). *Le texte d'origine :* Beaucoup d'établissements en élisent aussi, souvent par le même PP et selon la même procédure. Un simple champ « type d'élection » suffirait ; ne rien construire avant de savoir si le besoin existe.
 7. **Alerte d'échéance.** Un document a une `dateEcheance` : faut-il un signalement à l'ouverture (« 3 fiches d'orientation manquantes, échéance dans 2 jours ») ?
+8. **Remplacement d'un délégué en cours d'année** (démission, départ) : le modèle `election.remplacements` est prêt, l'écran manque (cf. *Après l'élection*). Proposé le 2026-09-11, pas encore tranché.
+9. **Les autres besoins listés le 2026-09-11** et non retenus pour l'instant : rappels / choses à faire (journal à deux temps), signaux positifs (famille « Valorisation »), compteur d'absences relevé comme le carnet, contacts familiaux minimum sur la fiche, alerte d'échéance, courrier type aux familles, photo trombinoscope, synthèse de fin d'année pour le PP suivant. L'utilisateur a choisi les cinq autres (bilans, synthèse de période, éco-délégués, heures de vie de classe) — livrés v1.25 → v1.28.
