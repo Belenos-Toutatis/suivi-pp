@@ -1142,6 +1142,7 @@ body.el-projecting #main { padding-top: 8px; }
 .salle-td.dans-ordre { border-color: var(--ink-blue); box-shadow: inset 0 0 0 1px var(--ink-blue); }
 .salle-td.sel { border-color: var(--margin-red); box-shadow: inset 0 0 0 1px var(--margin-red); }
 .salle-td select { max-width: 150px; font-size: .95em; }
+.salle-bureau { text-align: center; padding: 6px; border: 2px solid var(--ink-blue); border-radius: var(--radius-md); background: var(--paper-warm); color: var(--ink-blue); font: 600 .8em var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
 .salle-el { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70px; }
 .salle-vide { color: var(--pencil-soft); }
 .salle-n { position: absolute; top: -6px; left: -6px; min-width: 16px; height: 16px; border-radius: 8px; background: var(--ink-blue); color: var(--paper); font: 700 10px/16px var(--font-mono); padding: 0 3px; }
@@ -1879,8 +1880,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.15.0';
-const APP_BUILD_DATE = '2026-09-11T15:14:03Z';
+const APP_VERSION    = '1.15.1';
+const APP_BUILD_DATE = '2026-09-11T15:22:32Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5805,7 +5806,7 @@ function _sallesEditorHTML() {
   if (!_salleEd.id) _salleEd.id = (cls && cls.salleCur && S.salles[cls.salleCur]) ? cls.salleCur : (salles[0] ? salles[0].id : null);
   const avert = _pdcOrigine(cls)
     ? `<div class="pref-help" style="margin-bottom:8px">🪑 <strong>Ces salles viennent de <em>Plan de classe</em></strong>${cls && cls.pdcImportAt ? ` (dernier import le ${_escName(_fmtDateFr(cls.pdcImportAt))})` : ''} : un nouvel import (bouton <em>Depuis Plan de classe…</em> ci-dessus) <strong>remplace la salle homonyme, son placement et ses ordres de ramassage</strong>. Ce que tu corriges ici est à reporter là-bas — ou à ne plus importer.</div>`
-    : `<div class="pref-help" style="margin-bottom:8px">Une grille de rangs × colonnes (rang 1 devant), qui est assis où, et l'ordre dans lequel tu passes dans les rangs pour ramasser. Sert au tri <em>par place</em> et <em>ramassage</em> des grilles. Un import depuis <em>Plan de classe</em> remplacerait tout cela.</div>`;
+    : `<div class="pref-help" style="margin-bottom:8px">Une grille de rangs × colonnes vue depuis ton bureau (le rang 1 juste devant toi, en bas), qui est assis où, et l'ordre dans lequel tu passes dans les rangs pour ramasser. Sert au tri <em>par place</em> et <em>ramassage</em> des grilles. Un import depuis <em>Plan de classe</em> remplacerait tout cela.</div>`;
   const nouvelle = `<div class="tb" style="margin-bottom:8px;border-radius:var(--radius-md)">
       <select onchange="_salleEd.id=this.value;_salleEd.sel=null;_salleEd.pat=null;renderDonnees()" style="max-width:240px" title="Salle à régler">${
         salles.length ? salles.map(sa => `<option value="${_escAttr(sa.id)}"${sa.id === _salleEd.id ? ' selected' : ''}>${_escName(sa.nom)} (${sa.rows} × ${sa.cols})</option>`).join('') : '<option value="">— aucune salle —</option>'}</select>
@@ -5843,10 +5844,14 @@ function _sallesEditorHTML() {
   const eleves = (cls.eleves || []).map(id => S.eleves[id]).filter(Boolean).sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr', { sensitivity: 'base' }));
   const court = st => `${st.prenom} ${String(st.nom || '').slice(0, 1)}.`;
   const rang = pat ? Object.fromEntries((pat.order || []).map((p, i) => [p, i + 1])) : {};
+  // ⚠️ VUE DU BUREAU. C'est le prof qui regarde : le bureau est en bas, la classe devant
+  // lui. Le rang 1 (le plus proche du tableau) est donc en BAS de la grille, et la place 1
+  // à DROITE — tout est tourné de 180° par rapport au plan « vu du fond ». Les données,
+  // elles, ne bougent pas : `r,c` reste ce que Plan de classe a exporté.
   let grille = `<div class="rel-wrap" style="margin-bottom:6px"><table class="salle-grid"><tbody>`;
-  for (let r = 0; r < sa.rows; r++) {
+  for (let r = sa.rows - 1; r >= 0; r--) {
     grille += '<tr>';
-    for (let c = 0; c < sa.cols; c++) {
+    for (let c = sa.cols - 1; c >= 0; c--) {
       const pos = `${r},${c}`;
       const st = seating[pos] ? S.eleves[seating[pos]] : null;
       const sel = _salleEd.mode === 'placer' && _salleEd.sel === pos;
@@ -5863,6 +5868,7 @@ function _sallesEditorHTML() {
     }
     grille += '</tr>';
   }
+  grille += `<tr><td class="salle-bureau" colspan="${sa.cols}" title="Vue depuis ton bureau : le rang 1 est juste devant toi, la place 1 à ta droite">🧑‍🏫 Bureau</td></tr>`;
   grille += '</tbody></table></div>';
   const nonPlaces = eleves.filter(e => !_seatOf(cls, sa.id, e.id));
   const reste = `<div class="tb-hint" style="margin-bottom:18px">${Object.keys(seating).length} placé${Object.keys(seating).length > 1 ? 's' : ''}${nonPlaces.length ? ` · sans place : ${nonPlaces.map(e => _escName(court(e))).join(', ')}` : ' · tout le monde a une place'}</div>`;

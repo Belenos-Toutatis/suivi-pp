@@ -109,8 +109,9 @@ ils sont copiés dans un **dossier que vous choisissez** — placez-le sous Next
 suivra sur l'autre poste, où il suffira de choisir le même dossier. L'app n'y efface rien
 d'elle-même ; un bouton liste les PDF orphelins quand vous voulez faire le ménage.
 
-**Salles et placements.** Dans 💾 Données et réglages, une grille par salle : le nom, les
-rangs × colonnes, qui est assis où (un clic sur la case, l'élève dans la liste), et les
+**Salles et placements.** Dans 💾 Données et réglages, une grille par salle, vue depuis
+votre bureau (dessiné en bas, le rang 1 juste devant vous) : le nom, les rangs × colonnes,
+qui est assis où (un clic sur la case, l'élève dans la liste), et les
 ordres de ramassage (un clic sur chaque table dans l'ordre où vous passez). C'est ce qui
 alimente les tris *par place* et *ramassage* des grilles. ⚠️ Si vos salles viennent de
 *Plan de classe*, l'écran vous le rappelle : un nouvel import remplace la salle, son

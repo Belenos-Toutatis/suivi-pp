@@ -107,3 +107,16 @@ test('_pdcOrigine : vrai avec le marqueur d\'import ou une salle pdc_*, faux sin
   assert.strictEqual(ev(`_pdcOrigine(S.classes['5C'])`), true);
   assert.strictEqual(ev(`_pdcOrigine(null)`), true, 'sans classe, les salles suffisent');
 });
+
+test('la grille se dessine VUE DU BUREAU : rang 1 en bas, place 1 à droite, le bureau sous la grille', () => {
+  // Test de source, faute de DOM : c'est l'orientation qui compte, et elle se casse en
+  // « corrigeant » une boucle qui a l'air à l'envers.
+  const fs = require('fs'), path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const m = src.match(/function _sallesEditorHTML\(\)[\s\S]*?\n\}/);
+  assert.ok(m, 'l\'éditeur de salles a disparu');
+  assert.match(m[0], /for \(let r = sa\.rows - 1; r >= 0; r--\)/, 'les rangs se parcourent du fond vers le devant');
+  assert.match(m[0], /for \(let c = sa\.cols - 1; c >= 0; c--\)/, 'les places se parcourent de la gauche du prof vers sa droite');
+  assert.match(m[0], /class="salle-bureau"/, 'le bureau est dessiné');
+  assert.ok(m[0].indexOf('salle-bureau') > m[0].indexOf('r >= 0; r--'), 'le bureau vient APRÈS les rangs, donc en bas');
+});
