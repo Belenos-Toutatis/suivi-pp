@@ -1734,8 +1734,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.10.0';
-const APP_BUILD_DATE = '2026-09-10T14:31:33Z';
+const APP_VERSION    = '1.10.1';
+const APP_BUILD_DATE = '2026-09-11T04:56:35Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5737,18 +5737,25 @@ function _ramDocsDisponibles(classId) {
     .sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0) || String(a.titre).localeCompare(String(b.titre), 'fr'));
 }
 
-// Grille : une ligne par élève attendu sur AU MOINS un des documents demandés, une
-// colonne par document demandé — même inconnu, pour que la grille garde sa forme.
-// Pur : ne lit que S, n'écrit rien.
+// Grille : une ligne par élève DE LA CLASSE attendu sur AU MOINS un des documents
+// demandés, une colonne par document demandé — même inconnu, pour que la grille garde
+// sa forme. Pur : ne lit que S, n'écrit rien.
+// ⚠️ Bornée au ROSTER de `classId`. `_docExpected` couvre TOUTES les classes d'un document,
+// et un papier partagé 5C + 5D faisait entrer un élève de la 5D dans la grille de la 5C —
+// quelqu'un qui n'est pas dans la salle où l'on passe dans les rangs, et à qui « tout
+// cocher » aurait attribué un retour en mains propres. On est PP d'UNE classe (arbitré
+// le 2026-09-11) : la grille ne connaît que la sienne. Trouvé par le test des totaux de
+// la grille imprimée, jamais à l'œil — aucune fixture n'avait de papier partagé.
 function _ramRows(docIds, classId, mode) {
   const ids = Array.isArray(docIds) ? docIds : [];
   const attendus = ids.map(id => {
     const d = S.documents[id];
     return d ? new Set(_docExpected(d).map(s => s.id)) : new Set();
   });
-  const vus = new Set();
-  for (const set of attendus) for (const sid of set) vus.add(sid);
   const cls = S.classes[classId] || null;
+  const roster = new Set(cls ? cls.eleves : []);
+  const vus = new Set();
+  for (const set of attendus) for (const sid of set) if (roster.has(sid)) vus.add(sid);
   return _sortStudents([...vus], mode || 'nom', cls).map(sid => S.eleves[sid]).filter(Boolean)
     .map(stu => {
       const cells = ids.map((id, i) => {
@@ -6046,14 +6053,10 @@ function _gridPrintCell(cell, sid, opts) {
 // est exactement ce qui fait chercher une panne inexistante (leçon de `ramSetColonne`).
 function _gridPrintRows(docIds, classId, opts) {
   const o = opts || {};
-  // ⚠️ Borné au ROSTER de la classe. `_ramRows` bâtit ses lignes à partir de
-  // `_docExpected`, qui couvre TOUTES les classes du document : un papier partagé entre
-  // la 5C et la 5D faisait entrer un élève de la 5D sur une feuille titrée « 5C » —
-  // quelqu'un qui n'est pas dans la salle où l'on passe dans les rangs. Trouvé par le
-  // test des totaux, pas à l'œil.
-  const roster = new Set((S.classes[classId] || { eleves: [] }).eleves);
+  // Les lignes sont celles de `_ramRows`, bornées à la classe là-bas et pas ici : une
+  // seconde garde ferait croire qu'on peut en oublier une. Un seul endroit sait qui est
+  // dans la salle.
   return _ramRows(docIds, classId, o.sort || 'nom')
-    .filter(r => roster.has(r.sid))
     .filter(r => o.inclurePartis || r.actif)
     .filter(r => o.filtre !== 'incomplets' || r.reste > 0)
     .map(r => ({ sid: r.sid, nom: r.nom, prenom: r.prenom, actif: r.actif, reste: r.reste,
@@ -6084,8 +6087,7 @@ function _gridPrintSubtitle(classId, docIds, rows, opts) {
   bits.push(`${n} document${n > 1 ? 's' : ''}`);
   bits.push(`${rows.length} élève${rows.length > 1 ? 's' : ''}${o.filtre === 'incomplets' ? ' — il leur manque au moins un papier' : ''}`);
   if (!o.inclurePartis) {
-    const roster = new Set((S.classes[classId] || { eleves: [] }).eleves);
-    const partis = _ramRows(docIds, classId, 'nom').filter(r => roster.has(r.sid) && !r.actif).length;
+    const partis = _ramRows(docIds, classId, 'nom').filter(r => !r.actif).length;
     if (partis) bits.push(`${partis} élève${partis > 1 ? 's' : ''} parti${partis > 1 ? 's' : ''} non imprimé${partis > 1 ? 's' : ''}`);
   }
   bits.push(`imprimé le ${_fmtDateFr(_todayYmd())}`);

@@ -267,10 +267,12 @@ test('_ramDocsDisponibles gouverne la liste : ni archivés, ni documents sans su
 
 test('_gridPrintRows : un document PARTAGÉ avec une autre classe n\'y fait pas entrer ses élèves', () => {
   ev(FIXTURE);
-  // ⚠️ d2 couvre 5C ET 5D, donc `_ramRows` — qui part de `_docExpected` — remonte aussi
-  // s5, de la 5D. Sur une feuille titrée « 5C » que l'on promène dans les rangs de la 5C,
-  // c'est quelqu'un qui n'est pas dans la salle. La grille imprimée est bornée au roster.
-  assert.ok(evObj(`_ramRows(['d2'], '5C', 'nom')`).some(r => r.sid === 's5'), 'sanity : _ramRows le remonte bien');
+  // ⚠️ d2 couvre 5C ET 5D : `_docExpected` remonte s5, de la 5D. Sur une feuille titrée
+  // « 5C » que l'on promène dans les rangs de la 5C, c'est quelqu'un qui n'est pas dans
+  // la salle. La garde est dans `_ramRows` (on est PP d'une seule classe), et la grille
+  // imprimée n'en ajoute pas une seconde : un seul endroit sait qui est dans la salle.
+  assert.ok(evObj(`_docExpected(S.documents.d2)`).some(s => s.id === 's5'), 'sanity : s5 est bien attendu sur d2');
+  assert.ok(!evObj(`_ramRows(['d2'], '5C', 'nom')`).some(r => r.sid === 's5'));
   assert.ok(!evObj(`_gridPrintRows(['d2'], '5C', {})`).some(r => r.sid === 's5'));
   assert.ok(!evObj(`_gridPrintRows(['d2'], '5C', { inclurePartis:true })`).some(r => r.sid === 's5'));
   // Et il est bien là quand c'est SA classe qu'on imprime.

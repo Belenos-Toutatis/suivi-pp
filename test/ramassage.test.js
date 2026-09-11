@@ -319,3 +319,20 @@ test('hors des rangs, les deux axes restent indépendants', () => {
   ev(`ramSetRendu('d1', 's2', true, '2025-09-22')`);
   assert.deepStrictEqual(evObj(`_retour(S.documents.d1, 's2')`).reponses, {});
 });
+
+test('_ramRows : un document PARTAGÉ avec une autre classe n\'y fait pas entrer ses élèves', () => {
+  ev(FIXTURE);
+  // ⚠️ On est PP d'UNE classe. d1 partagé 5C + 5D : `_docExpected` remonte s9 (5D), mais
+  // la grille de la 5C ne le connaît pas — il n'est pas dans la salle, et « tout cocher »
+  // lui aurait attribué un retour en mains propres. Aucune fixture n'avait de papier
+  // partagé : c'est le test des totaux de la grille imprimée qui l'a vu.
+  ev(`S.documents.d1.classIds = ['5C','5D']`);
+  assert.ok(evObj(`_docExpected(S.documents.d1)`).some(s => s.id === 's9'), 'sanity : s9 est bien attendu sur d1');
+  const c5 = evObj(`_ramRows(['d1'], '5C')`).map(r => r.sid);
+  assert.ok(!c5.includes('s9'));
+  assert.deepStrictEqual(c5, ['s1', 's2', 's4']);            // s3 arrivé en novembre : pas attendu en septembre
+  // Et il est bien là quand c'est SA classe qu'on ramasse.
+  assert.deepStrictEqual(evObj(`_ramRows(['d1'], '5D')`).map(r => r.sid), ['s9']);
+  // Classe inconnue → personne : une grille sans salle n'a personne dedans.
+  assert.deepStrictEqual(evObj(`_ramRows(['d1'], 'fantome')`), []);
+});

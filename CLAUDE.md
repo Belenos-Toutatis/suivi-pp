@@ -47,6 +47,7 @@ Quatre enseignements tirés de ces fichiers, tous structurants :
 | Postes de travail (2026-09-10) | **Plusieurs machines, jamais en même temps** — elles ne sont pas au même endroit, donc travailler sur l'une signifie ne pas travailler sur l'autre. Le risque d'écriture concurrente est donc écarté par l'usage, pas par un verrou. ⚠️ Reste le cas asynchrone : refermer un portable avant la fin d'un téléversement, puis reprendre ailleurs. C'est pourquoi le dépôt sort de la sync (ci-dessous). |
 | Sessions distantes (2026-09-10) | **Écartées.** Une session dans le nuage ferait très bien le code, les tests et la documentation — mais pas les audits qui demandent de REGARDER l'écran (contraste sur 20 états × 2 thèmes, responsive 320→1920). Or ce sont eux qui ont trouvé les défauts 4 et 6, invisibles à tout test. Arbitré par l'utilisateur : *« si tu ne peux plus faire les vérifications qui demandent de regarder l'écran, ça ne m'intéresse pas »*. |
 | Import Plan de classe (2026-09-09) | **On ne reprend PAS toutes les classes du fichier** — on est PP d'une seule. L'app liste les divisions (classes virtuelles exclues) et l'utilisateur coche la sienne. |
+| Une seule classe (2026-09-11) | **On est professeur principal d'UNE classe.** Le modèle reste multi-classes (une par année, le sélecteur en tête), mais tout ce qui met des élèves en lignes — ramassage, grille imprimée — ne connaît que la classe courante : un document partagé avec une autre division n'y fait pas entrer ses élèves. La garde est dans `_ramRows`, une seule fois. |
 
 Pas de texte libre comme *champ de document* : le mot libre vit sur l'élève (`stu.remarque`), pas sur le formulaire.
 
@@ -438,12 +439,13 @@ Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group
      - ⚠️ **Bâtie sur `_ramRows`, pas réécrite** : c'est elle qui sait déjà qui est attendu
        sur quoi. Une seconde implémentation aurait dérivé au premier document qui change de
        classe.
-     - ⚠️ **Bornée au ROSTER de la classe.** `_ramRows` part de `_docExpected`, qui couvre
-       **toutes** les classes du document : un papier partagé 5C + 5D faisait entrer un élève
-       de 5D sur une feuille titrée « 5C » — quelqu'un qui n'est pas dans la salle où l'on
-       passe dans les rangs. Trouvé par le test des totaux, jamais à l'œil. ⚠️ **Le même
-       travers dort dans la grille à l'ÉCRAN** : `_ramRows` y remonte aussi ces élèves-là.
-       Laissé en l'état — c'est un écran audité, et l'arbitrage appartient à l'utilisateur.
+     - ⚠️ **Bornée au ROSTER de la classe — dans `_ramRows`, pas ici.** `_docExpected` couvre
+       **toutes** les classes d'un document : un papier partagé 5C + 5D faisait entrer un élève
+       de 5D sur une feuille titrée « 5C », et dans la grille à l'écran — quelqu'un qui n'est
+       pas dans la salle où l'on passe dans les rangs. Trouvé par le test des totaux, jamais
+       à l'œil. Corrigé à la SOURCE le 2026-09-11 (« on est PP d'une seule classe ») :
+       une seule garde, là où les lignes naissent, et la grille imprimée n'en ajoute pas une
+       seconde — une double garde ferait croire qu'on peut en oublier une.
      - ⚠️ **Les élèves partis sont masqués** (on ne ramasse rien auprès d'eux) **et le
        sous-titre le DIT** : un décompte qui rétrécit sans raison visible fait chercher une
        panne qui n'existe pas. Même leçon que le toast de `ramSetColonne`.
@@ -455,6 +457,7 @@ Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group
    - ⚠️ **Une case a TROIS états.** Rendu, pas rendu, et **sans objet** — l'élève arrivé en novembre n'a jamais eu la fiche de rentrée, celui parti en mars n'a pas eu la fiche d'orientation. Un tiret, pas une case vide : confondre les deux, c'est réclamer un papier à quelqu'un qui ne l'a jamais reçu. `ramSetRendu` **refuse** d'écrire pour un élève non attendu.
    - ⚠️ **Salve d'undo** (`_ramArmUndo`, motif `_relArmUndo`) : cocher vingt-cinq cases est UN geste. Sans elle, une seule passe viderait la pile de quinze niveaux. En revanche « tout cocher une colonne » est un acte délibéré et massif → son propre `pushUndo()`, et **rien n'est empilé si la colonne était déjà dans l'état demandé**.
    - ⚠️ **Pas de re-rendu à chaque case** : la grille se reconstruirait sous le curseur en pleine passe. Seuls les compteurs sont rafraîchis (`_ramRefreshCounters`).
+   - ⚠️ **Une ligne par élève DE LA CLASSE**, pas par élève attendu sur le document : un papier partagé avec une autre division ferait sinon entrer ses élèves dans la grille — et « tout cocher » leur attribuerait un retour en mains propres. `_ramRows` est bornée au roster de `classId` (2026-09-11). Aucune fixture n'avait de papier partagé : le défaut a dormi de la v1.1.0 à la v1.10.0.
    - Les élèves **partis** sont masqués par défaut (on ne ramasse rien auprès d'eux) mais restent comptés dans les manquants du document, où l'information est juste.
    - **Les réponses se relèvent DANS la grille.** Le papier revient et on lit la case cochée dessus : rouvrir le document ensuite, élève par élève, c'est refaire une seconde fois le tour de la classe. Pastilles plutôt que menu déroulant — un appui au lieu de deux, ce qui compte debout dans une allée — et un second appui sur la même option l'efface, pour corriger une lecture erronée sans viser une croix.
      - Seuls les champs `par: 'famille'` descendent dans les rangs : l'avis du PP se donne au bureau, et le compter ici ferait clignoter une ligne pour un travail qui n'est pas le geste en cours. Idem pour le compteur « à lire », qui ne prend que les champs **obligatoires** des familles.
@@ -769,7 +772,9 @@ Un défaut trouvé, et **par un test, pas à l'œil** :
 18. **Un document partagé entre deux classes faisait entrer les élèves de l'autre** sur la
    feuille. `_ramRows` bâtit ses lignes à partir de `_docExpected`, qui couvre toutes les
    classes du document ; le fixture du ramassage n'a jamais eu de papier partagé, donc rien
-   ne l'avait jamais exercé. → `_gridPrintRows` est bornée au roster de la classe imprimée.
+   ne l'avait jamais exercé. → D'abord borné côté impression (v1.10.0), puis — l'utilisateur
+   ayant tranché « on est PP d'une seule classe » — corrigé dans `_ramRows` même (v1.10.1),
+   écran compris, et la garde côté impression retirée.
    ⚠️ Leçon : **une fixture qui ne contient pas le cas ne peut pas voir le défaut** — c'est
    le même constat qu'au défaut 7, où quatre candidats partout cachaient le cas à un seul.
 
@@ -1045,7 +1050,7 @@ Notes et moyennes (c'est Plan de classe et Pronote), **l'ÉDITION** des plans de
 
 Aucune ne bloque le démarrage — les étapes 1 à 3 se font sans réponse — mais chacune change du code s'il faut y revenir après :
 
-1. **Plusieurs classes, ou une seule ?** Le modèle est multi-classes (le PP peut suivre une classe par an, et les documents d'options observés couvrent 4 divisions). À confirmer : veut-il voir plusieurs classes en même temps, ou une seule à la fois avec un sélecteur ? *(Indice du 2026-09-09 : « on n'est PP que d'une seule » — une à la fois, avec le sélecteur.)*
+1. ~~**Plusieurs classes, ou une seule ?**~~ — **répondu le 2026-09-11 : une seule.** On est PP d'une classe ; le modèle reste multi-classes (une par année), une à la fois avec le sélecteur, et les grilles d'élèves ne connaissent que la classe courante (cf. table des arbitrages). *Le texte d'origine :* Le modèle est multi-classes (le PP peut suivre une classe par an, et les documents d'options observés couvrent 4 divisions). À confirmer : veut-il voir plusieurs classes en même temps, ou une seule à la fois avec un sélecteur ? *(Indice du 2026-09-09 : « on n'est PP que d'une seule » — une à la fois, avec le sélecteur.)*
 2. ~~**Périodes**~~ — **répondu le 2026-09-09 : au choix**, réglage dans Données (cf. table des arbitrages).
 3. ~~**Journal des contacts.**~~ — **répondu le 2026-09-09 : oui.** `stu.journal = [{ id, date, ts, type, texte }]`, types `appel · rencontre · courriel · mot · autre`. ⚠️ **Il ne REMPLACE pas `stu.remarque`** : les observations qui ne sont pas des contacts (« peu d'apprentissage des leçons ») n'ont pas de date et n'en veulent pas. Les deux cohabitent dans la même modale. Le dernier contact remonte sur le bouton 📋 de la liste (« ai-je déjà appelé, et quand ? » est la question qu'on se pose en parcourant), dans la Synthèse et sur son impression.
 4. ~~**Date de naissance des élèves.**~~ — **répondu le 2026-09-09 : ajoutée** (`stu.naissance`, saisie à la main, reconnue à l'import CSV et repris de Plan de classe). Elle débloque le départage automatique par l'âge. ⚠️ **Donnée personnelle de plus** : à mentionner dans le texte RGPD, et le champ reste facultatif — l'app fonctionne sans, elle demande alors de trancher.
