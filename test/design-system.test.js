@@ -221,3 +221,21 @@ test('MÉTA-TEST : le détecteur voit un keep() retiré', () => {
   const casse = script.slice(0, i) + script.slice(i + 'const keep = _wrapScrollKeep(el);'.length);
   assert.deepStrictEqual(cadresSansKeep(casse), ['renderCarnets']);
 });
+
+// ─────────────────── Audit du 2026-09-11
+
+test('les lignes des élèves partis ne s\'estompent pas par OPACITÉ', () => {
+  // `.72` gardait l'encre principale lisible mais faisait tomber le texte secondaire
+  // (déjà en --pencil) à 2,99:1. L'encre change, pas l'opacité.
+  const m = SRC.match(/table\.dt tbody tr\.inactive \{([^}]*)\}/);
+  assert.ok(m, 'la règle existe');
+  assert.ok(!/opacity/.test(m[1]), 'pas d’opacité sur la ligne');
+  assert.ok(/color:\s*var\(--pencil\)/.test(m[1]));
+});
+
+test('le pourcentage du graphique ne se tronque pas (il perdrait son dénominateur)', () => {
+  const ellipsis = [...SRC.matchAll(/^([^\n{]*)\{[^}]*text-overflow:\s*ellipsis[^}]*\}/gm)].map(x => x[1]);
+  assert.ok(!ellipsis.some(sel => /\.el-pct/.test(sel)), '.el-pct ne doit pas porter d’ellipse : ' + ellipsis.filter(s => /el-pct/.test(s)).join(' | '));
+  // Et le nom tronqué de la vue à deux volets porte bien son infobulle.
+  assert.ok(/<div class="el-name" title="\$\{_escAttr\(/.test(SRC));
+});

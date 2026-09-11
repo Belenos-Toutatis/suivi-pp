@@ -92,6 +92,7 @@ Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sono
 - `icons/` — les 5 PNG d'installation (192 et 512 en `any` et `maskable`, plus l'icône iOS 180)
 - `README.md`, `LICENSE` (MIT), `CLAUDE.md`
 - `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
+- `scripts/audit_static.js`, `scripts/audit_browser.js` — les deux auditeurs (cf. *Scores de référence*, v1.28.2) ; `scripts/gen_icons.py`
 - `test/harness.js`, `test/*.test.js`, `package.json` (`npm test` → `node --test "test/*.test.js"`)
   ⚠️ Le glob, pas `node --test test/` : sous Node 22, l'argument-répertoire `test` échoue en `MODULE_NOT_FOUND`. Le glob a en prime l'avantage de n'exécuter que les `*.test.js`, donc `harness.js` n'est plus compté comme un test.
 
@@ -926,6 +927,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 40 | **Audit complet** (contraste · débordement · texte tronqué · erreurs JS · handlers et ids · code mort) : 32 états × 2 thèmes × 2 largeurs + papier ; six défauts corrigés (23 → 28), outils dans `scripts/` ; 5 tests | ✅ **fait** (2026-09-11, v1.28.2) |
 | 39 | **Textes officiels des élections** : cadre vérifié, `_EL_TYPES[…].textes` liés dans la modale et l'élection, cités au pied du PV ; défauts éco ramenés aux textes (un élu, un nom par bulletin) | ✅ **fait** (2026-09-11, v1.28.1) |
 | 38 | **Heures de vie de classe** (`cls.vieClasse`, `_hvcOf`, `_hvcPeriode`) : onglet renommé 🏫 Vie de classe, journal en tête, bloc optionnel de la synthèse de période, démo ; 4 tests | ✅ **fait** (2026-09-11, v1.28.0) |
 | 37 | **Éco-délégués** : `election.type`, défauts par mandat, `nbSupplants` à 0, `_ecoDelegueOf`, 🌱 dans les grilles, PV, désignation sans vote, purge, démo ; 4 tests | ✅ **fait** (2026-09-11, v1.27.0) |
@@ -1139,6 +1141,64 @@ sans vote, le bloc PV et la modale du nom de fichier — ils n'emploient que des
 mesurées (`.fi-form`, `.fi-sec`, `.tb-hint`, `.st-group`, `code`), mais la règle reste
 qu'un écran nouveau se mesure ; à faire à la prochaine passe complète. Aucun débordement
 à 320 px sur ces écrans (défaut 22 trouvé et corrigé sur l'éditeur de place).
+
+**2026-09-11, v1.28.2 — AUDIT COMPLET après la salve v1.24 → v1.28.1** (demande de
+l'utilisateur : *« fonction cassée, bug, graphique, texte caché, contraste, ajout qui en
+casse une autre »*). Deux outils, gardés dans `scripts/` pour la prochaine fois :
+- **`scripts/audit_static.js`** (Node, sur le harnais) : chaque nom de fonction appelé
+  dans un handler inline existe (211 handlers) ; chaque id passé à `getElementById`
+  existe dans le HTML statique (160, quatre dynamiques connus) ; fonctions définies mais
+  jamais référencées ; fonctions **définies deux fois**.
+- **`scripts/audit_browser.js`** (à charger par `<script src>` — la CSP interdit `eval`) :
+  l'auditeur de contraste (fond effectif par remontée des parents, opacité cumulée, seuil
+  4,5 / 3,0, contrôles désactivés exclus), le débordement horizontal du body, le **texte
+  tronqué sans infobulle** (`overflow` caché et `scrollWidth > clientWidth`, sans `title`
+  ni parent titré), et le compte de `window.__suiviPPErrors`. Piloté depuis la console
+  par un parcours de **32 états** (5 onglets et leurs sous-états : touches du carnet,
+  document ouvert, ramassage, formulaires de vie de classe, les trois élections, la
+  projection ; 21 modales par leur vrai ouvreur) **× 2 thèmes × 2 largeurs (1400 et
+  320 px)**, plus le rendu papier de sept feuilles en thème sombre — **≈ 10 000 nœuds
+  mesurés par passe**. ⚠️ Deux pièges de l'outil : le service worker de la session
+  précédente servait un 503 sur tout fichier hors cache (le désinscrire d'abord) ; et
+  un onglet CACHÉ depuis plus de cinq minutes voit ses `setTimeout` limités à un par
+  minute — le parcours ne doit rien attendre, tous les rendus sont synchrones.
+
+**Résultat après correction : 0 écart** de contraste, 0 débordement, 0 texte tronqué sans
+infobulle, 0 erreur JS, en clair comme en sombre, en 1400 comme en 320 px, papier compris.
+Six défauts trouvés, tous corrigés dans la v1.28.2 :
+23. **Les lignes des élèves PARTIS tombaient à 2,99:1** (3,84 en sombre) sur leur texte
+   secondaire — la date sous le cumul, les Δ, le total de période. `tr.inactive` portait
+   `opacity: .72`, dont le commentaire affirmait « mesuré à 4,9:1 » : vrai pour l'encre
+   principale (6,7), faux pour tout ce qui était déjà en `--pencil`. Une opacité s'applique
+   à tout ce que la ligne contient, y compris ce qui était au bord du seuil. → l'encre
+   passe à `--pencil` (5,2 / 6,2:1), l'italique fait le reste, les éléments qui portent
+   leur propre encre (délégué surligné, badges) la gardent. Test statique.
+24. **Le nom tronqué du graphique n'avait PAS l'infobulle promise** par le défaut 14
+   (« l'ellipse reste dans la vue à deux volets, où l'infobulle porte le nom entier ») :
+   le `title` n'avait jamais été posé. → `title` sur `.el-name`.
+25. **Le pourcentage du graphique se tronquait à 320 px** : « 72 % des 18 dépou… » — une
+   règle `.el-name-t, .el-name-s, .el-pct { … ellipsis }` écrasait le `white-space: normal`
+   posé trois lignes plus haut pour `.el-pct`. Un pourcentage sans son dénominateur est
+   exactement ce que ce fichier interdit. → `.el-pct` sort de la règle d'ellipse.
+26. **Ctrl+Z avec la fiche ouverte laissait la fiche périmée** : `_MODAL_RERENDER`, la table
+   des modales à redessiner après undo / redo / rechargement, existait depuis l'étape 1
+   et était **vide**. Tant que la fiche ne faisait que lire, personne ne le voyait ; depuis
+   qu'elle corrige sur place (v1.14.0), on lisait G2 alors que S disait G1. → `mfiche`,
+   `mrem` (sa liste de contacts), `mtags`, `mclasses` ; PAS les modales de formulaire, qui
+   portent une saisie en cours. `_applyReloadedData` appelle aussi
+   `_refreshOpenConsultModals` (il ne le faisait pas).
+27. **« Suivant » de la modale de bilan sautait un élève** quand la liste est triée
+   « rédigé d'abord » : enregistrer déplaçait l'élève en tête, et le suivant se calculait
+   sur l'ordre NEUF. Ajout qui en cassait un autre — la colonne triable et l'enchaînement
+   sont nés dans la même version. → l'ordre est **figé à l'ouverture** (`_bilanOrdreFige`),
+   c'est celui qu'on avait sous les yeux. Testé.
+28. **`_elUndoArmed` (naissances en série, v1.7.0) n'était pas désarmé par
+   `_applyReloadedData`** — la leçon du verrou du ramassage, une troisième fois. Testé.
+Et du code mort retiré : un `renderStudents()` de l'étape 1 défini une seconde fois (la
+seconde définition gagnait, la première restait comme un piège), `_stubHTML`,
+`_impNormTags` ; `reloadLastFile`, écrit à l'étape 8 et jamais branché, l'est désormais
+(💾 Données → *↩ Dernier fichier chargé*) — la copie IndexedDB avait un écrivain et
+aucun lecteur.
 
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la

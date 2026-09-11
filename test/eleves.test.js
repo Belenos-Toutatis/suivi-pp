@@ -225,3 +225,39 @@ test('_amenBadgesHTML : seuls les aménagements ACTIFS, dans leur encre — tire
   assert.strictEqual(ev(`_amenBadgesHTML({})`), '<span class="tb-hint">—</span>');
   assert.strictEqual(ev(`_amenBadgesHTML(undefined)`), '<span class="tb-hint">—</span>');
 });
+
+// ─────────────────── Audit du 2026-09-11 : ce que l'undo et le rechargement doivent redessiner
+
+test('un rechargement distant DÉSARME aussi la salve des naissances en série', () => {
+  // Troisième verrou de salve, oublié dans _applyReloadedData jusqu'à l'audit — même
+  // piège que _ramUndoArmed en son temps : un Ctrl+Z qui ne remonte plus.
+  ev(`S = _emptyState(); postLoadHook(); _elUndoArmed = true; _elUndoTimer = setTimeout(() => {}, 5000);`);
+  ev(`_applyReloadedData(${JSON.stringify({ version: 1, classes: {}, eleves: {}, releves: {}, documents: {}, elections: {}, tags: {}, prefs: {}, cur: null })}, { lastModified: 999 })`);
+  assert.strictEqual(ev(`_elUndoArmed`), false);
+  assert.strictEqual(ev(`_elUndoTimer`), null);
+});
+
+test('la fiche, la remarque, les options et les classes se redessinent après un undo (table _MODAL_RERENDER)', () => {
+  // La table existait depuis l'étape 1 et était restée VIDE : depuis que la fiche corrige
+  // sur place, Ctrl+Z remettait la donnée sans redessiner la fiche (G2 affiché, G1 en S).
+  const cles = evObj(`Object.keys(_MODAL_RERENDER)`);
+  for (const k of ['mfiche', 'mrem', 'mtags', 'mclasses']) assert.ok(cles.includes(k), k);
+  // Et pas les modales de FORMULAIRE, qui portent une saisie en cours.
+  for (const k of ['me', 'mincident', 'mbilan', 'mel', 'mdoc']) assert.ok(!cles.includes(k), k + ' ne doit pas être redessinée');
+});
+
+test('_bilanOrdre est FIGÉ à l\'ouverture : trié « rédigé d\'abord », enregistrer ne fait pas sauter le suivant', () => {
+  ev(`S = _emptyState(); postLoadHook();
+      S.classes['5C'] = { id:'5C', nom:'5C', annee:'2025-26', eleves:['s1','s2','s3'], ord:0 }; S.cur = '5C';
+      S.eleves = { s1:{id:'s1',nom:'A',prenom:'a',classe_id:'5C',tags:[]}, s2:{id:'s2',nom:'B',prenom:'b',classe_id:'5C',tags:[]}, s3:{id:'s3',nom:'C',prenom:'c',classe_id:'5C',tags:[]} };
+      S.releves['5C'] = { '2025-10-01': { date:'2025-10-01', ts:1, counts:{ s1:1 } } };
+      _eleveFilter = ''; eleveSort = { col: 'bilan', dir: 1 };
+      _bilanOrdreFige = null; _bilanSid = 's1';`);
+  const avant = evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`);
+  assert.deepStrictEqual(avant, ['s1', 's2', 's3']);
+  // La modale « s'ouvre » : l'ordre est capturé, puis un bilan est écrit pour s2.
+  ev(`_bilanOrdreFige = _elevesRows(S.classes['5C']).map(x => x.s.id); bilanAdd('s2', { date:'2025-11-01', type:'conseil', texte:'x' });`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s2', 's1', 's3'], 'la liste, elle, a bougé');
+  assert.deepStrictEqual(evObj(`_bilanOrdre()`), ['s1', 's2', 's3'], 'mais l’ordre parcouru par ◀ ▶ non');
+  ev(`_bilanOrdreFige = null; eleveSort = { col: 'nom', dir: 1 };`);
+});

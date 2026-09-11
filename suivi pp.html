@@ -730,8 +730,13 @@ html[data-theme="dark"] #toast { background: var(--paper-deep); color: var(--ink
 .amen { font: 600 11px var(--font-mono); letter-spacing: .04em; white-space: nowrap; margin-right: 7px; }
 td.amen-td { cursor: pointer; }
 /* Hors période de présence : la ligne s'efface sans disparaître.
-   ⚠️ .55 sur --pencil tomberait sous 4,5:1 ; .72 mesuré à 4,9:1 sur --paper. */
-table.dt tbody tr.inactive { opacity: .72; font-style: italic; }
+   ⚠️ Pas d'OPACITÉ (audit du 2026-09-11) : `.72` gardait l'encre principale lisible
+   (6,7:1) mais faisait tomber le texte SECONDAIRE — la date sous le cumul, les Δ, le total
+   de période, tout ce qui est déjà en `--pencil` — à 2,99:1 en clair et 3,84 en sombre.
+   Une opacité s'applique à tout ce que la ligne contient, y compris ce qui était déjà
+   au bord du seuil. L'encre passe donc à `--pencil` (5,2 / 6,2:1), et l'italique fait le
+   reste ; ce qui porte sa propre encre (délégué surligné, badges, boutons) la garde. */
+table.dt tbody tr.inactive { color: var(--pencil); font-style: italic; }
 table.dt tbody tr.row-cur td { background: var(--paper-warm); }
 
 /* Le « ⅓ » (U+2153) est dessiné tout petit dans la police : agrandi pour rester
@@ -1024,7 +1029,10 @@ details.el-block > summary { cursor: pointer; font-weight: 600; color: var(--ink
    vidéoprojecteur large c'est la largeur qui contraint. ⚠️ La grille à deux colonnes
    doit passer à une seule, sinon le graphique reste dans sa moitié (constaté). */
 .el-split.proj { grid-template-columns: minmax(0, 1fr); }
-.el-name-t, .el-name-s, .el-pct { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Les noms se tronquent dans la vue à deux volets (l'infobulle de .el-name porte le nom
+   entier) ; le POURCENTAGE, lui, revient à la ligne : tronqué, il perd son dénominateur —
+   « 72 % des 18 dépou… » — et un pourcentage nu est un chiffre faux (audit 320 px). */
+.el-name-t, .el-name-s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .el-right.big .el-chart { position: static; padding: 3vh 4vw; }
 .el-right.big .el-title { font-size: min(4.5vh, 3.2vw); }
 .el-right.big .el-prog { font-size: min(3vh, 2.2vw); }
@@ -1987,8 +1995,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.28.1';
-const APP_BUILD_DATE = '2026-09-11T18:47:00Z';
+const APP_VERSION    = '1.28.2';
+const APP_BUILD_DATE = '2026-09-11T19:19:04Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2234,7 +2242,16 @@ function _isTextEntryTarget(el) {
 // restauré mais la fenêtre ouverte reste figée — l'enseignant croit l'annulation sans
 // effet. Les modales à FORMULAIRE n'y figurent pas : les re-rendre effacerait la saisie.
 // ⚠️ Tout nouveau panneau de consultation s'ajoute ici.
-const _MODAL_RERENDER = {};
+// ⚠️ Vide jusqu'à l'audit du 2026-09-11 : depuis que la fiche CORRIGE sur place
+// (v1.14.0), Ctrl+Z avec la fiche ouverte remettait la donnée sans redessiner la fiche —
+// on lisait G2 alors que S disait G1. Les modales de FORMULAIRE (édition d'élève, incident,
+// bilan…) n'y sont pas : elles portent une saisie en cours, qu'un re-rendu effacerait.
+const _MODAL_RERENDER = {
+  mfiche:   () => { if (_ficheSid && S.eleves[_ficheSid]) { _ficheEdit = null; _ficheRender(); } else closeMod2('mfiche'); },
+  mrem:     () => { if (_remSid && S.eleves[_remSid]) _journalRender(); else closeMod2('mrem'); },
+  mtags:    () => renderTagsModal(),
+  mclasses: () => renderClassesModal(),
+};
 function _refreshOpenConsultModals() {
   for (const [id, fn] of Object.entries(_MODAL_RERENDER)) {
     const el = document.getElementById(id);
@@ -2946,20 +2963,6 @@ function renderTab(name) {
   }
 }
 
-// ─── Rendus — squelettes de l'étape 1. Chaque onglet dit ce qu'il attend. ───
-// (étape 2 : Élèves + import CSV · 4 : Carnets · 5 : Documents · 6 : Délégués ·
-//  7 : Synthèse + impressions · 8 : sync, backups, jauge de mémoire)
-function _stubHTML(icon, titre, quoi, etape) {
-  return _emptyStateHTML(icon, titre,
-    `${quoi}<br><span style="font-size:.9em;opacity:.85">Écran prévu à l'étape ${etape} du plan de construction.</span>`);
-}
-function renderStudents() {
-  const el = document.getElementById('eleves-body');
-  if (!el) return;
-  el.innerHTML = Object.keys(S.classes).length
-    ? _stubHTML('👥', 'Liste des élèves', 'Import CSV/Pronote, ajout, aménagements, remarque libre, dates d\'arrivée et de départ.', 2)
-    : _stubHTML('🏫', 'Aucune classe', 'Les classes se créent à l\'import d\'un fichier d\'élèves — Pronote/SIECLE en CSV, ou un export JSON de <em>Plan de classe</em>.', 2);
-}
 function renderDonnees() {
   const el = document.getElementById('donnees-body');
   if (!el) return;
@@ -2995,7 +2998,8 @@ function _renderDonneesInner(el) {
     <div class="prefs" style="grid-template-columns:max-content 1fr">
       <label>Dossier</label>
       <div>${dirHandle ? `<code>${_escName(dirHandle.name)}</code>` : '<span class="tb-hint">aucun — la sync auto en a besoin</span>'}
-        <button class="btn btn-g btn-sm" onclick="openFilePicker()">📂 ${dirHandle ? 'Versions & historique' : 'Choisir un dossier'}</button></div>
+        <button class="btn btn-g btn-sm" onclick="openFilePicker()">📂 ${dirHandle ? 'Versions & historique' : 'Choisir un dossier'}</button>
+        <button class="btn btn-g btn-sm" onclick="reloadLastFile()" title="Revenir à la copie, gardée dans le navigateur, du dernier fichier chargé ou synchronisé — un filet quand le dossier n'est pas là">↩ Dernier fichier chargé</button></div>
       <div class="pref-help">Un dossier synchronisé (Nextcloud académique, Drive…) : l'app y écrit <code>suivi-pp-auto.json</code> 5 s après chaque modification, plus des backups horodatés. Deux postes qui pointent le même dossier se synchronisent, et une divergence est détectée puis résolue sans rien perdre.</div>
       <label>Sync auto</label>
       <div><button class="btn ${autoSyncEnabled ? 'btn-s' : 'btn-g'} btn-sm" onclick="toggleAutoSync()">${autoSyncEnabled ? '🔄 Activée — clic pour couper' : '🔄 Désactivée — clic pour activer'}</button></div>
@@ -4908,12 +4912,17 @@ function journalRemoveUI(id) {
 // complète, on n'en crée pas un second) ; `nouveau` force une entrée vierge (depuis la
 // fiche, où l'on voit la liste).
 // ═══════════════════════════════════════════════════════════════════════════
-let _bilanSid = null, _bilanId = null;
+let _bilanSid = null, _bilanId = null, _bilanOrdreFige = null;
 function openBilan(sid, id, opts) {
   const stu = S.eleves[sid];
   const cls = stu && S.classes[stu.classe_id];
   if (!stu || !cls) return;
   const o = opts || {};
+  // ⚠️ L'ordre des élèves est FIGÉ à l'ouverture de la modale. Trié « rédigé d'abord »,
+  // enregistrer un bilan déplaçait l'élève en tête de liste, et « Suivant » — calculé sur
+  // l'ordre NEUF — repassait sur quelqu'un de déjà fait en sautant le voisin (audit du
+  // 2026-09-11). L'ordre qu'on a sous les yeux en ouvrant est celui qu'on parcourt.
+  if (!document.getElementById('mbilan')?.classList.contains('on')) _bilanOrdreFige = _elevesRows(cls).map(x => x.s.id);
   let e = id ? _bilansOf(sid).find(x => x.id === id) : null;
   if (!e && !id && !o.nouveau) e = _bilanPeriode(cls, sid, _carnetCurrentPeriodIdx(cls), 'conseil');
   _bilanSid = sid; _bilanId = e ? e.id : null;
@@ -4942,10 +4951,12 @@ function _bilanHint() {
   if (!cls || !d || !el) return;
   const p = _periodOf(cls, d.value);
   const pos = _bilanOrdre().indexOf(_bilanSid);
-  el.textContent = `${p ? `période ${p.label}` : 'hors année scolaire'} · élève ${pos + 1} / ${_bilanOrdre().length}`;
+  el.textContent = `${p ? `période ${p.label}` : 'hors année scolaire'} · ${pos < 0 ? 'hors de la liste affichée (filtre)' : `élève ${pos + 1} / ${_bilanOrdre().length}`}`;
 }
-// L'ordre de la liste des élèves à l'écran (tri et filtre compris) — celui qu'on a sous les yeux.
+// L'ordre de la liste des élèves à l'écran (tri et filtre compris) — celui qu'on avait
+// sous les yeux en ouvrant, figé pour la durée de la modale (cf. openBilan).
 function _bilanOrdre() {
+  if (_bilanOrdreFige) return _bilanOrdreFige;
   const stu = S.eleves[_bilanSid];
   const cls = stu && S.classes[stu.classe_id];
   return cls ? _elevesRows(cls).map(x => x.s.id) : [];
@@ -5548,11 +5559,6 @@ function _impNormDate(v) {
   m = t.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/);
   if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
   return null;
-}
-function _impNormTags(v) {
-  return String(v || '').split(/[\s,;\/|+]+/)
-    .map(t => t.replace(/^\[|\]$/g, '').toUpperCase())
-    .filter(t => /^[A-Z0-9]{1,6}$/.test(t));
 }
 // Classe : par identifiant puis par nom, insensible à la casse. Renvoie l'id ou null.
 function _impResolveClass(v) {
@@ -9264,7 +9270,7 @@ function _elRenderChart(el, live) {
     const w = Math.min(100, 100 * c.voix / live.axeMax);
     const ink = _contrastTextColor(c.color);
     return `<div class="el-row${c.dejaElu ? ' elu' : ''}">
-      <div class="el-name"><span class="el-name-t">${_escName(c.nom)}</span>${c.nomSup ? `<span class="el-name-s">${_escName(c.nomSup)}</span>` : ''}</div>
+      <div class="el-name" title="${_escAttr(c.nom + (c.nomSup ? ' / ' + c.nomSup : ''))}"><span class="el-name-t">${_escName(c.nom)}</span>${c.nomSup ? `<span class="el-name-s">${_escName(c.nomSup)}</span>` : ''}</div>
       <div class="el-track">
         ${seuil !== null && el.affichage?.ligneMajorite !== false ? `<div class="el-maj" style="left:${Math.min(100, 100 * seuil / live.axeMax)}%"></div>` : ''}
         <div class="el-bar" style="width:${w}%;background:${c.color};color:${ink}"><span class="el-voix">${c.voix}</span></div>
@@ -10359,6 +10365,11 @@ function _applyReloadedData(data, f) {
     _relUndoArmed = false;
     if (_ramUndoTimer) { clearTimeout(_ramUndoTimer); _ramUndoTimer = null; }
     _ramUndoArmed = false;
+    // Et celui des naissances saisies en série (v1.7.0) — oublié ici jusqu'à l'audit du
+    // 2026-09-11 : la leçon du verrou du ramassage, une troisième fois.
+    if (_elUndoTimer) { clearTimeout(_elUndoTimer); _elUndoTimer = null; }
+    _elUndoArmed = false;
+    _hvcEdit = null; _bilanOrdreFige = null;
     document.body.classList.remove('el-projecting');
   } catch (_) {}
   S = data;
@@ -10371,6 +10382,7 @@ function _applyReloadedData(data, f) {
   refreshSelector();
   const at = document.querySelector('.tab.on');
   if (at) renderTab(at.id.replace('tab-', ''));
+  _refreshOpenConsultModals();   // une fiche ouverte pendant le rechargement montrait l'ancien état
   _lastDiskWriteTs = f.lastModified;
   _lastParsedMtime = f.lastModified;
   _reloadSnoozedMtime = 0;
@@ -10721,10 +10733,8 @@ function _getLastFileMeta() {
   try { const m = JSON.parse(localStorage.getItem(LS_LAST_META_KEY) || 'null'); return (m && m.label) ? m : null; }
   catch (_) { return null; }
 }
-async function _getLastFileRecord() {
-  try { const rec = await _idbGet(LAST_FILE_IDB_KEY); if (rec && (rec.label || rec.data)) return rec; } catch (_) {}
-  return null;
-}
+// La copie du dernier fichier chargé (IndexedDB) se RECHARGE depuis 💾 Données — écrite
+// à chaque chargement depuis l'étape 8, elle n'avait plus de lecteur (audit du 2026-09-11).
 async function reloadLastFile() {
   const rec = await _getLastFileRecord();
   if (!rec || !rec.data) return toast('Aucune copie du dernier fichier chargé.', 'warn');
@@ -10746,6 +10756,10 @@ async function reloadLastFile() {
       toast('✅ Copie rechargée.');
     },
   });
+}
+async function _getLastFileRecord() {
+  try { const rec = await _idbGet(LAST_FILE_IDB_KEY); if (rec && (rec.label || rec.data)) return rec; } catch (_) {}
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
