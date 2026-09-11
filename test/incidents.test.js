@@ -116,12 +116,20 @@ test('incidentSetPdf / incidentRemove : la référence du PDF, jamais le fichier
   assert.strictEqual(ev(`incidentRemove('s1', '${id}')`), false);
 });
 
-test('_pjSafeName : sans chemin, sans accents ni caractères interdits, préfixé de l\'entrée, en .pdf', () => {
-  assert.strictEqual(ev(`_pjSafeName('C:\\\\scans\\\\fiche incident élève.PDF', 'inc_12')`), 'inc_12-fiche_incident_eleve.pdf');
-  assert.strictEqual(ev(`_pjSafeName('../../x/y.pdf', 'inc_1')`), 'inc_1-y.pdf');
-  assert.strictEqual(ev(`_pjSafeName('', 'inc_1')`), 'inc_1-document.pdf');
-  assert.strictEqual(ev(`_pjSafeName('???', 'in c/1')`), 'inc1-document.pdf');
-  assert.ok(ev(`_pjSafeName('x'.repeat(200) + '.pdf', 'i')`).length < 80);
+test('_pjSafeName : sans chemin ni caractères interdits, accents et espaces gardés, en .pdf', () => {
+  assert.strictEqual(ev(`_pjSafeName('C:\\\\scans\\\\fiche incident élève.PDF')`), 'fiche incident élève.pdf');
+  assert.strictEqual(ev(`_pjSafeName('../../x/y.pdf')`), 'y.pdf');
+  assert.strictEqual(ev(`_pjSafeName('')`), 'document.pdf');
+  assert.strictEqual(ev(`_pjSafeName('a:b*c?d"e<f>g|h')`), 'a_b_c_d_e_f_g_h.pdf');
+  assert.strictEqual(ev(`_pjSafeName('  .. espace   double . ')`), 'espace double.pdf');
+  assert.ok(ev(`_pjSafeName('x'.repeat(200) + '.pdf')`).length <= 104);
+});
+
+test('_pjAutoNom : date, type, qui — lisible dans le dossier', () => {
+  assert.strictEqual(ev(`_pjAutoNom('incident', { date: '2026-02-05', instance: 'Commission éducative', nom: 'GUÉRIN', prenom: 'Nathan' })`), '2026-02-05 Commission éducative — GUÉRIN Nathan.pdf');
+  assert.strictEqual(ev(`_pjAutoNom('pv', { date: '2025-10-03', classe: '5e C' })`), '2025-10-03 PV élection délégués — 5e C.pdf');
+  assert.strictEqual(ev(`_pjAutoNom('pvdd', { date: '2025-10-03', classe: '5e C' })`), '2025-10-03 PV délégués — 5e C.pdf');
+  assert.match(ev(`_pjAutoNom('incident', { date: 'hier', instance: 'X', nom: 'A', prenom: 'B' })`), /^\d{4}-\d{2}-\d{2} X — A B\.pdf$/, 'date illisible → aujourd\'hui');
 });
 
 test('_sanitizeCoreSections : incidents absents ou invalides recréés, entrées non-objet écartées', () => {

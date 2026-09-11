@@ -297,7 +297,14 @@ test('deleguesSet : roster seulement, un rôle par élève, date obligatoire ; d
   assert.strictEqual(ev(`deleguesSet(S.classes['5C'], { date: 'hier', titulaires: ['s1'] })`), false);
   assert.strictEqual(ev(`deleguesSet(S.classes['5C'], { date: '2025-10-01', titulaires: [], suppleants: [] })`), false);
   assert.strictEqual(ev(`deleguesSet(S.classes['5C'], { date: '2025-10-01', titulaires: ['s1', 'fantome', 's1'], suppleants: ['s1', 's3'], note: ' PV papier ' })`), true);
-  assert.deepStrictEqual(evObj(`S.classes['5C'].delegues`), { date: '2025-10-01', titulaires: ['s1'], suppleants: ['s3'], note: 'PV papier' });
+  assert.deepStrictEqual(evObj(`S.classes['5C'].delegues`), { date: '2025-10-01', titulaires: ['s1'], suppleants: ['s3'], note: 'PV papier', pv: null });
+  // Le PV signé joint survit à une correction des noms ; _pjReferences le compte.
+  ev(`S.classes['5C'].delegues.pv = { nom: 'PV.pdf', fichier: 'pv-5C-PV.pdf', taille: 12 };
+      deleguesSet(S.classes['5C'], { date: '2025-10-02', titulaires: ['s2'], suppleants: [] });`);
+  assert.deepStrictEqual(evObj(`S.classes['5C'].delegues.pv`), { nom: 'PV.pdf', fichier: 'pv-5C-PV.pdf', taille: 12 });
+  assert.ok(evObj(`[..._pjReferences()]`).includes('pv-5C-PV.pdf'));
+  ev(`EL.pv = { nom: 'PV élection.pdf', fichier: 'pv-el1-PV_election.pdf', taille: 12 };`);
+  assert.ok(evObj(`[..._pjReferences()]`).includes('pv-el1-PV_election.pdf'), "le PV d'une élection aussi");
   assert.strictEqual(ev(`deleguesClear(S.classes['5C'])`), true);
   assert.strictEqual(ev(`S.classes['5C'].delegues`), undefined);
   assert.strictEqual(ev(`deleguesClear(S.classes['5C'])`), false);

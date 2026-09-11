@@ -1619,6 +1619,24 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
+<!-- ═══════════════ NOM D'UNE PIÈCE JOINTE ═══════════════ -->
+<div id="mpjnom" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:560px;width:100%">
+    <h2>📎 Sous quel nom ranger ce PDF ?</h2>
+    <div class="tb-hint" style="margin-bottom:10px">Dans le dossier des PDF, tel que tu le retrouveras dans Nextcloud. Un nom déjà pris reçoit un « (2) ».</div>
+    <div class="st-group" style="display:flex;flex-direction:column;gap:8px">
+      <label><input type="radio" name="pjn" value="garder"> Garder le nom du fichier : <code id="pjn-garder-l"></code></label>
+      <label><input type="radio" name="pjn" value="auto" checked data-autofocus> Nom automatique — date, type, qui : <code id="pjn-auto-l"></code></label>
+      <label style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><input type="radio" name="pjn" value="autre"> Autre nom :
+        <input type="text" id="pjn-nom" maxlength="100" style="flex:1;min-width:200px" onfocus="document.querySelector('input[name=pjn][value=autre]').checked=true" onkeydown="if(event.key==='Enter'){event.preventDefault();pjChooseNameOk()}"> <span class="tb-hint">.pdf</span></label>
+    </div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mpjnom')">Annuler</button>
+      <button class="btn btn-p" onclick="pjChooseNameOk()">✓ Copier</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ LECTEUR PDF ═══════════════ -->
 <div id="mpdf" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:960px;width:100%;height:min(92vh,900px);display:flex;flex-direction:column">
@@ -1896,8 +1914,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.19.0';
-const APP_BUILD_DATE = '2026-09-11T16:00:15Z';
+const APP_VERSION    = '1.20.0';
+const APP_BUILD_DATE = '2026-09-11T16:07:20Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3800,7 +3818,15 @@ function incidentRemove(sid, id) {
 function _pjReferences() {
   const out = new Set();
   for (const e of Object.values(S.eleves)) for (const x of (e.incidents || [])) if (x.pdf && x.pdf.fichier) out.add(x.pdf.fichier);
+  // Les procès-verbaux signés : sur l'élection, ou sur une désignation sans vote.
+  for (const byId of Object.values(S.elections)) for (const el of Object.values(byId)) if (el.pv && el.pv.fichier) out.add(el.pv.fichier);
+  for (const c of Object.values(S.classes)) if (_isPlainObj(c.delegues) && c.delegues.pv && c.delegues.pv.fichier) out.add(c.delegues.pv.fichier);
   return out;
+}
+// Référence normalisée d'une pièce jointe, ou null.
+function _pjRef(pdf) {
+  return (_isPlainObj(pdf) && typeof pdf.fichier === 'string' && pdf.fichier)
+    ? { nom: String(pdf.nom || pdf.fichier), fichier: pdf.fichier, taille: +pdf.taille || 0 } : null;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -4471,8 +4497,15 @@ async function saveIncident() {
   const f = document.getElementById('minc-pdf');
   const file = f && f.files && f.files[0] ? f.files[0] : null;
   if (file && !(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return toast('⚠️ Seul un PDF peut être joint.', 'warn');
-  if (file && !pjDirHandle) return toast('⚠️ Choisis d\'abord le dossier où ranger les PDF (💾 Données).', 'warn');
+  if (file && !pjDirHandle) return toast('⚠️ Choisis d\'abord le dossier où ranger les PDF (💾 Données et réglages).', 'warn');
   if (file && !(await _pjReady('readwrite'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
+  // Le nom du fichier se choisit AVANT d'écrire quoi que ce soit : renoncer ici laisse le
+  // formulaire tel quel, on peut reprendre.
+  let nomPdf = null;
+  if (file) {
+    nomPdf = await pjChooseName(file.name, _pjAutoNom('incident', { date: d, instance: _instanceOf(type).label, nom: stu.nom, prenom: stu.prenom }));
+    if (nomPdf === null) return;
+  }
   pushUndo();
   let e;
   if (_incId) { if (!incidentSet(_incSid, _incId, { date: d, type, objet, texte })) return toast('⚠️ Entrée introuvable.', 'warn'); e = stu.incidents.find(x => x.id === _incId); }
@@ -4482,7 +4515,7 @@ async function saveIncident() {
   // ⚠️ La copie du fichier vient APRÈS l'entrée, et son échec ne la retire pas : mieux
   // vaut un incident noté sans son scan qu'un scan sans incident — on rejoint par ✏️.
   if (file) {
-    try { incidentSetPdf(_incSid, e.id, await pjStore(file, e.id)); }
+    try { incidentSetPdf(_incSid, e.id, await pjStore(file, nomPdf)); }
     catch (err) { toast('⚠️ Copie du PDF impossible : ' + (err && err.message || err), 'error'); }
   }
   save();
@@ -8382,7 +8415,8 @@ function deleguesSet(cls, { date, titulaires, suppleants, note } = {}) {
   const nettoie = l => (Array.isArray(l) ? l : []).filter(sid => roster.has(sid) && !vus.has(sid) && (vus.add(sid), true));
   const t = nettoie(titulaires), sup = nettoie(suppleants);
   if (!t.length && !sup.length) return false;
-  cls.delegues = { date, titulaires: t, suppleants: sup, note: String(note || '').trim() };
+  const pv = _isPlainObj(cls.delegues) ? _pjRef(cls.delegues.pv) : null;   // le PV joint survit à une correction des noms
+  cls.delegues = { date, titulaires: t, suppleants: sup, note: String(note || '').trim(), pv };
   return true;
 }
 function deleguesClear(cls) { if (!cls || !cls.delegues) return false; delete cls.delegues; return true; }
@@ -8451,6 +8485,57 @@ function renderDelegues() {
   }).join('')}</tbody></table></div>` + direct;
 }
 
+// ═══════════════ Le PV signé, en PDF ═══════════════
+// À l'issue de l'élection, le procès-verbal imprimé, signé par les assesseurs et le PP,
+// est scanné : il se range avec l'élection (`election.pv`) — ou avec la désignation sans
+// vote (`cls.delegues.pv`) quand le vote s'est tenu sur papier. Même dossier et mêmes
+// règles que les fiches incident : copié, jamais dans le JSON, jamais effacé par l'app.
+function _pvBlocHTML(cible, id, pv) {
+  const dispo = !!window.showDirectoryPicker;
+  const piece = pv
+    ? `📎 <a href="#" onclick="pvOpenUI('${_escJsAttr(cible)}','${_escJsAttr(id)}');return false" title="Ouvrir le PV signé (${_escAttr(_fmtBytes(pv.taille))})">${_escName(pv.nom)}</a>
+       <button class="btn btn-g btn-sm" onclick="pvRemoveUI('${_escJsAttr(cible)}','${_escJsAttr(id)}')" title="Détacher le PV — le fichier reste dans le dossier">✕ retirer</button>`
+    : (dispo
+        ? `<label class="btn btn-g btn-sm" style="cursor:pointer">📎 Joindre le PV signé (PDF) <input type="file" accept="application/pdf,.pdf" style="display:none" onchange="pvAttachUI('${_escJsAttr(cible)}','${_escJsAttr(id)}',this)"></label>${
+            pjDirHandle ? '' : ` <span class="tb-hint">⚠️ choisis d'abord le dossier des PDF dans 💾 Données et réglages</span>`}`
+        : '<span class="tb-hint">Les pièces jointes demandent Chrome, Edge ou un navigateur Chromium récent.</span>');
+  return `<div class="pv-bloc tb-hint" style="margin-top:6px">${piece}</div>`;
+}
+function _pvCible(cible, id) {
+  if (cible === 'el') { const cls = getCls(); return cls ? S.elections[cls.id]?.[id] || null : null; }
+  if (cible === 'dd') { const cls = S.classes[id]; return cls && _isPlainObj(cls.delegues) ? cls.delegues : null; }
+  return null;
+}
+async function pvAttachUI(cible, id, input) {
+  const obj = _pvCible(cible, id);
+  const file = input && input.files && input.files[0];
+  if (!obj || !file) return;
+  if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return toast('⚠️ Seul un PDF peut être joint.', 'warn');
+  if (!pjDirHandle) return toast('⚠️ Choisis d\'abord le dossier où ranger les PDF (💾 Données et réglages).', 'warn');
+  if (!(await _pjReady('readwrite'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
+  const cls = getCls();
+  const auto = cible === 'el' ? _pjAutoNom('pv', { date: obj.date, classe: cls?.nom }) : _pjAutoNom('pvdd', { date: obj.date, classe: cls?.nom });
+  const nom = await pjChooseName(file.name, auto);
+  if (nom === null) { input.value = ''; return; }
+  let ref;
+  try { ref = await pjStore(file, nom); }
+  catch (err) { return toast('⚠️ Copie du PDF impossible : ' + (err && err.message || err), 'error'); }
+  pushUndo();
+  obj.pv = _pjRef(ref);
+  save();
+  renderDelegues();
+  toast('📎 PV joint.');
+}
+function pvRemoveUI(cible, id) {
+  const obj = _pvCible(cible, id);
+  if (!obj || !obj.pv) return;
+  pushUndo();
+  obj.pv = null;
+  save();
+  renderDelegues();
+}
+function pvOpenUI(cible, id) { const obj = _pvCible(cible, id); if (obj && obj.pv) pjOpen(obj.pv); }
+
 // ═══════════════ Délégués désignés sans vote dans l'app ═══════════════
 // Le PP peut tenir l'élection sur papier, ou reprendre une classe en cours d'année : il
 // doit quand même pouvoir dire à l'app qui sont ses délégués — la Synthèse, la fiche et
@@ -8466,7 +8551,7 @@ function _deleguesDirectHTML(cls, list) {
   const etat = d
     ? `<div style="margin-bottom:6px">Titulaires : <strong>${_escName((d.titulaires || []).map(nom).join(', ') || '—')}</strong> · Suppléants : <strong>${_escName((d.suppleants || []).map(nom).join(', ') || '—')}</strong>
         <span class="tb-hint">désignés le ${_escName(_fmtDateFr(d.date))}${d.note ? ` — ${_escName(d.note)}` : ''}</span>${
-        !prime ? ` <span class="badge warn" title="L'élection close du ${_escAttr(_fmtDateFr(last.date))} est plus récente : c'est elle qui fait foi">remplacée par l'élection du ${_escName(_fmtDateFr(last.date))}</span>` : ''}</div>`
+        !prime ? ` <span class="badge warn" title="L'élection close du ${_escAttr(_fmtDateFr(last.date))} est plus récente : c'est elle qui fait foi">remplacée par l'élection du ${_escName(_fmtDateFr(last.date))}</span>` : ''}${_pvBlocHTML('dd', cls.id, _pjRef(d.pv))}</div>`
     : '';
   const sel = (id, cur) => `<select id="${id}" style="min-width:160px"><option value="">—</option>${eleves.map(e => `<option value="${_escAttr(e.id)}"${cur === e.id ? ' selected' : ''}>${_escName(e.nom)} ${_escName(e.prenom)}</option>`).join('')}</select>`;
   const form = !_delDirectOpen ? '' : `<div class="fi-form" style="margin-top:6px">
@@ -8705,7 +8790,7 @@ function _elRenderResultats(el) {
   }).join('');
   const elus = (el.elus?.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
   const summary = el.clos ? `<div class="al al-i"><strong>🏅 Délégués élus :</strong> ${elus.map(c => `${_escName(_elCandNom(c))}${el.binome !== false && _elCandNomSup(c) ? ` (suppléant : ${_escName(_elCandNomSup(c))})` : ''}`).join(' · ') || 'aucun'}${el.binome === false ? `<br><strong>Suppléants :</strong> ${(el.elus.suppleants || []).map(id => _escName(_elCandNom(_elCand(el, id)))).join(' · ') || 'aucun'}` : ''}</div>` : '';
-  return `<div class="el-block">${summary}${tables}</div>`;
+  return `<div class="el-block">${summary}${el.clos ? _pvBlocHTML('el', el.id, _pjRef(el.pv)) : ''}${tables}</div>`;
 }
 function electionDeleteUI(id) {
   const cls = getCls();
@@ -9151,21 +9236,69 @@ async function _pjReady(mode) {
     return p === 'granted';
   } catch (_) { return false; }
 }
-// Nom de fichier sûr : sans chemin, sans caractères interdits, borné, en .pdf. Préfixé de
-// l'id de l'entrée pour que deux scans homonymes (« fiche incident.pdf ») ne se heurtent pas.
-function _pjSafeName(nom, incId) {
-  let base = String(nom || 'document').split(/[\\/]/).pop().replace(/\.pdf$/i, '');
-  base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'document';
-  return `${String(incId || 'x').replace(/[^A-Za-z0-9_-]/g, '')}-${base}.pdf`;
+// Nom de fichier SÛR mais LISIBLE : sans chemin, sans les caractères que Windows, macOS
+// ou Nextcloud refusent (\ / : * ? " < > | et les caractères de contrôle), borné, en .pdf.
+// Accents et espaces restent — c'est un dossier que l'utilisateur ouvre lui-même, et
+// « 2026-02-05 Commission éducative — GUÉRIN Nathan.pdf » doit s'y lire tel quel.
+// ⚠️ Plus de préfixe d'id (v1.20.0) : l'unicité se règle dans le dossier (_pjUnique).
+function _pjSafeName(nom) {
+  let base = String(nom || '').split(/[\\/]/).pop().replace(/\.pdf$/i, '');
+  base = base.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').replace(/\s+/g, ' ').replace(/^[\s._]+|[\s.]+$/g, '').slice(0, 100).trim();
+  return `${base || 'document'}.pdf`;
 }
-async function pjStore(file, incId) {
+// Le nom AUTOMATIQUE proposé : la date, le type de document, et qui il concerne.
+function _pjAutoNom(kind, o) {
+  const d = _ymdValid(o.date) ? o.date : _todayYmd();
+  if (kind === 'incident') return _pjSafeName(`${d} ${o.instance || 'Incident'} — ${o.nom || ''} ${o.prenom || ''}`.trim());
+  if (kind === 'pv') return _pjSafeName(`${d} PV élection délégués — ${o.classe || ''}`.trim());
+  if (kind === 'pvdd') return _pjSafeName(`${d} PV délégués — ${o.classe || ''}`.trim());
+  return _pjSafeName(`${d} ${o.nom || 'document'}`);
+}
+// Un nom libre dans le dossier : « x.pdf », puis « x (2).pdf », « x (3).pdf »…
+async function _pjUnique(fichier) {
+  if (!pjDirHandle) return fichier;
+  const base = fichier.replace(/\.pdf$/i, '');
+  for (let i = 1; i < 100; i++) {
+    const essai = i === 1 ? fichier : `${base} (${i}).pdf`;
+    try { await pjDirHandle.getFileHandle(essai); } catch (_) { return essai; }   // introuvable = libre
+  }
+  return `${base} ${Date.now()}.pdf`;
+}
+// Copie le fichier sous le nom choisi ; `nom` est le nom VOULU (déjà arbitré par pjChooseName).
+async function pjStore(file, nom) {
   if (!pjDirHandle) throw new Error('aucun dossier choisi');
-  const fichier = _pjSafeName(file.name, incId);
+  const fichier = await _pjUnique(_pjSafeName(nom || file.name));
   const fh = await pjDirHandle.getFileHandle(fichier, { create: true });
   const w = await fh.createWritable();
   await w.write(file);
   await w.close();
-  return { nom: file.name, fichier, taille: file.size };
+  return { nom: fichier, fichier, taille: file.size };
+}
+// Le choix du nom, AVANT la copie : garder celui du fichier, prendre le nom automatique
+// (date · type · qui), ou en taper un. Rend null si l'utilisateur renonce.
+let _pjNomResolve = null;
+function pjChooseName(original, auto) {
+  return new Promise(resolve => {
+    _pjNomResolve = resolve;
+    const g = document.getElementById('pjn-garder-l'), a = document.getElementById('pjn-auto-l'), inp = document.getElementById('pjn-nom');
+    if (g) g.textContent = _pjSafeName(original);
+    if (a) a.textContent = auto;
+    if (inp) inp.value = auto.replace(/\.pdf$/i, '');
+    const r = document.querySelector('input[name="pjn"][value="auto"]');
+    if (r) r.checked = true;
+    _modalReturnTo['mpjnom'] = () => { if (_pjNomResolve) { const f = _pjNomResolve; _pjNomResolve = null; f(null); } };
+    openMod('mpjnom');
+  });
+}
+function pjChooseNameOk() {
+  const mode = document.querySelector('input[name="pjn"]:checked')?.value || 'auto';
+  const nom = mode === 'garder' ? document.getElementById('pjn-garder-l').textContent
+            : mode === 'auto' ? document.getElementById('pjn-auto-l').textContent
+            : _pjSafeName(document.getElementById('pjn-nom').value);
+  if (mode === 'autre' && nom === 'document.pdf' && !document.getElementById('pjn-nom').value.trim()) return toast('⚠️ Donne un nom au fichier.', 'warn');
+  const f = _pjNomResolve; _pjNomResolve = null;
+  closeMod2('mpjnom');
+  if (f) f(nom);
 }
 // Ouvre le PDF dans un nouvel onglet — le lecteur du navigateur fait le reste. Depuis un
 // clic, sinon l'anti-popup bloque ; l'URL de blob est révoquée après ouverture.
