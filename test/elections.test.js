@@ -289,3 +289,41 @@ test('_nomHTML : le nom surligné selon le mandat, vert titulaire / jaune suppl�
   ev(`EL.elus.titulaires = ['c3']; EL.elus.suppleants = ['c3'];`);
   assert.match(ev(`_nomHTML('s1', 'A', 'B')`), /^<span class="nom">/);
 });
+
+// ─────────────────────────────── Délégués désignés sans vote
+
+test('deleguesSet : roster seulement, un rôle par élève, date obligatoire ; deleguesClear', () => {
+  ev(FIXTURE);
+  assert.strictEqual(ev(`deleguesSet(S.classes['5C'], { date: 'hier', titulaires: ['s1'] })`), false);
+  assert.strictEqual(ev(`deleguesSet(S.classes['5C'], { date: '2025-10-01', titulaires: [], suppleants: [] })`), false);
+  assert.strictEqual(ev(`deleguesSet(S.classes['5C'], { date: '2025-10-01', titulaires: ['s1', 'fantome', 's1'], suppleants: ['s1', 's3'], note: ' PV papier ' })`), true);
+  assert.deepStrictEqual(evObj(`S.classes['5C'].delegues`), { date: '2025-10-01', titulaires: ['s1'], suppleants: ['s3'], note: 'PV papier' });
+  assert.strictEqual(ev(`deleguesClear(S.classes['5C'])`), true);
+  assert.strictEqual(ev(`S.classes['5C'].delegues`), undefined);
+  assert.strictEqual(ev(`deleguesClear(S.classes['5C'])`), false);
+});
+
+test('_delegueOf : la désignation directe vaut sans élection, et la plus récente des deux fait foi', () => {
+  ev(FIXTURE);
+  // Sans aucune élection : la désignation seule.
+  ev(`deleguesSet(S.classes['5C'], { date: '2025-10-01', titulaires: ['s1'], suppleants: ['s3'] })`);
+  assert.deepStrictEqual(evObj(`[_delegueOf('s1'), _delegueOf('s3'), _delegueOf('s2')]`), ['titulaire', 'suppleant', null]);
+  // Une élection close PLUS RÉCENTE l'emporte.
+  ev(`B(['c1','c2'],['c1','c2'],['c1','c2'],['c1','c2']); electionCloreTour(EL, 0); EL.date = '2025-10-15';`);
+  assert.strictEqual(ev(`EL.clos`), true);
+  assert.deepStrictEqual(evObj(`[_delegueOf('s1'), _delegueOf('s11'), _delegueOf('s3')]`), ['titulaire', 'suppleant', null]);
+  // Une désignation PLUS RÉCENTE que l'élection reprend la main (démission, reprise de classe).
+  ev(`deleguesSet(S.classes['5C'], { date: '2026-01-10', titulaires: ['s3'], suppleants: [] })`);
+  assert.deepStrictEqual(evObj(`[_delegueOf('s3'), _delegueOf('s1'), _delegueOf('s11')]`), ['titulaire', null, null]);
+  // Le même jour : la désignation l'emporte (>=), c'est le geste le plus délibéré.
+  ev(`S.classes['5C'].delegues.date = '2025-10-15';`);
+  assert.strictEqual(ev(`_delegueOf('s3')`), 'titulaire');
+});
+
+test('_purgeStudentRefs retire un délégué désigné, et la désignation vide disparaît', () => {
+  ev(FIXTURE);
+  ev(`deleguesSet(S.classes['5C'], { date: '2025-10-01', titulaires: ['s1'], suppleants: ['s3'] }); _purgeStudentRefs('s1');`);
+  assert.deepStrictEqual(evObj(`S.classes['5C'].delegues.titulaires`), []);
+  ev(`_purgeStudentRefs('s3');`);
+  assert.strictEqual(ev(`S.classes['5C'].delegues`), undefined);
+});

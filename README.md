@@ -123,6 +123,12 @@ alimente les tris *par place* et *ramassage* des grilles. ⚠️ Si vos salles v
 placement et ses ordres — une correction faite ici est à reporter là-bas, ou à ne plus
 importer. Même chose pour les options des élèves.
 
+**Pas d'élection dans l'app ?** Si le vote s'est tenu sur papier, ou si vous reprenez une
+classe en cours d'année, l'onglet 🗳 Délégués vous laisse **désigner** directement les deux
+titulaires et les deux suppléants, avec la date et un mot : la Synthèse, la fiche et la liste
+des élèves les afficheront comme s'ils avaient été élus ici. Si une élection close dans l'app
+est plus récente, c'est elle qui fait foi.
+
 **La date de naissance** se saisit (ou arrive de l'import) et sert au départage d'une
 égalité à l'élection des délégués. ⚠️ Quand une date manque, ou que deux candidats sont
 nés le même jour, **l'app ne tranche pas** : elle le dit et vous laisse décider. Elle ne

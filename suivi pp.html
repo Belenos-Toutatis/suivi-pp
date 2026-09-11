@@ -1896,8 +1896,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.18.0';
-const APP_BUILD_DATE = '2026-09-11T15:52:54Z';
+const APP_VERSION    = '1.19.0';
+const APP_BUILD_DATE = '2026-09-11T16:00:15Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2594,6 +2594,8 @@ function _sanitizeCoreSections() {
       if (!_isPlainObj(room)) { delete c.rooms[sid]; continue; }
       if (!_isPlainObj(room.seating)) room.seating = {};
     }
+    if (c.delegues !== undefined && !_isPlainObj(c.delegues)) delete c.delegues;
+    if (_isPlainObj(c.delegues)) for (const k of ['titulaires', 'suppleants']) if (!Array.isArray(c.delegues[k])) c.delegues[k] = [];
     if (c.salleCur && !c.rooms[c.salleCur]) c.salleCur = null;
     if (!c.salleCur) c.salleCur = Object.keys(c.rooms)[0] || null;
   }
@@ -2715,6 +2717,12 @@ function _purgeStudentRefs(sid) {
     for (const room of Object.values(_isPlainObj(c.rooms) ? c.rooms : {})) {
       if (!_isPlainObj(room.seating)) continue;
       for (const [pos, occ] of Object.entries(room.seating)) if (occ === sid) delete room.seating[pos];
+    }
+    // Délégués désignés sans vote : contrairement aux élections (PV historique), c'est
+    // un état courant, pas un document — l'élève parti n'est plus délégué.
+    if (_isPlainObj(c.delegues)) {
+      for (const k of ['titulaires', 'suppleants']) if (Array.isArray(c.delegues[k])) c.delegues[k] = c.delegues[k].filter(x => x !== sid);
+      if (!(c.delegues.titulaires || []).length && !(c.delegues.suppleants || []).length) delete c.delegues;
     }
   }
   for (const byDate of Object.values(S.releves)) {
@@ -8363,10 +8371,36 @@ function _elLive(el, tourIdx) {
 }
 
 // ── Délégués dérivés — jamais stockés sur l'élève ──
+// Délégués DÉSIGNÉS sans vote dans l'app (élection tenue sur papier, ou reprise d'une
+// année déjà entamée) : `cls.delegues = { date, titulaires: [sid], suppleants: [sid], note }`.
+// Sans pushUndo ni save : l'appelant s'en charge. Un élève ne figure qu'une fois, dans
+// une seule liste ; les ids inconnus de la classe sont écartés.
+function deleguesSet(cls, { date, titulaires, suppleants, note } = {}) {
+  if (!cls || !_ymdValid(date)) return false;
+  const roster = new Set(cls.eleves || []);
+  const vus = new Set();
+  const nettoie = l => (Array.isArray(l) ? l : []).filter(sid => roster.has(sid) && !vus.has(sid) && (vus.add(sid), true));
+  const t = nettoie(titulaires), sup = nettoie(suppleants);
+  if (!t.length && !sup.length) return false;
+  cls.delegues = { date, titulaires: t, suppleants: sup, note: String(note || '').trim() };
+  return true;
+}
+function deleguesClear(cls) { if (!cls || !cls.delegues) return false; delete cls.delegues; return true; }
+
 function _delegueOf(sid) {
   const stu = S.eleves[sid];
   if (!stu) return null;
+  const cls = S.classes[stu.classe_id];
   const last = _elList(stu.classe_id).find(e => e.clos);
+  // ⚠️ La désignation directe PRIME si elle est plus récente que la dernière élection
+  // close (ou s'il n'y en a pas) : c'est la plus récente des deux qui dit la vérité de
+  // l'année. Plus ancienne, elle s'efface derrière l'élection tenue dans l'app.
+  const man = cls && _isPlainObj(cls.delegues) ? cls.delegues : null;
+  if (man && (!last || String(man.date || '') >= String(last.date || ''))) {
+    if ((man.titulaires || []).includes(sid)) return 'titulaire';
+    if ((man.suppleants || []).includes(sid)) return 'suppleant';
+    return null;
+  }
   if (!last) return null;
   // Remplacements en cours d'année : un suppléant devenu titulaire.
   const promus = (last.remplacements || []).map(r => r.candId);
@@ -8403,8 +8437,9 @@ function renderDelegues() {
   const list = _elList(cls.id);
   const tb = `<div class="tb"><button class="btn btn-p btn-sm" onclick="openElectionNew()">+ Nouvelle élection</button>
     <span class="tb-hint">Une élection par an, historisée : on garde celle de l'an dernier.</span></div>`;
+  const direct = _deleguesDirectHTML(cls, list);
   if (!list.length) {
-    box.innerHTML = tb + _emptyStateHTML('🗳', 'Aucune élection', 'Cliquez sur <strong>+ Nouvelle élection</strong> : les modalités (binômes, noms par bulletin, majorité, départage) se règlent à la création et sont rappelées sur le procès-verbal.<br>À tenir <strong>avant la fin de la septième semaine</strong> de l\'année scolaire.');
+    box.innerHTML = tb + _emptyStateHTML('🗳', 'Aucune élection', 'Cliquez sur <strong>+ Nouvelle élection</strong> : les modalités (binômes, noms par bulletin, majorité, départage) se règlent à la création et sont rappelées sur le procès-verbal.<br>À tenir <strong>avant la fin de la septième semaine</strong> de l\'année scolaire.') + direct;
     return;
   }
   box.innerHTML = tb + `<div class="rel-wrap"><table class="dt"><thead><tr><th>Élection</th><th>Date</th><th>Candidats</th><th>Tours</th><th>État</th><th>Élus</th><th style="cursor:default"></th></tr></thead><tbody>${list.map(e => {
@@ -8413,7 +8448,58 @@ function renderDelegues() {
       <td style="font-family:var(--font-mono);font-size:.85em">${_escName(_fmtDateFr(e.date))}</td><td>${(e.candidats || []).length}</td><td>${e.tours.length}</td>
       <td>${e.clos ? '<span class="badge ok">close</span>' : '<span class="badge warn">en cours</span>'}</td><td>${_escName(elus) || '<span class="tb-hint">—</span>'}</td>
       <td style="white-space:nowrap"><button class="btn btn-g btn-sm" onclick="_elOpen('${_escJsAttr(e.id)}')">Ouvrir</button> <button class="btn btn-d btn-sm" onclick="electionDeleteUI('${_escJsAttr(e.id)}')" title="Supprimer l'élection">🗑</button></td></tr>`;
-  }).join('')}</tbody></table></div>`;
+  }).join('')}</tbody></table></div>` + direct;
+}
+
+// ═══════════════ Délégués désignés sans vote dans l'app ═══════════════
+// Le PP peut tenir l'élection sur papier, ou reprendre une classe en cours d'année : il
+// doit quand même pouvoir dire à l'app qui sont ses délégués — la Synthèse, la fiche et
+// la liste en dépendent. Deux titulaires, deux suppléants (le nombre réglementaire), une
+// date, un mot ; c'est `_delegueOf` qui arbitre avec une élection close éventuelle.
+let _delDirectOpen = false;
+function _deleguesDirectHTML(cls, list) {
+  const d = _isPlainObj(cls.delegues) ? cls.delegues : null;
+  const last = list.find(e => e.clos);
+  const eleves = (cls.eleves || []).map(id => S.eleves[id]).filter(Boolean).sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr', { sensitivity: 'base' }));
+  const nom = sid => { const e = S.eleves[sid]; return e ? `${e.prenom} ${e.nom}` : sid; };
+  const prime = d && (!last || String(d.date || '') >= String(last.date || ''));
+  const etat = d
+    ? `<div style="margin-bottom:6px">Titulaires : <strong>${_escName((d.titulaires || []).map(nom).join(', ') || '—')}</strong> · Suppléants : <strong>${_escName((d.suppleants || []).map(nom).join(', ') || '—')}</strong>
+        <span class="tb-hint">désignés le ${_escName(_fmtDateFr(d.date))}${d.note ? ` — ${_escName(d.note)}` : ''}</span>${
+        !prime ? ` <span class="badge warn" title="L'élection close du ${_escAttr(_fmtDateFr(last.date))} est plus récente : c'est elle qui fait foi">remplacée par l'élection du ${_escName(_fmtDateFr(last.date))}</span>` : ''}</div>`
+    : '';
+  const sel = (id, cur) => `<select id="${id}" style="min-width:160px"><option value="">—</option>${eleves.map(e => `<option value="${_escAttr(e.id)}"${cur === e.id ? ' selected' : ''}>${_escName(e.nom)} ${_escName(e.prenom)}</option>`).join('')}</select>`;
+  const form = !_delDirectOpen ? '' : `<div class="fi-form" style="margin-top:6px">
+      <label>Date <input type="date" id="dd-date" value="${_escAttr(d ? d.date : _todayYmd())}" style="min-width:140px"></label>
+      <label>Titulaire 1 ${sel('dd-t1', d?.titulaires?.[0])}</label><label>Titulaire 2 ${sel('dd-t2', d?.titulaires?.[1])}</label>
+      <label>Suppléant 1 ${sel('dd-s1', d?.suppleants?.[0])}</label><label>Suppléant 2 ${sel('dd-s2', d?.suppleants?.[1])}</label>
+      <label style="flex:1;min-width:180px">Mot <input type="text" id="dd-note" value="${_escAttr(d ? d.note || '' : '')}" placeholder="élus sur papier le …, PV au secrétariat" maxlength="160"></label>
+      <button class="btn btn-p btn-sm" onclick="deleguesSetUI()">✓ Enregistrer</button> <button class="btn btn-g btn-sm" onclick="_delDirectOpen=false;renderDelegues()">Annuler</button></div>`;
+  return `<div class="fi-sec" style="margin-top:22px"><h3>✍️ Délégués désignés sans vote dans l'app</h3>
+    <div class="tb-hint" style="margin-bottom:6px">Élection tenue sur papier, ou classe reprise en cours d'année : indique ici qui sont les délégués — la Synthèse, la fiche et la liste des élèves les afficheront. Si une élection close dans l'app est plus récente, c'est elle qui fait foi.</div>
+    ${etat}${form}${_delDirectOpen ? '' : `<button class="btn btn-s btn-sm" onclick="_delDirectOpen=true;renderDelegues()">${d ? '✏️ Modifier' : '+ Désigner les délégués'}</button>${
+      d ? ` <button class="btn btn-d btn-sm" onclick="deleguesClearUI()" title="Retirer la désignation (Ctrl+Z pour la rétablir)">🗑</button>` : ''}`}</div>`;
+}
+function deleguesSetUI() {
+  const cls = getCls();
+  if (!cls) return;
+  const champD = document.getElementById('dd-date');
+  const date = champD.value ? _ymdCompleteAnnee(champD.value) : '';
+  if (!_ymdValid(date)) return toast('⚠️ Date illisible.', 'warn');
+  const v = id => document.getElementById(id)?.value || '';
+  const titulaires = [v('dd-t1'), v('dd-t2')].filter(Boolean), suppleants = [v('dd-s1'), v('dd-s2')].filter(Boolean);
+  if (new Set([...titulaires, ...suppleants]).size !== titulaires.length + suppleants.length) return toast('⚠️ Un même élève ne peut pas tenir deux rôles.', 'warn');
+  pushUndo();
+  if (!deleguesSet(cls, { date, titulaires, suppleants, note: v('dd-note') })) { undoLast(); return toast('⚠️ Désigne au moins un élève.', 'warn'); }
+  save();
+  _delDirectOpen = false;
+  renderDelegues(); renderStudents();
+  toast('✓ Délégués désignés.');
+}
+function deleguesClearUI() {
+  const cls = getCls();
+  if (!cls || !cls.delegues) return;
+  pushUndo(); deleguesClear(cls); save(); renderDelegues(); renderStudents();
 }
 
 function _elRenderOne(box, el, cls) {

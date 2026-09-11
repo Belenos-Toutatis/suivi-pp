@@ -125,6 +125,9 @@ cls = {
   // Placement repris de Plan de classe — une place DIFFÉRENTE par salle :
   rooms:    { [salleId]: { seating: { 'r,c': sid } } },   // clé = PLACE, valeur = élève
   salleCur, // salle où l'on est entré : c'est elle qui décide de l'ordre
+  pdcImportAt,             // 'YYYY-MM-DD' — dernier import depuis Plan de classe (la fiche et Données préviennent)
+  // Délégués DÉSIGNÉS sans vote dans l'app (2026-09-11) — élection sur papier, classe reprise :
+  delegues: { date: 'YYYY-MM-DD', titulaires: [sid], suppleants: [sid], note },
 }
 
 salle = {
@@ -386,6 +389,9 @@ Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisati
 ### Après l'élection
 
 - Les élus sont reportés sur l'élève (`stu.delegue = 'titulaire' | 'suppleant' | null`, dérivé de l'élection close la plus récente de sa classe) pour être visibles dans la **Synthèse** et dans la liste des élèves — un PP a besoin de savoir qui sont ses délégués sans rouvrir l'élection.
+- **Sans élection dans l'app** (v1.19.0, demande de l'utilisateur) : le PP peut avoir voté sur papier, ou reprendre une classe en cours d'année — il doit quand même pouvoir dire qui sont les délégués. Bloc *« ✍️ Délégués désignés sans vote dans l'app »* en bas de l'onglet 🗳 : date, deux titulaires, deux suppléants, un mot → `cls.delegues` (`deleguesSet` / `deleguesClear`, roster seulement, un rôle par élève).
+  - ⚠️ **`_delegueOf` arbitre par la DATE** : la désignation prime si elle est plus récente que la dernière élection close (ou s'il n'y en a pas), sinon l'élection fait foi — et l'écran le dit (« remplacée par l'élection du … »). C'est ce qui permet aussi de noter une démission après une élection tenue dans l'app : une désignation plus récente reprend la main. À date égale, la désignation gagne (`>=`) : c'est le geste le plus délibéré.
+  - ⚠️ Contrairement aux élections (PV historique, exception de purge), **c'est un état courant** : `_purgeStudentRefs` retire l'élève parti, et une désignation vidée disparaît. Dans l'état maximal du test de balayage.
 - ⚠️ **Ne pas stocker `stu.delegue` en dur** : le dériver de `S.elections`, sinon une correction du dépouillement laisse un ancien délégué marqué. Si un cache est nécessaire, le recalculer dans `postLoadHook`.
 - Prévoir la **démission ou le départ d'un délégué** en cours d'année : le suppléant devient titulaire. Ce n'est pas une nouvelle élection — un champ `remplacements: [{ date, candId, motif }]` sur l'élection suffit, sans toucher au dépouillement.
 
@@ -777,6 +783,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 29 | **Délégués désignés sans vote** (`cls.delegues`, `deleguesSet`, arbitrage par la date dans `_delegueOf`, purge) ; 3 tests de plus | ✅ **fait** (2026-09-11, v1.19.0) |
 | 28 | **Classe = son nom** dans la fiche (`ficheSaveClasse`) · **ordre de ramassage au glisser** (`ordrePaint*`, traînée sans re-rendu) | ✅ **fait** (2026-09-11, v1.18.0) |
 | 27 | **La fiche corrige TOUT sur place** : nom, dates, civilité, classe (`moveStudentToClass` partagé avec la modale), place, cumuls du carnet, réponses / date / note des documents, contacts ; 4 tests de plus | ✅ **fait** (2026-09-11, v1.17.0) |
 | 26 | **Glisser-déposer des places** : liste des sans-place à droite, placer / échanger (`seatSwap`) / libérer au glisser, clic conservé pour le sélecteur ; 1 test de plus | ✅ **fait** (2026-09-11, v1.16.0) |
