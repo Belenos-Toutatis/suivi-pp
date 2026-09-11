@@ -385,6 +385,17 @@ Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisati
 Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group` à deux étages ici).
 
 1. **👥 Élèves** — liste triable, import, ajout/édition, remarque libre, aménagements, arrivée/départ.
+   - **Aménagements en LECTURE dans la liste** (2026-09-11) : seuls les actifs, en texte
+     coloré (`_amenBadgesHTML`, mêmes encres `--st-*-fg` que les cases de la modale ✏️).
+     Les huit boutons-bascules d'origine faisaient de cette colonne la plus large du tableau
+     (≈ 480 px, contre 133 désormais) pour un réglage qui **vient de l'import** et se corrige
+     une fois par an. Ils se règlent dans ✏️ — la case elle-même ouvre la modale au clic.
+   - **Le nom d'un délégué est SURLIGNÉ** (2026-09-11) — vert titulaire, jaune suppléant —
+     dans les cinq grilles, par `_nomHTML(sid, nom, prenom)` qui interroge `_delegueOf`.
+     Remplace la pastille 🏅 : on repère ses délégués en balayant une colonne de noms, sans
+     lire. Tokens `--del-t-*` / `--del-s-*` aux trois endroits ; l'infobulle dit le mandat.
+     ⚠️ Toute NOUVELLE grille à noms passe par `_nomHTML`, sinon elle est la seule où le
+     délégué n'apparaît pas — et c'est là qu'on le cherchera.
    **Fiche complète** — cliquer le NOM d'un élève ouvre tout ce que l'app sait de lui sur un écran : identité et âge, options, aménagements, présence, place dans chaque salle, délégué ; l'histoire complète du carnet (trous compris) et les totaux de période ; tous les documents avec leurs réponses en clair ; les élections où il apparaît ; sa remarque, et son journal de contacts en entier.
    - ⚠️ **Écran de LECTURE.** Les corrections se font là où elles se faisaient déjà — dupliquer la saisie ici, c'est dupliquer les gardes-fous et n'en corriger qu'un seul un jour. Les deux boutons de pied mènent à l'édition et à la remarque, et **y reviennent** (`_modalReturnTo`).
    - ⚠️ La fiche est un **dossier**, pas une vue courante : elle montre les documents archivés et les relevés où l'élève n'a rien. Une case vide au 8 décembre est une information quand on prépare un rendez-vous.
@@ -681,6 +692,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 22 | **Liste des élèves allégée** : aménagements en lecture (`_amenBadgesHTML`, réglage par ✏️), nom des délégués **surligné** dans les cinq grilles (`_nomHTML`, tokens `--del-*`) à la place de la pastille 🏅 ; `_topbarMeasure` différée (boucle ResizeObserver remontée en toast) ; 2 tests de plus | ✅ **fait** (2026-09-11, v1.12.0) |
 | 21 | **Grilles figées** : en-tête et colonne des noms collants dans les cinq grilles (`.rel-wrap.frozen`, `_wrapScrollKeep`, `_topbarMeasure`) · **âge sous le nom** (`_ageSubHTML`, mis à jour en place à la saisie) · pastilles « à rendre » / « à lire » du ramassage **empilées** (`_ramResteHTML`) ; 6 tests de plus | ✅ **fait** (2026-09-11, v1.11.0) |
 | 20 | **Impression de la vue globale** : grille élèves × documents (`_gridPrintCell`, `_gridPrintRows`, `_gridPrintTotals`, `_gridPrintSubtitle`), trois états sur le papier, totaux en pied, réponses en option, depuis la liste **et** depuis le ramassage ; 9 tests de plus | ✅ **fait** (2026-09-10, v1.10.0) |
 | 19 | **Impression d'un document** avec choix des colonnes : calcul pur (`_docPrintColumns`, `_docPrintKeys`, `_docPrintFiltres`, `_docPrintCell`, `_docPrintRows`, `_docPrintSubtitle`) testé avant l'UI (11 tests), modale de sélection, orientation déduite, PDF par la fenêtre d'impression | ✅ **fait** (2026-09-10, v1.9.0) |
@@ -823,6 +835,24 @@ Un défaut trouvé, **dormant depuis la v1.1.0** :
    s'accrocher au cadre (cf. *Grilles figées*). Invisible tant que la grille tient dans la
    fenêtre — c'est-à-dire sur tous les écrans où l'on développe. ⚠️ Leçon : **un `sticky`
    se vérifie en faisant défiler**, jamais en lisant le CSS.
+
+**2026-09-11, v1.12.0 (liste allégée, délégués surlignés) : 0 écart**, clair et sombre —
+mesuré sur les noms surlignés (11,36 / 11,2 en clair, 8,34 / 8,15 en sombre), sur les
+aménagements en texte coloré au repos **et sous le survol** (4,85:1 au plus bas, sur
+`--paper-warm`), dans les listes Élèves, Carnets et Synthèse.
+
+Un défaut de la v1.11.0, corrigé ici :
+20. **« Une erreur est survenue » à chaque changement de taille de fenêtre.** Le
+   `ResizeObserver` de `_topbarMeasure` écrivait `--topbar-h` dans son propre rappel ; la
+   variable change la hauteur des cadres, donc de la page, donc la barre de défilement,
+   donc la largeur du bandeau — et l'observateur se redéclenchait dans la même frame. Le
+   navigateur coupe court avec *ResizeObserver loop completed with undelivered
+   notifications*, un avertissement bénin que `window.onerror` reçoit comme une erreur et
+   que le gestionnaire global affichait en toast. → écriture différée par `setTimeout`, et
+   seulement si la valeur change. ⚠️ Pas `requestAnimationFrame` : un onglet en
+   arrière-plan ne reçoit aucune frame, et la variable restait à sa valeur de repli
+   (constaté dans le navigateur de test, volet caché). Leçon : **tout ce qui écrit du
+   style depuis un observateur de taille s'écrit à la tâche suivante.**
 
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la

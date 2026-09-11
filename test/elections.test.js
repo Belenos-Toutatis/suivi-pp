@@ -277,3 +277,15 @@ test('sans candidat restant, pas de second tour vide : l\'élection se clôt, si
   assert.strictEqual(ev(`EL.clos`), true);
   assert.match(w.warnings.join(' '), /vacant.*faute de candidat/);
 });
+
+test('_nomHTML : le nom surligné selon le mandat, vert titulaire / jaune suppléant', () => {
+  ev(FIXTURE);
+  ev(`B(['c1','c2'],['c1','c2'],['c1','c2'],['c1','c2']); electionCloreTour(EL, 0);`);
+  assert.match(ev(`_nomHTML('s1', S.eleves.s1.nom, S.eleves.s1.prenom)`), /^<span class="nom del-t" title="Délégué titulaire/);
+  assert.match(ev(`_nomHTML('s11', S.eleves.s11.nom, S.eleves.s11.prenom)`), /^<span class="nom del-s" title="Délégué suppléant/);
+  // Sans mandat : ni classe ni infobulle — et le nom est échappé.
+  assert.strictEqual(ev(`_nomHTML('s3', '<b>X</b>', 'Y&Z')`), '<span class="nom"><strong>&lt;b&gt;X&lt;/b&gt;</strong> Y&amp;Z</span>');
+  // Une correction du dépouillement se répercute sur le surlignage, puisque rien n'est stocké.
+  ev(`EL.elus.titulaires = ['c3']; EL.elus.suppleants = ['c3'];`);
+  assert.match(ev(`_nomHTML('s1', 'A', 'B')`), /^<span class="nom">/);
+});

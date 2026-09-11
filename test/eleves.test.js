@@ -212,3 +212,16 @@ test('_ageSubHTML : l\'âge révolu sous le nom, vide sans date de naissance', (
   // L'id sert à la mise à jour en place depuis la saisie en série ; il est échappé.
   assert.strictEqual(ev(`_ageSubHTML({ naissance: '' }, 'age-s"1')`), '<span class="age-sub" id="age-s&quot;1"></span>');
 });
+
+test('_amenBadgesHTML : seuls les aménagements ACTIFS, dans leur encre — tiret sinon', () => {
+  // Les huit boutons cliquables d'origine faisaient de cette colonne la plus large du
+  // tableau, pour un réglage qui vient de l'import et se corrige par ✏️.
+  const lab = html => [...html.matchAll(/<span class="amen" style="color:var\((--[a-z0-9-]+)\)">([^<]*)<\/span>/g)].map(m => [m[2], m[1]]);
+  assert.deepStrictEqual(lab(ev(`_amenBadgesHTML({ ppre: true, pai: true, agrandissement: true })`)),
+    [['PPRE', '--st-ppre-fg'], ['PAI', '--st-pai-fg'], ['📄-A', '--agr-fg']]);
+  assert.deepStrictEqual(lab(ev(`_amenBadgesHTML({ ulis_incl: true, upe2a: true })`)),
+    [['ULIS+', '--st-ulis-i-fg'], ['UPE2A', '--st-upe2a-fg']]);
+  assert.match(ev(`_amenBadgesHTML({ tiers_temps: true })`), /⏱/);
+  assert.strictEqual(ev(`_amenBadgesHTML({})`), '<span class="tb-hint">—</span>');
+  assert.strictEqual(ev(`_amenBadgesHTML(undefined)`), '<span class="tb-hint">—</span>');
+});

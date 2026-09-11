@@ -177,6 +177,11 @@ if ('serviceWorker' in navigator) {
      laissé tel quel en thème sombre a besoin de sa propre encre, pas de celle du thème. */
   --rgpd-bg: #f5d76e;  --rgpd-fg: #0e1a26;
   --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
+  /* Nom surligné des délégués : vert = titulaire, jaune = suppléant. Fond ET encre par
+     thème (règles 2 et 3 du design system) : un pastel laissé tel quel ferait un trou de
+     lumière dans le bleu nuit, et l'encre de jour n'y tiendrait pas. */
+  --del-t-bg: #cdf5d9;  --del-t-fg: #12351f;
+  --del-s-bg: #fbeea0;  --del-s-fg: #3b2f00;
   --margin-w: 56px;
   /* Hauteur du bandeau collant — valeur de repli, REMESURÉE par _topbarMeasure() au
      chargement et à chaque changement de taille. Dimensionne les cadres figés. */
@@ -258,6 +263,8 @@ html[data-theme="dark"] {
   --info-bg: #1a2733;  --info-bd: #2f4d66;
   /* Surface d'or assourdie pour la veillée, MÊME encre sombre (cf. :root). */
   --rgpd-bg: #c9a93f;  --rgpd-fg: #0e1a26;
+  --del-t-bg: #1f4a2e;  --del-t-fg: #d5f0dc;
+  --del-s-bg: #4d4212;  --del-s-fg: #f6e9a8;
   --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
 }
 
@@ -305,6 +312,8 @@ html[data-theme="dark"] {
     --danger-bg: #b03d2e;  --danger-on: #ffffff;
     --info-bg: #eaf4ff;  --info-bd: #90c8f0;
     --rgpd-bg: #f5d76e;  --rgpd-fg: #0e1a26;
+    --del-t-bg: #cdf5d9;  --del-t-fg: #12351f;
+    --del-s-bg: #fbeea0;  --del-s-fg: #3b2f00;
     --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
     --shadow-card: 0 1px 0 rgba(11, 22, 32, 0.04), 0 2px 8px rgba(11, 22, 32, 0.05);
     --shadow-pop:  0 4px 16px rgba(11, 22, 32, 0.12), 0 1px 2px rgba(11, 22, 32, 0.06);
@@ -701,7 +710,17 @@ html[data-theme="dark"] #toast { background: var(--paper-deep); color: var(--ink
 }
 .lifebdg.future { background: var(--info-bg); color: var(--link-fg); border: 1px solid var(--info-bd); }
 .lifebdg.gone   { background: var(--alert-bg); color: var(--alert-fg); border: 1px solid var(--alert-bd); }
-.delbdg { font: 600 .7em var(--font-mono); padding: 1px 6px; border-radius: 8px; margin-left: 6px; white-space: nowrap; background: var(--com-pos-bg); color: var(--com-pos-fg); border: 1px solid var(--com-pos); }
+/* Le nom d'un délégué est SURLIGNÉ dans toutes les grilles — vert titulaire, jaune
+   suppléant — plutôt que suivi d'une pastille : on repère ses délégués d'un coup d'œil en
+   parcourant une colonne de noms, sans lire. L'infobulle dit le mandat en clair. */
+.nom { border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.nom.del-t { background: var(--del-t-bg); color: var(--del-t-fg); padding: 1px 4px; }
+.nom.del-s { background: var(--del-s-bg); color: var(--del-s-fg); padding: 1px 4px; }
+/* Aménagements en LECTURE dans la liste : seuls les actifs, en texte coloré. Les huit
+   boutons cliquables d'origine faisaient de cette colonne la plus large du tableau, pour
+   un réglage qui vient de l'import et se corrige par ✏️ (arbitré le 2026-09-11). */
+.amen { font: 600 11px var(--font-mono); letter-spacing: .04em; white-space: nowrap; margin-right: 7px; }
+td.amen-td { cursor: pointer; }
 /* Hors période de présence : la ligne s'efface sans disparaître.
    ⚠️ .55 sur --pencil tomberait sous 4,5:1 ; .72 mesuré à 4,9:1 sur --paper. */
 table.dt tbody tr.inactive { opacity: .72; font-style: italic; }
@@ -1787,8 +1806,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.11.0';
-const APP_BUILD_DATE = '2026-09-11T05:21:27Z';
+const APP_VERSION    = '1.12.0';
+const APP_BUILD_DATE = '2026-09-11T07:48:06Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3199,6 +3218,28 @@ function _ficheAge(naissance, ref) {
   return age < 0 ? null : age;
 }
 
+// Le nom d'un élève dans une grille, surligné selon son mandat de délégué (cf. .nom).
+// Dérivé de l'élection close la plus récente par _delegueOf — jamais stocké, donc juste
+// même après une correction du dépouillement.
+function _nomHTML(sid, nom, prenom) {
+  const del = _delegueOf(sid);
+  const cls = del === 'titulaire' ? ' del-t' : del === 'suppleant' ? ' del-s' : '';
+  const tip = del ? ` title="${del === 'titulaire' ? 'Délégué titulaire' : 'Délégué suppléant'} — élection close la plus récente"` : '';
+  return `<span class="nom${cls}"${tip}><strong>${_escName(nom)}</strong> ${_escName(prenom)}</span>`;
+}
+// Aménagements d'un élève en lecture : les seuls actifs, chacun dans son encre (les
+// mêmes tokens que les cases de la modale ✏️, déjà mesurés). Vide → tiret discret.
+const _AMEN_VIEW = [
+  ['ppre', 'PPRE', '--st-ppre-fg'], ['pap', 'PAP', '--st-pap-fg'], ['gevasco', 'PPS', '--st-pps-fg'],
+  ['ulis_incl', 'ULIS+', '--st-ulis-i-fg'], ['ulis', 'ULIS', '--st-ulis-fg'],
+  ['upe2a_incl', 'UPE2A+', '--st-upe2a-i-fg'], ['upe2a', 'UPE2A', '--st-upe2a-fg'],
+  ['pai', 'PAI', '--st-pai-fg'], ['agrandissement', '📄-A', '--agr-fg'], ['tiers_temps', null, '--tt-fg']];
+function _amenBadgesHTML(stu) {
+  const out = _AMEN_VIEW.filter(([k]) => stu && stu[k])
+    .map(([k, lab, tok]) => `<span class="amen" style="color:var(${tok})">${lab === null ? '⏱' + _FRAC13_HTML : lab}</span>`);
+  return out.length ? out.join('') : '<span class="tb-hint">—</span>';
+}
+
 // L'âge sous le nom, dans les grilles. Vide sans date de naissance : un tiret ferait
 // chercher une information que personne n'a saisie. `id` sert à la liste des élèves,
 // qui met l'âge à jour EN PLACE quand on saisit la date (pas de re-rendu en pleine série).
@@ -3226,10 +3267,22 @@ function _wrapScrollKeep(el) {
 // Hauteur réelle du bandeau collant, exposée en `--topbar-h` : les cadres figés se
 // dimensionnent sur ce qui reste dessous. Remesurée à chaque changement de taille — le
 // titre passe à la ligne sur téléphone, et le bandeau double de hauteur.
+// ⚠️ Écrit à la TÂCHE SUIVANTE, et seulement si la valeur change : écrire la variable
+// dans le rappel du ResizeObserver modifie la hauteur des cadres, donc celle de la page,
+// donc l'apparition de la barre de défilement, donc la largeur du bandeau — et l'observateur
+// se redéclenche dans la même frame. Le navigateur coupe court avec « ResizeObserver loop
+// completed with undelivered notifications », que le gestionnaire d'erreurs global
+// affichait en toast à chaque changement de taille (vu en v1.11.0).
+let _topbarH = null;
 function _topbarMeasure() {
   const t = document.getElementById('topbar');
   if (!t || !t.offsetHeight) return;
-  document.documentElement.style.setProperty('--topbar-h', t.offsetHeight + 'px');
+  const h = t.offsetHeight;
+  if (h === _topbarH) return;
+  _topbarH = h;
+  // setTimeout, pas requestAnimationFrame : un onglet en arrière-plan ne reçoit aucune
+  // frame, et la variable resterait à sa valeur de repli jusqu'au retour au premier plan.
+  setTimeout(() => document.documentElement.style.setProperty('--topbar-h', h + 'px'), 0);
 }
 
 // Les places de l'élève, une par salle. ⚠️ `rang` et `colonne` sont 1-BASED : une fiche
@@ -3489,9 +3542,8 @@ function renderStudents() {
     return byName(a, b) * dir;
   });
 
-  // Pastille de statut : accent quand marqué, fond neutre themé sinon ; encre TOUJOURS
-  // dérivée du fond. ⚠️ Jamais color:#fff en dur — l'orange PPRE et le vert ULIS ne le
-  // portent qu'à 2,8:1.
+  // Pastille de la remarque : accent quand marquée, fond neutre themé sinon ; encre
+  // TOUJOURS dérivée du fond — jamais color:#fff en dur.
   const stSty = (on, accent, minW) => {
     const bg = on ? accent : 'var(--paper-warm)';
     return `background:${bg};color:${_contrastTextColor(bg)};min-width:${minW}px`;
@@ -3505,31 +3557,6 @@ function renderStudents() {
       ? `<span class="gbdg g${s.groupe}" onclick="cycleGroupe('${_escJsAttr(s.id)}')" title="Groupe ${s.groupe} — clic pour changer">G${s.groupe}</span>`
       : `<span class="gbdg gn" onclick="cycleGroupe('${_escJsAttr(s.id)}')" title="Aucun groupe — clic pour en assigner un">—</span>`;
     const tagsHtml = _studentTags(s).map(_tagBadgeHTML).join('');
-
-    const exclA = '— exclusif avec PPRE / PAP / PPS / ULIS';
-    const exclB = '— exclusif avec l\'autre statut UPE2A';
-    const ppreBtn = `<button class="btn btn-sm" style="${stSty(s.ppre, '#e67e22', 46)}" onclick="toggleStatus('${_escJsAttr(s.id)}','ppre')" title="${s.ppre ? 'Retirer PPRE' : 'Marquer PPRE ' + exclA}">PPRE</button>`;
-    const papBtn  = `<button class="btn btn-sm" style="${stSty(s.pap, '#3f51b5', 42)}" onclick="toggleStatus('${_escJsAttr(s.id)}','pap')" title="${s.pap ? 'Retirer PAP' : 'Marquer PAP (Plan d’Accompagnement Personnalisé) ' + exclA}">PAP</button>`;
-    const ppsBtn  = `<button class="btn btn-sm" style="${stSty(s.gevasco, '#23689a', 46)}" onclick="toggleStatus('${_escJsAttr(s.id)}','gevasco')" title="${s.gevasco ? 'Retirer GEVAsco/PPS' : 'Marquer GEVAsco/PPS ' + exclA}">PPS</button>`;
-    // Boutons CYCLIQUES ULIS et UPE2A : aucun → hors classe → inclusion → aucun.
-    // Un seul bouton au lieu de deux, sur une ligne déjà chargée.
-    const ulisBg = s.ulis_incl ? '#8e44ad' : s.ulis ? '#27ae60' : 'var(--paper-warm)';
-    const ulisTip = s.ulis_incl ? 'ULIS inclusion — clic : retirer'
-                  : s.ulis ? 'ULIS hors classe — clic : passer en ULIS+ (inclusion)'
-                  : 'Clic : marquer ULIS hors classe (puis ULIS+, puis aucun) ' + exclA;
-    const ulisBtn = `<button class="btn btn-sm" style="background:${ulisBg};color:${_contrastTextColor(ulisBg)};min-width:50px" onclick="cycleUlis('${_escJsAttr(s.id)}')" title="${ulisTip}">${s.ulis_incl ? 'ULIS+' : 'ULIS'}</button>`;
-    const upBg = s.upe2a_incl ? '#c0392b' : s.upe2a ? '#16a085' : 'var(--paper-warm)';
-    const upTip = s.upe2a_incl ? 'UPE2A inclusion — clic : retirer'
-                : s.upe2a ? 'UPE2A hors classe — clic : passer en UPE2A+ (inclusion)'
-                : 'Clic : marquer UPE2A hors classe (puis UPE2A+, puis aucun) ' + exclB + ' ; cumulable avec PPRE / PAP / PPS / ULIS';
-    const upBtn = `<button class="btn btn-sm" style="background:${upBg};color:${_contrastTextColor(upBg)};min-width:62px" onclick="cycleUpe2a('${_escJsAttr(s.id)}')" title="${upTip}">${s.upe2a_incl ? 'UPE2A+' : 'UPE2A'}</button>`;
-    // ⚠️ Rose FONCÉ, pas le rose vif d'origine (#ec4899) : sur celui-là, la MEILLEURE
-    // encre que _contrastTextColor puisse choisir plafonnait à 4,41:1 — le défaut ne
-    // venait pas du choix de l'encre mais de la couleur de fond elle-même. Trouvé à
-    // l'étape 9 : aucun élève des fixtures précédentes ne portait de PAI.
-    const paiBtn = `<button class="btn btn-sm" style="${stSty(s.pai, '#c2185b', 40)}" onclick="toggleStatus('${_escJsAttr(s.id)}','pai')" title="${s.pai ? 'Retirer PAI' : 'Marquer PAI (Projet d’Accueil Individualisé — médical) — cumulable avec tout'}">PAI</button>`;
-    const agrBtn = `<button class="btn btn-sm" style="${stSty(s.agrandissement, '#00838f', 42)}" onclick="toggleStatus('${_escJsAttr(s.id)}','agrandissement')" title="${s.agrandissement ? 'Retirer Agrandissement' : 'Marquer Agrandissement (photocopies agrandies) — cumulable avec tout'}">📄-A</button>`;
-    const ttBtn  = `<button class="btn btn-sm" style="${stSty(s.tiers_temps, '#00838f', 42)}" onclick="toggleStatus('${_escJsAttr(s.id)}','tiers_temps')" title="${s.tiers_temps ? 'Retirer Tiers-temps' : 'Marquer Tiers-temps (temps majoré +⅓) — cumulable avec tout'}">⏱${_FRAC13_HTML}</button>`;
 
     const rem = String(s.remarque || '');
     // ⚠️ Le dernier contact passe AVANT la remarque sur le bouton : « ai-je déjà appelé
@@ -3551,16 +3578,14 @@ function renderStudents() {
     if (isFuture)    lifeBadge = `<span class="lifebdg future" title="Arrive le ${_escAttr(_fmtDateFr(s.arrivalDate))}">📅 ${_escName(_fmtDateFr(s.arrivalDate))}</span>`;
     else if (isGone) lifeBadge = `<span class="lifebdg gone" title="Parti le ${_escAttr(_fmtDateFr(s.departureDate))}">🚪 ${_escName(_fmtDateFr(s.departureDate))}</span>`;
 
-    const del = _delegueOf(s.id);
-    const delBadge = del ? `<span class="delbdg" title="${del === 'titulaire' ? 'Délégué titulaire' : 'Délégué suppléant'} (élection close la plus récente)">🏅 ${del === 'titulaire' ? 'délégué' : 'suppléant'}</span>` : '';
     return `<tr${(isFuture || isGone) ? ' class="inactive"' : ''}>
       <td>${civBtn}<a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète"
-            style="text-decoration:none;color:inherit"><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}</a>${delBadge}${lifeBadge}${_ageSubHTML(s, 'age-' + s.id)}</td>
+            style="text-decoration:none;color:inherit">${_nomHTML(s.id, s.nom, s.prenom)}</a>${lifeBadge}${_ageSubHTML(s, 'age-' + s.id)}</td>
       <td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(s.id)}"
             max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)"
             title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>
       <td style="white-space:nowrap">${grpBadge}${tagsHtml ? '<br><span style="display:inline-block;margin-top:3px">' + tagsHtml + '</span>' : ''}</td>
-      <td style="white-space:nowrap">${ppreBtn} ${papBtn} ${ppsBtn} ${ulisBtn} ${upBtn} ${paiBtn} ${agrBtn} ${ttBtn}</td>
+      <td class="amen-td" onclick="openEdit('${_escJsAttr(s.id)}')" title="${_escAttr(_amenLabel(s) || 'Aucun aménagement')} — clic pour modifier">${_amenBadgesHTML(s)}</td>
       <td style="max-width:260px">${remBtn}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-g btn-sm" onclick="openEdit('${_escJsAttr(s.id)}')" title="Modifier l'élève">✏️</button>
@@ -3582,7 +3607,7 @@ function renderStudents() {
         <th onclick="sortEleves('nom')" style="cursor:pointer">Élève${arrow('nom')}</th>
         <th onclick="sortEleves('nais')" style="cursor:pointer" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance${arrow('nais')}</th>
         <th onclick="sortEleves('grp')" style="cursor:pointer">Groupe · options${arrow('grp')}</th>
-        <th onclick="sortEleves('amen')" style="cursor:pointer" title="Aménagements pédagogiques (PPRE · PAP · PPS · ULIS · UPE2A — exclusifs à l'intérieur de leur groupe), médicaux (PAI) et d'examen (📄-A agrandissement · ⏱+⅓ tiers-temps), cumulables.">Aménagements${arrow('amen')}</th>
+        <th onclick="sortEleves('amen')" style="cursor:pointer" title="Aménagements pédagogiques (PPRE · PAP · PPS · ULIS · UPE2A — exclusifs à l'intérieur de leur groupe), médicaux (PAI) et d'examen (📄-A agrandissement · ⏱+⅓ tiers-temps), cumulables. Se modifient par ✏️, ou d'un clic sur la case.">Aménagements${arrow('amen')}</th>
         <th>Remarque</th>
         <th style="cursor:default">Actions</th>
       </tr></thead>
@@ -3609,24 +3634,6 @@ function cycleCivilite(sid) {
 function cycleGroupe(sid) {
   _withStudent(sid, s => { s.groupe = s.groupe === 1 ? 2 : s.groupe === 2 ? 3 : s.groupe === 3 ? null : 1; });
 }
-function toggleStatus(sid, key) {
-  _withStudent(sid, s => { if (s[key]) s[key] = false; else _setStudentStatusExclusive(s, key); });
-}
-function cycleUlis(sid) {
-  _withStudent(sid, s => {
-    if (s.ulis_incl) { s.ulis_incl = false; s.ulis = false; }
-    else if (s.ulis) _setStudentStatusExclusive(s, 'ulis_incl');
-    else _setStudentStatusExclusive(s, 'ulis');
-  });
-}
-function cycleUpe2a(sid) {
-  _withStudent(sid, s => {
-    if (s.upe2a_incl) { s.upe2a_incl = false; s.upe2a = false; }
-    else if (s.upe2a) _setStudentStatusExclusive(s, 'upe2a_incl');
-    else _setStudentStatusExclusive(s, 'upe2a');
-  });
-}
-
 // ─── Remarque libre du PP (la colonne « Remarque » du tableur) ───
 // Texte libre multi-ligne : c'est là que vit le journal des contacts
 // (« Appel à la mère le 11/10/2024 et le 29/11/2024 »).
@@ -5523,7 +5530,7 @@ function renderCarnets() {
     const ld = lastDelta(s);
     const ldCls = ld === null ? '' : ld >= 5 ? ' hot' : ld >= 2 ? ' warm' : '';
     return `<tr${inactive ? ' class="inactive"' : ''}>
-      <td class="rel-name"><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${_ageSubHTML(s)}</td>
+      <td class="rel-name">${_nomHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${_ageSubHTML(s)}</td>
       ${cells}
       <td class="rel-delta${ldCls}">${ld === null ? '<span class="tb-hint">—</span>' : (ld > 0 ? '+' + ld : ld)}</td>
       ${periodsShown.map(p => { const t = _relPeriodTotal(cls.id, s.id, p.n - 1); return `<td class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}">${t === null ? '<span class="tb-hint">—</span>' : t}</td>`; }).join('')}
@@ -6464,7 +6471,7 @@ function _renderDocDetail(el, doc) {
         <option value="">—</option>${opts.map(x => `<option value="${_escAttr(x.id)}"${x.id === cur ? ' selected' : ''}>${_escName(x.label)}</option>`).join('')}</select></td>`;
     }).join('');
     return `<tr>
-      <td><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}${multi ? ` <span class="tb-hint">${_escName(S.classes[s.classe_id]?.nom || '')}</span>` : ''}${_ageSubHTML(s)}</td>
+      <td>${_nomHTML(s.id, s.nom, s.prenom)}${multi ? ` <span class="tb-hint">${_escName(S.classes[s.classe_id]?.nom || '')}</span>` : ''}${_ageSubHTML(s)}</td>
       ${suivi ? `<td style="text-align:center"><input type="checkbox" class="doc-rendu"${r.rendu ? ' checked' : ''} onchange="docSetRenduUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.checked)" title="${r.rendu ? 'Rendu — décocher si ce n\'est pas le bon élève' : 'Cocher quand le papier est rendu (la date du jour est posée)'}"></td>
       <td><input type="date" class="doc-date" value="${_escAttr(r.dateRetour || '')}" onchange="docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.value)" title="Date de retour"${r.rendu ? '' : ' disabled'}></td>` : ''}
       ${cells}
@@ -6632,7 +6639,7 @@ function _renderRamassage(el) {
                onchange="ramToggle(this)" onkeydown="ramCellKey(event)" title="${_escAttr(titre)}">${chips}</td>`;
     }).join('');
     return `<tr${r.actif ? '' : ' class="inactive"'}>
-      <td class="rel-name"><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}
+      <td class="rel-name">${_nomHTML(r.sid, r.nom, r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}
         <span class="ram-reste" id="ram-r-${_escAttr(r.sid)}">${_ramResteHTML(r)}</span></td>
       ${cells}</tr>`;
   }).join('');
@@ -7766,7 +7773,6 @@ function _synthCellsHTML(r, cls) {
   const civ = r.civilite ? `<span style="color:${r.civilite === 'M' ? 'var(--civ-m)' : 'var(--civ-f)'};font-weight:700">${civiliteLabel(r.civilite)}</span> ` : '';
   const grp = r.groupe ? `<span class="gbdg g${r.groupe}">G${r.groupe}</span> ` : '';
   const opts = r.options.map(a => { const t = tagByAbbr(a); return t ? _tagBadgeHTML(t) : _escName(a); }).join('');
-  const del = r.delegue ? `<span class="delbdg">🏅 ${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'}</span>` : '';
   const carnet = r.cumul === null ? '<span class="tb-hint">—</span>'
     : `<strong style="font-family:var(--font-mono)">${r.cumul}</strong> <span class="tb-hint">le ${_escName(_fmtDateFr(r.cumulDate))}</span>`;
   const dCls = r.delta === null ? '' : r.delta >= 5 ? ' hot' : r.delta >= 2 ? ' warm' : '';
@@ -7778,7 +7784,7 @@ function _synthCellsHTML(r, cls) {
     ? `<div class="synth-contact" title="${_escAttr(`${_journalType(r.contact.type).label} — ${r.contact.texte}${r.nbContacts > 1 ? `\n(${r.nbContacts} contacts notés)` : ''}`)}">${
         _journalType(r.contact.type).icon} ${_escName(_fmtDateFr(r.contact.date))}${r.nbContacts > 1 ? ` <span class="tb-hint">×${r.nbContacts}</span>` : ''}</div>` : '';
   const rem = (cont ? cont : '') + (r.remarque ? `<div class="synth-rem" title="${_escAttr(r.remarque)}">${_escName(r.remarque)}</div>` : '');
-  return `<td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}${del ? '<br>' + del : ''}${_ageSubHTML(S.eleves[r.sid])}</td>
+  return `<td>${_nomHTML(r.sid, r.nom, r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}${_ageSubHTML(S.eleves[r.sid])}</td>
     <td style="white-space:nowrap">${civ}${grp}${opts}</td>
     <td>${_escName(r.amenagements) || '<span class="tb-hint">—</span>'}</td>
     <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
