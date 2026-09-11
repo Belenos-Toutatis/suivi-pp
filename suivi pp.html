@@ -1073,6 +1073,8 @@ body.el-projecting #main { padding-top: 8px; }
 .synth-rep { font-size: .88em; line-height: 1.35; }
 .synth-rem { font-size: .85em; color: var(--ink-deep); white-space: pre-line; max-width: 260px; max-height: 4.2em; overflow: hidden; }
 .synth-rem-td { min-width: 160px; }
+.synth-nr { cursor: pointer; }
+.synth-nr-list { font-size: .82em; line-height: 1.35; margin-top: 3px; white-space: nowrap; }
 /* Touches de saisie du carnet — dimensionnées pour le DOIGT (44 px de haut), pas pour
    la souris : c'est sur tablette, carnet en main, qu'elles servent. */
 .rel-sug {
@@ -1915,8 +1917,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.22.0';
-const APP_BUILD_DATE = '2026-09-11T16:34:17Z';
+const APP_VERSION    = '1.22.1';
+const APP_BUILD_DATE = '2026-09-11T16:39:29Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8941,6 +8943,8 @@ function electionPrintPV() {
 // ═══════════════════════════════════════════════════════════════════════════
 let syntheseSort = 'nom';
 let _synthFilter = '';
+const _synthOpen = new Set();   // élèves dont la liste des non-rendus est dépliée (session)
+function synthToggleNr(sid) { if (_synthOpen.has(sid)) _synthOpen.delete(sid); else _synthOpen.add(sid); renderSynthese(); }
 
 // Calcul PUR d'une ligne : ce que la Synthèse affiche et ce que l'impression reprend.
 function _syntheseRow(cls, stu) {
@@ -9011,7 +9015,14 @@ function _synthCellsHTML(r, cls) {
   const dCls = r.delta === null ? '' : r.delta >= 5 ? ' hot' : r.delta >= 2 ? ' warm' : '';
   const delta = r.delta === null ? '<span class="tb-hint">—</span>' : `<span class="rel-delta${dCls}" style="padding:1px 6px;border-radius:6px">${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}</span>`;
   const per = r.periodeTotal === null ? '<span class="tb-hint">—</span>' : `<span style="font-family:var(--font-mono);font-weight:700">${r.periodeTotal}</span>`;
-  const nr = r.nonRendus.length ? `<span class="badge warn" title="${_escAttr(r.nonRendus.join(' · '))}">${r.nonRendus.length}</span> <span class="tb-hint">${_escName(r.nonRendus.join(' · '))}</span>` : '<span class="tb-hint">✓</span>';
+  // Non rendus : le NOMBRE seul, en pastille — la liste des titres en clair élargissait la
+  // colonne à la moitié de l'écran. Le détail vient au survol (infobulle) ou au clic
+  // (déplié sous la pastille, mémorisé par élève le temps de la session).
+  const ouvert = _synthOpen.has(r.sid);
+  const nr = r.nonRendus.length
+    ? `<button class="badge warn synth-nr" title="${_escAttr(r.nonRendus.join(' · '))} — clic pour ${ouvert ? 'replier' : 'détailler'}" onclick="synthToggleNr('${_escJsAttr(r.sid)}')">${r.nonRendus.length}${ouvert ? ' ▾' : ''}</button>${
+        ouvert ? `<div class="synth-nr-list">${r.nonRendus.map(t => `<div>☐ ${_escName(t)}</div>`).join('')}</div>` : ''}`
+    : '<span class="tb-hint">✓</span>';
   const rep = r.reponses.map(x => `<div class="synth-rep"><span class="tb-hint">${x.par === 'prof' ? '👤 ' : ''}${_escName(x.champ)} :</span> ${_escName(x.valeurs.join(', '))}</div>`).join('') || '<span class="tb-hint">—</span>';
   const cont = r.contact
     ? `<div class="synth-contact" title="${_escAttr(`${_journalType(r.contact.type).label} — ${r.contact.texte}${r.nbContacts > 1 ? `\n(${r.nbContacts} contacts notés)` : ''}`)}">${
