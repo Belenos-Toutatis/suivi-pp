@@ -559,7 +559,13 @@ Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group
    - La sélection ne vit **que pour la passe en cours** : rien n'est ajouté à `S`, donc rien à purger ni à déclarer dans `_validateImport`. Elle est filtrée sur la **classe courante** — changer de classe avec le ramassage ouvert laissait sinon des colonnes de l'autre classe, peuplées de ses élèves à elle.
 4. **🗳 Délégués** — candidatures (binômes), **dépouillement projeté en direct** (grille de saisie à gauche, graphique lisible du fond de la salle à droite), résultats calculés, procès-verbal imprimable. Un bloc par élection, historisé : on garde celle de l'an dernier. **C'est l'écran le plus exigeant du projet** : il est utilisé une fois par an, devant 25 témoins, sans possibilité de reprendre plus tard.
 5. **📊 Synthèse** — une ligne par élève, tout ce qui est connu : cumul d'observations, Δ récent, documents non rendus, réponses portées, délégué ou suppléant, remarque. **C'est l'écran de préparation du conseil de classe et des appels aux parents** — il est la raison d'être de l'app, pas un bonus.
-6. **💾 Données** — sync auto, dossier des PDF et nettoyage des orphelins, catalogue des instances, versions & backups, jauge de mémoire locale, export/import JSON, RGPD, à propos.
+6. **💾 Données et réglages** (renommé le 2026-09-11) — réglages, **catalogue des options**, **salles et placements**, sync auto, dossier des PDF et nettoyage des orphelins, catalogue des instances, versions & backups, jauge de mémoire locale, export/import JSON, RGPD, à propos.
+   - **Options** : le même tableau que la modale 🏷 de l'onglet Élèves (`_tagsTableHTML`, `_tagsFormHTML(prefix)` — deux formulaires, deux préfixes d'ids, sinon la modale et l'onglet se disputeraient `mtags-abbr`). ⚠️ Le bandeau DIT ce qu'un import fait : depuis Plan de classe, **les options de chaque élève sont réécrites** (le catalogue n'est que complété) ; une option cochée à la main est à cocher aussi là-bas.
+   - **Salles et placements** (`_sallesEditorHTML`) : sélecteur de salle, nom, rangs × colonnes, et une grille de la classe courante en deux modes — **Placer** (clic sur une case → sélecteur d'élève ; un élève déjà assis ailleurs y est déplacé) et **Ordre de ramassage** (clic sur les tables dans l'ordre où l'on passe, recliquer retire ; ordres nommés, ↺ pour refaire). Modèle pur et testé : `salleAdd/Set/Remove`, `seatSet`, `patternAdd/SetNom/Toggle/Clear/Remove`.
+     - ⚠️ **Rétrécir refuse** tant qu'une place ou une table d'un ordre serait dehors : on ne perd pas un élève assis en changeant un nombre.
+     - ⚠️ **Supprimer une salle** emporte son placement dans CHAQUE classe et rebascule `salleCur` — sinon le tri « par place » pointerait dans le vide (testé par balayage de `JSON.stringify(S)`).
+     - ⚠️ **Tout cela est PRÉCISÉMENT ce qu'un import depuis Plan de classe réécrit** (salle homonyme, placement, ordres). Le bandeau en tête de section le dit quand les salles en viennent (`_pdcOrigine` : `cls.pdcImportAt` ou une salle `pdc_*`), avec la date du dernier import. Sans cet avertissement, une correction disparaît au prochain import sans que rien ne l'explique.
+     - L'état de l'éditeur (`_salleEd` : salle, mode, case sélectionnée, ordre) est de session, rien dans `S`.
 
 **Impression** (`@media print`, orientation imposée avant `window.print()`) : la synthèse en paysage, la liste des manquants d'un document en portrait, le procès-verbal d'élection en portrait. ⚠️ Reprendre le bloc `@media print { html[data-theme="dark"] { … } }` : sans lui, imprimer en thème sombre pose de l'ambre sur blanc (244 écarts mesurés dans le projet de référence).
 
@@ -648,7 +654,7 @@ Module repris intégralement. À adapter :
   - ⚠️ **Les ids de salle sont PRÉFIXÉS `pdc_`.** Plan de classe les nomme `s1`, `s2` — des compteurs locaux, sans unicité entre deux fichiers d'origines différentes. Sans préfixe, la « Salle 102 » d'un collègue écraserait la nôtre au premier import croisé.
   - ⚠️ Le placement vit dans `cls.rooms[salleId].seating`. `cls.seating`, là-bas, est un **accesseur non énumérable** qui redirige vers la salle active : il n'existe pas dans le JSON, et le chercher ne donnerait rien.
   - Une place occupée par un élève qu'on n'a pas repris est **écartée** — sinon `_auditState` signalerait à juste titre un élève fantôme assis.
-  - Réimporter **met à jour** : la salle homonyme et le placement sont remplacés, pas empilés. C'est LE chemin de mise à jour des places — 💾 Données → 🪑 Depuis Plan de classe.
+  - Réimporter **met à jour** : la salle homonyme et le placement sont remplacés, pas empilés. C'est LE chemin de mise à jour des places — 💾 Données et réglages → 🪑 Depuis Plan de classe. Depuis la v1.15.0, on peut aussi corriger sur place (éditeur de salles) — l'import écrase alors la correction, et l'écran le dit.
   - ⚠️ L'écran de choix **annonce le placement AVANT l'import** (« 🪑 25 places · 1 ordre de ramassage », ou « aucun placement »), et le compte rendu le confirme après. Sans ce repère, un export fait sans avoir placé personne donne un import qui ne change rien, et on cherche pourquoi.
 
 ## Sauvegarde, sync, stockage
@@ -766,6 +772,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 25 | **Données et réglages** : onglet renommé ; catalogue des options dans l'onglet (tableau partagé avec la modale 🏷) ; **éditeur de salles et placements** (`salleAdd/Set/Remove`, `seatSet`, `pattern*`, grille en deux modes) avec avertissement Plan de classe (`_pdcOrigine`) ; 5 tests de plus | ✅ **fait** (2026-09-11, v1.15.0) |
 | 24 | **La fiche corrige sur place** : pastilles `+` (remarque, contact, incident), valeurs cliquables (groupe, options, aménagements) avec avertissement Plan de classe (`cls.pdcImportAt`, `_fichePdcHint`), retour de document cochable ; 4 tests de plus | ✅ **fait** (2026-09-11, v1.14.0) |
 | 23 | **Incidents et instances** : catalogue pré-rempli et réglable (`S.instances`, `_instancesSeed`), entrées datées sur l'élève (`stu.incidents`, `incidentAdd/Set/SetPdf/Remove`), modale depuis la fiche, **PDF copié dans un dossier choisi** (`pjStore`, `pjOpen` en lecteur intégré, `pjOrphelins`), Synthèse + impression, démo, RGPD, CSP `frame-src blob:` ; 13 tests de plus | ✅ **fait** (2026-09-11, v1.13.0) |
 | 22 | **Liste des élèves allégée** : aménagements en lecture (`_amenBadgesHTML`, réglage par ✏️), nom des délégués **surligné** dans les cinq grilles (`_nomHTML`, tokens `--del-*`) à la place de la pastille 🏅 ; `_topbarMeasure` différée (boucle ResizeObserver remontée en toast) ; 2 tests de plus | ✅ **fait** (2026-09-11, v1.12.0) |
@@ -943,6 +950,18 @@ main : **à faire une fois sur chaque poste** avec un vrai dossier Nextcloud.
 les valeurs cliquables, l'avertissement Plan de classe, les boutons d'état des documents.
 Minimum 4,71:1 (libellés du formulaire de contact sur `--paper-warm`). Aucun débordement
 à 320 px, éditeurs ouverts.
+
+**2026-09-11, v1.15.0 (Données et réglages) : 0 écart**, clair et sombre — le tableau des
+options et son formulaire, l'éditeur de salles dans ses deux modes (cases vides, occupées,
+sélectionnée, numéros d'ordre), les bandeaux d'avertissement. Minimum 5,08:1 (le point des
+cases vides, `--pencil-soft` sur `--paper`).
+
+Un défaut responsive trouvé et corrigé, de la famille des défauts 11 à 13 et 17 :
+21. **343 px pour 320 à l'ouverture de l'onglet.** Les lignes « Nom » et « Rangs × colonnes »
+   de la salle mettaient un champ et un bouton dans une cellule de grille `.prefs` — un
+   enfant de grille vaut `min-width: auto`, et la cellule poussait la page. → `min-width: 0`
+   sur les cellules, et une ligne `.prefs-row` en flex qui replie. ⚠️ Même leçon, quatrième
+   fois : **un contrôle de plus sur une ligne est un test à 320 px à refaire.**
 
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la
@@ -1223,11 +1242,18 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 ⚠️ **Révision du 2026-09-09 — les PLACES rentrent dans le périmètre, pas les plans de salle.**
 On reprend de Plan de classe la position de chaque élève et les **patterns de ramassage**
 (la séquence de tables que l'enseignant marche pour récupérer les copies), **uniquement
-pour trier des listes**. On ne dessine aucun plan, on n'édite aucune place, on ne crée
-aucun pattern : cela reste le métier de l'autre application. La distinction tient en une
+pour trier des listes**. ~~On ne dessine aucun plan, on n'édite aucune place, on ne crée
+aucun pattern : cela reste le métier de l'autre application.~~ La distinction tient en une
 phrase — *savoir dans quel ordre passer* n'est pas *afficher une salle*.
 
-Notes et moyennes (c'est Plan de classe et Pronote), **l'ÉDITION** des plans de salle, appel/absences, bulletins et remarques de bulletin, mentions de conseil de classe, élections autres que celle des délégués de la division (CVC, conseil d'administration, éco-délégués — le PP ne les organise pas), export XLSX/ODS (le CSV suffit à ce volume ; le module `_NotesExport` de la référence reste disponible si le besoin apparaît).
+⚠️ **Seconde révision, 2026-09-11 — le RÉGLAGE rentre aussi.** L'utilisateur veut corriger
+sur place — nom de la salle, dimensions, qui est assis où, l'ordre de ramassage — sans
+rouvrir l'autre application pour une chaise qui a changé (cf. *Données et réglages*). Le
+périmètre reste étroit : **une grille, pas un plan** — ni îlots, ni tablettes, ni cases
+vides dessinées, ni emplois du temps. Et l'écran rappelle qu'un import depuis Plan de
+classe réécrit tout cela.
+
+Notes et moyennes (c'est Plan de classe et Pronote), les plans de salle DESSINÉS (îlots, tablettes, cases vides), appel/absences, bulletins et remarques de bulletin, mentions de conseil de classe, élections autres que celle des délégués de la division (CVC, conseil d'administration, éco-délégués — le PP ne les organise pas), export XLSX/ODS (le CSV suffit à ce volume ; le module `_NotesExport` de la référence reste disponible si le besoin apparaît).
 
 ## Questions à poser à l'utilisateur avant de les décider seul
 

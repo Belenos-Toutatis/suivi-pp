@@ -25,7 +25,7 @@ plein écran, sans barre d'adresse, avec sa propre icône, et **fonctionne sans 
 
 Les données restent **dans le navigateur de l'appareil**. Installer l'app ne les envoie
 nulle part, et ne les synchronise pas non plus entre appareils : pour cela, il y a la
-sauvegarde dans un dossier Nextcloud (onglet 💾 Données).
+sauvegarde dans un dossier Nextcloud (onglet 💾 Données et réglages).
 
 ---
 
@@ -102,12 +102,20 @@ texte libre ne permettait ni de la compter ni de la retrouver.
 ce qui en a découlé : fiche incident, retenue, commission éducative, conseil de discipline…
 Chaque entrée porte une date, l'instance, un objet, la décision prise ou les points dits,
 et — si vous le voulez — **le PDF de la fiche scannée**. Le catalogue des instances est
-pré-rempli des instances officielles du collège ; dans 💾 Données, renommez-les,
+pré-rempli des instances officielles du collège ; dans 💾 Données et réglages, renommez-les,
 décrivez-les, décochez celles que votre établissement n'utilise pas, ajoutez les vôtres.
 ⚠️ Les PDF ne vont **pas** dans la sauvegarde (trop lourds pour la mémoire du navigateur) :
 ils sont copiés dans un **dossier que vous choisissez** — placez-le sous Nextcloud, il
 suivra sur l'autre poste, où il suffira de choisir le même dossier. L'app n'y efface rien
 d'elle-même ; un bouton liste les PDF orphelins quand vous voulez faire le ménage.
+
+**Salles et placements.** Dans 💾 Données et réglages, une grille par salle : le nom, les
+rangs × colonnes, qui est assis où (un clic sur la case, l'élève dans la liste), et les
+ordres de ramassage (un clic sur chaque table dans l'ordre où vous passez). C'est ce qui
+alimente les tris *par place* et *ramassage* des grilles. ⚠️ Si vos salles viennent de
+*Plan de classe*, l'écran vous le rappelle : un nouvel import remplace la salle, son
+placement et ses ordres — une correction faite ici est à reporter là-bas, ou à ne plus
+importer. Même chose pour les options des élèves.
 
 **La date de naissance** se saisit (ou arrive de l'import) et sert au départage d'une
 égalité à l'élection des délégués. ⚠️ Quand une date manque, ou que deux candidats sont
@@ -163,7 +171,7 @@ remplacé (signalé, jamais corrigé), un papier rendu mais illisible, une répo
 avant le retour du papier, un bulletin nul portant des noms valides, une élection dont le
 **premier tour n'a pourvu qu'un siège**, et une seconde laissée **en cours de dépouillement**
 pour régler la projection sans ressaisir des bulletins. Rien de tout cela ne se devine : il
-faut l'avoir sous les yeux une fois. Deux boutons dans 💾 Données permettent de recharger la
+faut l'avoir sous les yeux une fois. Deux boutons dans 💾 Données et réglages permettent de recharger la
 démo ou de **tout effacer** — les deux passent par un point nommé dans le dossier de sync,
 et restent annulables par Ctrl+Z. La démo effacée ne revient pas d'elle-même.
 
