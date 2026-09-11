@@ -1095,6 +1095,9 @@ body.el-projecting #main { padding-top: 8px; }
 }
 .rel-sug-b:hover { background: var(--chip-on-bg); color: var(--paper); }
 .rel-sug-v { font: 700 15px var(--font-mono); line-height: 1; }
+.rel-sug-kbd { background: var(--paper); }
+.rel-sug-kbd.on { background: var(--chip-on-bg); color: var(--paper); }
+.rel-sug-kbd.on .rel-sug-d { color: inherit; }
 .rel-sug-d { font-size: 10px; color: var(--pencil); font-family: var(--font-serif); font-style: italic; }
 .rel-sug-b:hover .rel-sug-d { color: inherit; }
 .el-nais { font-size: .82em !important; padding: 3px 6px !important; width: 132px; }
@@ -1915,8 +1918,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.23.0';
-const APP_BUILD_DATE = '2026-09-11T16:47:43Z';
+const APP_VERSION    = '1.23.1';
+const APP_BUILD_DATE = '2026-09-11T16:58:08Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6670,7 +6673,7 @@ function renderCarnets() {
         : (dl ? `${dl.n} au total — ${dl.prev === null ? 'premier relevé' : `+${dl.delta} depuis le ${_fmtDateFr(_relPrev(cls.id, d, s.id).ymd)} (${dl.prev})`}` : (v === REL_ABSENT ? 'Absent au relevé : rien à relever' : 'Non relevé'));
       const deltaTxt = dl ? (dl.prev === null ? '' : (dl.delta > 0 ? '+' + dl.delta : String(dl.delta))) : '';
       return `<td class="${cls2}" title="${_escAttr(tip)}">
-        <input class="rel-inp" data-ymd="${_escAttr(d)}" data-sid="${_escAttr(s.id)}" value="${_escAttr(shown)}" inputmode="numeric" autocomplete="off"
+        <input class="rel-inp" data-ymd="${_escAttr(d)}" data-sid="${_escAttr(s.id)}" value="${_escAttr(shown)}" inputmode="${_relKbdOff ? 'none' : 'numeric'}" autocomplete="off"
                onchange="relCellChange(this)" onkeydown="relCellKey(event)" onfocus="this.select();_relSugShow(this)" onblur="_relSugHide()">
         <span class="rel-d">${dl?.decreasing ? '▼' : ''}${_escName(deltaTxt)}</span>
       </td>`;
@@ -6722,6 +6725,24 @@ function relCellChange(inp) {
 // ⚠️ `pointerdown` + `preventDefault` : sans cela, toucher une touche fait perdre le focus
 // du champ AVANT le clic, la barre se referme, et le doigt tombe dans le vide.
 let _relSugFor = null;
+// ⚠️ Au DOIGT, les touches SONT le clavier. Chaque touche écrit puis passe à l'élève
+// suivant — et donner le focus à ce champ faisait surgir le clavier virtuel, qui décalait
+// la page à chaque bulletin : « extrêmement pénible » (2026-09-11). `inputmode="none"`
+// garde le focus (donc les touches, qui suivent la cellule) sans appeler le clavier.
+// Réglage de session : vrai d'office quand le pointeur principal est le doigt
+// (`pointer: coarse` — une tablette, ou une Surface sans son clavier), faux à la souris ;
+// la touche ⌨ du bandeau le bascule pour taper une valeur que les touches ne proposent pas.
+// Sans effet sur un clavier physique : `inputmode` ne parle qu'au clavier virtuel.
+let _relKbdOff = (typeof matchMedia === 'function') && matchMedia('(pointer: coarse)').matches;
+function _relSugClavier(ymd, sid) {
+  _relKbdOff = !_relKbdOff;
+  const inp = document.querySelector(`.rel-inp[data-ymd="${CSS.escape(ymd)}"][data-sid="${CSS.escape(sid)}"]`);
+  if (!inp) return;
+  // Changer `inputmode` sur un champ déjà focalisé ne fait rien : il faut le quitter et y revenir.
+  for (const el of document.querySelectorAll('.rel-inp')) el.setAttribute('inputmode', _relKbdOff ? 'none' : 'numeric');
+  inp.blur();
+  inp.focus();
+}
 function _relSugShow(inp) {
   _relSugHide();
   const cls = getCls();
@@ -6737,7 +6758,9 @@ function _relSugShow(inp) {
   bar.innerHTML = sug.valeurs.map(v => bouton(String(v.valeur), v.delta === 0 ? '=' : '+' + v.delta, String(v.valeur),
       v.delta === 0 ? (sug.base === null ? 'Aucune observation' : 'Inchangé depuis le dernier relevé') : `${v.delta} observation${v.delta > 1 ? 's' : ''} de plus`))
     .join('') + bouton(_codeA(), 'abs.', _codeA(), 'Absent au moment du relevé — ni un zéro, ni un vide')
-    + bouton('—', 'vide', '', 'Effacer : pas relevé');
+    + bouton('—', 'vide', '', 'Effacer : pas relevé')
+    + `<button class="rel-sug-b rel-sug-kbd${_relKbdOff ? '' : ' on'}" onpointerdown="event.preventDefault();_relSugClavier('${_escJsAttr(ymd)}','${_escJsAttr(sid)}')"
+         title="${_relKbdOff ? 'Ouvrir le clavier pour taper une autre valeur' : 'Masquer le clavier : les touches suffisent'}"><span class="rel-sug-v">⌨</span><span class="rel-sug-d">${_relKbdOff ? 'clavier' : 'masquer'}</span></button>`;
   document.body.appendChild(bar);
   _relSugFor = { ymd, sid, inp };
   _relSugPlace();
