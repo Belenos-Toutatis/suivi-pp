@@ -126,7 +126,7 @@ importer. Même chose pour les options des élèves.
 **Le procès-verbal signé.** Une fois l'élection close (ou les délégués désignés), joignez
 le PDF du PV scanné : il se range dans le dossier des PDF, comme les fiches incident. À
 chaque PDF joint, l'app propose de garder le nom du fichier, de le nommer automatiquement
-(date, type, qui — `2025-10-07 PV élection délégués — 5e C.pdf`), ou de le renommer.
+(type, qui, date — `PV élection délégués — 5e C — 2025-10-07.pdf`), ou de le renommer.
 
 **Pas d'élection dans l'app ?** Si le vote s'est tenu sur papier, ou si vous reprenez une
 classe en cours d'année, l'onglet 🗳 Délégués vous laisse **désigner** directement les deux

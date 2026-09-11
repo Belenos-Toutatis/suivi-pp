@@ -1914,8 +1914,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.20.0';
-const APP_BUILD_DATE = '2026-09-11T16:07:20Z';
+const APP_VERSION    = '1.20.1';
+const APP_BUILD_DATE = '2026-09-11T16:14:26Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9246,13 +9246,15 @@ function _pjSafeName(nom) {
   base = base.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').replace(/\s+/g, ' ').replace(/^[\s._]+|[\s.]+$/g, '').slice(0, 100).trim();
   return `${base || 'document'}.pdf`;
 }
-// Le nom AUTOMATIQUE proposé : la date, le type de document, et qui il concerne.
+// Le nom AUTOMATIQUE proposé : le type de document, qui il concerne, puis la date en
+// AAAA-MM-JJ (arbitré par l'utilisateur le 2026-09-11 : c'est par le type et la personne
+// qu'on cherche dans le dossier ; la date, toujours en année-mois-jour, trie le reste).
 function _pjAutoNom(kind, o) {
   const d = _ymdValid(o.date) ? o.date : _todayYmd();
-  if (kind === 'incident') return _pjSafeName(`${d} ${o.instance || 'Incident'} — ${o.nom || ''} ${o.prenom || ''}`.trim());
-  if (kind === 'pv') return _pjSafeName(`${d} PV élection délégués — ${o.classe || ''}`.trim());
-  if (kind === 'pvdd') return _pjSafeName(`${d} PV délégués — ${o.classe || ''}`.trim());
-  return _pjSafeName(`${d} ${o.nom || 'document'}`);
+  if (kind === 'incident') return _pjSafeName(`${o.instance || 'Incident'} — ${`${o.nom || ''} ${o.prenom || ''}`.trim()} — ${d}`);
+  if (kind === 'pv') return _pjSafeName(`PV élection délégués — ${o.classe || ''} — ${d}`);
+  if (kind === 'pvdd') return _pjSafeName(`PV délégués — ${o.classe || ''} — ${d}`);
+  return _pjSafeName(`${o.nom || 'document'} — ${d}`);
 }
 // Un nom libre dans le dossier : « x.pdf », puis « x (2).pdf », « x (3).pdf »…
 async function _pjUnique(fichier) {
