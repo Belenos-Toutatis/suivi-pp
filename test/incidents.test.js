@@ -129,7 +129,7 @@ test('_pjAutoNom : type, qui, puis la date en AAAA-MM-JJ — lisible et triable 
   assert.strictEqual(ev(`_pjAutoNom('incident', { date: '2026-02-05', instance: 'Commission éducative', nom: 'GUÉRIN', prenom: 'Nathan' })`), 'Commission éducative — GUÉRIN Nathan — 2026-02-05.pdf');
   assert.strictEqual(ev(`_pjAutoNom('pv', { date: '2025-10-03', classe: '5e C' })`), 'PV élection délégués — 5e C — 2025-10-03.pdf');
   assert.strictEqual(ev(`_pjAutoNom('pvdd', { date: '2025-10-03', classe: '5e C' })`), 'PV délégués — 5e C — 2025-10-03.pdf');
-  assert.match(ev(`_pjAutoNom('incident', { date: 'hier', instance: 'X', nom: 'A', prenom: 'B' })`), /^X — A B — \d{4}-\d{2}-\d{2}\.pdf$/, 'date illisible → aujourd'hui');
+  assert.match(ev(`_pjAutoNom('incident', { date: 'hier', instance: 'X', nom: 'A', prenom: 'B' })`), /^X — A B — \d{4}-\d{2}-\d{2}\.pdf$/, "date illisible → aujourd'hui");
 });
 
 test('_sanitizeCoreSections : incidents absents ou invalides recréés, entrées non-objet écartées', () => {
