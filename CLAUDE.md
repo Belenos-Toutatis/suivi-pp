@@ -43,7 +43,7 @@ Quatre enseignements tirés de ces fichiers, tous structurants :
 | Bornes de période (2026-09-09) | `prefs.periodStarts = { semestre: ['02-01'], trimestre: ['12-01','03-15'] }` — début des périodes 2 et 3 en `MM-DD`, défauts à confirmer avec le calendrier de l'établissement. L'année scolaire va du 1er août au 31 juillet. |
 | Ramassage (2026-09-09) | On ramasse plusieurs documents **en même temps**, donc on doit pouvoir valider les retours **sur un seul écran**. Grille élèves × documents dans l'onglet Documents, une case par croisement. ⚠️ La case a **trois** états, pas deux : rendu, pas rendu, et **sans objet** (l'élève n'était pas là à la date du document). Seul le retour se coche ici — les réponses portées sur le papier restent dans le tableau du document. |
 | Données de démo (2026-09-09) | Posées **au premier lancement** (aucune sauvegarde locale — pas seulement « aucune classe » : sinon la démo reviendrait après chaque effacement), rechargeables et effaçables depuis 💾 Données. Année scolaire = celle d'« aujourd'hui − 10 mois », donc **toujours entièrement passée** : sans ce recul, relevés et échéances tomberaient dans le futur et la moitié des signalements ne se verrait jamais. |
-| Branches et versions (2026-09-10) | **Un seul projet, une seule version.** Le travail atterrit sur `main`, qui est la version — pas de branche de fonctionnalité qui vit à côté, pas de PR à fusionner plus tard. `APP_VERSION` avance à chaque livraison. ⚠️ Corollaire : la barre de qualité est à tenir **avant** de pousser (tests verts, audit de contraste rejoué), puisqu'il n'y a pas de sas de relecture. |
+| Branches et versions (2026-09-10) | **Un seul projet, une seule version.** Le travail atterrit sur `main`, qui est la version — pas de branche de fonctionnalité qui vit à côté, pas de PR à fusionner plus tard. `APP_VERSION` avance à chaque livraison. ⚠️ Corollaire : la barre de qualité est à tenir **avant** de pousser (tests verts, audit de contraste rejoué), puisqu'il n'y a pas de sas de relecture. ⚠️ **Et « tests verts » se VÉRIFIE, il ne se lit pas dans un tuyau** : le 2026-09-11, `npm test 2>&1 \| grep -E "pass\|fail" && git commit … && git push` a poussé un fichier de test cassé (`cf69ee7`) — `grep` trouvait la ligne « fail 1 », donc réussissait, et le commit s'enchaînait. Le commit se fait dans une commande SÉPARÉE, après avoir lu le résultat. |
 | Postes de travail (2026-09-10) | **Plusieurs machines, jamais en même temps** — elles ne sont pas au même endroit, donc travailler sur l'une signifie ne pas travailler sur l'autre. Le risque d'écriture concurrente est donc écarté par l'usage, pas par un verrou. ⚠️ Reste le cas asynchrone : refermer un portable avant la fin d'un téléversement, puis reprendre ailleurs. C'est pourquoi le dépôt sort de la sync (ci-dessous). |
 | Sessions distantes (2026-09-10) | **Écartées.** Une session dans le nuage ferait très bien le code, les tests et la documentation — mais pas les audits qui demandent de REGARDER l'écran (contraste sur 20 états × 2 thèmes, responsive 320→1920). Or ce sont eux qui ont trouvé les défauts 4 et 6, invisibles à tout test. Arbitré par l'utilisateur : *« si tu ne peux plus faire les vérifications qui demandent de regarder l'écran, ça ne m'intéresse pas »*. |
 | Import Plan de classe (2026-09-09) | **On ne reprend PAS toutes les classes du fichier** — on est PP d'une seule. L'app liste les divisions (classes virtuelles exclues) et l'utilisateur coche la sienne. |
@@ -980,6 +980,15 @@ Un défaut responsive trouvé et corrigé, de la famille des défauts 11 à 13 e
    enfant de grille vaut `min-width: auto`, et la cellule poussait la page. → `min-width: 0`
    sur les cellules, et une ligne `.prefs-row` en flex qui replie. ⚠️ Même leçon, quatrième
    fois : **un contrôle de plus sur une ligne est un test à 320 px à refaire.**
+
+**2026-09-11, v1.16.0 → v1.20.1 (glisser-déposer, fiche complète, délégués désignés, PV
+signé, nom des PDF)** — mesuré au fil des livraisons, pas en une passe : pastilles et
+fantôme du glisser (5,21 / 6,22:1), cases de la grille en mode ordre (5,08 / 5,66), les
+éditeurs en place de la fiche (≥ 4,71). ⚠️ **Non mesurés à part** : le bloc de désignation
+sans vote, le bloc PV et la modale du nom de fichier — ils n'emploient que des classes déjà
+mesurées (`.fi-form`, `.fi-sec`, `.tb-hint`, `.st-group`, `code`), mais la règle reste
+qu'un écran nouveau se mesure ; à faire à la prochaine passe complète. Aucun débordement
+à 320 px sur ces écrans (défaut 22 trouvé et corrigé sur l'éditeur de place).
 
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la
