@@ -1918,8 +1918,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.23.1';
-const APP_BUILD_DATE = '2026-09-11T16:58:08Z';
+const APP_VERSION    = '1.23.2';
+const APP_BUILD_DATE = '2026-09-11T17:13:34Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6810,8 +6810,14 @@ function relCellKey(e) {
   const col = [...document.querySelectorAll(`.rel-inp[data-ymd="${CSS.escape(inp.dataset.ymd)}"]`)];
   const i = col.indexOf(inp);
   const dir = (k === 'ArrowUp' || (k === 'Enter' && e.shiftKey)) ? -1 : 1;
-  const next = col[i + dir];
+  const suivant = col[i + dir];
+  const cible = suivant ? { ymd: suivant.dataset.ymd, sid: suivant.dataset.sid } : null;
+  // ⚠️ `blur()` déclenche le onchange, qui RE-REND toute la grille quand la valeur a
+  // changé : l'élément `suivant` capturé au-dessus est alors détaché, et lui donner le
+  // focus ne faisait rien — après Entrée, plus aucune cellule n'était sélectionnée. On
+  // retrouve donc la cellule suivante PAR SES DONNÉES, dans la grille telle qu'elle est.
   if (k === 'Enter') inp.blur();          // déclenche le onchange AVANT de bouger
+  const next = cible ? document.querySelector(`.rel-inp[data-ymd="${CSS.escape(cible.ymd)}"][data-sid="${CSS.escape(cible.sid)}"]`) : null;
   if (next) { next.focus(); next.select(); }
   else if (k === 'Enter' && dir === 1) toast('✓ Colonne terminée.');
 }
