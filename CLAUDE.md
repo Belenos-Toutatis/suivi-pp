@@ -431,6 +431,31 @@ rien. Sans note ni moyenne : elles sont dans Pronote, ceci est le brouillon du P
   d'année). `postLoadHook` crée la section et écarte les entrées non-objets. Dans l'état
   maximal du test de balayage.
 
+### Synthèse de période imprimable (v1.26.0)
+
+**La feuille qu'on emporte au conseil** — bouton *🎓 Synthèse de période…* dans la barre de
+la liste, modale `mperiode` : période (défaut : la courante), moment (conseil / mi-période —
+titre et type de bilan), blocs (`_PERIODE_BLOCS` : observations · non rendus · incidents ·
+contacts · bilan), forme (**tableau** paysage, une ligne par élève / **fiches** portrait, un
+bloc par élève jamais coupé — ce qu'on lit pendant que le conseil parle de lui). Le résumé
+dit combien d'élèves sont **sans bilan rédigé**. Les choix se retiennent pour la session
+(`_periodePrintOpts`).
+
+- ⚠️ **Tout est BORNÉ À LA PÉRIODE** (`_periodeSynthese(cls, pIdx, {type})`, pur, testé) —
+  c'est ce qui la distingue de la liste des élèves (« où en est-on aujourd'hui ») : cumul
+  en **fin de période** et total de la période (pas le dernier relevé de l'année), relevés
+  où l'élève était absent, incidents et contacts **de** la période (bornes incluses, testé
+  au 31/01 et au 01/02), papiers distribués **jusqu'à sa fin** et pas rendus (un papier de
+  février n'est pas un manquant du S1 ; `suiviRetour: false` n'y entre jamais), bilan de
+  la période (type demandé d'abord, l'autre à défaut).
+- ⚠️ **Les élèves PRÉSENTS pendant la période**, pas ceux d'aujourd'hui : parti en
+  septembre → sur la feuille du S1 (avec « parti le … »), pas sur celle du S2 ; arrivé en
+  mars → l'inverse. Ordre : celui de la liste à l'écran (tri courant), mais **sans le filtre
+  de recherche** — une feuille de conseil ne se filtre pas.
+- `_periodePrintHTML` rend `{ kind, html }` ; tout est échappé (testé avec un nom et un bilan
+  piégés). CSS `.print-fiche*` dans le bloc `@media print`. Vérifié à l'écran par injection
+  des règles d'impression (tableau paysage et fiches portrait) ; ⚠️ le papier réel, non.
+
 ## Incidents et instances
 
 Ce qui se passe quand ça se passe mal, et ce qui en découle : une fiche incident, une
@@ -654,7 +679,7 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      - **Ordre au glisser** (v1.18.0) : en mode ordre, le clic table par table reste, et **glisser d'une table à la suivante les enchaîne** (`ordrePaintStart/Move/End`) — chaque table survolée pour la première fois s'ajoute en fin d'ordre, celles déjà dans l'ordre sont sautées, un seul cran d'undo pour la traînée. ⚠️ **Pas de re-rendu pendant le geste** (la case qui détient la capture serait remplacée, leçon de `docReorder`) : le numéro est posé dans la case à la main, la grille est redessinée au relâchement. `touch-action: none` sur les cases cliquables en mode ordre — c'est le prix du tracé au doigt.
      - ⚠️ **VUE DU BUREAU** (v1.15.1, demande de l'utilisateur : *« c'est le prof qui regarde »*) : le bureau est dessiné en bas, le rang 1 juste au-dessus, la place 1 à droite — la grille est tournée de 180° par rapport au plan « vu du fond ». Les données ne bougent pas (`r,c` reste ce que Plan de classe exporte) ; seules les boucles de rendu descendent. Test de source : une boucle qui « a l'air à l'envers » se corrige trop facilement.
 
-**Impression** (`@media print`, orientation imposée avant `window.print()`) : la synthèse en paysage, la liste des manquants d'un document en portrait, le procès-verbal d'élection en portrait. ⚠️ Reprendre le bloc `@media print { html[data-theme="dark"] { … } }` : sans lui, imprimer en thème sombre pose de l'ambre sur blanc (244 écarts mesurés dans le projet de référence).
+**Impression** (`@media print`, orientation imposée avant `window.print()`) : la liste des élèves et la synthèse de période en paysage (ou en fiches portrait), la liste des manquants d'un document en portrait, le procès-verbal d'élection en portrait. ⚠️ Reprendre le bloc `@media print { html[data-theme="dark"] { … } }` : sans lui, imprimer en thème sombre pose de l'ambre sur blanc (244 écarts mesurés dans le projet de référence).
 
 ## Trier les élèves : nom, prénom, place, ordre de ramassage
 
@@ -859,6 +884,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 36 | **Synthèse de période imprimable** (`_periodeSynthese`, `_periodePrintHTML`, modale `mperiode`) : conseil ou mi-période, blocs au choix, tableau paysage ou fiches portrait, tout borné à la période ; 2 tests | ✅ **fait** (2026-09-11, v1.26.0) |
 | 35 | **Bilans de période** (`stu.bilans`, `_bilanPeriode`) : colonne *Conseil* dans la liste (triable, imprimée), section 🎓 de la fiche, modale qui enchaîne les élèves (◀ ▶, Ctrl+Entrée) ; 6 tests | ✅ **fait** (2026-09-11, v1.25.0) |
 | 34 | **Incidents depuis la liste** : la case ⚖️ ouvre la saisie d'une entrée, la dernière s'ouvre en modification ; 1 test de plus | ✅ **fait** (2026-09-11, v1.24.0) |
 | 33 | **Synthèse fusionnée dans Élèves** : une liste, identité + suivi, `_elevesRows` pour l'écran et l'impression, tri par en-tête sur les colonnes de suivi, naissances derrière une case ; colonne Réponses retirée ; 5 onglets | ✅ **fait** (2026-09-11, v1.23.0) |

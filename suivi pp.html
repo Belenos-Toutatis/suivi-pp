@@ -1200,6 +1200,12 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   .print-t tfoot th { background: #f4f4f4; font-size: 8.5pt; }
   .print-rem { white-space: pre-line; min-width: 45mm; }
   .print-list { columns: 2; font-size: 11pt; line-height: 1.8; }
+  /* Synthèse de période en fiches : un bloc par élève, jamais coupé par un saut de page. */
+  .print-fiche { page-break-inside: avoid; border: 1px solid #888; border-radius: 4pt; padding: 4pt 7pt; margin: 0 0 6pt; font-size: 10pt; }
+  .print-fiche-h { display: flex; justify-content: space-between; gap: 8pt; flex-wrap: wrap; border-bottom: 1px solid #ccc; padding-bottom: 2pt; margin-bottom: 3pt; font-size: 11pt; }
+  .print-fiche-id { font-size: 9pt; color: #333; }
+  .print-fb { margin: 2pt 0; }
+  .print-fb-t { font-weight: 700; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #333; margin-right: 4pt; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1761,6 +1767,33 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 </div>
 
 <!-- ═══════════════ IMPRIMER UN DOCUMENT (ou l'enregistrer en PDF) ═══════════════ -->
+<div id="mperiode" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();periodePrintOk()}">
+    <h2>🎓 Synthèse de période</h2>
+    <div class="tb-hint" style="margin-bottom:8px">La feuille qu'on emporte au conseil de classe, ou qu'on relit à mi-période : tout y est borné à la période choisie — observations, papiers, incidents, contacts, et le bilan rédigé pour elle. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF »).</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:200px"><label for="mper-periode">Période</label>
+        <select id="mper-periode" data-autofocus onchange="_periodePrintRefresh()" style="max-width:100%"></select></div>
+      <div class="fg" style="flex:1;min-width:160px"><label for="mper-type">Moment</label>
+        <select id="mper-type" onchange="_periodePrintRefresh()" style="max-width:100%">
+          <option value="conseil">🎓 conseil de classe</option>
+          <option value="miperiode">📝 bilan de mi-période</option>
+        </select></div>
+    </div>
+    <div class="fg"><label>Blocs</label>
+      <div id="mper-blocs" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
+    <div class="fg"><label for="mper-forme">Forme</label>
+      <select id="mper-forme" onchange="_periodePrintRefresh()" style="max-width:100%">
+        <option value="tableau">tableau — une ligne par élève, paysage</option>
+        <option value="fiches">fiches — un bloc par élève, portrait (à lire pendant le conseil)</option>
+      </select></div>
+    <div class="al al-i" id="mper-hint"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mperiode')">Annuler</button>
+      <button class="btn btn-p" onclick="periodePrintOk()">🖨 Imprimer…</button>
+    </div>
+  </div>
+</div>
 <div id="mdocprint" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();docPrintOk()}">
     <h2 id="mdocp-title">🖨 Imprimer le document</h2>
@@ -1942,8 +1975,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.25.0';
-const APP_BUILD_DATE = '2026-09-11T18:11:49Z';
+const APP_VERSION    = '1.26.0';
+const APP_BUILD_DATE = '2026-09-11T18:18:28Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4200,7 +4233,8 @@ function renderStudents() {
      { key: 'bilan', label: `par bilan ${per} (rédigé d'abord)` }])}
     <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Afficher la colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée"><input type="checkbox"${_elevesNais ? ' checked' : ''} onchange="_elevesNais=this.checked;renderStudents()"> 📅 naissances</label>
     <span class="tb-hint">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span>
-    <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="printEleves()" title="Une page paysage pour le conseil de classe — Ctrl+P fait pareil">🖨 Imprimer</button></div>`;
+    <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
+    <button class="btn btn-g btn-sm" onclick="printEleves()" title="La liste telle qu'elle est à l'écran, en paysage — Ctrl+P fait pareil">🖨 Imprimer la liste</button></div>`;
   const keep = _wrapScrollKeep(el);
   el.innerHTML = tri + filtered + (list.length ? `
     <div class="rel-wrap frozen"><table class="dt eleves-table">
@@ -9342,6 +9376,156 @@ function printEleves() {
       <td class="print-rem">${r.bilan ? _escName(r.bilan.texte) : ''}</td></tr>`).join('')}</tbody></table>`;
   _printHTML(html, 'landscape');
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// SYNTHÈSE DE PÉRIODE — la feuille qu'on emporte au conseil de classe (ou qu'on relit à
+// mi-période). Demandée le 2026-09-11. Tout y est BORNÉ À LA PÉRIODE : le cumul en fin de
+// période et le total de la période (pas le dernier relevé de l'année), les incidents et
+// les contacts de la période, les papiers distribués jusqu'à sa fin et pas rendus, et
+// le bilan rédigé pour elle. La liste des élèves, elle, dit « où en est-on aujourd'hui » ;
+// cette feuille dit « que s'est-il passé pendant CE trimestre ».
+// ═══════════════════════════════════════════════════════════════════════════
+function _periodeSynthese(cls, periodIdx, opts) {
+  const o = opts || {};
+  const p = _periods(cls)[periodIdx];
+  if (!p) return null;
+  const cid = cls.id;
+  const m = _relMap(cid) || {};
+  const dates = _relDates(cid).filter(d => d >= p.start && d <= p.end);
+  const docs = Object.values(S.documents).filter(d => !d.archive && (d.classIds || []).includes(cid)
+    && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= p.end));
+  // Les élèves présents PENDANT la période : arrivé avant sa fin, pas parti avant son début.
+  const presents = cls.eleves.map(id => S.eleves[id]).filter(Boolean)
+    .filter(s => !(s.arrivalDate && s.arrivalDate > p.end) && !(s.departureDate && s.departureDate <= p.start));
+  const rows = presents.map(stu => {
+    let cumulFin = null, cumulFinDate = null, absents = 0;
+    for (const d of dates) {
+      const v = _relValue(m[d], stu.id);
+      if (typeof v === 'number') { cumulFin = v; cumulFinDate = d; }
+      else if (v === REL_ABSENT) absents++;
+    }
+    const nonRendus = docs.filter(d => _docExpected(d).some(x => x.id === stu.id) && !_retour(d, stu.id).rendu).map(d => d.titre);
+    const incidents = _incidentsOf(stu.id).filter(e => e.date >= p.start && e.date <= p.end)
+      .map(e => ({ date: e.date, type: e.type, objet: e.objet, texte: e.texte || '' })).reverse();
+    const contacts = _journalOf(stu.id).filter(e => e.date >= p.start && e.date <= p.end)
+      .map(e => ({ date: e.date, type: e.type, texte: e.texte })).reverse();
+    const b = _bilanPeriode(cls, stu.id, periodIdx, o.type || 'conseil');
+    return {
+      sid: stu.id, nom: stu.nom, prenom: stu.prenom, groupe: stu.groupe || null,
+      options: _studentTags(stu).map(t => t.abbr), amenagements: _amenLabel(stu, false), delegue: _delegueOf(stu.id),
+      arrive: stu.arrivalDate && stu.arrivalDate > p.start ? stu.arrivalDate : null,
+      parti: stu.departureDate && stu.departureDate <= p.end ? stu.departureDate : null,
+      cumulFin, cumulFinDate, totalPeriode: _relPeriodTotal(cid, stu.id, periodIdx), absents,
+      nonRendus, incidents, contacts,
+      bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
+    };
+  });
+  return { periode: p, nbReleves: dates.length, rows };
+}
+// Les blocs qu'on peut mettre ou non sur la feuille — dans cet ordre.
+const _PERIODE_BLOCS = [
+  { key: 'obs',       label: 'Observations',        hint: 'Cumul en fin de période, total de la période, relevés où l\'élève était absent' },
+  { key: 'docs',      label: 'Documents non rendus', hint: 'Papiers distribués jusqu\'à la fin de la période et toujours pas rendus' },
+  { key: 'incidents', label: 'Incidents',           hint: 'Incidents, punitions, sanctions, instances DE la période' },
+  { key: 'contacts',  label: 'Contacts',            hint: 'Contacts avec la famille DE la période' },
+  { key: 'bilan',     label: 'Bilan',               hint: 'Ce que j\'ai rédigé pour ce conseil (ou ce bilan de mi-période)' },
+];
+let _periodePrintOpts = { blocs: _PERIODE_BLOCS.map(b => b.key), type: 'conseil', forme: 'tableau' };
+function _periodeTitre(type, p) { return `${type === 'miperiode' ? 'Bilan de mi-période' : 'Conseil de classe'} ${p.label}`; }
+// Le HTML de la feuille : un tableau paysage (une ligne par élève), ou des fiches portrait
+// (un bloc par élève — ce qu'on lit pendant que le conseil parle de lui).
+function _periodePrintHTML(cls, periodIdx, opts) {
+  const o = Object.assign({}, _periodePrintOpts, opts || {});
+  const syn = _periodeSynthese(cls, periodIdx, { type: o.type });
+  if (!syn) return null;
+  const p = syn.periode;
+  const on = k => o.blocs.includes(k);
+  // L'ordre de la liste à l'écran (tri courant), mais TOUS les présents de la période — le
+  // filtre de recherche ne s'applique pas à une feuille de conseil.
+  const ordre = _elevesRows(cls).map(x => x.s.id);
+  const rows = syn.rows.slice().sort((a, b) => {
+    const ia = ordre.indexOf(a.sid), ib = ordre.indexOf(b.sid);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;
+    return (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr', { sensitivity: 'base' });
+  });
+  const titre = `${_periodeTitre(o.type, p)} — ${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}`;
+  const sub = `du ${_fmtDateFr(p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet · imprimé le ${_fmtDateFr(_todayYmd())}`;
+  const nomCell = r => `<strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${
+    r.arrive ? `<br><small>arrivé le ${_escName(_fmtDateFr(r.arrive))}</small>` : ''}${r.parti ? `<br><small>parti le ${_escName(_fmtDateFr(r.parti))}</small>` : ''}`;
+  const identCell = r => [r.groupe ? 'G' + r.groupe : '', r.options.join(' '), r.amenagements].filter(Boolean).map(_escName).join(' · ');
+  const obsCell = r => r.cumulFin === null ? (r.absents ? `<small>absent à ${r.absents} relevé${r.absents > 1 ? 's' : ''}</small>` : '')
+    : `<strong>${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</strong> <small>(cumul ${r.cumulFin} au ${_escName(_fmtDateFr(r.cumulFinDate))}${r.absents ? `, absent ×${r.absents}` : ''})</small>`;
+  const incCell = r => r.incidents.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_instanceOf(e.type).label)} : ${_escName(e.objet)}</div>`).join('');
+  const conCell = r => r.contacts.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_journalType(e.type).label)}${o.forme === 'fiches' ? ' : ' + _escName(e.texte) : ''}</div>`).join('');
+  const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanType(r.bilan.type).label)} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
+  if (o.forme === 'fiches') {
+    const bloc = (t, c) => c ? `<div class="print-fb"><span class="print-fb-t">${t}</span> ${c}</div>` : '';
+    return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>` + rows.map(r => `<div class="print-fiche">
+      <div class="print-fiche-h"><span>${nomCell(r)}</span><span class="print-fiche-id">${identCell(r)}</span></div>
+      ${on('obs') ? bloc('Observations', obsCell(r)) : ''}
+      ${on('docs') ? bloc('Non rendus', _escName(r.nonRendus.join(', '))) : ''}
+      ${on('incidents') ? bloc('Incidents', incCell(r)) : ''}
+      ${on('contacts') ? bloc('Contacts', conCell(r)) : ''}
+      ${on('bilan') ? bloc(o.type === 'miperiode' ? 'Bilan' : 'Conseil', bilCell(r) ? `<div class="print-rem">${bilCell(r)}</div>` : '') : ''}
+    </div>`).join('') };
+  }
+  const th = ['<th>Élève</th><th>Groupe · options · aménag.</th>',
+    on('obs') ? `<th>Observations ${_escName(p.label)}</th>` : '', on('docs') ? '<th>Non rendus</th>' : '',
+    on('incidents') ? '<th>Incidents</th>' : '', on('contacts') ? '<th>Contacts</th>' : '',
+    on('bilan') ? `<th>${o.type === 'miperiode' ? 'Bilan' : 'Conseil'}</th>` : ''].join('');
+  return { kind: 'landscape', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>
+    <table class="print-t"><thead><tr>${th}</tr></thead><tbody>${rows.map(r => `<tr><td>${nomCell(r)}</td><td>${identCell(r)}</td>${
+      on('obs') ? `<td>${obsCell(r)}</td>` : ''}${on('docs') ? `<td>${_escName(r.nonRendus.join(', '))}</td>` : ''}${
+      on('incidents') ? `<td>${incCell(r)}</td>` : ''}${on('contacts') ? `<td>${conCell(r)}</td>` : ''}${
+      on('bilan') ? `<td class="print-rem">${bilCell(r)}</td>` : ''}</tr>`).join('')}</tbody></table>` };
+}
+// ── La modale : période, moment, blocs, forme ──
+function openPeriodePrint() {
+  const cls = getCls();
+  if (!cls || !cls.eleves.length) return toast('⚠️ Rien à imprimer.', 'warn');
+  const ps = _periods(cls);
+  const cur = _carnetCurrentPeriodIdx(cls);
+  document.getElementById('mper-periode').innerHTML = ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('');
+  document.getElementById('mper-type').value = _periodePrintOpts.type;
+  document.getElementById('mper-forme').value = _periodePrintOpts.forme;
+  document.getElementById('mper-blocs').innerHTML = _PERIODE_BLOCS.map(b =>
+    `<label class="tagpick" style="background:var(--paper-warm)" title="${_escAttr(b.hint)}"><input type="checkbox" data-ck="${_escAttr(b.key)}"${_periodePrintOpts.blocs.includes(b.key) ? ' checked' : ''} onchange="_periodePrintRefresh()"> ${_escName(b.label)}</label>`).join('');
+  openMod('mperiode');
+  _periodePrintRefresh();
+}
+function _periodePrintLire() {
+  return {
+    idx: +document.getElementById('mper-periode').value || 0,
+    type: document.getElementById('mper-type').value === 'miperiode' ? 'miperiode' : 'conseil',
+    forme: document.getElementById('mper-forme').value === 'fiches' ? 'fiches' : 'tableau',
+    blocs: [...document.querySelectorAll('#mper-blocs input[data-ck]')].filter(c => c.checked).map(c => c.dataset.ck),
+  };
+}
+function _periodePrintRefresh() {
+  const cls = getCls();
+  const o = _periodePrintLire();
+  const syn = cls ? _periodeSynthese(cls, o.idx, { type: o.type }) : null;
+  const h = document.getElementById('mper-hint');
+  if (!syn) { h.textContent = ''; return; }
+  const sans = syn.rows.filter(r => !r.bilan).length;
+  const bits = [`${syn.rows.length} élève${syn.rows.length > 1 ? 's' : ''} présents pendant ${syn.periode.label}`,
+    `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
+    o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — 🎓 dans la liste pour les compléter` : '✓ un bilan pour chacun') : '',
+    o.forme === 'fiches' ? 'portrait, un bloc par élève' : 'paysage, une ligne par élève'];
+  h.textContent = bits.filter(Boolean).join(' · ');
+}
+function periodePrintOk() {
+  const cls = getCls();
+  const o = _periodePrintLire();
+  if (!cls) return;
+  if (!o.blocs.length) return toast('⚠️ Choisis au moins un bloc.', 'warn');
+  _periodePrintOpts = { blocs: o.blocs, type: o.type, forme: o.forme };
+  const out = _periodePrintHTML(cls, o.idx, o);
+  if (!out) return toast('⚠️ Période inconnue.', 'warn');
+  closeMod2('mperiode');
+  _printHTML(out.html, out.kind);
+}
+
 // Le tableau des retours sur papier. Les colonnes viennent de la modale, l'ordre du tri
 // courant de l'écran — c'est la même feuille qu'on a sous les yeux, en plus étroit.
 function printDoc(docId, opts) {

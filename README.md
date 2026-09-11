@@ -108,6 +108,13 @@ dans l'ordre de la liste : on prépare les vingt-cinq d'une traite. La période 
 la date, l'historique se relit sur la fiche (section 🎓), et la colonne s'imprime avec la
 liste. Sans note ni moyenne : elles sont dans Pronote, ceci est votre brouillon.
 
+**La feuille du conseil.** *🎓 Synthèse de période…* dans la barre de la liste : choisissez
+la période et le moment (conseil de classe ou mi-période), les blocs — observations, papiers
+non rendus, incidents, contacts, bilan — et la forme : un tableau paysage, ou des fiches
+portrait, un bloc par élève, à lire pendant que le conseil parle de lui. Tout y est borné
+à la période : le total d'observations *de ce trimestre*, les incidents *de ce trimestre*,
+les élèves présents *pendant ce trimestre*. Le PDF sort de la fenêtre d'impression.
+
 **Incidents et instances.** Sur la fiche, une section ⚖️ — et dans la liste des élèves, la
 case ⚖️ de la colonne Incidents, qui ouvre la saisie d'un clic (la dernière entrée s'y
 lit, et se modifie au clic) — pour noter ce qui s'est passé et ce qui en a découlé : fiche incident, retenue, commission éducative, conseil de discipline…
