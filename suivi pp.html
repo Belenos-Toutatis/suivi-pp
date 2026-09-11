@@ -1069,7 +1069,7 @@ body.el-projecting #main { padding-top: 8px; }
 /* ═══════════════════════════════════════════════════════════════════
    SYNTHÈSE + IMPRESSIONS
    ═══════════════════════════════════════════════════════════════════ */
-.synth-table td { vertical-align: top; font-size: .92em; }
+.eleves-table td { vertical-align: top; font-size: .92em; }
 .synth-rep { font-size: .88em; line-height: 1.35; }
 .synth-rem { font-size: .85em; color: var(--ink-deep); white-space: pre-line; max-width: 260px; max-height: 4.2em; overflow: hidden; }
 .synth-rem-td { min-width: 160px; }
@@ -1293,7 +1293,6 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <button class="nb"    onclick="showTab('carnets',this)"   title="Suivre les observations portées au carnet : le total relevé à chaque date, et l'évolution depuis le relevé précédent">📓 Observations</button>
   <button class="nb"    onclick="showTab('documents',this)" title="Les papiers distribués aux familles : qui a rendu quoi, signé quoi, coché quoi — ramassage et vérification">📄 Retours</button>
   <button class="nb"    onclick="showTab('delegues',this)"  title="Élection des délégués : candidatures, dépouillement projeté, procès-verbal">🗳 Délégués</button>
-  <button class="nb"    onclick="showTab('synthese',this)"  title="Tout ce qui est connu de chaque élève — préparation du conseil de classe">📊 Synthèse</button>
   <button class="nb"    onclick="showTab('donnees',this)"   title="Réglages, options, salles et placements, sauvegarde, export/import, vie privée">💾 Données et réglages</button>
 </nav>
 </div>
@@ -1314,7 +1313,6 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <div id="tab-carnets"   class="tab"><div class="sh"><h2>📓 Observations du carnet</h2></div><div id="carnets-body"></div></div>
   <div id="tab-documents" class="tab"><div class="sh"><h2>📄 Retours de documents</h2></div><div id="documents-body"></div></div>
   <div id="tab-delegues"  class="tab"><div class="sh"><h2>🗳 Délégués</h2></div><div id="delegues-body"></div></div>
-  <div id="tab-synthese"  class="tab"><div class="sh"><h2>📊 Synthèse</h2></div><div id="synthese-body"></div></div>
   <div id="tab-donnees"   class="tab">
     <div class="sh"><h2>💾 Données et réglages</h2></div>
     <div class="tb">
@@ -1917,8 +1915,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.22.1';
-const APP_BUILD_DATE = '2026-09-11T16:39:29Z';
+const APP_VERSION    = '1.23.0';
+const APP_BUILD_DATE = '2026-09-11T16:47:43Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2868,7 +2866,6 @@ function renderTab(name) {
     case 'carnets':   renderCarnets();   break;
     case 'documents': renderDocuments(); break;
     case 'delegues':  renderDelegues();  break;
-    case 'synthese':  renderSynthese();  break;
     case 'donnees':   renderDonnees();   break;
   }
 }
@@ -3876,6 +3873,48 @@ function _pjRef(pdf) {
 let eleveSort = { col: 'nom', dir: 1 };
 let _eleveFilter = '';
 
+// Colonne des naissances : masquée par défaut depuis la fusion avec la Synthèse (la ligne
+// est déjà longue) ; on l'affiche le temps d'une saisie en série.
+let _elevesNais = false;
+// Les lignes de la liste — l'élève et son suivi (_syntheseRow) — filtrées et triées. Une
+// seule fonction pour l'écran ET l'impression : le papier montre ce qu'on a sous les yeux.
+// ⚠️ Les colonnes de SUIVI se trient par nature en DÉCROISSANT au premier clic (le plus
+// chargé d'abord — c'est lui qu'on cherche), les inconnus en fin dans les deux sens.
+function _elevesRows(cls) {
+  const dir = eleveSort.dir, col = eleveSort.col;
+  const rows = cls.eleves.map(id => S.eleves[id]).filter(Boolean).filter(s => _matchFilter(s, _eleveFilter))
+    .map(s => ({ s, r: _syntheseRow(cls, s) }));
+  const byName = (a, b) => (a.s.nom + ' ' + a.s.prenom).localeCompare(b.s.nom + ' ' + b.s.prenom, 'fr', { sensitivity: 'base' });
+  // Les modes de place et de ramassage n'ont pas de sens « à l'envers » : un ordre de
+  // passage dans les rangs se parcourt dans le sens où on le marche.
+  if (col === 'prenom' || col === 'place' || String(col).startsWith('pat-')) {
+    const ordre = _sortStudents(rows.map(x => x.s.id), col, cls);
+    return rows.sort((a, b) => ordre.indexOf(a.s.id) - ordre.indexOf(b.s.id));
+  }
+  const num = (x) => col === 'cumul' ? x.r.cumul : col === 'delta' ? x.r.delta : col === 'periode' ? x.r.periodeTotal
+    : col === 'docs' ? x.r.nonRendus.length : col === 'incidents' ? x.r.nbIncidents : null;
+  return rows.sort((a, b) => {
+    // Les élèves sans date de naissance vont au bout dans les DEUX sens : ils ne sont pas
+    // « les plus vieux » ni « les plus jeunes », ils sont inconnus — et c'est justement
+    // eux qu'on cherche quand on trie par cette colonne pour finir la saisie.
+    if (col === 'nais') {
+      const va = a.s.naissance || '', vb = b.s.naissance || '';
+      if (!va !== !vb) return va ? -1 : 1;
+      return (va < vb ? -1 : va > vb ? 1 : 0) * dir || byName(a, b);
+    }
+    if (col === 'grp')  return (((a.s.groupe || 9) - (b.s.groupe || 9)) * dir) || byName(a, b);
+    if (col === 'amen') return ((_amenLabel(b.s) ? 1 : 0) - (_amenLabel(a.s) ? 1 : 0)) * dir || byName(a, b);
+    if (['cumul', 'delta', 'periode', 'docs', 'incidents'].includes(col)) {
+      const va = num(a), vb = num(b);
+      if ((va === null) !== (vb === null)) return va === null ? 1 : -1;
+      const d = ((vb ?? 0) - (va ?? 0)) * dir;
+      if (d) return d;
+      if (col === 'incidents') { const t = String(b.r.incident?.date || '').localeCompare(String(a.r.incident?.date || '')) * dir; if (t) return t; }
+      return byName(a, b);
+    }
+    return byName(a, b) * dir;
+  });
+}
 function sortEleves(col) {
   if (eleveSort.col === col) eleveSort.dir = -eleveSort.dir;
   else { eleveSort.col = col; eleveSort.dir = 1; }
@@ -3975,28 +4014,8 @@ function renderStudents() {
   }
 
   const all = cls.eleves.map(id => S.eleves[id]).filter(Boolean);
-  const list = all.filter(s => _matchFilter(s, _eleveFilter));
-  const dir = eleveSort.dir;
-  const byName = (a, b) => (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr', { sensitivity: 'base' });
-  // Les modes de place et de ramassage n'ont pas de sens « à l'envers » : un ordre de
-  // passage dans les rangs se parcourt dans le sens où on le marche. Le clic sur un
-  // en-tête de colonne, lui, garde son inversion.
-  if (eleveSort.col === 'prenom' || eleveSort.col === 'place' || String(eleveSort.col).startsWith('pat-')) {
-    const ordre = _sortStudents(list.map(s => s.id), eleveSort.col, cls);
-    list.sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
-  } else list.sort((a, b) => {
-    // Les élèves sans date de naissance vont au bout dans les DEUX sens : ils ne sont pas
-    // « les plus vieux » ni « les plus jeunes », ils sont inconnus — et c'est justement
-    // eux qu'on cherche quand on trie par cette colonne pour finir la saisie.
-    if (eleveSort.col === 'nais') {
-      const va = a.naissance || '', vb = b.naissance || '';
-      if (!va !== !vb) return va ? -1 : 1;
-      return (va < vb ? -1 : va > vb ? 1 : 0) * dir || byName(a, b);
-    }
-    if (eleveSort.col === 'grp')  return (((a.groupe || 9) - (b.groupe || 9)) * dir) || byName(a, b);
-    if (eleveSort.col === 'amen') return ((_amenLabel(b) ? 1 : 0) - (_amenLabel(a) ? 1 : 0)) * dir || byName(a, b);
-    return byName(a, b) * dir;
-  });
+  const rowsData = _elevesRows(cls);
+  const list = rowsData.map(x => x.s);
 
   // Pastille de la remarque : accent quand marquée, fond neutre themé sinon ; encre
   // TOUJOURS dérivée du fond — jamais color:#fff en dur.
@@ -4006,7 +4025,7 @@ function renderStudents() {
   };
   const today = _todayYmd();
 
-  const rows = list.map(s => {
+  const rows = rowsData.map(({ s, r }) => {
     const civColor = s.civilite === 'M' ? 'var(--civ-m)' : s.civilite === 'F' ? 'var(--civ-f)' : 'var(--pencil-soft)';
     const civBtn = `<button class="btn btn-sm" onclick="cycleCivilite('${_escJsAttr(s.id)}')" title="Civilité : ${_escAttr(civiliteFullLabel(s.civilite))} — clic pour cycler" style="background:transparent;color:${civColor};font-size:1.05em;padding:0 5px;font-weight:700;min-width:22px">${civiliteLabel(s.civilite)}</button>`;
     const grpBadge = s.groupe
@@ -4017,15 +4036,15 @@ function renderStudents() {
     const rem = String(s.remarque || '');
     // ⚠️ Le dernier contact passe AVANT la remarque sur le bouton : « ai-je déjà appelé
     // cette famille, et quand ? » est la question qu'on se pose en parcourant la liste,
-    // pas « qu'avais-je noté ». La remarque reste dans l'infobulle.
+    // pas « qu'avais-je noté ». La remarque, elle, s'affiche en dessous, tronquée.
     const dernier = _journalLast(s.id);
     const nbJ = (s.journal || []).length;
-    const marque = dernier ? `${_journalType(dernier.type).icon} ${_fmtDateFr(dernier.date)}`
-                           : (rem ? rem.split('\n')[0].slice(0, 24) + (rem.length > 24 ? '…' : '') : '');
+    const marque = dernier ? `${_journalType(dernier.type).icon} ${_fmtDateFr(dernier.date)}${nbJ > 1 ? ` ×${nbJ}` : ''}` : '';
     const titre = [dernier ? `Dernier contact : ${_fmtDateFr(dernier.date)} — ${_journalType(dernier.type).label} — ${dernier.texte}` : '',
                    nbJ > 1 ? `${nbJ} contacts notés` : '', rem]
                   .filter(Boolean).join('\n') || 'Noter une observation ou un contact avec la famille';
-    const remBtn = `<button class="btn btn-sm" style="${stSty(!!(rem || nbJ), '#5f6f70', 0)}" onclick="openRemarque('${_escJsAttr(s.id)}')" title="${_escAttr(titre)}">📋${marque ? ' ' + _escName(marque) : ''}</button>`;
+    const remBtn = `<button class="btn btn-sm" style="${stSty(!!(rem || nbJ), '#5f6f70', 0)}" onclick="openRemarque('${_escJsAttr(s.id)}')" title="${_escAttr(titre)}">📋${marque ? ' ' + _escName(marque) : ''}</button>${
+      rem ? `<div class="synth-rem" title="${_escAttr(rem)}">${_escName(rem)}</div>` : ''}`;
 
     // Arrivée / départ : la ligne s'estompe hors période de présence, avec la date en clair.
     const isFuture = !!(s.arrivalDate   && today <  s.arrivalDate);
@@ -4034,15 +4053,35 @@ function renderStudents() {
     if (isFuture)    lifeBadge = `<span class="lifebdg future" title="Arrive le ${_escAttr(_fmtDateFr(s.arrivalDate))}">📅 ${_escName(_fmtDateFr(s.arrivalDate))}</span>`;
     else if (isGone) lifeBadge = `<span class="lifebdg gone" title="Parti le ${_escAttr(_fmtDateFr(s.departureDate))}">🚪 ${_escName(_fmtDateFr(s.departureDate))}</span>`;
 
+    // ── Le suivi (ex-Synthèse, fusionnée le 2026-09-11) ──
+    const carnet = r.cumul === null ? '<span class="tb-hint">—</span>'
+      : `<strong style="font-family:var(--font-mono)">${r.cumul}</strong> <span class="tb-hint">le ${_escName(_fmtDateFr(r.cumulDate))}</span>`;
+    const dCls = r.delta === null ? '' : r.delta >= 5 ? ' hot' : r.delta >= 2 ? ' warm' : '';
+    const delta = r.delta === null ? '<span class="tb-hint">—</span>' : `<span class="rel-delta${dCls}" style="padding:1px 6px;border-radius:6px">${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}</span>`;
+    const per = r.periodeTotal === null ? '<span class="tb-hint">—</span>' : `<span style="font-family:var(--font-mono);font-weight:700">${r.periodeTotal}</span>`;
+    // Non rendus : le NOMBRE seul, en pastille — la liste des titres en clair élargissait la
+    // colonne à la moitié de l'écran. Le détail vient au survol (infobulle) ou au clic
+    // (déplié sous la pastille, mémorisé par élève le temps de la session).
+    const ouvert = _synthOpen.has(s.id);
+    const nr = r.nonRendus.length
+      ? `<button class="badge warn synth-nr" title="${_escAttr(r.nonRendus.join(' · '))} — clic pour ${ouvert ? 'replier' : 'détailler'}" onclick="synthToggleNr('${_escJsAttr(s.id)}')">${r.nonRendus.length}${ouvert ? ' ▾' : ''}</button>${
+          ouvert ? `<div class="synth-nr-list">${r.nonRendus.map(t => `<div>☐ ${_escName(t)}</div>`).join('')}</div>` : ''}`
+      : '<span class="tb-hint">✓</span>';
+    const inc = r.nbIncidents
+      ? `<span class="badge warn" title="${_escAttr(r.nbIncidents + ' entrée' + (r.nbIncidents > 1 ? 's' : ''))}">${r.nbIncidents}</span> <span class="tb-hint" title="${_escAttr(r.incident.objet)}">${_escName(_fmtDateFr(r.incident.date))} · ${_escName(_instanceOf(r.incident.type).label)}</span>`
+      : '<span class="tb-hint">—</span>';
+
     return `<tr${(isFuture || isGone) ? ' class="inactive"' : ''}>
       <td>${civBtn}<a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète"
             style="text-decoration:none;color:inherit">${_nomHTML(s.id, s.nom, s.prenom)}</a>${lifeBadge}${_ageSubHTML(s, 'age-' + s.id)}</td>
-      <td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(s.id)}"
+      ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(s.id)}"
             max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)"
-            title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>
+            title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
       <td style="white-space:nowrap">${grpBadge}${tagsHtml ? '<br><span style="display:inline-block;margin-top:3px">' + tagsHtml + '</span>' : ''}</td>
       <td class="amen-td" onclick="openEdit('${_escJsAttr(s.id)}')" title="${_escAttr(_amenLabel(s) || 'Aucun aménagement')} — clic pour modifier">${_amenBadgesHTML(s)}</td>
-      <td style="max-width:260px">${remBtn}</td>
+      <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
+      <td>${nr}</td><td style="white-space:nowrap">${inc}</td>
+      <td class="synth-rem-td">${remBtn}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-g btn-sm" onclick="openEdit('${_escJsAttr(s.id)}')" title="Modifier l'élève">✏️</button>
         <button class="btn btn-d btn-sm" onclick="deleteStudent('${_escJsAttr(s.id)}')" title="Supprimer l'élève">🗑</button>
@@ -4051,20 +4090,30 @@ function renderStudents() {
   }).join('');
 
   const arrow = c => eleveSort.col === c ? (eleveSort.dir === 1 ? ' ▲' : ' ▼') : '';
+  const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || 'période';
   const filtered = list.length !== all.length
     ? `<div class="tb-hint" style="margin-bottom:6px">${list.length} élève${list.length > 1 ? 's' : ''} sur ${all.length} — filtre « ${_escName(_eleveFilter)} »</div>` : '';
   const tri = `<div class="tb">${_sortPickerHTML(eleveSort.col, 'setEleveSort(this.value)', cls,
-    [{ key: 'grp', label: 'par groupe' }, { key: 'amen', label: 'par aménagements' }])}
-    <span class="tb-hint" style="margin-left:auto">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span></div>`;
+    [{ key: 'grp', label: 'par groupe' }, { key: 'amen', label: 'par aménagements' },
+     { key: 'delta', label: 'par Δ du dernier relevé' }, { key: 'cumul', label: 'par total d\'observations' },
+     { key: 'periode', label: `par total ${per}` }, { key: 'docs', label: 'par documents non rendus' }, { key: 'incidents', label: 'par incidents' }])}
+    <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Afficher la colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée"><input type="checkbox"${_elevesNais ? ' checked' : ''} onchange="_elevesNais=this.checked;renderStudents()"> 📅 naissances</label>
+    <span class="tb-hint">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span>
+    <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="printEleves()" title="Une page paysage pour le conseil de classe — Ctrl+P fait pareil">🖨 Imprimer</button></div>`;
   const keep = _wrapScrollKeep(el);
   el.innerHTML = tri + filtered + (list.length ? `
-    <div class="rel-wrap frozen"><table class="dt">
+    <div class="rel-wrap frozen"><table class="dt eleves-table">
       <thead><tr>
         <th onclick="sortEleves('nom')" style="cursor:pointer">Élève${arrow('nom')}</th>
-        <th onclick="sortEleves('nais')" style="cursor:pointer" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance${arrow('nais')}</th>
+        ${_elevesNais ? `<th onclick="sortEleves('nais')" style="cursor:pointer" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance${arrow('nais')}</th>` : ''}
         <th onclick="sortEleves('grp')" style="cursor:pointer">Groupe · options${arrow('grp')}</th>
-        <th onclick="sortEleves('amen')" style="cursor:pointer" title="Aménagements pédagogiques (PPRE · PAP · PPS · ULIS · UPE2A — exclusifs à l'intérieur de leur groupe), médicaux (PAI) et d'examen (📄-A agrandissement · ⏱+⅓ tiers-temps), cumulables. Se modifient par ✏️, ou d'un clic sur la case.">Aménagements${arrow('amen')}</th>
-        <th title="Remarque libre, et le dernier contact avec la famille">Remarque · contacts</th>
+        <th onclick="sortEleves('amen')" style="cursor:pointer" title="Aménagements pédagogiques (PPRE · PAP · PPS · ULIS · UPE2A — exclusifs à l'intérieur de leur groupe), médicaux (PAI) et d'examen (📄-A agrandissement · ⏱+⅓ tiers-temps), cumulables. Se modifient par ✏️, ou d'un clic sur la case.">Aménag.${arrow('amen')}</th>
+        <th onclick="sortEleves('cumul')" style="cursor:pointer" title="Dernier total d'observations relevé dans le carnet">Observations${arrow('cumul')}</th>
+        <th onclick="sortEleves('delta')" style="cursor:pointer" title="Évolution au dernier relevé">Δ${arrow('delta')}</th>
+        <th onclick="sortEleves('periode')" style="cursor:pointer" title="Total de la période courante">${_escName(per)}${arrow('periode')}</th>
+        <th onclick="sortEleves('docs')" style="cursor:pointer" title="Documents non rendus — survol ou clic pour la liste">Non rendus${arrow('docs')}</th>
+        <th onclick="sortEleves('incidents')" style="cursor:pointer" title="Incidents et instances — le nombre, et le dernier">Incidents${arrow('incidents')}</th>
+        <th title="Dernier contact avec la famille, puis la remarque libre">Remarque · contacts</th>
         <th style="cursor:default">Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -4563,7 +4612,6 @@ async function saveIncident() {
   save();
   closeMod2('mincident');
   renderStudents();
-  if (typeof renderSynthese === 'function') renderSynthese();
 }
 function incidentRemoveUI(sid, id) {
   const e = _incidentsOf(sid).find(x => x.id === id);
@@ -8941,10 +8989,8 @@ function electionPrintPV() {
 // SYNTHÈSE — une ligne par élève, tout ce qui est connu. L'écran de préparation
 // du conseil de classe et des appels aux familles : la raison d'être de l'app.
 // ═══════════════════════════════════════════════════════════════════════════
-let syntheseSort = 'nom';
-let _synthFilter = '';
 const _synthOpen = new Set();   // élèves dont la liste des non-rendus est dépliée (session)
-function synthToggleNr(sid) { if (_synthOpen.has(sid)) _synthOpen.delete(sid); else _synthOpen.add(sid); renderSynthese(); }
+function synthToggleNr(sid) { if (_synthOpen.has(sid)) _synthOpen.delete(sid); else _synthOpen.add(sid); renderStudents(); }
 
 // Calcul PUR d'une ligne : ce que la Synthèse affiche et ce que l'impression reprend.
 function _syntheseRow(cls, stu) {
@@ -8988,90 +9034,6 @@ function _syntheseRow(cls, stu) {
 function _syntheseRows(cls) {
   return cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => _syntheseRow(cls, s));
 }
-function _synthSorted(rows) {
-  const byName = (a, b) => (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr', { sensitivity: 'base' });
-  const desc = k => (a, b) => ((b[k] ?? -Infinity) - (a[k] ?? -Infinity)) || byName(a, b);
-  const rows2 = rows.slice();
-  if (syntheseSort === 'delta') rows2.sort(desc('delta'));
-  else if (syntheseSort === 'cumul') rows2.sort(desc('cumul'));
-  else if (syntheseSort === 'periode') rows2.sort(desc('periodeTotal'));
-  else if (syntheseSort === 'docs') rows2.sort((a, b) => (b.nonRendus.length - a.nonRendus.length) || byName(a, b));
-  else if (syntheseSort === 'incidents') rows2.sort((a, b) => (b.nbIncidents - a.nbIncidents) || String(b.incident?.date || '').localeCompare(String(a.incident?.date || '')) || byName(a, b));
-  else {
-    const ordre = _sortStudents(rows2.map(r => r.sid), syntheseSort, getCls());
-    rows2.sort((a, b) => ordre.indexOf(a.sid) - ordre.indexOf(b.sid));
-  }
-  return rows2;
-}
-function setSyntheseSort(v) { syntheseSort = v; renderSynthese(); }
-function setSynthFilter(v) { _synthFilter = String(v || ''); renderSynthese(); }
-
-function _synthCellsHTML(r, cls) {
-  const civ = r.civilite ? `<span style="color:${r.civilite === 'M' ? 'var(--civ-m)' : 'var(--civ-f)'};font-weight:700">${civiliteLabel(r.civilite)}</span> ` : '';
-  const grp = r.groupe ? `<span class="gbdg g${r.groupe}">G${r.groupe}</span> ` : '';
-  const opts = r.options.map(a => { const t = tagByAbbr(a); return t ? _tagBadgeHTML(t) : _escName(a); }).join('');
-  const carnet = r.cumul === null ? '<span class="tb-hint">—</span>'
-    : `<strong style="font-family:var(--font-mono)">${r.cumul}</strong> <span class="tb-hint">le ${_escName(_fmtDateFr(r.cumulDate))}</span>`;
-  const dCls = r.delta === null ? '' : r.delta >= 5 ? ' hot' : r.delta >= 2 ? ' warm' : '';
-  const delta = r.delta === null ? '<span class="tb-hint">—</span>' : `<span class="rel-delta${dCls}" style="padding:1px 6px;border-radius:6px">${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}</span>`;
-  const per = r.periodeTotal === null ? '<span class="tb-hint">—</span>' : `<span style="font-family:var(--font-mono);font-weight:700">${r.periodeTotal}</span>`;
-  // Non rendus : le NOMBRE seul, en pastille — la liste des titres en clair élargissait la
-  // colonne à la moitié de l'écran. Le détail vient au survol (infobulle) ou au clic
-  // (déplié sous la pastille, mémorisé par élève le temps de la session).
-  const ouvert = _synthOpen.has(r.sid);
-  const nr = r.nonRendus.length
-    ? `<button class="badge warn synth-nr" title="${_escAttr(r.nonRendus.join(' · '))} — clic pour ${ouvert ? 'replier' : 'détailler'}" onclick="synthToggleNr('${_escJsAttr(r.sid)}')">${r.nonRendus.length}${ouvert ? ' ▾' : ''}</button>${
-        ouvert ? `<div class="synth-nr-list">${r.nonRendus.map(t => `<div>☐ ${_escName(t)}</div>`).join('')}</div>` : ''}`
-    : '<span class="tb-hint">✓</span>';
-  const rep = r.reponses.map(x => `<div class="synth-rep"><span class="tb-hint">${x.par === 'prof' ? '👤 ' : ''}${_escName(x.champ)} :</span> ${_escName(x.valeurs.join(', '))}</div>`).join('') || '<span class="tb-hint">—</span>';
-  const cont = r.contact
-    ? `<div class="synth-contact" title="${_escAttr(`${_journalType(r.contact.type).label} — ${r.contact.texte}${r.nbContacts > 1 ? `\n(${r.nbContacts} contacts notés)` : ''}`)}">${
-        _journalType(r.contact.type).icon} ${_escName(_fmtDateFr(r.contact.date))}${r.nbContacts > 1 ? ` <span class="tb-hint">×${r.nbContacts}</span>` : ''}</div>` : '';
-  const rem = (cont ? cont : '') + (r.remarque ? `<div class="synth-rem" title="${_escAttr(r.remarque)}">${_escName(r.remarque)}</div>` : '');
-  const inc = r.nbIncidents
-    ? `<span class="badge warn" title="${_escAttr(r.nbIncidents + ' entrée' + (r.nbIncidents > 1 ? 's' : ''))}">${r.nbIncidents}</span> <span class="tb-hint" title="${_escAttr(r.incident.objet)}">${_escName(_fmtDateFr(r.incident.date))} · ${_escName(_instanceOf(r.incident.type).label)}</span>`
-    : '<span class="tb-hint">—</span>';
-  return `<td>${_nomHTML(r.sid, r.nom, r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}${_ageSubHTML(S.eleves[r.sid])}</td>
-    <td style="white-space:nowrap">${civ}${grp}${opts}</td>
-    <td>${_escName(r.amenagements) || '<span class="tb-hint">—</span>'}</td>
-    <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
-    <td>${nr}</td><td>${rep}</td><td style="white-space:nowrap">${inc}</td><td class="synth-rem-td">${rem}</td>`;
-}
-
-function renderSynthese() {
-  const el = document.getElementById('synthese-body');
-  if (!el) return;
-  const cls = getCls();
-  if (!cls) { el.innerHTML = _needClassHTML('préparer le conseil de classe'); return; }
-  if (!cls.eleves.length) { el.innerHTML = _emptyStateHTML('👥', `Aucun élève dans ${_escName(cls.nom)}`, 'Importez la classe depuis l\'onglet <strong>👥 Élèves</strong>.'); return; }
-  const all = _syntheseRows(cls);
-  const rows = _synthSorted(all.filter(r => _matchFilter(S.eleves[r.sid], _synthFilter)));
-  const per = rows[0]?.periodeLabel || _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
-  const tb = `<div class="tb no-print">
-      ${_sortPickerHTML(syntheseSort, 'setSyntheseSort(this.value)', cls, [
-        { key: 'delta', label: 'par Δ du dernier relevé' },
-        { key: 'cumul', label: 'par cumul d\'observations' },
-        { key: 'periode', label: `par total ${per}` },
-        { key: 'docs', label: 'par documents non rendus' },
-        { key: 'incidents', label: 'par incidents' }])}
-      <input type="search" placeholder="🔍 filtrer…" value="${_escAttr(_synthFilter)}" oninput="setSynthFilter(this.value)" style="min-width:160px">
-      <span class="tb-hint">${rows.length} élève${rows.length > 1 ? 's' : ''}</span>
-      <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="printSynthese()" title="Une page paysage par classe — Ctrl+P fait pareil">🖨 Imprimer</button>
-    </div>`;
-  const head = `<tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th title="Dernier total d'observations relevé dans le carnet">Observations</th><th title="Évolution au dernier relevé">Δ</th><th title="Total de la période courante">${_escName(per)}</th><th title="Documents non rendus">Non rendus</th><th title="Réponses portées sur les documents (👤 = avis du PP)">Réponses</th><th title="Incidents et instances (rapport d'incident, commission éducative…) — le nombre, et le dernier">Incidents</th><th title="Dernier contact avec la famille, puis la remarque libre">Remarque · contacts</th></tr>`;
-  const keep = _wrapScrollKeep(el);
-  el.innerHTML = tb + `<div class="rel-wrap frozen"><table class="dt synth-table"><thead>${head}</thead><tbody>${rows.map(r => `<tr${r.actif ? '' : ' class="inactive"'}>${_synthCellsHTML(r, cls)}</tr>`).join('')}</tbody></table></div>`;
-  keep();
-}
-
-// ── Impressions ──
-// Zone #pa + classe sur <body> : le @media print masque l'app et montre la zone.
-// La page nommée (portrait / paysage) est choisie par la classe posée sur la zone.
-// ⚠️ Les pages NOMMÉES (`@page landscape` + `page: landscape`) ne sont pas comprises
-// partout : Firefox les ignore, et la synthèse serait sortie en PORTRAIT, serrée — sans
-// que rien ne le signale à l'écran. On pose donc AUSSI, le temps de l'impression, un
-// `@page` anonyme, qui lui est universel. Retiré à `afterprint` : laissé en place, il
-// imposerait son orientation à l'impression suivante, qui n'a pas la même.
 function _setPageOrientation(kind) {
   _clearPageOrientation();
   const st = document.createElement('style');
@@ -9108,19 +9070,22 @@ function _printContactHTML(r) {
   return `<em>${_escName(corps)}</em>` + (aRemarque ? '<br>' : '');
 }
 
-function printSynthese() {
+// La liste des élèves sur le papier — une page paysage pour le conseil de classe. Mêmes
+// lignes, même tri, même filtre que l'écran. Sans la colonne Réponses (arbitré le
+// 2026-09-11 : les choix portés sur les documents se lisent dans la fiche complète).
+function printEleves() {
   const cls = getCls();
   if (!cls || !cls.eleves.length) return toast('⚠️ Rien à imprimer.', 'warn');
-  const rows = _synthSorted(_syntheseRows(cls).filter(r => _matchFilter(S.eleves[r.sid], _synthFilter)));
+  const rows = _elevesRows(cls).map(x => x.r);
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
-  const html = `<h1>Synthèse — ${_escName(cls.nom)} — ${_escName(cls.annee || '')}</h1>
-    <p class="print-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${syntheseSort !== 'nom' ? ` · tri : ${_escName(syntheseSort)}` : ''}</p>
-    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Réponses</th><th>Incidents</th><th>Remarque · contacts</th></tr></thead>
+  const html = `<h1>${_escName(cls.nom)} — ${_escName(cls.annee || '')}</h1>
+    <p class="print-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}</p>
+    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Incidents</th><th>Remarque · contacts</th></tr></thead>
     <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}</td>
       <td>${r.groupe ? 'G' + r.groupe + ' ' : ''}${_escName(r.options.join(' '))}</td><td>${_escName(r.amenagements)}</td>
       <td>${r.cumul === null ? '' : `${r.cumul} <small>(${_escName(_fmtDateFr(r.cumulDate))})</small>`}</td>
       <td>${r.delta === null ? '' : (r.deltaDecroissant ? '▼' : '') + (r.delta > 0 ? '+' : '') + r.delta}</td><td>${r.periodeTotal ?? ''}</td>
-      <td>${_escName(r.nonRendus.join(', '))}</td><td>${r.reponses.map(x => `${_escName(x.champ)} : ${_escName(x.valeurs.join(', '))}`).join('<br>')}</td>
+      <td>${_escName(r.nonRendus.join(', '))}</td>
       <td>${r.nbIncidents ? `${r.nbIncidents} — <small>${_escName(_fmtDateFr(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}</small>` : ''}</td>
       <td class="print-rem">${_printContactHTML(r)}${_escName(r.remarque)}</td></tr>`).join('')}</tbody></table>`;
   _printHTML(html, 'landscape');
@@ -10575,7 +10540,7 @@ document.addEventListener('keydown', e => {
   // page nommée de la zone d'impression). Ailleurs, l'impression native reste disponible.
   if (ctrl && k === 'p') {
     const tab = document.querySelector('.tab.on')?.id.replace('tab-', '');
-    if (tab === 'synthese') { e.preventDefault(); printSynthese(); return; }
+    if (tab === 'eleves') { e.preventDefault(); printEleves(); return; }
     if (tab === 'delegues' && _elCurrent()?.clos) { e.preventDefault(); electionPrintPV(); return; }
     // ⚠️ Sur un document ouvert, Ctrl+P ouvre le choix des COLONNES plutôt que d'imprimer
     // droit : le tableau est large, et une feuille de huit colonnes partie sans avoir été

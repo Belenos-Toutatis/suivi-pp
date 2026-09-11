@@ -161,9 +161,9 @@ test('_syntheseRow porte le nombre d\'incidents et le dernier', () => {
   const r2 = evObj(`_syntheseRow(S.classes['5C'], S.eleves.s2)`);
   assert.deepStrictEqual([r2.nbIncidents, r2.incident], [0, null]);
   // Tri « par incidents » : le plus chargé d'abord, puis le plus récent, puis le nom.
-  ev(`syntheseSort = 'incidents';`);
-  assert.deepStrictEqual(evObj(`_synthSorted(_syntheseRows(S.classes['5C'])).map(r => r.sid)`), ['s1', 's2']);
-  ev(`syntheseSort = 'nom';`);
+  ev(`eleveSort = { col: 'incidents', dir: 1 };`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s1', 's2']);
+  ev(`eleveSort = { col: 'nom', dir: 1 };`);
 });
 
 test('la démo porte des incidents de plusieurs instances, aux ids déterministes', () => {

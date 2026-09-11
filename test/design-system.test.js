@@ -210,14 +210,14 @@ function cadresSansKeep(script) {
 
 test('tout cadre figé est rendu entre _wrapScrollKeep() et keep()', () => {
   const script = SRC.slice(SRC.indexOf('<script>', SRC.indexOf('</style>')));
-  assert.ok(script.match(/class="rel-wrap frozen"/g).length >= 5, 'les cinq grilles portent le cadre figé');
+  assert.ok(script.match(/class="rel-wrap frozen"/g).length >= 4, 'les quatre grilles portent le cadre figé');
   assert.deepStrictEqual(cadresSansKeep(script), [], 'renderers qui perdent la position de défilement');
 });
 
 test('MÉTA-TEST : le détecteur voit un keep() retiré', () => {
   const script = SRC.slice(SRC.indexOf('<script>', SRC.indexOf('</style>')));
-  const i = script.indexOf('const keep = _wrapScrollKeep(el);', script.indexOf('function renderSynthese'));
+  const i = script.indexOf('const keep = _wrapScrollKeep(el);', script.indexOf('function renderCarnets'));
   assert.ok(i > 0);
   const casse = script.slice(0, i) + script.slice(i + 'const keep = _wrapScrollKeep(el);'.length);
-  assert.deepStrictEqual(cadresSansKeep(casse), ['renderSynthese']);
+  assert.deepStrictEqual(cadresSansKeep(casse), ['renderCarnets']);
 });

@@ -42,8 +42,9 @@ sauvegarde dans un dossier Nextcloud (onglet 💾 Données et réglages).
 4. **🗳 Élection des délégués** — candidatures en binôme, dépouillement bulletin par
    bulletin **projeté en direct devant la classe**, procès-verbal imprimable.
 
-Plus une **📊 Synthèse** — une ligne par élève, tout ce qui est connu : c'est l'écran de
-préparation du conseil de classe et des appels aux familles.
+La liste des **👥 Élèves** porte, sur la même ligne que l'identité, tout ce qui est connu de
+chacun — observations, Δ, période, non rendus, incidents, dernier contact : c'est l'écran de
+préparation du conseil de classe et des appels aux familles, imprimable en paysage.
 
 ## Ce que l'app ne fait pas, volontairement
 
@@ -68,7 +69,7 @@ optimiste.
 | 4 | Onglet Observations (le carnet) : relevés, cumuls, deltas, totaux de période | ✅ fait |
 | 5 | Onglet Documents : champs, tableau de retours, duplication | ✅ fait |
 | 6 | Onglet Délégués : calcul, dépouillement, projection, PV | ✅ fait |
-| 7 | Onglet Synthèse + impressions | ✅ fait |
+| 7 | Suivi par élève (ex-onglet Synthèse, fusionné dans Élèves) + impressions | ✅ fait |
 | 8 | Sync auto, horloge vectorielle, conflits, backups, jauge de mémoire | ✅ fait |
 | 9 | Données de démonstration | ✅ fait |
 | 10 | Audits : contraste, impression, responsive, clavier | ✅ fait |
@@ -96,7 +97,7 @@ mènent à l'édition complète, et y ramènent.
 
 **Le journal des contacts.** À côté du texte libre, chaque élève porte la liste **datée**
 de ce qui s'est dit avec la famille : appel, rencontre, courriel, mot dans le carnet. Le
-dernier contact remonte sur la liste des élèves et dans la Synthèse — « ai-je déjà appelé
+dernier contact remonte sur la liste des élèves — « ai-je déjà appelé
 cette famille, et quand ? » est la question qu'on se pose en préparant un conseil, et le
 texte libre ne permettait ni de la compter ni de la retrouver.
 
@@ -134,7 +135,7 @@ chaque PDF joint, l'app propose de garder le nom du fichier, de le nommer automa
 
 **Pas d'élection dans l'app ?** Si le vote s'est tenu sur papier, ou si vous reprenez une
 classe en cours d'année, l'onglet 🗳 Délégués vous laisse **désigner** directement les deux
-titulaires et les deux suppléants, avec la date et un mot : la Synthèse, la fiche et la liste
+titulaires et les deux suppléants, avec la date et un mot : la fiche et la liste
 des élèves les afficheront comme s'ils avaient été élus ici. Si une élection close dans l'app
 est plus récente, c'est elle qui fait foi.
 
@@ -144,7 +145,7 @@ nés le même jour, **l'app ne tranche pas** : elle le dit et vous laisse décid
 tire jamais au sort.
 
 **Trier les élèves comme on marche dans la salle.** Les quatre grilles — Élèves, Observations,
-Ramassage, Synthèse, et le tableau d'un document — se trient par **nom**, par **prénom**, par **place dans la salle**,
+Ramassage, et le tableau d'un document — se trient par **nom**, par **prénom**, par **place dans la salle**,
 ou selon un **ordre de ramassage** : la séquence de tables que vous suivez pour récupérer
 les copies. Places et ordres sont repris de *Plan de classe*, jamais redessinés ici ; un
 ré-import les met à jour. Et comme un élève n'a pas la même place d'une pièce à l'autre,
@@ -206,10 +207,11 @@ modale **Versions & historique** liste tout, avec un résumé du contenu de chaq
 et permet de poser un **point nommé** avant une opération risquée. Une **jauge de mémoire
 locale** mesure la place réellement disponible sur ce navigateur, au lieu de la supposer.
 
-À l'étape 7, la **Synthèse** rassemble tout ce qui est connu de chaque élève sur une ligne :
-dernier cumul d'observations et son Δ, total de la période, documents non rendus, réponses
-portées (et avis du PP), délégué ou suppléant, aménagements, remarque. Tri par Δ, par non
-rendus… et **impression en paysage** ; la liste des manquants et le procès-verbal s'impriment
+La liste des **Élèves** rassemble tout ce qui est connu de chacun sur une ligne :
+dernier total d'observations et son Δ, total de la période, documents non rendus, incidents,
+délégué ou suppléant, aménagements, dernier contact et remarque (les réponses portées sur
+les documents, elles, se lisent dans la fiche). Tri par Δ, par non rendus, par incidents… en
+cliquant les en-têtes, et **impression en paysage** ; la liste des manquants et le procès-verbal s'impriment
 en portrait. Ctrl+P fait ce qui a du sens dans l'onglet courant.
 
 À l'étape 6, l'élection des délégués se tient dans l'app : candidatures en binôme, urne

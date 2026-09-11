@@ -480,7 +480,7 @@ officielles, l'utilisateur les règle ou les décoche, et il note la décision p
 
 ## Écrans
 
-Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group` à deux étages ici).
+Navigation à un seul niveau, **5 onglets** depuis la v1.23.0 (6 avant : la Synthèse a été fusionnée dans Élèves — cf. 5.) ; l'app reste petite, pas de `.tab-group` à deux étages ici.
 
 ⚠️ **Les libellés nomment ce qu'on FAIT, pas l'objet qu'on manipule** (arbitré le 2026-09-11 :
 *« dans l'onglet carnet, en fait on fait le suivi des observations ; dans Documents, on
@@ -492,7 +492,7 @@ documents*, bouton *🧺 Ramasser · vérifier…*, retour arrière *← Liste*)
 code (`tab-carnets`, `documents-body`, `S.releves`, `renderCarnets`…) ne bougent pas : on
 renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
 
-1. **👥 Élèves** — liste triable, import, ajout/édition, remarque libre, aménagements, arrivée/départ.
+1. **👥 Élèves** — liste triable, import, ajout/édition, remarque libre, aménagements, arrivée/départ — **et, depuis la fusion de la Synthèse (v1.23.0), le suivi** : observations (dernier total + date), Δ, total de période, non rendus (pastille), incidents, remarque · contacts. **C'est l'écran de préparation du conseil de classe et des appels aux parents.** Une seule fonction, `_elevesRows(cls)`, filtre et trie les lignes `{ s, r: _syntheseRow(cls, s) }` pour l'écran ET l'impression (`printEleves`, paysage) ; les colonnes de suivi se trient par en-tête, en décroissant au premier clic (le plus chargé d'abord), inconnus en fin. La colonne **Naissance** est masquée par défaut (la ligne est longue) : case « 📅 naissances » dans la barre pour une saisie en série.
    - **Aménagements en LECTURE dans la liste** (2026-09-11) : seuls les actifs, en texte
      coloré (`_amenBadgesHTML`, mêmes encres `--st-*-fg` que les cases de la modale ✏️).
      Les huit boutons-bascules d'origine faisaient de cette colonne la plus large du tableau
@@ -599,8 +599,7 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      couvraient le calcul, pas la politique d'affichage.)
    - La sélection ne vit **que pour la passe en cours** : rien n'est ajouté à `S`, donc rien à purger ni à déclarer dans `_validateImport`. Elle est filtrée sur la **classe courante** — changer de classe avec le ramassage ouvert laissait sinon des colonnes de l'autre classe, peuplées de ses élèves à elle.
 4. **🗳 Délégués** — candidatures (binômes), **dépouillement projeté en direct** (grille de saisie à gauche, graphique lisible du fond de la salle à droite), résultats calculés, procès-verbal imprimable. Un bloc par élection, historisé : on garde celle de l'an dernier. **C'est l'écran le plus exigeant du projet** : il est utilisé une fois par an, devant 25 témoins, sans possibilité de reprendre plus tard.
-5. **📊 Synthèse** — une ligne par élève, tout ce qui est connu : cumul d'observations, Δ récent, documents non rendus, réponses portées, délégué ou suppléant, remarque. **C'est l'écran de préparation du conseil de classe et des appels aux parents** — il est la raison d'être de l'app, pas un bonus.
-   - **Non rendus : le NOMBRE seul** (v1.22.1, demande de l'utilisateur) — la liste des titres en clair élargissait la colonne à la moitié de l'écran (mesuré : 70 px après, pour la pastille). Le détail vient au **survol** (infobulle) ou au **clic** (déplié sous la pastille, `_synthOpen`, mémorisé par élève le temps de la session). ⚠️ Même problème potentiel sur *Réponses*, qui liste tous les choix : à traiter de la même façon si la colonne gêne.
+5. ~~**📊 Synthèse**~~ — **fusionnée dans Élèves le 2026-09-11 (v1.23.0)**, arbitré par l'utilisateur : *« la synthèse fait un peu doublon avec Élèves »* — les deux tableaux partageaient nom, groupe · options et aménagements. Ce qui reste : le calcul pur `_syntheseRow` (nom conservé, testé) et `_syntheseRows`, la pastille des non-rendus (`_synthOpen`, détail au survol ou au clic — v1.22.1, parce que la liste des titres en clair élargissait la colonne à la moitié de l'écran), les classes CSS `.synth-*` (cellules). **Retirée : la colonne Réponses** (les choix portés sur les documents se lisent dans la fiche complète — arbitrage de l'utilisateur). Supprimés : `renderSynthese`, `_synthSorted`, `syntheseSort`, `_synthFilter`, l'onglet et sa zone ; `printSynthese` → `printEleves` ; `Ctrl+P` sur Élèves imprime. Un onglet mémorisé « synthese » retombe sur Élèves (`init` vérifie que `tab-<id>` existe).
 6. **💾 Données et réglages** (renommé le 2026-09-11) — réglages, **catalogue des options**, **salles et placements**, sync auto, dossier des PDF et nettoyage des orphelins, catalogue des instances, versions & backups, jauge de mémoire locale, export/import JSON, RGPD, à propos.
    - **Options** : le même tableau que la modale 🏷 de l'onglet Élèves (`_tagsTableHTML`, `_tagsFormHTML(prefix)` — deux formulaires, deux préfixes d'ids, sinon la modale et l'onglet se disputeraient `mtags-abbr`). ⚠️ Le bandeau DIT ce qu'un import fait : depuis Plan de classe, **les options de chaque élève sont réécrites** (le catalogue n'est que complété) ; une option cochée à la main est à cocher aussi là-bas.
    - **Salles et placements** (`_sallesEditorHTML`) : sélecteur de salle, nom, rangs × colonnes, et une grille de la classe courante en deux modes — **Placer** (glisser-déposer, cf. ci-dessous) et **Ordre de ramassage** (clic sur les tables dans l'ordre où l'on passe, recliquer retire ; ordres nommés, ↺ pour refaire). Modèle pur et testé : `salleAdd/Set/Remove`, `seatSet`, `patternAdd/SetNom/Toggle/Clear/Remove`.
@@ -616,7 +615,7 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
 
 ## Trier les élèves : nom, prénom, place, ordre de ramassage
 
-Les quatre grilles (Élèves, Carnets, Ramassage, Synthèse) partagent un sélecteur « Trier »
+Les trois grilles (Élèves, Observations, Ramassage) partagent un sélecteur « Trier »
 (`_sortPickerHTML`) et un moteur commun (`_sortStudents`). Chaque écran y ajoute ses modes
 propres (Δ, cumul, non rendus…) ; les modes de place et de ramassage viennent, eux, du
 placement importé.
@@ -647,8 +646,8 @@ nomme. Le test balayant le voit — vérifié en cassant la purge exprès.
 
 ## Grilles : première ligne et première colonne figées
 
-Les cinq grilles à élèves en lignes (Élèves, Carnets, tableau d'un document, Ramassage,
-Synthèse) défilent dans leur **propre cadre** (`.rel-wrap.frozen`), borné à la hauteur qui
+Les quatre grilles à élèves en lignes (Élèves, Observations, tableau d'un document,
+Ramassage) défilent dans leur **propre cadre** (`.rel-wrap.frozen`), borné à la hauteur qui
 reste sous le bandeau : l'en-tête reste en haut, la colonne des noms reste à gauche, comme
 dans le tableur qu'elles remplacent (demande de l'utilisateur, 2026-09-11).
 
@@ -817,6 +816,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 33 | **Synthèse fusionnée dans Élèves** : une liste, identité + suivi, `_elevesRows` pour l'écran et l'impression, tri par en-tête sur les colonnes de suivi, naissances derrière une case ; colonne Réponses retirée ; 5 onglets | ✅ **fait** (2026-09-11, v1.23.0) |
 | 32 | **Libellés qui nomment le geste** : 📓 Observations, 📄 Retours, *+ Relever les carnets*, *🧺 Ramasser · vérifier…*, *Remarque · contacts* ; identifiants du code inchangés | ✅ **fait** (2026-09-11, v1.22.0) |
 | 31 | **Catalogue des instances aux noms réels**, rangé par famille (signalement · punitions · sanctions · mesures · instances · protection), migration des anciens libellés ; 2 tests | ✅ **fait** (2026-09-11, v1.21.0) |
 | 30 | **PV signé en PDF** sur l'élection close et la désignation (`election.pv`, `cls.delegues.pv`) · **choix du nom** à la copie (`pjChooseName`, `_pjAutoNom`, `_pjUnique`, plus de préfixe d'id) ; 2 tests | ✅ **fait** (2026-09-11, v1.20.0) |

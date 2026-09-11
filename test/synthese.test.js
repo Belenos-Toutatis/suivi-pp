@@ -59,12 +59,20 @@ test('_syntheseRow : documents archivés ignorés, élève parti non attendu', (
   assert.strictEqual(s3.cumul, null);
 });
 
-test('_synthSorted : par Δ décroissant, les inconnus en fin', () => {
+test('_elevesRows : par Δ décroissant au premier clic, les inconnus en fin ; le tri des non-rendus ; par nom', () => {
+  // Depuis la fusion de la Synthèse dans la liste des élèves (v1.23.0), c'est _elevesRows
+  // qui trie — pour l'écran et pour l'impression.
   ev(FIXTURE);
-  ev(`syntheseSort = 'delta'`);
-  assert.deepStrictEqual(evObj(`_synthSorted(_syntheseRows(S.classes['5C'])).map(r => r.sid)`), ['s2', 's1', 's3']);
-  ev(`syntheseSort = 'docs'`);
-  assert.strictEqual(evObj(`_synthSorted(_syntheseRows(S.classes['5C']))[0].sid`), 's2');
-  ev(`syntheseSort = 'nom'`);
-  assert.deepStrictEqual(evObj(`_synthSorted(_syntheseRows(S.classes['5C'])).map(r => r.sid)`), ['s1', 's2', 's3']);
+  ev(`eleveSort = { col: 'delta', dir: 1 }`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s2', 's1', 's3']);
+  ev(`eleveSort = { col: 'delta', dir: -1 }`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s1', 's2', 's3'], 'inversé, les inconnus restent en fin');
+  ev(`eleveSort = { col: 'docs', dir: 1 }`);
+  assert.strictEqual(evObj(`_elevesRows(S.classes['5C'])[0].s.id`), 's2');
+  ev(`eleveSort = { col: 'nom', dir: 1 }`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s1', 's2', 's3']);
+  // Le filtre de la liste s'applique aussi.
+  ev(`_eleveFilter = 'DUR'`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s1']);
+  ev(`_eleveFilter = ''`);
 });
