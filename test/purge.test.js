@@ -35,7 +35,11 @@ const MAXIMAL = `S = {
     sa2: { id: 'sa2', nom: 'Labo', rows: 3, cols: 4, patterns: [] },
   },
   eleves: {
-    s1: { id: 's1', nom: 'Durand', prenom: 'Léa',  classe_id: '5C', tags: ['tag_1'], remarque: 'Appel à la mère le 11/10' },
+    // ⚠️ Les incidents vivent SUR l'élève (ils partent avec lui) mais leur « type » pointe
+    // le catalogue S.instances — qui, lui, ne connaît aucun sid : rien à purger, et le
+    // balayage doit le constater plutôt que le supposer.
+    s1: { id: 's1', nom: 'Durand', prenom: 'Léa',  classe_id: '5C', tags: ['tag_1'], remarque: 'Appel à la mère le 11/10',
+          incidents: [ { id: 'inc_1', date: '2025-10-03', ts: 3, type: 'fiche_incident', objet: 'Insolence', texte: '', pdf: { nom: 'f.pdf', fichier: 'inc_1-f.pdf', taille: 1000 } } ] },
     s2: { id: 's2', nom: 'Martin', prenom: 'Noé',  classe_id: '5C', tags: [] },
     s3: { id: 's3', nom: 'Petit',  prenom: 'Inès', classe_id: '5D', tags: ['tag_1'] },
   },
@@ -59,6 +63,7 @@ const MAXIMAL = `S = {
                               bulletins: [ { n: 1, voix: ['c1'], statut: 'valide' } ] } ] } },
   },
   prefs: { periodMode: 'semestre', codeAbsent: 'A' },
+  instances: { fiche_incident: { id: 'fiche_incident', label: 'Fiche incident', description: '', actif: true, ord: 0, builtin: true } },
   cur: '5C',
 };`;
 // ⚠️ MAXIMAL doit citer CHAQUE section de S, sinon le balayage certifie une couverture

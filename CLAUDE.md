@@ -113,6 +113,7 @@ S = {
   documents:  { [docId]: doc },
   elections:  { [classId]: { [electionId]: election } },
   prefs:      { periodMode: 'semestre'|'trimestre', … },
+  instances:  { [instanceId]: instance },          // catalogue des instances (incidents)
   cur:        classId,
 }
 
@@ -146,7 +147,15 @@ stu = {
   remarque,                // texte libre du PP (la colonne « Remarque » du tableur)
   // Journal des contacts avec la famille — DATÉ et qualifié, à côté du texte libre.
   journal: [ { id, date: 'YYYY-MM-DD', ts, type: 'appel'|'rencontre'|'courriel'|'mot'|'autre', texte } ],
+  // Incidents et instances (2026-09-11) : fiche incident, punition, commission éducative…
+  // `type` pointe le catalogue S.instances ; `pdf` n'est qu'une RÉFÉRENCE vers le dossier
+  // des pièces jointes (cf. *Incidents et instances*), jamais le fichier.
+  incidents: [ { id, date: 'YYYY-MM-DD', ts, type: instanceId, objet, texte, pdf: null | { nom, fichier, taille } } ],
 }
+
+// Catalogue des instances — pré-rempli (INSTANCES_DEFAUT, `builtin: true`), renommable,
+// désactivable (`actif`), complétable. Une instance d'office ne se supprime pas.
+instance = { id, label, description, actif, ord, builtin }
 
 releve = {
   date: 'YYYY-MM-DD',      // = la clé dans S.releves[classId]
@@ -380,6 +389,66 @@ Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisati
 - ⚠️ **Ne pas stocker `stu.delegue` en dur** : le dériver de `S.elections`, sinon une correction du dépouillement laisse un ancien délégué marqué. Si un cache est nécessaire, le recalculer dans `postLoadHook`.
 - Prévoir la **démission ou le départ d'un délégué** en cours d'année : le suppléant devient titulaire. Ce n'est pas une nouvelle élection — un champ `remplacements: [{ date, candId, motif }]` sur l'élection suffit, sans toucher au dépouillement.
 
+## Incidents et instances
+
+Ce qui se passe quand ça se passe mal, et ce qui en découle : une fiche incident, une
+retenue, une commission éducative, un conseil de discipline. Demandé le 2026-09-11 :
+*« des fiches incident à saisir, peut-être accompagnées d'un PDF de la fiche scannée, et
+les commissions éducatives ou autres instances ; on propose toutes les instances
+officielles, l'utilisateur les règle ou les décoche, et il note la décision prise. »*
+
+- **Le catalogue est pré-rempli et réglable** (`INSTANCES_DEFAUT`, semé par `_instancesSeed`
+  dans `postLoadHook`) : fiche incident · punition scolaire · exclusion ponctuelle de cours ·
+  avertissement · blâme · mesure de responsabilisation · exclusion temporaire · commission
+  éducative · conseil de discipline · équipe éducative · cellule de veille / GPDS ·
+  information préoccupante · autre. Renommer, décrire, décocher, ajouter — dans 💾 Données.
+  ⚠️ **Le semis complète sans écraser** : un réglage de l'utilisateur survit, une instance
+  ajoutée par une version ultérieure apparaît d'elle-même, un fichier antérieur à la section
+  arrive avec le catalogue complet. Testé dans les trois sens.
+  ⚠️ **Une instance d'office se DÉCOCHE, ne se supprime pas** ; une instance ajoutée se
+  supprime si rien ne l'utilise. Une entrée dont l'instance a disparu garde un libellé
+  (`_instanceOf`) : on ne perd jamais la lecture d'un incident pour une question de catalogue.
+  ⚠️ Les descriptions sont des **repères**, pas le texte réglementaire — elles s'éditent, et
+  le règlement intérieur prime. Ne rien imprimer qui les cite comme droit.
+- **Les entrées vivent sur l'élève** (`stu.incidents`) : date · instance · objet (obligatoire —
+  « commission éducative » sans dire pourquoi ne sert à rien au conseil) · texte libre (la
+  décision prise, les points dits) · PDF facultatif. Saisie dans la modale `mincident`,
+  ouverte depuis la **fiche** (section ⚖️, boutons ✏️ 🗑 et « + Noter »), qui y revient
+  (`ficheVersIncident` + `_modalReturnTo`). `pushUndo()` avant chaque mutation.
+- **Le PDF ne va JAMAIS dans la sauvegarde JSON** : un scan pèse 200 Ko à 2 Mo, localStorage
+  plafonne à quelques Mo (le projet voisin a touché ce plafond). Il est **copié** dans un
+  dossier **choisi par l'utilisateur** (`pjDirHandle`, persisté en IndexedDB sous `pjdir`,
+  distinct du dossier de sync), et l'entrée n'en garde que `{ nom, fichier, taille }`.
+  L'utilisateur place ce dossier sous Nextcloud, qui transporte les fichiers ; sur l'autre
+  poste, il choisit le même dossier une fois. Nom de fichier par `_pjSafeName` : sans
+  chemin, sans accents ni caractères interdits, **préfixé de l'id de l'entrée** (deux
+  « fiche incident.pdf » ne se heurtent pas).
+  - ⚠️ **Séparé du dossier de sync** : celui-ci porte des JSON à rotation (backups,
+    conflits), et mêler des scans à cette mécanique ferait courir le nettoyage sur des
+    documents officiels.
+  - ⚠️ **L'app n'efface JAMAIS un PDF d'elle-même.** Retirer la pièce ou supprimer l'entrée
+    laisse le fichier ; « 🧹 Orphelins… » (Données) liste puis supprime, sur confirmation,
+    ce que plus aucune entrée ne référence. Un scan de document officiel ne se détruit pas
+    sur un clic malheureux — et Ctrl+Z ne rend pas un fichier.
+  - ⚠️ La copie vient APRÈS l'entrée, et son échec ne la retire pas : mieux vaut un incident
+    noté sans son scan qu'un scan sans incident — on rejoint par ✏️.
+  - La permission d'un handle restauré est « à confirmer » jusqu'à un geste de
+    l'utilisateur : `_pjReady(mode)` la redemande depuis le clic, jamais au chargement. Un
+    handle sans `queryPermission` (OPFS, tests) passe pour accordé — c'est ce qui a permis de
+    vérifier copie, lecture et orphelins dans le navigateur de test sans dialogue natif.
+- **Lecture dans l'app** (`pjOpen`) : modale `mpdf` avec un `<iframe>` sur une URL de blob —
+  le lecteur du navigateur fait le reste ; « ↗ Onglet » pour imprimer ou agrandir. ⚠️ Un
+  nouvel onglet seul dépendait de l'anti-popup et, dans une application installée, sortait
+  de la fenêtre. Pour cela la CSP passe de `frame-src 'none'` à **`frame-src blob:`** : une
+  URL de blob est liée à son origine, rien d'extérieur ne peut y être encadré. L'URL est
+  révoquée à la fermeture (`_modalReturnTo['mpdf']`).
+- **Synthèse** : colonne Incidents (nombre + dernier), tri « par incidents », à l'impression
+  aussi. **RGPD** : le bandeau cite désormais les incidents et sanctions — donnée sensible —
+  et dit où vont les PDF.
+- **Purge** : les entrées partent avec l'élève ; le catalogue ne connaît aucun sid. L'état
+  maximal du test de balayage porte un incident avec PDF et une instance, pour que le
+  balayage le constate plutôt que le supposer.
+
 ## Écrans
 
 Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group` à deux étages ici).
@@ -485,7 +554,7 @@ Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group
    - La sélection ne vit **que pour la passe en cours** : rien n'est ajouté à `S`, donc rien à purger ni à déclarer dans `_validateImport`. Elle est filtrée sur la **classe courante** — changer de classe avec le ramassage ouvert laissait sinon des colonnes de l'autre classe, peuplées de ses élèves à elle.
 4. **🗳 Délégués** — candidatures (binômes), **dépouillement projeté en direct** (grille de saisie à gauche, graphique lisible du fond de la salle à droite), résultats calculés, procès-verbal imprimable. Un bloc par élection, historisé : on garde celle de l'an dernier. **C'est l'écran le plus exigeant du projet** : il est utilisé une fois par an, devant 25 témoins, sans possibilité de reprendre plus tard.
 5. **📊 Synthèse** — une ligne par élève, tout ce qui est connu : cumul d'observations, Δ récent, documents non rendus, réponses portées, délégué ou suppléant, remarque. **C'est l'écran de préparation du conseil de classe et des appels aux parents** — il est la raison d'être de l'app, pas un bonus.
-6. **💾 Données** — sync auto, versions & backups, jauge de mémoire locale, export/import JSON, RGPD, à propos.
+6. **💾 Données** — sync auto, dossier des PDF et nettoyage des orphelins, catalogue des instances, versions & backups, jauge de mémoire locale, export/import JSON, RGPD, à propos.
 
 **Impression** (`@media print`, orientation imposée avant `window.print()`) : la synthèse en paysage, la liste des manquants d'un document en portrait, le procès-verbal d'élection en portrait. ⚠️ Reprendre le bloc `@media print { html[data-theme="dark"] { … } }` : sans lui, imprimer en thème sombre pose de l'ambre sur blanc (244 écarts mesurés dans le projet de référence).
 
@@ -692,6 +761,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 23 | **Incidents et instances** : catalogue pré-rempli et réglable (`S.instances`, `_instancesSeed`), entrées datées sur l'élève (`stu.incidents`, `incidentAdd/Set/SetPdf/Remove`), modale depuis la fiche, **PDF copié dans un dossier choisi** (`pjStore`, `pjOpen` en lecteur intégré, `pjOrphelins`), Synthèse + impression, démo, RGPD, CSP `frame-src blob:` ; 13 tests de plus | ✅ **fait** (2026-09-11, v1.13.0) |
 | 22 | **Liste des élèves allégée** : aménagements en lecture (`_amenBadgesHTML`, réglage par ✏️), nom des délégués **surligné** dans les cinq grilles (`_nomHTML`, tokens `--del-*`) à la place de la pastille 🏅 ; `_topbarMeasure` différée (boucle ResizeObserver remontée en toast) ; 2 tests de plus | ✅ **fait** (2026-09-11, v1.12.0) |
 | 21 | **Grilles figées** : en-tête et colonne des noms collants dans les cinq grilles (`.rel-wrap.frozen`, `_wrapScrollKeep`, `_topbarMeasure`) · **âge sous le nom** (`_ageSubHTML`, mis à jour en place à la saisie) · pastilles « à rendre » / « à lire » du ramassage **empilées** (`_ramResteHTML`) ; 6 tests de plus | ✅ **fait** (2026-09-11, v1.11.0) |
 | 20 | **Impression de la vue globale** : grille élèves × documents (`_gridPrintCell`, `_gridPrintRows`, `_gridPrintTotals`, `_gridPrintSubtitle`), trois états sur le papier, totaux en pied, réponses en option, depuis la liste **et** depuis le ramassage ; 9 tests de plus | ✅ **fait** (2026-09-10, v1.10.0) |
@@ -853,6 +923,14 @@ Un défaut de la v1.11.0, corrigé ici :
    arrière-plan ne reçoit aucune frame, et la variable restait à sa valeur de repli
    (constaté dans le navigateur de test, volet caché). Leçon : **tout ce qui écrit du
    style depuis un observateur de taille s'écrit à la tâche suivante.**
+
+**2026-09-11, v1.13.0 (incidents et instances) : 0 écart**, clair et sombre — la section ⚖️
+de la fiche (entrées, lien 📎, boutons), la modale de saisie, le tableau des instances et
+le bloc Pièces jointes de Données, la colonne Incidents de la Synthèse. Minimum mesuré
+4,71:1 (en-têtes de tableau, valeur connue). Aucun débordement à 320 px, fiche et modales
+comprises. Copie, lecture (lecteur intégré) et détection des orphelins vérifiées dans le
+navigateur avec l'OPFS en guise de dossier — le sélecteur natif, lui, ne s'exerce qu'à la
+main : **à faire une fois sur chaque poste** avec un vrai dossier Nextcloud.
 
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la

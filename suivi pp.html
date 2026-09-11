@@ -15,9 +15,13 @@
                   Sans cette ligne, default-src 'self' les bloque et l'app retombe EN SILENCE
                   sur les polices système.
      - connect-src 'self' https://api.github.com → fetch limité à l'API GitHub (checkForUpdate)
-     - object-src 'none' / base-uri 'self' / frame-src 'none' → ancres XSS classiques fermées -->
+     - object-src 'none' / base-uri 'self' → ancres XSS classiques fermées
+     - frame-src blob: → le lecteur de PDF intégré (fiches incident) affiche un blob créé par
+                  la page ELLE-MÊME dans un <iframe> ; une URL de blob est liée à son origine,
+                  rien d'extérieur ne peut y être encadré. 'none' bloquait l'affichage, et
+                  window.open est refusé dans une fenêtre d'application installée sans geste. -->
 <meta http-equiv="Content-Security-Policy"
-  content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'">
+  content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src blob:">
 <title>Suivi PP</title>
 <link rel="manifest" href="manifest.json">
 <!-- Favicon en data: SVG — évite un 404 sur /favicon.ico et donne son identité à
@@ -1109,6 +1113,9 @@ body.el-projecting #main { padding-top: 8px; }
   font-size: .82em; background: var(--paper-warm); border: 1px solid var(--rule-line);
   border-radius: var(--radius-md); padding: 1px 7px; color: var(--ink-deep);
 }
+.fi-inc-txt { white-space: pre-line; font-size: .92em; margin-top: 2px; }
+.fi-inc-act { float: right; margin-left: 8px; }
+.inst-table input[type="text"] { width: 100%; font-size: .9em; }
 .fi-rem { white-space: pre-line; background: var(--paper-warm); border-radius: var(--radius-md); padding: 8px 10px; font-size: .93em; }
 .synth-contact { font-size: .82em; font-family: var(--font-mono); color: var(--ink-blue-soft); white-space: nowrap; margin-bottom: 2px; }
 
@@ -1197,7 +1204,9 @@ body.el-projecting #main { padding-top: 8px; }
   <span style="flex:1;min-width:240px">
     <strong>Données personnelles d'élèves</strong> — cette app stocke localement noms, prénoms,
     dates de naissance, aménagements pédagogiques, relevés de carnet, retours de documents
-    administratifs, réponses des familles et un journal des contacts avec elles.
+    administratifs, réponses des familles, un journal des contacts avec elles, et les
+    incidents et instances (commission éducative…) avec, si tu les joins, les PDF des fiches —
+    ceux-ci dans le dossier que tu choisis, pas dans le navigateur.
     En cadre professionnel, déclare-la à ton DPO d'établissement (souvent <code>dpo@ac-&lt;ton-académie&gt;.fr</code>).
     Rien ne sort de ton navigateur : aucun serveur, aucune télémétrie.
   </span>
@@ -1535,6 +1544,44 @@ body.el-projecting #main { padding-top: 8px; }
   </div>
 </div>
 
+<!-- ═══════════════ INCIDENT / INSTANCE ═══════════════ -->
+<div id="mincident" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:600px;width:100%">
+    <h2 id="minc-title">⚖️ Incident ou instance</h2>
+    <div class="tb" style="border-radius:var(--radius-md);align-items:flex-end">
+      <label class="tb-hint" style="display:flex;flex-direction:column;gap:2px">Date
+        <input type="date" id="minc-date" style="min-width:140px"></label>
+      <label class="tb-hint" style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:200px">Instance
+        <select id="minc-type" onchange="_incTypeHelp()"></select></label>
+    </div>
+    <div class="tb-hint" id="minc-type-help" style="margin:-4px 0 10px;min-height:1.2em"></div>
+    <div class="fg"><label for="minc-objet">Objet</label>
+      <input type="text" id="minc-objet" data-autofocus maxlength="160" placeholder="Bagarre en récréation · Convocation suite à trois rapports…"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();saveIncident()}"></div>
+    <div class="fg"><label for="minc-txt">Décision, points principaux <span style="font-weight:400;font-size:.85em">(facultatif)</span></label>
+      <textarea id="minc-txt" rows="4" placeholder="Ce qui a été dit, ce qui a été décidé, ce qu'on attend de l'élève et de la famille."></textarea></div>
+    <div class="fg"><label for="minc-pdf">📎 PDF de la fiche <span style="font-weight:400;font-size:.85em">(facultatif — copié dans le dossier des PDF, jamais dans la sauvegarde)</span></label>
+      <input type="file" id="minc-pdf" accept="application/pdf,.pdf">
+      <div id="minc-pdf-etat" style="margin-top:4px"></div></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mincident')">Annuler</button>
+      <button class="btn btn-p" onclick="saveIncident()">✓ Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ LECTEUR PDF ═══════════════ -->
+<div id="mpdf" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:960px;width:100%;height:min(92vh,900px);display:flex;flex-direction:column">
+    <h2 id="mpdf-title" style="flex:none">📎 PDF</h2>
+    <iframe id="mpdf-frame" title="Pièce jointe" style="flex:1;width:100%;border:1px solid var(--rule-line);border-radius:var(--radius-md);background:#fff;min-height:200px" tabindex="0"></iframe>
+    <div class="ma" style="flex:none">
+      <button class="btn btn-g" onclick="pjOpenOnglet()" title="Dans un onglet du navigateur : pour imprimer ou agrandir">↗ Onglet</button>
+      <button class="btn btn-p" data-autofocus onclick="closeMod2('mpdf')">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ OPTIONS (tags) ═══════════════ -->
 <div id="mtags" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:640px;width:100%">
@@ -1806,8 +1853,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.12.0';
-const APP_BUILD_DATE = '2026-09-11T07:48:06Z';
+const APP_VERSION    = '1.13.0';
+const APP_BUILD_DATE = '2026-09-11T14:32:38Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -1845,6 +1892,10 @@ function _emptyState() {
     documents: {},   // { [docId]: doc }
     elections: {},   // { [classId]: { [electionId]: election } }
     tags:      {},   // { [tagId]: { id, abbr, name, color } } — codes Pronote : LATIN, BIL, DNL…
+    // Catalogue des instances (fiche incident, commission éducative…) : pré-rempli des
+    // instances officielles, renommables, désactivables, complétables. Les ENTRÉES, elles,
+    // vivent sur l'élève : stu.incidents = [{ id, date, ts, type, objet, texte, pdf }].
+    instances: {},   // { [id]: { id, label, description, actif, ord, builtin } }
     // Salles reprises de Plan de classe — LECTURE SEULE ici, uniquement pour TRIER.
     // { [salleId]: { id, nom, rows, cols, patterns: [{ id, nom, order: ['r,c', …] }] } }
     // Le placement, lui, vit sur la classe : cls.rooms[salleId].seating = { 'r,c': sid }.
@@ -2476,10 +2527,10 @@ function _isPlainObj(o) { return !!o && typeof o === 'object' && !Array.isArray(
 // manquer — c'est le rôle de cette fonction, appelée EN TÊTE de postLoadHook.
 // ⚠️ Toute section ajoutée à S s'ajoute ici.
 function _sanitizeCoreSections() {
-  for (const k of ['classes', 'eleves', 'releves', 'documents', 'elections', 'tags', 'salles', 'prefs']) {
+  for (const k of ['classes', 'eleves', 'releves', 'documents', 'elections', 'tags', 'salles', 'prefs', 'instances']) {
     if (!_isPlainObj(S[k])) { console.warn(`Section ${k} absente ou invalide — recréée vide`); S[k] = {}; }
   }
-  for (const k of ['classes', 'eleves', 'documents', 'tags', 'salles']) {
+  for (const k of ['classes', 'eleves', 'documents', 'tags', 'salles', 'instances']) {
     for (const [id, v] of Object.entries(S[k])) {
       if (!_isPlainObj(v)) { console.warn(`Entrée ${k}.${id} invalide — supprimée`); delete S[k][id]; }
     }
@@ -2510,6 +2561,8 @@ function _sanitizeCoreSections() {
   for (const e of Object.values(S.eleves)) {
     if (!Array.isArray(e.tags)) e.tags = [];
     if (!Array.isArray(e.journal)) e.journal = [];
+    if (!Array.isArray(e.incidents)) e.incidents = [];
+    e.incidents = e.incidents.filter(_isPlainObj);
   }
   for (const d of Object.values(S.documents)) {
     if (!Array.isArray(d.classIds)) d.classIds = [];
@@ -2526,6 +2579,7 @@ function postLoadHook() {
     if (S.prefs[k] === undefined) S.prefs[k] = v;
   }
   if (typeof S.version !== 'number') S.version = 1;
+  _instancesSeed();
   // Stratégie de sauvegarde : voyage dans le JSON (donc suit la sync), avec repli sur le
   // réglage local pour un fichier venu d'une version antérieure.
   if (!S.prefs.backupStrategy) {
@@ -2581,7 +2635,7 @@ function _validateImport(d) {
   // vérifiées compatibles ID_RE, sinon des imports légitimes seraient rejetés.
   // Clés vérifiées : ids de classe/élève/document, dates 'YYYY-MM-DD' (releves),
   // ids d'élection, ids de tag ('tag_3'), noms fixes (prefs), ids d'appareil (clock).
-  const sections = ['classes', 'eleves', 'releves', 'documents', 'elections', 'tags', 'salles', 'prefs', 'clock'];
+  const sections = ['classes', 'eleves', 'releves', 'documents', 'elections', 'tags', 'salles', 'prefs', 'clock', 'instances'];
   for (const sec of sections) {
     const err = checkKeys(d[sec], sec);
     if (err) return err;
@@ -2793,6 +2847,17 @@ function renderDonnees() {
       <label>Backups</label>
       <div><button class="btn btn-g btn-sm" onclick="openBackupSettings()">⚙ ${_escName(_currentBackupStrategy().label)}</button></div>
     </div>
+    <h3 style="margin-bottom:10px">📎 Pièces jointes (PDF)</h3>
+    <div class="prefs" style="grid-template-columns:max-content 1fr">
+      <label>Dossier des PDF</label>
+      <div>${pjDirHandle ? `<code>${_escName(pjDirHandle.name)}</code>` : '<span class="tb-hint">aucun — les fiches incident ne pourront pas être jointes</span>'}
+        <button class="btn btn-g btn-sm" onclick="choosePjDir()">📂 ${pjDirHandle ? 'Changer' : 'Choisir un dossier'}</button>${
+        pjDirHandle ? ` <button class="btn btn-g btn-sm" onclick="pjNettoyerUI()" title="Lister puis supprimer les PDF que plus aucune entrée ne référence">🧹 Orphelins…</button>` : ''}</div>
+      <div class="pref-help">Les PDF joints aux incidents sont <strong>copiés</strong> dans ce dossier, jamais dans la sauvegarde JSON (trop lourds pour la mémoire du navigateur). Choisis un dossier <strong>synchronisé par Nextcloud</strong>, distinct du dossier de sauvegarde : sur l'autre poste, il suffira de choisir le même. L'app n'y efface rien d'elle-même.</div>
+    </div>
+    <h3 style="margin-bottom:10px">⚖️ Instances et incidents</h3>
+    <div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renomme, décris, décoche celles que ton établissement n'utilise pas, ajoute les tiennes. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>
+    ${_instancesTableHTML()}
     <h3 style="margin-bottom:10px">💾 Mémoire locale</h3>
     <div id="about-storage" class="sto-box" style="max-width:620px;margin-bottom:18px">
       <div class="sto-head"><strong>Occupation</strong> <span class="sto-sum">mesure en cours…</span></div>
@@ -3414,6 +3479,146 @@ function journalRemove(sid, id) {
   return true;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// INCIDENTS ET INSTANCES — ce qui se passe quand ça se passe mal, et ce qui en découle.
+// Une fiche incident, une commission éducative, un conseil de discipline : le PP est
+// convoqué, décide, ou doit s'en souvenir au conseil de classe. Chaque entrée est DATÉE,
+// rattachée à une INSTANCE du catalogue, porte un objet, un texte libre (la décision
+// prise, les points dits) et, au choix, le PDF de la fiche scannée.
+// ⚠️ Le PDF ne va JAMAIS dans la sauvegarde JSON : un scan pèse 200 Ko à 2 Mo, et
+// localStorage plafonne à quelques Mo. Il est copié dans un dossier CHOISI par
+// l'utilisateur (à placer sous Nextcloud, qui le transporte), et l'entrée n'en garde
+// que la référence (cf. PIÈCES JOINTES plus bas).
+// ═══════════════════════════════════════════════════════════════════════════
+// Les instances proposées d'office. ⚠️ Les descriptions sont des repères, pas le texte
+// réglementaire : elles s'éditent dans Données, et le règlement intérieur prime.
+const INSTANCES_DEFAUT = [
+  ['fiche_incident',      'Fiche incident',                 'Signalement écrit d’un incident (rapport à la vie scolaire ou au chef d’établissement).'],
+  ['punition',            'Punition scolaire',              'Décidée par un enseignant ou un personnel : excuse orale ou écrite, devoir supplémentaire, retenue…'],
+  ['exclusion_cours',     'Exclusion ponctuelle de cours',  'Punition exceptionnelle : l’élève est pris en charge par la vie scolaire, un rapport écrit est remis.'],
+  ['avertissement',       'Avertissement',                  'Sanction prononcée par le chef d’établissement.'],
+  ['blame',               'Blâme',                          'Sanction prononcée par le chef d’établissement, plus grave que l’avertissement.'],
+  ['responsabilisation',  'Mesure de responsabilisation',   'Sanction : activité de solidarité, culturelle ou de formation, hors temps de classe.'],
+  ['exclusion_temp',      'Exclusion temporaire',           'Sanction du chef d’établissement : de la classe ou de l’établissement, huit jours au plus.'],
+  ['commission_educative','Commission éducative',           'Réunie par le chef d’établissement autour d’un élève dont le comportement est inadapté : cherche une réponse éducative, peut proposer une mesure de responsabilisation.'],
+  ['conseil_discipline',  'Conseil de discipline',          'Seule instance qui peut prononcer une exclusion définitive, ou temporaire de plus de huit jours.'],
+  ['equipe_educative',    'Équipe éducative',               'Réunion des personnels et de la famille sur la situation scolaire d’un élève : difficultés, aménagements, orientation.'],
+  ['gpds',                'Cellule de veille / GPDS',       'Groupe de prévention du décrochage scolaire : suivi des élèves qui décrochent ou risquent de le faire.'],
+  ['info_preoccupante',   'Information préoccupante',       'Transmission à la cellule départementale (CRIP) d’une inquiétude sur un mineur — hors discipline.'],
+  ['autre',               'Autre',                          'Tout ce qui n’entre dans aucune case : l’objet dit quoi.'],
+];
+// Complète le catalogue SANS écraser : une instance renommée, décrite ou désactivée par
+// l'utilisateur garde ses réglages ; une instance ajoutée par une version ultérieure
+// apparaît d'elle-même. Un fichier antérieur à la section arrive donc avec le catalogue
+// complet — et la sanitisation a déjà garanti que S.instances est un objet.
+function _instancesSeed() {
+  INSTANCES_DEFAUT.forEach(([id, label, description], i) => {
+    const cur = S.instances[id];
+    if (!_isPlainObj(cur)) { S.instances[id] = { id, label, description, actif: true, ord: i, builtin: true }; return; }
+    cur.id = id; cur.builtin = true;
+    if (typeof cur.label !== 'string' || !cur.label.trim()) cur.label = label;
+    if (typeof cur.description !== 'string') cur.description = description;
+    if (typeof cur.actif !== 'boolean') cur.actif = true;
+    if (typeof cur.ord !== 'number') cur.ord = i;
+  });
+  for (const [id, v] of Object.entries(S.instances)) {
+    if (!INSTANCES_DEFAUT.some(d => d[0] === id)) {
+      v.id = id; v.builtin = false;
+      if (typeof v.label !== 'string' || !v.label.trim()) v.label = id;
+      if (typeof v.description !== 'string') v.description = '';
+      if (typeof v.actif !== 'boolean') v.actif = true;
+      if (typeof v.ord !== 'number') v.ord = 1000;
+    }
+  }
+}
+function _instancesAll() { return Object.values(S.instances).sort((a, b) => (a.ord - b.ord) || a.label.localeCompare(b.label, 'fr')); }
+function _instancesActives() { return _instancesAll().filter(i => i.actif); }
+// Une entrée dont l'instance a été désactivée — ou vient d'un fichier plus récent — garde
+// un libellé : on ne perd jamais la lecture d'un incident pour une question de catalogue.
+function _instanceOf(id) { return S.instances[id] || { id, label: String(id || 'Autre'), description: '', actif: false, builtin: false }; }
+function _instanceUsee(id) { return Object.values(S.eleves).some(e => (e.incidents || []).some(x => x.type === id)); }
+function instanceAdd(label, description) {
+  const lab = String(label || '').trim();
+  if (!lab) return null;
+  const ord = Math.max(-1, ..._instancesAll().map(i => i.ord)) + 1;
+  const e = { id: uid('inst'), label: lab, description: String(description || '').trim(), actif: true, ord, builtin: false };
+  S.instances[e.id] = e;
+  return e;
+}
+function instanceSet(id, patch) {
+  const e = S.instances[id];
+  if (!e || !_isPlainObj(patch)) return false;
+  if (typeof patch.label === 'string' && patch.label.trim()) e.label = patch.label.trim();
+  if (typeof patch.description === 'string') e.description = patch.description.trim();
+  if (typeof patch.actif === 'boolean') e.actif = patch.actif;
+  return true;
+}
+// ⚠️ Une instance d'office ne se supprime pas, elle se désactive : des entrées d'une
+// autre année peuvent la référencer. Une instance ajoutée se supprime si rien ne l'utilise.
+function instanceRemove(id) {
+  const e = S.instances[id];
+  if (!e || e.builtin || _instanceUsee(id)) return false;
+  delete S.instances[id];
+  return true;
+}
+
+// Entrées du plus RÉCENT au plus ancien, comme le journal des contacts.
+function _incidentsOf(sid) {
+  const stu = S.eleves[sid];
+  if (!stu || !Array.isArray(stu.incidents)) return [];
+  return stu.incidents.slice().sort((a, b) =>
+    String(b.date || '').localeCompare(String(a.date || '')) || ((b.ts || 0) - (a.ts || 0)));
+}
+function _incidentLast(sid) { return _incidentsOf(sid)[0] || null; }
+// ⚠️ Refuse une entrée sans date valide ou sans objet : « commission éducative » sans dire
+// pourquoi ne servira à rien au conseil de classe. Un TYPE inconnu retombe sur « autre »,
+// jamais perdu. Le PDF se pose à part (incidentSetPdf) : sa copie est asynchrone.
+// Sans pushUndo ni save : l'appelant s'en charge (convention du projet).
+function incidentAdd(sid, { date, type, objet, texte } = {}) {
+  const stu = S.eleves[sid];
+  const obj = String(objet || '').trim();
+  if (!stu || !_ymdValid(date) || !obj) return null;
+  if (!Array.isArray(stu.incidents)) stu.incidents = [];
+  const e = { id: uid('inc'), date, ts: Date.now(), type: S.instances[type] ? type : 'autre',
+              objet: obj, texte: String(texte || '').trim(), pdf: null };
+  stu.incidents.push(e);
+  return e;
+}
+function incidentSet(sid, id, patch) {
+  const stu = S.eleves[sid];
+  const e = stu && Array.isArray(stu.incidents) ? stu.incidents.find(x => x.id === id) : null;
+  if (!e || !_isPlainObj(patch)) return false;
+  if (patch.date !== undefined) { if (!_ymdValid(patch.date)) return false; e.date = patch.date; }
+  if (patch.objet !== undefined) { const o = String(patch.objet || '').trim(); if (!o) return false; e.objet = o; }
+  if (patch.type !== undefined) e.type = S.instances[patch.type] ? patch.type : 'autre';
+  if (patch.texte !== undefined) e.texte = String(patch.texte || '').trim();
+  return true;
+}
+// La référence du PDF : { nom (tel que choisi), fichier (tel qu'écrit dans le dossier),
+// taille }. null = pas de pièce. Le fichier lui-même n'est pas touché ici.
+function incidentSetPdf(sid, id, pdf) {
+  const stu = S.eleves[sid];
+  const e = stu && Array.isArray(stu.incidents) ? stu.incidents.find(x => x.id === id) : null;
+  if (!e) return false;
+  e.pdf = (_isPlainObj(pdf) && typeof pdf.fichier === 'string' && pdf.fichier)
+    ? { nom: String(pdf.nom || pdf.fichier), fichier: pdf.fichier, taille: +pdf.taille || 0 } : null;
+  return true;
+}
+function incidentRemove(sid, id) {
+  const stu = S.eleves[sid];
+  if (!stu || !Array.isArray(stu.incidents)) return false;
+  const i = stu.incidents.findIndex(x => x.id === id);
+  if (i < 0) return false;
+  stu.incidents.splice(i, 1);
+  return true;
+}
+// Tous les fichiers référencés — pour distinguer les orphelins dans le dossier des PDF.
+function _pjReferences() {
+  const out = new Set();
+  for (const e of Object.values(S.eleves)) for (const x of (e.incidents || [])) if (x.pdf && x.pdf.fichier) out.add(x.pdf.fichier);
+  return out;
+}
+
 // ═══════════════════════════════════════════════════════════
 // ONGLET ÉLÈVES
 // ═══════════════════════════════════════════════════════════
@@ -3673,6 +3878,9 @@ function openFiche(sid) {
 // on ouvre une fiche, on corrige un détail, on retombe sur la fiche.
 function ficheVersEdition() { const sid = _ficheSid; closeMod2('mfiche'); openEdit(sid); _modalReturnTo['me'] = () => openFiche(sid); }
 function ficheVersRemarque() { const sid = _ficheSid; closeMod2('mfiche'); openRemarque(sid); _modalReturnTo['mrem'] = () => openFiche(sid); }
+// Même aller-retour pour un incident : la fiche est l'écran de LECTURE, la saisie a sa
+// modale — et l'on retombe sur la fiche, pour voir l'entrée à sa place dans l'histoire.
+function ficheVersIncident(id) { const sid = _ficheSid; closeMod2('mfiche'); openIncident(sid, id || null); _modalReturnTo['mincident'] = () => openFiche(sid); }
 
 function _ficheRender() {
   const stu = S.eleves[_ficheSid];
@@ -3754,6 +3962,18 @@ function _ficheRender() {
       }).join('')
     : vide('Aucun contact noté avec la famille.');
 
+  // ── Incidents et instances ──
+  const incs = _incidentsOf(stu.id);
+  const incHTML = (incs.length
+    ? incs.map(e => { const inst = _instanceOf(e.type);
+        return `<div class="fi-j fi-inc"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ⚖️ ${_escName(inst.label)}${
+          e.pdf ? ` · <a href="#" onclick="pjOpenUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}');return false" title="Ouvrir le PDF (${_escAttr(_fmtBytes(e.pdf.taille))})">📎 ${_escName(e.pdf.nom)}</a>` : ''}
+          <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersIncident('${_escJsAttr(e.id)}')" title="Modifier cette entrée">✏️</button> <button class="btn btn-d btn-sm" onclick="incidentRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer cette entrée">🗑</button></span></div>
+          <strong>${_escName(e.objet)}</strong>${e.texte ? `<div class="fi-inc-txt">${_escName(e.texte)}</div>` : ''}</div>`;
+      }).join('')
+    : vide('Aucun incident ni instance — tant mieux.'))
+    + `<div style="margin-top:8px"><button class="btn btn-s btn-sm" onclick="ficheVersIncident()">+ Noter un incident ou une instance</button></div>`;
+
   // ⚠️ Documents REPLIABLE — c'est la section la plus longue, et on ne l'ouvre pas à
   // chaque consultation. Mais les CHOIX portés sur les papiers (Devoirs Faits : ULYSS,
   // option demandée…) restent visibles replié : c'est souvent la seule chose qu'on vient
@@ -3776,8 +3996,114 @@ function _ficheRender() {
     + docsSection
     + sec('🗳 Élections', elsHTML)
     + sec('📋 Remarque', stu.remarque ? `<div class="fi-rem">${_escName(stu.remarque)}</div>` : vide('Aucune remarque.'))
-    + sec(`📇 Contacts avec la famille${journal.length ? ` <span class="fi-vide">(${journal.length})</span>` : ''}`, jHTML);
+    + sec(`📇 Contacts avec la famille${journal.length ? ` <span class="fi-vide">(${journal.length})</span>` : ''}`, jHTML)
+    + sec(`⚖️ Incidents et instances${incs.length ? ` <span class="fi-vide">(${incs.length})</span>` : ''}`, incHTML);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INCIDENT — la modale de saisie (une entrée à la fois, ouverte depuis la fiche)
+// ═══════════════════════════════════════════════════════════════════════════
+let _incSid = null, _incId = null, _incPdfRetire = false;
+function openIncident(sid, id) {
+  const stu = S.eleves[sid];
+  if (!stu) return;
+  _incSid = sid; _incId = id || null; _incPdfRetire = false;
+  const e = id ? (stu.incidents || []).find(x => x.id === id) : null;
+  const t = document.getElementById('minc-title');
+  if (t) t.textContent = `⚖️ ${stu.prenom} ${stu.nom} — ${e ? 'modifier l\'entrée' : 'incident ou instance'}`;
+  const actives = _instancesActives();
+  // L'instance de l'entrée reste proposée même désactivée depuis : on la modifie, on ne la perd pas.
+  const liste = e && !actives.some(i => i.id === e.type) ? [...actives, _instanceOf(e.type)] : actives;
+  const sel = document.getElementById('minc-type');
+  if (sel) sel.innerHTML = liste.map(i => `<option value="${_escAttr(i.id)}"${e && e.type === i.id ? ' selected' : ''}>${_escName(i.label)}</option>`).join('');
+  const d = document.getElementById('minc-date');
+  if (d) d.value = e ? e.date : _todayYmd();
+  const o = document.getElementById('minc-objet');
+  if (o) o.value = e ? e.objet : '';
+  const tx = document.getElementById('minc-txt');
+  if (tx) tx.value = e ? e.texte : '';
+  const f = document.getElementById('minc-pdf');
+  if (f) f.value = '';
+  _incTypeHelp();
+  _incPdfRender();
+  openMod('mincident');
+}
+function _incTypeHelp() {
+  const sel = document.getElementById('minc-type');
+  const h = document.getElementById('minc-type-help');
+  if (sel && h) h.textContent = _instanceOf(sel.value).description || '';
+}
+// L'état de la pièce jointe : dossier choisi ou non, PDF déjà attaché, retrait demandé.
+function _incPdfRender() {
+  const box = document.getElementById('minc-pdf-etat');
+  const f = document.getElementById('minc-pdf');
+  if (!box || !f) return;
+  const stu = S.eleves[_incSid];
+  const e = stu && _incId ? (stu.incidents || []).find(x => x.id === _incId) : null;
+  const cur = e && e.pdf && !_incPdfRetire ? e.pdf : null;
+  if (!window.showDirectoryPicker) {
+    box.innerHTML = '<span class="tb-hint">Les pièces jointes demandent Chrome, Edge ou un navigateur Chromium récent.</span>';
+    f.disabled = true; return;
+  }
+  const dossier = pjDirHandle
+    ? `<span class="tb-hint">Dossier : <code>${_escName(pjDirHandle.name)}</code></span>`
+    : `<span class="tb-hint">⚠️ Aucun dossier choisi pour les PDF.</span> <button class="btn btn-g btn-sm" onclick="choosePjDir()">📂 Choisir…</button>`;
+  const piece = cur
+    ? `<div style="margin-top:4px">📎 <a href="#" onclick="pjOpenUI('${_escJsAttr(_incSid)}','${_escJsAttr(_incId)}');return false">${_escName(cur.nom)}</a> <span class="tb-hint">(${_escName(_fmtBytes(cur.taille))})</span>
+        <button class="btn btn-g btn-sm" onclick="_incPdfRetire=true;_incPdfRender()" title="Détacher le PDF de cette entrée — le fichier reste dans le dossier">✕ retirer</button></div>`
+    : (e && e.pdf && _incPdfRetire ? `<div class="tb-hint" style="margin-top:4px">PDF retiré à l'enregistrement — <a href="#" onclick="_incPdfRetire=false;_incPdfRender();return false">annuler</a></div>` : '');
+  box.innerHTML = dossier + piece;
+  f.disabled = !pjDirHandle;
+}
+async function saveIncident() {
+  const stu = S.eleves[_incSid];
+  if (!stu) return;
+  const champD = document.getElementById('minc-date');
+  const d = champD.value ? _ymdCompleteAnnee(champD.value) : '';
+  if (d && d !== champD.value) champD.value = d;
+  if (!_ymdValid(d)) return toast('⚠️ Date illisible.', 'warn');
+  const objet = document.getElementById('minc-objet').value.trim();
+  if (!objet) { toast('⚠️ Dis en quelques mots de quoi il s\'agit : c\'est ce qu\'on lira au conseil de classe.', 'warn'); document.getElementById('minc-objet').focus(); return; }
+  const type = document.getElementById('minc-type').value;
+  const texte = document.getElementById('minc-txt').value;
+  const f = document.getElementById('minc-pdf');
+  const file = f && f.files && f.files[0] ? f.files[0] : null;
+  if (file && !(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return toast('⚠️ Seul un PDF peut être joint.', 'warn');
+  if (file && !pjDirHandle) return toast('⚠️ Choisis d\'abord le dossier où ranger les PDF (💾 Données).', 'warn');
+  if (file && !(await _pjReady('readwrite'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
+  pushUndo();
+  let e;
+  if (_incId) { if (!incidentSet(_incSid, _incId, { date: d, type, objet, texte })) return toast('⚠️ Entrée introuvable.', 'warn'); e = stu.incidents.find(x => x.id === _incId); }
+  else e = incidentAdd(_incSid, { date: d, type, objet, texte });
+  if (!e) return toast('⚠️ Entrée refusée.', 'warn');
+  if (_incPdfRetire && !file) incidentSetPdf(_incSid, e.id, null);
+  // ⚠️ La copie du fichier vient APRÈS l'entrée, et son échec ne la retire pas : mieux
+  // vaut un incident noté sans son scan qu'un scan sans incident — on rejoint par ✏️.
+  if (file) {
+    try { incidentSetPdf(_incSid, e.id, await pjStore(file, e.id)); }
+    catch (err) { toast('⚠️ Copie du PDF impossible : ' + (err && err.message || err), 'error'); }
+  }
+  save();
+  closeMod2('mincident');
+  renderStudents();
+  if (typeof renderSynthese === 'function') renderSynthese();
+}
+function incidentRemoveUI(sid, id) {
+  const e = _incidentsOf(sid).find(x => x.id === id);
+  if (!e) return;
+  _uiConfirm({
+    title: '🗑 Supprimer cette entrée ?',
+    message: `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label}\n« ${e.objet} »\n\nRécupérable par Ctrl+Z.${e.pdf ? ' Le PDF reste dans le dossier (🧹 dans Données pour le retirer).' : ''}`,
+    okLabel: 'Supprimer', okClass: 'btn-d',
+    onOk: () => { pushUndo(); incidentRemove(sid, id); save(); if (_ficheSid === sid) _ficheRender(); renderStudents(); },
+  });
+}
+function pjOpenUI(sid, id) {
+  const e = _incidentsOf(sid).find(x => x.id === id);
+  if (!e || !e.pdf) return;
+  pjOpen(e.pdf);
+}
+
 // Présence : arrivée, départ, et ce qu'il en découle AUJOURD'HUI — la date seule oblige
 // à faire le calcul de tête au moment où on cherche justement à aller vite.
 function _ficheePresence(stu) {
@@ -5209,6 +5535,43 @@ function _pdcConfirm() {
 // ═══════════════════════════════════════════════════════════
 // RÉGLAGES (onglet Données)
 // ═══════════════════════════════════════════════════════════
+function _instancesTableHTML() {
+  const rows = _instancesAll().map(i => `<tr${i.actif ? '' : ' class="inactive"'}>
+      <td style="text-align:center"><input type="checkbox"${i.actif ? ' checked' : ''} onchange="instanceSetUI('${_escJsAttr(i.id)}',{actif:this.checked})" title="${i.actif ? 'Proposée à la saisie — décocher pour la retirer' : 'Retirée de la saisie'}"></td>
+      <td style="min-width:180px"><input type="text" value="${_escAttr(i.label)}" maxlength="60" onchange="instanceSetUI('${_escJsAttr(i.id)}',{label:this.value})"></td>
+      <td style="width:99%"><input type="text" value="${_escAttr(i.description)}" maxlength="240" placeholder="description, à ta main" onchange="instanceSetUI('${_escJsAttr(i.id)}',{description:this.value})"></td>
+      <td style="white-space:nowrap">${i.builtin ? '<span class="tb-hint" title="Instance d\'office : se décoche, ne se supprime pas">d\'office</span>'
+        : `<button class="btn btn-d btn-sm" onclick="instanceRemoveUI('${_escJsAttr(i.id)}')" title="${_instanceUsee(i.id) ? 'Utilisée par au moins une entrée — décocher plutôt' : 'Supprimer cette instance'}"${_instanceUsee(i.id) ? ' disabled' : ''}>🗑</button>`}</td>
+    </tr>`).join('');
+  return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée à la saisie">Actif</th><th>Instance</th><th>Description</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tb" style="max-width:900px;margin-bottom:18px"><input type="text" id="inst-new" placeholder="Nouvelle instance (ex. : Tutorat, Contrat de comportement…)" maxlength="60" style="flex:1;min-width:200px"
+         onkeydown="if(event.key==='Enter'){event.preventDefault();instanceAddUI()}"> <button class="btn btn-s btn-sm" onclick="instanceAddUI()">+ Ajouter</button></div>`;
+}
+function instanceSetUI(id, patch) {
+  if (patch && typeof patch.label === 'string' && !patch.label.trim()) { toast('⚠️ Une instance sans nom ne se propose pas — décoche-la plutôt.', 'warn'); renderDonnees(); return; }
+  pushUndo();
+  instanceSet(id, patch);
+  save();
+  renderDonnees();
+}
+function instanceAddUI() {
+  const inp = document.getElementById('inst-new');
+  if (!inp || !inp.value.trim()) return toast('⚠️ Donne un nom à l\'instance.', 'warn');
+  pushUndo();
+  instanceAdd(inp.value, '');
+  save();
+  renderDonnees();
+  toast('✓ Instance ajoutée — proposée dès la prochaine saisie.');
+}
+function instanceRemoveUI(id) {
+  const i = S.instances[id];
+  if (!i) return;
+  pushUndo();
+  if (!instanceRemove(id)) { toast('⚠️ Cette instance ne peut pas être supprimée (d\'office, ou utilisée).', 'warn'); undoLast(); return; }
+  save();
+  renderDonnees();
+}
+
 function setPref(key, value) {
   if (!(key in DEFAULT_PREFS)) return;
   const v = key === 'codeAbsent' ? String(value || '').trim().slice(0, 3) : value;
@@ -7747,6 +8110,10 @@ function _syntheseRow(cls, stu) {
     // savoir quand on a joint celle-ci pour la dernière fois y vaut autant qu'un cumul.
     contact: (() => { const e = _journalLast(stu.id); return e ? { date: e.date, type: e.type, texte: e.texte } : null; })(),
     nbContacts: Array.isArray(stu.journal) ? stu.journal.length : 0,
+    // Incidents et instances : le nombre, et le dernier — c'est ce qu'on regarde avant un
+    // conseil de classe ou une commission, quand il faut dire « depuis quand, et combien ».
+    nbIncidents: Array.isArray(stu.incidents) ? stu.incidents.length : 0,
+    incident: (() => { const e = _incidentLast(stu.id); return e ? { date: e.date, type: e.type, objet: e.objet } : null; })(),
   };
 }
 function _syntheseRows(cls) {
@@ -7760,6 +8127,7 @@ function _synthSorted(rows) {
   else if (syntheseSort === 'cumul') rows2.sort(desc('cumul'));
   else if (syntheseSort === 'periode') rows2.sort(desc('periodeTotal'));
   else if (syntheseSort === 'docs') rows2.sort((a, b) => (b.nonRendus.length - a.nonRendus.length) || byName(a, b));
+  else if (syntheseSort === 'incidents') rows2.sort((a, b) => (b.nbIncidents - a.nbIncidents) || String(b.incident?.date || '').localeCompare(String(a.incident?.date || '')) || byName(a, b));
   else {
     const ordre = _sortStudents(rows2.map(r => r.sid), syntheseSort, getCls());
     rows2.sort((a, b) => ordre.indexOf(a.sid) - ordre.indexOf(b.sid));
@@ -7784,11 +8152,14 @@ function _synthCellsHTML(r, cls) {
     ? `<div class="synth-contact" title="${_escAttr(`${_journalType(r.contact.type).label} — ${r.contact.texte}${r.nbContacts > 1 ? `\n(${r.nbContacts} contacts notés)` : ''}`)}">${
         _journalType(r.contact.type).icon} ${_escName(_fmtDateFr(r.contact.date))}${r.nbContacts > 1 ? ` <span class="tb-hint">×${r.nbContacts}</span>` : ''}</div>` : '';
   const rem = (cont ? cont : '') + (r.remarque ? `<div class="synth-rem" title="${_escAttr(r.remarque)}">${_escName(r.remarque)}</div>` : '');
+  const inc = r.nbIncidents
+    ? `<span class="badge warn" title="${_escAttr(r.nbIncidents + ' entrée' + (r.nbIncidents > 1 ? 's' : ''))}">${r.nbIncidents}</span> <span class="tb-hint" title="${_escAttr(r.incident.objet)}">${_escName(_fmtDateFr(r.incident.date))} · ${_escName(_instanceOf(r.incident.type).label)}</span>`
+    : '<span class="tb-hint">—</span>';
   return `<td>${_nomHTML(r.sid, r.nom, r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}${_ageSubHTML(S.eleves[r.sid])}</td>
     <td style="white-space:nowrap">${civ}${grp}${opts}</td>
     <td>${_escName(r.amenagements) || '<span class="tb-hint">—</span>'}</td>
     <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
-    <td>${nr}</td><td>${rep}</td><td class="synth-rem-td">${rem}</td>`;
+    <td>${nr}</td><td>${rep}</td><td style="white-space:nowrap">${inc}</td><td class="synth-rem-td">${rem}</td>`;
 }
 
 function renderSynthese() {
@@ -7805,12 +8176,13 @@ function renderSynthese() {
         { key: 'delta', label: 'par Δ du dernier relevé' },
         { key: 'cumul', label: 'par cumul d\'observations' },
         { key: 'periode', label: `par total ${per}` },
-        { key: 'docs', label: 'par documents non rendus' }])}
+        { key: 'docs', label: 'par documents non rendus' },
+        { key: 'incidents', label: 'par incidents' }])}
       <input type="search" placeholder="🔍 filtrer…" value="${_escAttr(_synthFilter)}" oninput="setSynthFilter(this.value)" style="min-width:160px">
       <span class="tb-hint">${rows.length} élève${rows.length > 1 ? 's' : ''}</span>
       <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="printSynthese()" title="Une page paysage par classe — Ctrl+P fait pareil">🖨 Imprimer</button>
     </div>`;
-  const head = `<tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th title="Dernier cumul d'observations relevé">Carnet</th><th title="Évolution au dernier relevé">Δ</th><th title="Total de la période courante">${_escName(per)}</th><th title="Documents non rendus">Non rendus</th><th title="Réponses portées sur les documents (👤 = avis du PP)">Réponses</th><th>Remarque</th></tr>`;
+  const head = `<tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th title="Dernier cumul d'observations relevé">Carnet</th><th title="Évolution au dernier relevé">Δ</th><th title="Total de la période courante">${_escName(per)}</th><th title="Documents non rendus">Non rendus</th><th title="Réponses portées sur les documents (👤 = avis du PP)">Réponses</th><th title="Incidents et instances (fiche incident, commission éducative…) — le nombre, et le dernier">Incidents</th><th>Remarque</th></tr>`;
   const keep = _wrapScrollKeep(el);
   el.innerHTML = tb + `<div class="rel-wrap frozen"><table class="dt synth-table"><thead>${head}</thead><tbody>${rows.map(r => `<tr${r.actif ? '' : ' class="inactive"'}>${_synthCellsHTML(r, cls)}</tr>`).join('')}</tbody></table></div>`;
   keep();
@@ -7867,12 +8239,13 @@ function printSynthese() {
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
   const html = `<h1>Synthèse — ${_escName(cls.nom)} — ${_escName(cls.annee || '')}</h1>
     <p class="print-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${syntheseSort !== 'nom' ? ` · tri : ${_escName(syntheseSort)}` : ''}</p>
-    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Carnet</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Réponses</th><th>Remarque</th></tr></thead>
+    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Carnet</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Réponses</th><th>Incidents</th><th>Remarque</th></tr></thead>
     <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}</td>
       <td>${r.groupe ? 'G' + r.groupe + ' ' : ''}${_escName(r.options.join(' '))}</td><td>${_escName(r.amenagements)}</td>
       <td>${r.cumul === null ? '' : `${r.cumul} <small>(${_escName(_fmtDateFr(r.cumulDate))})</small>`}</td>
       <td>${r.delta === null ? '' : (r.deltaDecroissant ? '▼' : '') + (r.delta > 0 ? '+' : '') + r.delta}</td><td>${r.periodeTotal ?? ''}</td>
       <td>${_escName(r.nonRendus.join(', '))}</td><td>${r.reponses.map(x => `${_escName(x.champ)} : ${_escName(x.valeurs.join(', '))}`).join('<br>')}</td>
+      <td>${r.nbIncidents ? `${r.nbIncidents} — <small>${_escName(_fmtDateFr(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}</small>` : ''}</td>
       <td class="print-rem">${_printContactHTML(r)}${_escName(r.remarque)}</td></tr>`).join('')}</tbody></table>`;
   _printHTML(html, 'landscape');
 }
@@ -7995,6 +8368,118 @@ function _idbPut(key, val) {
 function _idbGet(key) { return idbLoadHandleKey(key); }
 async function idbSaveHandle(h) { return idbSaveHandleKey(h, 'dir'); }
 async function idbLoadHandle() { return idbLoadHandleKey('dir'); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PIÈCES JOINTES — les PDF des fiches incident, dans un dossier CHOISI par l'utilisateur.
+// Séparé du dossier de sync : celui-ci porte des JSON à rotation (backups, conflits), et
+// mêler des scans à cette mécanique ferait courir le nettoyage sur des documents
+// officiels. L'utilisateur le place sous Nextcloud, qui transporte les fichiers entre
+// les postes ; sur l'autre poste, il suffit de choisir le même dossier une fois.
+// ⚠️ L'app n'EFFACE jamais un PDF d'elle-même : retirer ou supprimer une entrée laisse le
+// fichier en place, et le nettoyage des orphelins (Données) demande confirmation, liste
+// en main. Un scan de document officiel ne se détruit pas sur un clic malheureux.
+// ═══════════════════════════════════════════════════════════════════════════
+let pjDirHandle = null;
+const PJ_IDB_KEY = 'pjdir';
+async function tryRestorePjDir() {
+  if (!window.showDirectoryPicker) return;
+  const h = await idbLoadHandleKey(PJ_IDB_KEY);
+  if (!h) return;
+  pjDirHandle = h;
+  renderDonnees();
+}
+async function choosePjDir() {
+  if (!window.showDirectoryPicker) {
+    return appAlert('Navigateur non compatible', 'Le choix d\'un dossier demande l\'API File System Access : <strong>Chrome</strong>, <strong>Edge</strong> ou un navigateur Chromium récent.', 'warn');
+  }
+  try {
+    pjDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    await idbSaveHandleKey(pjDirHandle, PJ_IDB_KEY);
+    toast(`📎 Les PDF iront dans « ${pjDirHandle.name} ».`);
+    renderDonnees();
+    _incPdfRender();
+  } catch (e) { if (e.name !== 'AbortError') toast('Erreur : ' + e.message, 'error'); }
+}
+// Un handle restauré d'IndexedDB est « à confirmer » jusqu'à ce qu'un geste de
+// l'utilisateur redemande la permission — d'où l'appel depuis un clic, jamais au chargement.
+async function _pjReady(mode) {
+  if (!pjDirHandle) return false;
+  if (typeof pjDirHandle.queryPermission !== 'function') return true;   // OPFS, tests : pas de permission à demander
+  try {
+    let p = await pjDirHandle.queryPermission({ mode });
+    if (p !== 'granted') p = await pjDirHandle.requestPermission({ mode });
+    return p === 'granted';
+  } catch (_) { return false; }
+}
+// Nom de fichier sûr : sans chemin, sans caractères interdits, borné, en .pdf. Préfixé de
+// l'id de l'entrée pour que deux scans homonymes (« fiche incident.pdf ») ne se heurtent pas.
+function _pjSafeName(nom, incId) {
+  let base = String(nom || 'document').split(/[\\/]/).pop().replace(/\.pdf$/i, '');
+  base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'document';
+  return `${String(incId || 'x').replace(/[^A-Za-z0-9_-]/g, '')}-${base}.pdf`;
+}
+async function pjStore(file, incId) {
+  if (!pjDirHandle) throw new Error('aucun dossier choisi');
+  const fichier = _pjSafeName(file.name, incId);
+  const fh = await pjDirHandle.getFileHandle(fichier, { create: true });
+  const w = await fh.createWritable();
+  await w.write(file);
+  await w.close();
+  return { nom: file.name, fichier, taille: file.size };
+}
+// Ouvre le PDF dans un nouvel onglet — le lecteur du navigateur fait le reste. Depuis un
+// clic, sinon l'anti-popup bloque ; l'URL de blob est révoquée après ouverture.
+// Ouvre le PDF dans le lecteur INTÉGRÉ (modale + iframe, lecteur du navigateur) : un
+// nouvel onglet dépend de l'anti-popup et, dans une application installée, sort de la
+// fenêtre. Le bouton « ↗ onglet » reste là pour qui veut l'imprimer ou l'agrandir.
+// Une seule URL de blob vivante à la fois : révoquée à la fermeture.
+let _pjUrl = null;
+async function pjOpen(pdf) {
+  if (!pjDirHandle) return toast('⚠️ Choisis le dossier des PDF dans 💾 Données.', 'warn');
+  if (!(await _pjReady('read'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
+  let f;
+  try { f = await (await pjDirHandle.getFileHandle(pdf.fichier)).getFile(); }
+  catch (e) { return toast(`⚠️ « ${pdf.fichier} » introuvable dans le dossier — pas encore synchronisé, ou déplacé.`, 'warn'); }
+  if (_pjUrl) { URL.revokeObjectURL(_pjUrl); _pjUrl = null; }
+  _pjUrl = URL.createObjectURL(new Blob([f], { type: 'application/pdf' }));
+  const t = document.getElementById('mpdf-title');
+  if (t) t.textContent = `📎 ${pdf.nom || pdf.fichier}`;
+  const fr = document.getElementById('mpdf-frame');
+  if (fr) fr.src = _pjUrl;
+  _modalReturnTo['mpdf'] = () => { const fr2 = document.getElementById('mpdf-frame'); if (fr2) fr2.src = 'about:blank'; if (_pjUrl) { URL.revokeObjectURL(_pjUrl); _pjUrl = null; } };
+  openMod('mpdf');
+}
+function pjOpenOnglet() {
+  if (!_pjUrl) return;
+  const w = window.open(_pjUrl, '_blank');
+  if (!w) toast('⚠️ Le navigateur a bloqué l\'ouverture d\'un onglet.', 'warn');
+}
+// Les PDF du dossier que plus aucune entrée ne référence.
+async function pjOrphelins() {
+  if (!pjDirHandle || !(await _pjReady('read'))) return null;
+  const refs = _pjReferences();
+  const out = [];
+  for await (const [name, h] of pjDirHandle.entries()) {
+    if (h.kind === 'file' && /\.pdf$/i.test(name) && !refs.has(name)) out.push(name);
+  }
+  return out.sort();
+}
+async function pjNettoyerUI() {
+  const l = await pjOrphelins();
+  if (l === null) return toast('⚠️ Dossier des PDF inaccessible.', 'warn');
+  if (!l.length) return toast('✓ Aucun PDF orphelin dans le dossier.');
+  _uiConfirm({
+    title: `🧹 Supprimer ${l.length} PDF orphelin${l.length > 1 ? 's' : ''} ?`,
+    message: `Ces fichiers ne sont plus référencés par aucune entrée :\n${l.slice(0, 12).join('\n')}${l.length > 12 ? `\n… et ${l.length - 12} autres` : ''}\n\nSuppression DÉFINITIVE dans le dossier (pas de Ctrl+Z).`,
+    okLabel: 'Supprimer', okClass: 'btn-d',
+    onOk: async () => {
+      let n = 0;
+      for (const name of l) { try { await pjDirHandle.removeEntry(name); n++; } catch (_) {} }
+      toast(`🧹 ${n} fichier${n > 1 ? 's' : ''} supprimé${n > 1 ? 's' : ''}.`);
+      renderDonnees();
+    },
+  });
+}
 
 // ── Sync auto ──
 const AUTO_SAVE_FILENAME = 'suivi-pp-auto.json';
@@ -9358,6 +9843,19 @@ function createDemo(opts) {
     // capture d'écran ou un score d'audit ne désignent plus le même état.
     if (e) { e.id = `demo_j${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
   });
+  // ── Incidents et instances — de la fiche incident à la commission éducative, pour que
+  // chaque forme se rencontre dans la démo (le PDF, lui, ne peut pas : c'est un fichier).
+  const incidents = [
+    [0, '10-03', 'fiche_incident',       'Insolence répétée en cours de mathématiques', 'Rapport de la collègue transmis à la CPE. Mot dans le carnet, à faire signer.'],
+    [0, '11-18', 'punition',             'Retenue — travail non fait à trois reprises', 'Lundi 2 h, devoir de physique à rendre.'],
+    [0, '02-05', 'commission_educative', 'Convocation après trois rapports d\'incident', 'Présents : principale, CPE, PP, la mère. Décision : contrat de comportement sur six semaines, point le 20 mars. L\'élève reconnaît les faits, la famille s\'engage sur le suivi du carnet.'],
+    [9, '01-22', 'exclusion_cours',      'Exclu du cours de SVT — bavardages incessants', 'Pris en charge en vie scolaire avec un travail. Rapport écrit remis.'],
+    [12, '12-09', 'equipe_educative',    'Équipe éducative — difficultés d\'apprentissage', 'Demande d\'un PAP en cours ; la famille prendra rendez-vous avec l\'orthophoniste.'],
+  ];
+  incidents.forEach(([i, md, type, objet, texte], k) => {
+    const e = incidentAdd(sids[i], { date: D(md), type, objet, texte });
+    if (e) { e.id = `demo_i${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
+  });
   E(5).remarque = 'Tiers-temps : prévoir une salle à part pour les évaluations longues.';
   E(9).remarque = 'Carnet perdu, remplacé en février — le cumul repart plus bas.\nCe n\'est pas une faute de frappe : ne pas « corriger », le relevé dit vrai.';
   E(19).remarque = `Arrivée le ${_fmtDateFr(D('11-03'))}, venant d'un autre collège.`;
@@ -9652,6 +10150,7 @@ function init() {
 
   updateAutoSyncUI();
   tryRestoreDirHandle();
+  tryRestorePjDir();
   _passiveUpdateCheck();
 
   _topbarMeasure();

@@ -93,6 +93,17 @@ dernier contact remonte sur la liste des élèves et dans la Synthèse — « ai
 cette famille, et quand ? » est la question qu'on se pose en préparant un conseil, et le
 texte libre ne permettait ni de la compter ni de la retrouver.
 
+**Incidents et instances.** Sur la fiche, une section ⚖️ pour noter ce qui s'est passé et
+ce qui en a découlé : fiche incident, retenue, commission éducative, conseil de discipline…
+Chaque entrée porte une date, l'instance, un objet, la décision prise ou les points dits,
+et — si vous le voulez — **le PDF de la fiche scannée**. Le catalogue des instances est
+pré-rempli des instances officielles du collège ; dans 💾 Données, renommez-les,
+décrivez-les, décochez celles que votre établissement n'utilise pas, ajoutez les vôtres.
+⚠️ Les PDF ne vont **pas** dans la sauvegarde (trop lourds pour la mémoire du navigateur) :
+ils sont copiés dans un **dossier que vous choisissez** — placez-le sous Nextcloud, il
+suivra sur l'autre poste, où il suffira de choisir le même dossier. L'app n'y efface rien
+d'elle-même ; un bouton liste les PDF orphelins quand vous voulez faire le ménage.
+
 **La date de naissance** se saisit (ou arrive de l'import) et sert au départage d'une
 égalité à l'élection des délégués. ⚠️ Quand une date manque, ou que deux candidats sont
 nés le même jour, **l'app ne tranche pas** : elle le dit et vous laisse décider. Elle ne
@@ -216,7 +227,8 @@ serveur — le fichier fonctionne aussi bien en `file://` qu'en HTTPS.
 
 L'app manipule des **données personnelles d'élèves** : noms, prénoms, dates de naissance,
 aménagements pédagogiques, journal des contacts avec les familles, relevés
-d'observations, retours de documents, réponses des familles, aménagements pédagogiques.
+d'observations, retours de documents, réponses des familles, et les incidents et
+instances (sanctions comprises) avec, si vous les joignez, les PDF des fiches.
 
 - Tout est stocké dans le **`localStorage` de votre navigateur** et dans les fichiers
   JSON que vous exportez. Rien ne part sur un serveur.
