@@ -300,8 +300,10 @@ test('la démo donne des dates de naissance, dont une paire qui bloque le dépar
   // en tirant des dates au hasard.
   ev(DEMO);
   const eleves = evObj(`Object.values(S.eleves)`);
-  assert.strictEqual(eleves.filter(e => e.naissance).length, 25);
-  const dates = eleves.map(e => e.naissance);
+  // 24 sur 25 : UNE naissance reste inconnue (v1.28.3), pour que la case 📅 naissances
+  // et le tri « inconnus en fin » aient quelque chose à montrer.
+  assert.strictEqual(eleves.filter(e => e.naissance).length, 24);
+  const dates = eleves.map(e => e.naissance).filter(Boolean);
   assert.ok(new Set(dates).size < dates.length, 'au moins deux élèves nés le même jour');
   // Et l'élection close doit porter ces dates FIGÉES sur ses candidatures.
   const el = evObj(`_elList('5C').find(e => e.clos)`);
@@ -321,4 +323,33 @@ test('la démo porte une élection d’éco-délégué close : un élu au premie
   assert.strictEqual(delegues.length, 2, 'toujours deux délégués de classe titulaires');
   assert.ok(!delegues.some(sid => ecos.includes(sid)) || true, 'un cumul est possible mais non requis');
   assert.ok(ev(`_nomHTML('${ecos[0]}', 'X', 'Y')`).includes('🌱'));
+});
+
+test('la démo couvre les nouveautés v1.24 → v1.28 : catalogue réglé, engagement, désignation remplacée, HVC à venir, marqueur Plan de classe', () => {
+  ev(DEMO);
+  // Catalogue des instances RÉGLÉ : une instance ajoutée (famille « autre ») et utilisée, une d'office décochée.
+  assert.deepStrictEqual(evObj(`[S.instances.demo_inst_rappel.cat, S.instances.demo_inst_rappel.builtin, S.instances.exclusion_def.actif]`), ['autre', false, false]);
+  const types = evObj(`Object.values(S.eleves).flatMap(e => (e.incidents || []).map(i => i.type))`);
+  for (const t of ['fiche_incident', 'retenue', 'commission_educative', 'engagement', 'exclusion_cours', 'demo_inst_rappel', 'equipe_educative']) assert.ok(types.includes(t), t);
+  assert.ok(!types.includes('punition'), 'la retenue est une retenue, plus « autre punition »');
+  // Contacts : les cinq types.
+  const jt = new Set(evObj(`Object.values(S.eleves).flatMap(e => (e.journal || []).map(j => j.type))`));
+  for (const t of ['appel', 'rencontre', 'courriel', 'mot', 'autre']) assert.ok(jt.has(t), t);
+  // Délégués provisoires désignés à la rentrée, REMPLACÉS par l'élection du 7 octobre.
+  const d = evObj(`S.classes['5C'].delegues`);
+  assert.strictEqual(d.titulaires.length, 2);
+  assert.ok(evObj(`_elList('5C').find(e => e.clos && _elType(e).key === 'delegues').date`) > d.date);
+  assert.strictEqual(evObj(`_delegueOf(S.classes['5C'].delegues.titulaires[0])`), null, 'la désignation plus ancienne s’efface derrière l’élection');
+  // Une heure de vie de classe À VENIR, en tête ; six tenues.
+  const hvc = evObj(`_hvcOf(S.classes['5C'])`);
+  assert.strictEqual(hvc.length, 7);
+  assert.ok(hvc[0].date > evObj(`_todayYmd()`), 'la plus récente est dans le futur');
+  // La classe « vient » de Plan de classe : l'avertissement a une raison d'être.
+  assert.ok(evObj(`_pdcOrigine(S.classes['5C'])`) !== null && evObj(`!!S.classes['5C'].pdcImportAt`));
+  assert.ok(evObj(`_fichePdcHint(S.classes['5C'])`).includes('Plan de classe'));
+  // Bilans : conseil ET mi-période, S1 ET S2. Éco-délégué élu. Observation sur le PV.
+  const bt = evObj(`Object.values(S.eleves).flatMap(e => (e.bilans || []).map(b => b.type))`);
+  assert.ok(bt.includes('conseil') && bt.includes('miperiode'));
+  assert.ok(evObj(`Object.values(S.eleves).some(e => _ecoDelegueOf(e.id) === 'titulaire')`));
+  assert.ok(evObj(`_elList('5C').find(e => e.clos && _elType(e).key === 'delegues').note.length`) > 20);
 });

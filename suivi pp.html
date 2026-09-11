@@ -1995,8 +1995,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.28.2';
-const APP_BUILD_DATE = '2026-09-11T19:19:04Z';
+const APP_VERSION    = '1.28.3';
+const APP_BUILD_DATE = '2026-09-11T19:31:56Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -11365,6 +11365,7 @@ function createDemo(opts) {
     S.eleves[sid].naissance = `${an}-${String(mois).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
   });
   E(12).naissance = E(2).naissance;      // même date : départage impossible, l'app demandera
+  E(24).naissance = null;                // inconnue : à saisir (📅 naissances) — les inconnus vont en fin de tri
 
   E(19).arrivalDate = D('11-03');        // arrivé en cours d'année
   E(23).departureDate = D('03-16');      // parti : 1er jour d'absence
@@ -11382,6 +11383,7 @@ function createDemo(opts) {
     [19, '11-04', 'rencontre','Accueil à l\'arrivée : venait d\'un collège à horaires différents.'],
     [23, '03-09', 'courriel', 'Déménagement annoncé, départ confirmé au 16 mars.'],
     [16, '05-04', 'mot',      'Mot dans le carnet : féliciter, aucun incident de toute l\'année.'],
+    [12, '12-10', 'autre',    'Compte rendu de l\'équipe éducative remis à la famille par l\'élève, signé le lendemain.'],
   ];
   contacts.forEach(([i, md, type, texte], k) => {
     const e = journalAdd(sids[i], D(md), type, texte);
@@ -11392,11 +11394,19 @@ function createDemo(opts) {
   });
   // ── Incidents et instances — de la fiche incident à la commission éducative, pour que
   // chaque forme se rencontre dans la démo (le PDF, lui, ne peut pas : c'est un fichier).
+  // Le catalogue est RÉGLÉ comme le ferait l'utilisateur : une instance ajoutée (dans
+  // « Autre »), une instance d'office décochée (elle ne se supprime pas).
+  _instancesSeed();
+  const instRappel = instanceAdd('Rappel à l\'ordre par la vie scolaire', 'Entretien avec la CPE, sans punition : un avertissement oral, noté pour mémoire.');
+  if (instRappel) { delete S.instances[instRappel.id]; instRappel.id = 'demo_inst_rappel'; S.instances[instRappel.id] = instRappel; }   // id déterministe
+  if (S.instances.exclusion_def) S.instances.exclusion_def.actif = false;
   const incidents = [
     [0, '10-03', 'fiche_incident',       'Insolence répétée en cours de mathématiques', 'Rapport de la collègue transmis à la CPE. Mot dans le carnet, à faire signer.'],
-    [0, '11-18', 'punition',             'Retenue — travail non fait à trois reprises', 'Lundi 2 h, devoir de physique à rendre.'],
+    [0, '11-18', 'retenue',              'Retenue — travail non fait à trois reprises', 'Lundi 2 h, devoir de physique à rendre.'],
     [0, '02-05', 'commission_educative', 'Convocation après trois rapports d\'incident', 'Présents : principale, CPE, PP, la mère. Décision : contrat de comportement sur six semaines, point le 20 mars. L\'élève reconnaît les faits, la famille s\'engage sur le suivi du carnet.'],
+    [0, '02-12', 'engagement',           'Contrat de comportement — six semaines', 'Signé par l\'élève, la mère et la principale. Trois engagements : carnet signé chaque semaine, matériel, pas de remarque en cours. Point le 20 mars.'],
     [9, '01-22', 'exclusion_cours',      'Exclu du cours de SVT — bavardages incessants', 'Pris en charge en vie scolaire avec un travail. Rapport écrit remis.'],
+    [9, '11-06', 'demo_inst_rappel',     'Rappel à l\'ordre — bousculade dans le couloir', 'Entretien de dix minutes avec la CPE. Pas de suite si rien ne se reproduit.'],
     [12, '12-09', 'equipe_educative',    'Équipe éducative — difficultés d\'apprentissage', 'Demande d\'un PAP en cours ; la famille prendra rendez-vous avec l\'orthophoniste.'],
   ];
   incidents.forEach(([i, md, type, objet, texte], k) => {
@@ -11416,6 +11426,12 @@ function createDemo(opts) {
     const e = hvcAdd(cls, { date: D(md), titre, texte });
     if (e) { e.id = `demo_h${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
   });
+  // Un thème À VENIR : une date dans le futur suffit, la liste le met en tête avec sa
+  // pastille. Datée par rapport à AUJOURD'HUI (la seule entrée de la démo qui le soit),
+  // sinon elle ne serait jamais « à venir ».
+  const dansUneSemaine = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return _todayYmd(d); })();
+  const hvcAvenir = hvcAdd(cls, { date: dansUneSemaine, titre: 'À préparer : bilan de l\'année avec les délégués', texte: 'Ce qui a marché, ce qui est à transmettre aux 4e. Demander aux délégués de sonder la classe avant.' });
+  if (hvcAvenir) { hvcAvenir.id = 'demo_h_avenir'; hvcAvenir.ts = Date.parse(dansUneSemaine + 'T12:00:00'); }
 
   // ── Bilans de période — le brouillon du conseil de classe, et un bilan de mi-période.
   const bilans = [
@@ -11471,6 +11487,10 @@ function createDemo(opts) {
     patterns: [{ id: 'demo_pat_pail', nom: 'Par paillasses', order: placesLabo.slice() }] };
   cls.rooms = { demo_s1: { seating: seat102 }, demo_s2: { seating: seatLabo } };
   cls.salleCur = 'demo_s1';
+  // Salles, places et ordres « importés » de Plan de classe le 2 septembre : c'est ce qui
+  // fait apparaître, dans la fiche et dans Données, l'avertissement qu'un nouvel import
+  // réécrit ce qu'on corrige ici. Sans ce marqueur, la démo ne le montrerait jamais.
+  cls.pdcImportAt = D('09-02');
 
   // ── 8 relevés de carnet ──
   // Les dates traversent les bornes de période dans les DEUX modes (02-01 en semestres,
@@ -11597,6 +11617,10 @@ function createDemo(opts) {
   expOf(dPhoto).forEach(sid => { docSetRendu(dPhoto, sid, true); docSetDateRetour(dPhoto, sid, D('09-08')); });
 
   // ── Élections ──
+  // Des délégués PROVISOIRES désignés le jour de la rentrée (en attendant le scrutin) :
+  // c'est la désignation sans vote — et, l'élection du 7 octobre étant plus récente,
+  // c'est elle qui fait foi. L'écran le dit (« remplacée par l'élection du … »).
+  deleguesSet(cls, { date: D('09-05'), titulaires: [sids[3], sids[8]], suppleants: [], note: 'Provisoires, volontaires du jour de la rentrée — jusqu\'à l\'élection.' });
   const binomes = [[1, 4], [6, 9], [12, 15], [2, 17]];
   const poser = (el, seq, tourIdx) => { for (const [voix, extra] of seq) electionAddBulletin(el, tourIdx, voix, extra || undefined); };
 
@@ -11616,6 +11640,7 @@ function createDemo(opts) {
     poser(el1, seq, 0);
     electionCloreTour(el1, 0);
   }
+  el1.note = 'Un bulletin déclaré nul par les assesseurs pour une inscription inappropriée à côté d\'un nom. Le second tour a été tenu le même jour, après une courte pause.';
   const t2 = el1.tours[1];
   if (t2) {
     t2.votantsAnnonces = 24;
