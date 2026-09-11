@@ -101,6 +101,11 @@ dernier contact remonte sur la liste des élèves — « ai-je déjà appelé
 cette famille, et quand ? » est la question qu'on se pose en préparant un conseil, et le
 texte libre ne permettait ni de la compter ni de la retrouver.
 
+**Heures de vie de classe.** L'onglet 🗳 Délégués est devenu **🏫 Vie de classe** : en tête,
+le journal des heures de vie de classe — la date, le thème, ce qu'on y a traité et décidé ;
+une date future pour noter un thème à venir. La synthèse de période peut les reprendre en
+tête de la feuille du conseil.
+
 **Éco-délégués.** La même élection, un autre mandat : *+ Nouvelle élection* → 🌱
 éco-délégués — deux par classe, sans suppléant ni binôme par défaut (tout se règle). Ils
 portent 🌱 après leur nom dans les listes, et se désignent aussi sans vote. Un éco-délégué
@@ -154,7 +159,7 @@ chaque PDF joint, l'app propose de garder le nom du fichier, de le nommer automa
 (type, qui, date — `PV élection délégués — 5e C — 2025-10-07.pdf`), ou de le renommer.
 
 **Pas d'élection dans l'app ?** Si le vote s'est tenu sur papier, ou si vous reprenez une
-classe en cours d'année, l'onglet 🗳 Délégués vous laisse **désigner** directement les deux
+classe en cours d'année, l'onglet 🏫 Vie de classe vous laisse **désigner** directement les deux
 titulaires et les deux suppléants, avec la date et un mot : la fiche et la liste
 des élèves les afficheront comme s'ils avaient été élus ici. Si une élection close dans l'app
 est plus récente, c'est elle qui fait foi.

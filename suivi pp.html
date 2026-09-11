@@ -721,6 +721,7 @@ html[data-theme="dark"] #toast { background: var(--paper-deep); color: var(--ink
 .nom.del-t { background: var(--del-t-bg); color: var(--del-t-fg); padding: 1px 4px; }
 .nom.del-s { background: var(--del-s-bg); color: var(--del-s-fg); padding: 1px 4px; }
 .eco-bdg { font-size: .9em; cursor: help; }
+.fi-j.hvc-avenir { border-left-color: var(--warn-fg); }
 /* Aménagements en LECTURE dans la liste : seuls les actifs, en texte coloré. Les huit
    boutons cliquables d'origine faisaient de cette colonne la plus large du tableau, pour
    un réglage qui vient de l'import et se corrige par ✏️ (arbitré le 2026-09-11). */
@@ -1207,6 +1208,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   .print-fiche-id { font-size: 9pt; color: #333; }
   .print-fb { margin: 2pt 0; }
   .print-fb-t { font-weight: 700; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #333; margin-right: 4pt; }
+  .print-hvc { font-size: 9pt; margin: 0 0 8pt; padding: 4pt 7pt; border: 1px solid #888; border-radius: 4pt; }
+  .print-hvc ul { margin: 2pt 0 0; padding-left: 14pt; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1305,7 +1308,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <button class="nb on" onclick="showTab('eleves',this)"    title="Liste des élèves, import, aménagements, remarque libre">👥 Élèves</button>
   <button class="nb"    onclick="showTab('carnets',this)"   title="Suivre les observations portées au carnet : le total relevé à chaque date, et l'évolution depuis le relevé précédent">📓 Observations</button>
   <button class="nb"    onclick="showTab('documents',this)" title="Les papiers distribués aux familles : qui a rendu quoi, signé quoi, coché quoi — ramassage et vérification">📄 Retours</button>
-  <button class="nb"    onclick="showTab('delegues',this)"  title="Élection des délégués de classe et des éco-délégués : candidatures, dépouillement projeté, procès-verbal">🗳 Délégués</button>
+  <button class="nb"    onclick="showTab('delegues',this)"  title="Heures de vie de classe (ce qu'on y a traité, les décisions, les thèmes à venir) et élections des délégués et des éco-délégués">🏫 Vie de classe</button>
   <button class="nb"    onclick="showTab('donnees',this)"   title="Réglages, options, salles et placements, sauvegarde, export/import, vie privée">💾 Données et réglages</button>
 </nav>
 </div>
@@ -1325,7 +1328,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
   <div id="tab-carnets"   class="tab"><div class="sh"><h2>📓 Observations du carnet</h2></div><div id="carnets-body"></div></div>
   <div id="tab-documents" class="tab"><div class="sh"><h2>📄 Retours de documents</h2></div><div id="documents-body"></div></div>
-  <div id="tab-delegues"  class="tab"><div class="sh"><h2>🗳 Délégués</h2></div><div id="delegues-body"></div></div>
+  <div id="tab-delegues"  class="tab"><div class="sh"><h2>🏫 Vie de classe</h2></div><div id="delegues-body"></div></div>
   <div id="tab-donnees"   class="tab">
     <div class="sh"><h2>💾 Données et réglages</h2></div>
     <div class="tb">
@@ -1982,8 +1985,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.27.0';
-const APP_BUILD_DATE = '2026-09-11T18:25:37Z';
+const APP_VERSION    = '1.28.0';
+const APP_BUILD_DATE = '2026-09-11T18:31:32Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2676,6 +2679,8 @@ function _sanitizeCoreSections() {
   for (const c of Object.values(S.classes)) {
     if (!Array.isArray(c.eleves)) c.eleves = [];
     if (!_isPlainObj(c.rooms)) c.rooms = {};
+    if (!Array.isArray(c.vieClasse)) c.vieClasse = [];
+    c.vieClasse = c.vieClasse.filter(_isPlainObj);
     for (const [sid, room] of Object.entries(c.rooms)) {
       if (!_isPlainObj(room)) { delete c.rooms[sid]; continue; }
       if (!_isPlainObj(room.seating)) room.seating = {};
@@ -3751,6 +3756,49 @@ function journalRemove(sid, id) {
   if (i < 0) return false;
   stu.journal.splice(i, 1);
   return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HEURES DE VIE DE CLASSE — le journal de la CLASSE, pas d'un élève : ce qu'on y a
+// traité, les décisions prises, et les thèmes à venir (une entrée datée dans le futur est
+// « à venir » : rien de plus à stocker). Demandé le 2026-09-11. Vit sur la classe
+// (`cls.vieClasse`), ne connaît aucun sid — rien à purger avec un élève.
+// ═══════════════════════════════════════════════════════════════════════════
+// Du plus récent au plus ancien ; à date égale, le dernier saisi devant.
+function _hvcOf(cls) {
+  if (!cls || !Array.isArray(cls.vieClasse)) return [];
+  return cls.vieClasse.slice().sort((a, b) =>
+    String(b.date || '').localeCompare(String(a.date || '')) || ((b.ts || 0) - (a.ts || 0)));
+}
+// Sans pushUndo ni save. Refuse une date illisible ou un titre vide ; le texte est libre.
+function hvcAdd(cls, { date, titre, texte }) {
+  const t = String(titre || '').trim();
+  if (!cls || !_ymdValid(date) || !t) return null;
+  if (!Array.isArray(cls.vieClasse)) cls.vieClasse = [];
+  const e = { id: uid('h'), date, ts: Date.now(), titre: t, texte: String(texte || '').trim() };
+  cls.vieClasse.push(e);
+  return e;
+}
+function hvcSet(cls, id, { date, titre, texte }) {
+  const t = String(titre || '').trim();
+  if (!cls || !Array.isArray(cls.vieClasse) || !_ymdValid(date) || !t) return false;
+  const e = cls.vieClasse.find(x => x.id === id);
+  if (!e) return false;
+  e.date = date; e.titre = t; e.texte = String(texte || '').trim();
+  return true;
+}
+function hvcRemove(cls, id) {
+  if (!cls || !Array.isArray(cls.vieClasse)) return false;
+  const i = cls.vieClasse.findIndex(x => x.id === id);
+  if (i < 0) return false;
+  cls.vieClasse.splice(i, 1);
+  return true;
+}
+// Les heures d'UNE période, dans l'ordre chronologique (c'est une feuille de conseil).
+function _hvcPeriode(cls, periodIdx) {
+  const p = _periods(cls)[periodIdx];
+  if (!p) return [];
+  return _hvcOf(cls).filter(e => e.date >= p.start && e.date <= p.end).reverse();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -8870,30 +8918,80 @@ function _elMut(fn, rerender = true) {
   if (rerender) renderDelegues();
 }
 
+// ── Heures de vie de classe : la section en tête de l'onglet ──
+let _hvcEdit = null;   // null | 'new' | id de l'entrée en cours d'édition (session)
+function _hvcHTML(cls) {
+  const today = _todayYmd();
+  const list = _hvcOf(cls);
+  const form = e => `<div class="fi-form" id="hvc-form">
+      <label>Date <input type="date" id="hvc-date" value="${_escAttr(e ? e.date : _ymdClampAnnee(cls, today))}" style="min-width:140px"></label>
+      <label style="flex:1;min-width:200px">Thème <input type="text" id="hvc-titre" data-hvc-focus value="${_escAttr(e ? e.titre : '')}" placeholder="Règles de vie, préparation de l'élection, harcèlement, orientation…" maxlength="120"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();hvcSaveUI()}"></label>
+      <label style="flex-basis:100%">Ce qu'on a traité, les décisions prises <textarea id="hvc-txt" rows="3" style="width:100%" placeholder="Décision : tutorat entre pairs le jeudi. À revoir : le bruit en permanence.">${_escName(e ? e.texte : '')}</textarea></label>
+      <button class="btn btn-p btn-sm" onclick="hvcSaveUI()">✓ Enregistrer</button> <button class="btn btn-g btn-sm" onclick="_hvcEdit=null;renderDelegues()">Annuler</button></div>`;
+  const ligne = e => _hvcEdit === e.id ? form(e) : `<div class="fi-j${e.date > today ? ' hvc-avenir' : ''}"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))}${e.date > today ? ' · <span class="badge warn">à venir</span>' : ''}
+      <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="_hvcEdit='${_escJsAttr(e.id)}';renderDelegues()" title="Modifier">✏️</button> <button class="btn btn-d btn-sm" onclick="hvcRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer">🗑</button></span></div>
+      <strong>${_escName(e.titre)}</strong>${e.texte ? `<div class="fi-inc-txt">${_escName(e.texte)}</div>` : ''}</div>`;
+  const avenir = list.filter(e => e.date > today).reverse(), tenues = list.filter(e => e.date <= today);
+  const corps = (_hvcEdit === 'new' ? form(null) : '')
+    + (avenir.length ? `<div class="tb-hint" style="margin:4px 0">À venir</div>${avenir.map(ligne).join('')}` : '')
+    + (tenues.length ? `${avenir.length ? '<div class="tb-hint" style="margin:8px 0 4px">Tenues</div>' : ''}${tenues.map(ligne).join('')}` : '')
+    + (!list.length && _hvcEdit !== 'new' ? `<span class="fi-vide">Aucune heure notée. Un thème par séance, les décisions en dessous — et une date future pour un thème à venir.</span>` : '');
+  return `<div class="fi-sec" style="margin-top:0"><h3>🕐 Heures de vie de classe${list.length ? ` <span class="fi-vide">(${list.length})</span>` : ''} <button class="fi-plus" onclick="_hvcEdit='new';renderDelegues()" title="Noter une heure de vie de classe, ou un thème à venir">+</button></h3>${corps}</div>`;
+}
+function hvcSaveUI() {
+  const cls = getCls();
+  if (!cls) return;
+  const champD = document.getElementById('hvc-date');
+  const d = champD && champD.value ? _ymdCompleteAnnee(champD.value) : '';
+  if (champD && d && d !== champD.value) champD.value = d;
+  const titre = document.getElementById('hvc-titre')?.value || '';
+  const texte = document.getElementById('hvc-txt')?.value || '';
+  if (!_ymdValid(d)) return toast('⚠️ Date illisible.', 'warn');
+  if (!titre.trim()) { toast('⚠️ Un thème, au moins.', 'warn'); document.getElementById('hvc-titre')?.focus(); return; }
+  pushUndo();
+  const ok = _hvcEdit === 'new' ? !!hvcAdd(cls, { date: d, titre, texte }) : hvcSet(cls, _hvcEdit, { date: d, titre, texte });
+  if (!ok) { undoLast(); return toast('⚠️ Entrée refusée.', 'warn'); }
+  save();
+  _hvcEdit = null;
+  renderDelegues();
+}
+function hvcRemoveUI(id) {
+  const cls = getCls();
+  const e = cls && _hvcOf(cls).find(x => x.id === id);
+  if (!e) return;
+  _uiConfirm({ title: '🗑 Supprimer cette heure ?', message: `${_fmtDateFr(e.date)} — ${e.titre}\n\nRécupérable par Ctrl+Z.`, okLabel: 'Supprimer', okClass: 'btn-d',
+    onOk: () => { pushUndo(); hvcRemove(cls, id); save(); renderDelegues(); } });
+}
+
 function renderDelegues() {
   const box = document.getElementById('delegues-body');
   if (!box) return;
   const cls = getCls();
   document.body.classList.toggle('el-projecting', !!_elProject);
-  if (!cls) { box.innerHTML = _needClassHTML('organiser une élection'); return; }
+  if (!cls) { box.innerHTML = _needClassHTML('tenir la vie de classe'); return; }
   const el = _elCurrent();
   if (el) return _elRenderOne(box, el, cls);
   const list = _elList(cls.id);
-  const tb = `<div class="tb"><button class="btn btn-p btn-sm" onclick="openElectionNew()">+ Nouvelle élection</button>
+  const hvc = _hvcHTML(cls);
+  const tb = `<div class="fi-sec" style="margin-top:22px"><h3>🗳 Élections</h3></div><div class="tb"><button class="btn btn-p btn-sm" onclick="openElectionNew()">+ Nouvelle élection</button>
     <span class="tb-hint">Délégués de classe ou éco-délégués — une élection par an et par mandat, historisée : on garde celle de l'an dernier.</span></div>`;
   const direct = _deleguesDirectHTML(cls, list, 'delegues') + _deleguesDirectHTML(cls, list, 'eco');
   if (!list.length) {
-    box.innerHTML = tb + _emptyStateHTML('🗳', 'Aucune élection', 'Cliquez sur <strong>+ Nouvelle élection</strong> : les modalités (binômes, noms par bulletin, majorité, départage) se règlent à la création et sont rappelées sur le procès-verbal.<br>À tenir <strong>avant la fin de la septième semaine</strong> de l\'année scolaire.') + direct;
+    box.innerHTML = hvc + tb + _emptyStateHTML('🗳', 'Aucune élection', 'Cliquez sur <strong>+ Nouvelle élection</strong> : les modalités (binômes, noms par bulletin, majorité, départage) se règlent à la création et sont rappelées sur le procès-verbal.<br>À tenir <strong>avant la fin de la septième semaine</strong> de l\'année scolaire.') + direct;
+    _hvcFocus(box);
     return;
   }
-  box.innerHTML = tb + `<div class="rel-wrap"><table class="dt"><thead><tr><th>Élection</th><th>Date</th><th>Candidats</th><th>Tours</th><th>État</th><th>Élus</th><th style="cursor:default"></th></tr></thead><tbody>${list.map(e => {
+  box.innerHTML = hvc + tb + `<div class="rel-wrap"><table class="dt"><thead><tr><th>Élection</th><th>Date</th><th>Candidats</th><th>Tours</th><th>État</th><th>Élus</th><th style="cursor:default"></th></tr></thead><tbody>${list.map(e => {
     const elus = (e.elus?.titulaires || []).map(id => _elCandNom(_elCand(e, id))).join(', ');
     return `<tr><td>${_elType(e).icon} <a href="#" onclick="_elOpen('${_escJsAttr(e.id)}');return false" style="font-weight:600;text-decoration:none" title="${_escAttr(_elType(e).label)}">${_escName(e.titre)}</a></td>
       <td style="font-family:var(--font-mono);font-size:.85em">${_escName(_fmtDateFr(e.date))}</td><td>${(e.candidats || []).length}</td><td>${e.tours.length}</td>
       <td>${e.clos ? '<span class="badge ok">close</span>' : '<span class="badge warn">en cours</span>'}</td><td>${_escName(elus) || '<span class="tb-hint">—</span>'}</td>
       <td style="white-space:nowrap"><button class="btn btn-g btn-sm" onclick="_elOpen('${_escJsAttr(e.id)}')">Ouvrir</button> <button class="btn btn-d btn-sm" onclick="electionDeleteUI('${_escJsAttr(e.id)}')" title="Supprimer l'élection">🗑</button></td></tr>`;
   }).join('')}</tbody></table></div>` + direct;
+  _hvcFocus(box);
 }
+function _hvcFocus(box) { const f = box.querySelector('[data-hvc-focus]'); if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } } }
 
 // ═══════════════ Le PV signé, en PDF ═══════════════
 // À l'issue de l'élection, le procès-verbal imprimé, signé par les assesseurs et le PP,
@@ -9498,8 +9596,9 @@ const _PERIODE_BLOCS = [
   { key: 'incidents', label: 'Incidents',           hint: 'Incidents, punitions, sanctions, instances DE la période' },
   { key: 'contacts',  label: 'Contacts',            hint: 'Contacts avec la famille DE la période' },
   { key: 'bilan',     label: 'Bilan',               hint: 'Ce que j\'ai rédigé pour ce conseil (ou ce bilan de mi-période)' },
+  { key: 'hvc',       label: 'Heures de vie de classe', hint: 'Les heures de vie de classe tenues pendant la période, en tête de la feuille' },
 ];
-let _periodePrintOpts = { blocs: _PERIODE_BLOCS.map(b => b.key), type: 'conseil', forme: 'tableau' };
+let _periodePrintOpts = { blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc'), type: 'conseil', forme: 'tableau' };
 function _periodeTitre(type, p) { return `${type === 'miperiode' ? 'Bilan de mi-période' : 'Conseil de classe'} ${p.label}`; }
 // Le HTML de la feuille : un tableau paysage (une ligne par élève), ou des fiches portrait
 // (un bloc par élève — ce qu'on lit pendant que le conseil parle de lui).
@@ -9519,6 +9618,9 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     return (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr', { sensitivity: 'base' });
   });
   const titre = `${_periodeTitre(o.type, p)} — ${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}`;
+  const hvc = on('hvc') ? _hvcPeriode(cls, periodIdx) : [];
+  const hvcHTML = on('hvc') ? `<div class="print-hvc"><strong>Heures de vie de classe ${_escName(p.label)}</strong>${
+    hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_escName(e.texte)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
   const sub = `du ${_fmtDateFr(p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet · imprimé le ${_fmtDateFr(_todayYmd())}`;
   const nomCell = r => `<strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}${
     r.arrive ? `<br><small>arrivé le ${_escName(_fmtDateFr(r.arrive))}</small>` : ''}${r.parti ? `<br><small>parti le ${_escName(_fmtDateFr(r.parti))}</small>` : ''}`;
@@ -9530,7 +9632,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanType(r.bilan.type).label)} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
   if (o.forme === 'fiches') {
     const bloc = (t, c) => c ? `<div class="print-fb"><span class="print-fb-t">${t}</span> ${c}</div>` : '';
-    return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>` + rows.map(r => `<div class="print-fiche">
+    return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>${hvcHTML}` + rows.map(r => `<div class="print-fiche">
       <div class="print-fiche-h"><span>${nomCell(r)}</span><span class="print-fiche-id">${identCell(r)}</span></div>
       ${on('obs') ? bloc('Observations', obsCell(r)) : ''}
       ${on('docs') ? bloc('Non rendus', _escName(r.nonRendus.join(', '))) : ''}
@@ -9543,7 +9645,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     on('obs') ? `<th>Observations ${_escName(p.label)}</th>` : '', on('docs') ? '<th>Non rendus</th>' : '',
     on('incidents') ? '<th>Incidents</th>' : '', on('contacts') ? '<th>Contacts</th>' : '',
     on('bilan') ? `<th>${o.type === 'miperiode' ? 'Bilan' : 'Conseil'}</th>` : ''].join('');
-  return { kind: 'landscape', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>
+  return { kind: 'landscape', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>${hvcHTML}
     <table class="print-t"><thead><tr>${th}</tr></thead><tbody>${rows.map(r => `<tr><td>${nomCell(r)}</td><td>${identCell(r)}</td>${
       on('obs') ? `<td>${obsCell(r)}</td>` : ''}${on('docs') ? `<td>${_escName(r.nonRendus.join(', '))}</td>` : ''}${
       on('incidents') ? `<td>${incCell(r)}</td>` : ''}${on('contacts') ? `<td>${conCell(r)}</td>` : ''}${
@@ -9579,6 +9681,7 @@ function _periodePrintRefresh() {
   if (!syn) { h.textContent = ''; return; }
   const sans = syn.rows.filter(r => !r.bilan).length;
   const bits = [`${syn.rows.length} élève${syn.rows.length > 1 ? 's' : ''} présents pendant ${syn.periode.label}`,
+    o.blocs.includes('hvc') ? `${_hvcPeriode(cls, o.idx).length} heure${_hvcPeriode(cls, o.idx).length > 1 ? 's' : ''} de vie de classe` : '',
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
     o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — 🎓 dans la liste pour les compléter` : '✓ un bilan pour chacun') : '',
     o.forme === 'fiches' ? 'portrait, un bloc par élève' : 'paysage, une ligne par élève'];
@@ -11253,6 +11356,20 @@ function createDemo(opts) {
     const e = incidentAdd(sids[i], { date: D(md), type, objet, texte });
     if (e) { e.id = `demo_i${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
   });
+  // ── Heures de vie de classe — le journal de la classe, une par mois environ.
+  const hvcs = [
+    ['09-05', 'Accueil et règles de vie', 'Tour de table, présentation du carnet et du rôle du PP. Décision : les délégués seront élus le 7 octobre, candidatures en binôme à déposer avant le 1er.'],
+    ['09-26', 'Le rôle des délégués', 'Présentation projetée. Cinq binômes candidats. Deux assesseurs volontaires.'],
+    ['11-14', 'Bruit et bavardages', 'Constat partagé avec les délégués. Décision : changement de place de trois élèves, bilan dans un mois.'],
+    ['01-16', 'Bilan du premier semestre', 'Lecture des points positifs par les délégués. Rappel : fiches d\'orientation à rendre pour le 20 février.'],
+    ['03-20', 'Harcèlement — que faire, à qui parler', 'Intervention de la CPE. Affiche « à qui parler » posée dans la salle. À revoir : le groupe de messagerie de la classe.'],
+    ['05-15', 'Orientation et rentrée prochaine', 'Options de 4e : latin, bilingue. Questions sur les groupes. Les délégués rapporteront les demandes au conseil.'],
+  ];
+  hvcs.forEach(([md, titre, texte], k) => {
+    const e = hvcAdd(cls, { date: D(md), titre, texte });
+    if (e) { e.id = `demo_h${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
+  });
+
   // ── Bilans de période — le brouillon du conseil de classe, et un bilan de mi-période.
   const bilans = [
     [0, '01-20', 'conseil',   'Carnet très chargé (+9 au S1) malgré deux appels et une commission. Le contrat de comportement est signé : le conseil doit rappeler le cadre, sans fermer la porte. Volontaire à l\'oral, s\'appuyer là-dessus.'],
