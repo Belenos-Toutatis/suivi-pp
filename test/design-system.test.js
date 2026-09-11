@@ -167,3 +167,57 @@ test('la saisie en série n\'ouvre JAMAIS le calendrier natif', () => {
   const code = m[0].replace(/^\s*\/\/.*$/gm, ' ');
   assert.ok(!/showPicker/.test(code), 'eleveNaisKey ne doit pas ouvrir le sélecteur natif');
 });
+
+// ─────────────────────── Cadre figé : ligne et colonne collantes ───────────────────────
+// ⚠️ Deux pièges qui ne se voient qu'en faisant DÉFILER une vraie grille — ce qu'aucun
+// test unitaire ne fait, et ce qu'on ne fait pas en développant sur un écran large.
+
+test('un tableau dans un cadre de défilement ne porte pas d\'overflow propre', () => {
+  // `table.dt` rogne ses coins par `overflow: hidden` — ce qui en fait un conteneur de
+  // défilement, et un `sticky` posé sur une cellule collait alors au TABLEAU (qui ne
+  // défile jamais) au lieu du cadre. Mesuré : en-tête à −198 px après 300 px de
+  // défilement, colonne des noms partie avec le reste.
+  assert.ok(/\.rel-wrap table\.dt\s*\{[^}]*overflow:\s*visible/.test(SRC),
+    '.rel-wrap table.dt doit remettre overflow: visible');
+});
+
+test('le cadre figé est borné en hauteur, et libéré à l\'impression', () => {
+  // Un `overflow-x: auto` fait déjà de .rel-wrap un conteneur dans les DEUX axes : sans
+  // hauteur bornée, l'en-tête « collait » à un cadre qui ne défilait jamais verticalement.
+  const m = SRC.match(/\.rel-wrap\.frozen\s*\{([^}]*)\}/);
+  assert.ok(m, '.rel-wrap.frozen a disparu');
+  assert.ok(/max-height:[^;]*--topbar-h/.test(m[1]), 'la hauteur se calcule sur --topbar-h');
+  assert.ok(/\.rel-wrap\.frozen thead th\s*\{[^}]*position:\s*sticky;\s*top:\s*0/.test(SRC), 'en-tête collant');
+  assert.ok(/\.rel-wrap\.frozen tbody td:first-child\s*\{[^}]*position:\s*sticky;\s*left:\s*0/.test(SRC), 'première colonne collante');
+  const print = SRC.slice(SRC.lastIndexOf('@media print {'), SRC.indexOf('</style>'));
+  assert.ok(/\.rel-wrap\.frozen\s*\{[^}]*max-height:\s*none/.test(print), 'sur le papier, le cadre ne borne rien');
+});
+
+// Chaque renderer qui émet un cadre figé mémorise et repose sa position de défilement :
+// un cadre neuf repart en haut à gauche, et la cellule qu'on vient de saisir sort de vue.
+function cadresSansKeep(script) {
+  const fautifs = [];
+  for (const m of script.matchAll(/class="rel-wrap frozen"/g)) {
+    // La fonction englobante : du dernier `\nfunction ` avant l'occurrence au prochain `\n}`.
+    const debut = script.lastIndexOf('\nfunction ', m.index);
+    const fin = script.indexOf('\n}', m.index);
+    const corps = script.slice(debut, fin);
+    const nom = (corps.match(/^\nfunction (\w+)/) || [])[1] || '?';
+    if (!/const keep = _wrapScrollKeep\(el\);/.test(corps) || !/\n\s+keep\(\);/.test(script.slice(m.index, fin))) fautifs.push(nom);
+  }
+  return fautifs;
+}
+
+test('tout cadre figé est rendu entre _wrapScrollKeep() et keep()', () => {
+  const script = SRC.slice(SRC.indexOf('<script>', SRC.indexOf('</style>')));
+  assert.ok(script.match(/class="rel-wrap frozen"/g).length >= 5, 'les cinq grilles portent le cadre figé');
+  assert.deepStrictEqual(cadresSansKeep(script), [], 'renderers qui perdent la position de défilement');
+});
+
+test('MÉTA-TEST : le détecteur voit un keep() retiré', () => {
+  const script = SRC.slice(SRC.indexOf('<script>', SRC.indexOf('</style>')));
+  const i = script.indexOf('const keep = _wrapScrollKeep(el);', script.indexOf('function renderSynthese'));
+  assert.ok(i > 0);
+  const casse = script.slice(0, i) + script.slice(i + 'const keep = _wrapScrollKeep(el);'.length);
+  assert.deepStrictEqual(cadresSansKeep(casse), ['renderSynthese']);
+});

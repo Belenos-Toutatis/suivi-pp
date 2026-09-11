@@ -509,6 +509,38 @@ placement importé.
 réapparaît en tête de la grille triée par place, sous forme d'un id que plus rien ne
 nomme. Le test balayant le voit — vérifié en cassant la purge exprès.
 
+## Grilles : première ligne et première colonne figées
+
+Les cinq grilles à élèves en lignes (Élèves, Carnets, tableau d'un document, Ramassage,
+Synthèse) défilent dans leur **propre cadre** (`.rel-wrap.frozen`), borné à la hauteur qui
+reste sous le bandeau : l'en-tête reste en haut, la colonne des noms reste à gauche, comme
+dans le tableur qu'elles remplacent (demande de l'utilisateur, 2026-09-11).
+
+- ⚠️ **`table.dt` portait `overflow: hidden`** (pour rogner ses coins arrondis) — et un
+  `overflow` autre que `visible` fait d'un élément un conteneur de défilement, tableaux
+  compris depuis que les navigateurs le leur appliquent. Un `sticky` posé sur une cellule
+  collait donc au TABLEAU, qui ne défile jamais, et non au cadre : **la colonne de noms
+  « collante » des carnets et du ramassage ne collait pas** — depuis la v1.1.0, sans que
+  personne ne le voie, parce qu'à 1400 px de large les grilles tiennent sans défiler.
+  Mesuré : en-tête à −198 px après 300 px de défilement. → `.rel-wrap table.dt { overflow:
+  visible }` ; les coins ne sont plus rognés, c'est le prix d'une colonne qui colle vraiment.
+- ⚠️ **Un `sticky; top: 0` ne suffit pas.** `overflow-x: auto` fait de `.rel-wrap` un
+  conteneur de défilement dans les DEUX axes, hauteur bornée ou non : l'en-tête collait à un
+  cadre qui ne défilait jamais verticalement, c'est-à-dire à rien. Borner la hauteur
+  (`max-height` calculé sur `--topbar-h`) est ce qui rend la ligne figée réelle.
+- ⚠️ **Un cadre neuf repart en haut à gauche.** Chaque saisie re-rend la grille, donc
+  remplace le cadre — et la cellule qu'on vient de taper sortait de l'écran. `_wrapScrollKeep(el)`
+  mémorise la position avant `innerHTML` et la repose après, **si le cadre neuf porte le
+  même tableau** (l'onglet Documents en rend trois dans le même conteneur). Test statique :
+  tout `rel-wrap frozen` est encadré par `_wrapScrollKeep` / `keep()`, avec son méta-test.
+- `--topbar-h` est **mesurée** (`_topbarMeasure`, `ResizeObserver` sur `#topbar`) : le
+  bandeau fait 101 px à 1200 px de large, 184 à 700, 303 à 320 — une valeur figée laissait
+  soit un trou, soit un cadre qui déborde sous le pli. Déclarée dans `:root` en repli,
+  sans variante sombre ni impression : ce n'est pas une couleur.
+- `scroll-margin` sur les champs : une cellule amenée au focus par Entrée ou les flèches
+  ne doit pas atterrir SOUS la ligne ou la colonne figée.
+- Sur le papier, le cadre ne borne rien (`max-height: none` dans `@media print`).
+
 ## Import des élèves — deux voies
 
 ### 1. CSV / tableur (voie principale)
@@ -649,6 +681,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 21 | **Grilles figées** : en-tête et colonne des noms collants dans les cinq grilles (`.rel-wrap.frozen`, `_wrapScrollKeep`, `_topbarMeasure`) · **âge sous le nom** (`_ageSubHTML`, mis à jour en place à la saisie) · pastilles « à rendre » / « à lire » du ramassage **empilées** (`_ramResteHTML`) ; 6 tests de plus | ✅ **fait** (2026-09-11, v1.11.0) |
 | 20 | **Impression de la vue globale** : grille élèves × documents (`_gridPrintCell`, `_gridPrintRows`, `_gridPrintTotals`, `_gridPrintSubtitle`), trois états sur le papier, totaux en pied, réponses en option, depuis la liste **et** depuis le ramassage ; 9 tests de plus | ✅ **fait** (2026-09-10, v1.10.0) |
 | 19 | **Impression d'un document** avec choix des colonnes : calcul pur (`_docPrintColumns`, `_docPrintKeys`, `_docPrintFiltres`, `_docPrintCell`, `_docPrintRows`, `_docPrintSubtitle`) testé avant l'UI (11 tests), modale de sélection, orientation déduite, PDF par la fenêtre d'impression | ✅ **fait** (2026-09-10, v1.9.0) |
 | 18 | **Installable comme application** : 5 icônes PNG générées par script, manifeste complet (`id`, `icons` `any` + `maskable`), icône iOS liée, préchargement des icônes tolérant aux absences, 8 tests dont la mesure réelle des dimensions dans l'IHDR | ✅ **fait** (2026-09-10, v1.8.0) |
@@ -777,6 +810,19 @@ Un défaut trouvé, et **par un test, pas à l'œil** :
    écran compris, et la garde côté impression retirée.
    ⚠️ Leçon : **une fixture qui ne contient pas le cas ne peut pas voir le défaut** — c'est
    le même constat qu'au défaut 7, où quatre candidats partout cachaient le cas à un seul.
+
+**2026-09-11, v1.11.0 (grilles figées, âge, pastilles empilées) : 0 écart**, clair et
+sombre — mesuré sur ce qui a changé : l'âge sous le nom dans les quatre grilles (5,21:1 en
+clair, 6,22 en sombre), les en-têtes collants, la colonne de noms collante, les pastilles
+empilées du ramassage (10,21 / 9,81). Défilement vérifié dans le navigateur en 1200, 700 et
+320 px de large, thème sombre compris ; aucun débordement horizontal du body.
+
+Un défaut trouvé, **dormant depuis la v1.1.0** :
+19. **La colonne de noms « collante » ne collait pas.** `overflow: hidden` sur `table.dt`
+   en faisait un conteneur de défilement, et le `sticky` s'y accrochait au lieu de
+   s'accrocher au cadre (cf. *Grilles figées*). Invisible tant que la grille tient dans la
+   fenêtre — c'est-à-dire sur tous les écrans où l'on développe. ⚠️ Leçon : **un `sticky`
+   se vérifie en faisant défiler**, jamais en lisant le CSS.
 
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la

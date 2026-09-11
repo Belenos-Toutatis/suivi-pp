@@ -178,6 +178,9 @@ if ('serviceWorker' in navigator) {
   --rgpd-bg: #f5d76e;  --rgpd-fg: #0e1a26;
   --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
   --margin-w: 56px;
+  /* Hauteur du bandeau collant — valeur de repli, REMESURÉE par _topbarMeasure() au
+     chargement et à chaque changement de taille. Dimensionne les cadres figés. */
+  --topbar-h: 96px;
   --radius-sm: 3px;
   --radius-md: 5px;
   --radius-lg: 8px;
@@ -750,6 +753,15 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
    plus changer d'onglet sans revenir en arrière. Mesuré à l'étape 10 : 653 px de
    débordement sur la liste des élèves à 375 px de large. */
 .rel-wrap { overflow-x: auto; }
+/* ⚠️ `table.dt` porte `overflow: hidden` (pour rogner ses coins arrondis). Or un
+   `overflow` autre que visible fait d'un élément un conteneur de défilement — et
+   depuis que les navigateurs l'appliquent aux tableaux, un `sticky` posé sur une
+   cellule collait au TABLEAU, qui ne défile jamais, au lieu de coller au cadre : la
+   colonne des noms et l'en-tête figé restaient à leur place, comme s'ils n'avaient
+   jamais été collants. Mesuré : en-tête à −198 px après 300 px de défilement.
+   Dans un cadre de défilement, le tableau redevient donc `visible` — ses coins ne
+   sont plus rognés, et c'est le prix d'une colonne qui colle vraiment. */
+.rel-wrap table.dt { overflow: visible; }
 .rel-table { width: auto; min-width: 100%; }
 .rel-table th, .rel-table td { white-space: nowrap; }
 .rel-table th.rel-name, .rel-table td.rel-name {
@@ -796,6 +808,39 @@ td.rel-delta.hot  { background: var(--alert-bg);   color: var(--alert-fg); }
 .rel-table th.rel-period.cur { color: var(--ink-blue); }
 .rel-table tbody tr.inactive td.rel-name { font-style: italic; }
 
+/* ─── Cadre FIGÉ : première ligne et première colonne restent en vue ───
+   Les grilles longues (élèves × relevés, élèves × documents, le tableau d'un document,
+   la synthèse, la liste des élèves) défilent dans leur PROPRE cadre, borné à la hauteur
+   qui reste sous le bandeau : c'est la condition pour que l'en-tête colle en haut ET
+   que la colonne des noms colle à gauche.
+   ⚠️ Un `sticky` ne colle qu'à son conteneur de défilement le plus proche — or
+   `overflow-x: auto` fait déjà de .rel-wrap un conteneur de défilement dans LES DEUX
+   axes, hauteur bornée ou non. Un en-tête `sticky; top: 0` y « collait » donc à un
+   cadre qui ne défilait jamais verticalement, c'est-à-dire à rien : la page défilait,
+   l'en-tête partait avec elle. Borner la hauteur est ce qui rend la ligne figée réelle.
+   ⚠️ Corollaire côté JS : un re-rendu remplace le cadre, et un cadre neuf repart en
+   haut à gauche — d'où _wrapScrollKeep() dans chaque renderer concerné. Sans lui, la
+   grille sautait au coin après CHAQUE cellule saisie.
+   `--topbar-h` est mesurée par _topbarMeasure() : le bandeau change de hauteur quand
+   son titre passe à la ligne, et une valeur figée laissait soit un trou, soit un cadre
+   qui déborde sous le pli.
+   ⚠️ Ce bloc reste APRÈS les règles `.rel-table` : à spécificité égale, l'ordre tranche. */
+.rel-wrap.frozen {
+  overflow: auto;
+  max-height: max(220px, calc(100vh - var(--topbar-h) - 14px));
+  max-height: max(220px, calc(100dvh - var(--topbar-h) - 14px));
+}
+.rel-wrap.frozen thead th { position: sticky; top: 0; z-index: 3; }
+.rel-wrap.frozen thead th:first-child { left: 0; z-index: 4; }
+.rel-wrap.frozen tbody td:first-child {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--paper); border-right: 2px solid var(--rule-line);
+}
+.rel-wrap.frozen tbody tr:hover td:first-child { background: var(--paper-warm); }
+/* Une cellule amenée au focus (Entrée, flèches) ne doit pas atterrir SOUS la ligne ou
+   la colonne figée : la marge de défilement la dégage avant qu'on la voie. */
+.rel-wrap.frozen input, .rel-wrap.frozen button, .rel-wrap.frozen select { scroll-margin: 72px 8px 8px 200px; }
+
 /* ═══════════════════════════════════════════════════════════════════
    ONGLET DOCUMENTS
    ═══════════════════════════════════════════════════════════════════ */
@@ -824,13 +869,19 @@ td.rel-delta.hot  { background: var(--alert-bg);   color: var(--alert-fg); }
    revenir à la ligne, là où .rel-table impose `nowrap` partout. */
 .ram-table th.ram-doc { white-space: normal; min-width: 130px; max-width: 190px; text-align: center; vertical-align: bottom; }
 .ram-doc-t { display: block; font-weight: 600; line-height: 1.2; margin-bottom: 4px; text-transform: none; letter-spacing: 0; }
-.ram-doc-n { display: block; font-weight: 400; font-size: .95em; margin-bottom: 4px; }
+.ram-doc-n { display: flex; flex-direction: column; align-items: center; gap: 2px; font-weight: 400; font-size: .95em; margin-bottom: 4px; }
 .ram-table td.ram-cell { text-align: center; padding: 4px; }
 .ram-cb { width: 20px; height: 20px; cursor: pointer; }
 /* « Sans objet » : ni coché ni décoché. Un tiret dit « ce papier ne le concerne pas »,
    là où une case vide dirait « il ne l'a pas rendu ». */
 .ram-na { color: var(--pencil-soft); font-family: var(--font-mono); }
-.ram-reste { font-family: var(--font-mono); font-size: .8em; }
+/* « 2 à rendre » et « 1 à lire » l'un SOUS l'autre, pas côte à côte : côte à côte, la
+   colonne des noms — collante, donc toujours à l'écran — s'élargissait de toute la
+   pastille et mangeait la place des documents. */
+.ram-reste { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 3px; }
+.ram-reste .badge { font-family: var(--font-mono); font-size: .8em; }
+/* L'âge sous le nom, dans les grilles : révolu, calculé du jour — jamais stocké. */
+.age-sub { display: block; font: 500 10.5px var(--font-mono); color: var(--pencil); letter-spacing: 0; margin-top: 1px; }
 /* ─── Poignée de déplacement ───
    ⚠️ `touch-action: none` est ce qui rend le glisser possible au DOIGT : sans lui, le
    navigateur interprète le mouvement comme un défilement de page et ne nous envoie
@@ -873,7 +924,7 @@ body.doc-dragging-on .dt tbody tr:hover { background: inherit; }
    l'ordre dans la feuille qui tranche — placé avant, il était simplement ignoré. */
 @media (max-width: 560px) {
   .rel-table th.rel-name, .rel-table td.rel-name { min-width: 96px; max-width: 132px; white-space: normal; }
-  .ram-reste { display: block; margin-top: 2px; }
+  .rel-wrap.frozen input, .rel-wrap.frozen button, .rel-wrap.frozen select { scroll-margin-left: 140px; }
 }
 /* Éditeur de champs (modale) */
 .champ-row {
@@ -1114,6 +1165,8 @@ body.el-projecting #main { padding-top: 8px; }
      ferme le piège par construction, plutôt qu'en énumérant des couleurs. */
   .tb, button, .btn { display: none !important; }
   #main { padding: 0 !important; }
+  /* Le cadre figé est un confort d'ÉCRAN : sur le papier il rognerait la grille. */
+  .rel-wrap.frozen { max-height: none !important; overflow: visible !important; }
 }
 </style>
 </head>
@@ -1734,8 +1787,8 @@ body.el-projecting #main { padding-top: 8px; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.10.1';
-const APP_BUILD_DATE = '2026-09-11T04:56:35Z';
+const APP_VERSION    = '1.11.0';
+const APP_BUILD_DATE = '2026-09-11T05:21:27Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3146,6 +3199,39 @@ function _ficheAge(naissance, ref) {
   return age < 0 ? null : age;
 }
 
+// L'âge sous le nom, dans les grilles. Vide sans date de naissance : un tiret ferait
+// chercher une information que personne n'a saisie. `id` sert à la liste des élèves,
+// qui met l'âge à jour EN PLACE quand on saisit la date (pas de re-rendu en pleine série).
+function _ageSubHTML(stu, id) {
+  const a = _ficheAge(stu && stu.naissance);
+  return `<span class="age-sub"${id ? ` id="${_escAttr(id)}"` : ''}>${a === null ? '' : a + ' ans'}</span>`;
+}
+
+// ⚠️ Un cadre figé (.rel-wrap.frozen) est un conteneur de défilement : le re-rendu qui le
+// remplace le fait REPARTIR en haut à gauche, et la cellule qu'on vient de saisir sort de
+// l'écran. On mémorise la position AVANT d'écrire, on la repose APRÈS — mais seulement si
+// le cadre neuf porte le même tableau (l'onglet Documents en rend trois différents dans le
+// même conteneur, et la position de la liste n'a rien à faire sur la grille de ramassage).
+function _wrapScrollKeep(el) {
+  const w = el && el.querySelector && el.querySelector('.rel-wrap.frozen');
+  const t = w && w.querySelector('table');
+  const pos = w ? { key: t ? t.className : '', top: w.scrollTop, left: w.scrollLeft } : null;
+  return () => {
+    if (!pos) return;
+    const n = el.querySelector('.rel-wrap.frozen');
+    const nt = n && n.querySelector('table');
+    if (n && (nt ? nt.className : '') === pos.key) { n.scrollTop = pos.top; n.scrollLeft = pos.left; }
+  };
+}
+// Hauteur réelle du bandeau collant, exposée en `--topbar-h` : les cadres figés se
+// dimensionnent sur ce qui reste dessous. Remesurée à chaque changement de taille — le
+// titre passe à la ligne sur téléphone, et le bandeau double de hauteur.
+function _topbarMeasure() {
+  const t = document.getElementById('topbar');
+  if (!t || !t.offsetHeight) return;
+  document.documentElement.style.setProperty('--topbar-h', t.offsetHeight + 'px');
+}
+
 // Les places de l'élève, une par salle. ⚠️ `rang` et `colonne` sont 1-BASED : une fiche
 // se lit par un humain (« rang 1, place 3 »), là où le modèle compte à partir de zéro.
 // `pos` garde la clé brute, seule à faire foi si on doit remonter au placement.
@@ -3324,6 +3410,8 @@ function eleveNaisCommit(inp) {
   _elevesArmUndo();
   s.naissance = v;
   save();
+  const age = document.getElementById('age-' + s.id);
+  if (age) { const a = _ficheAge(v); age.textContent = a === null ? '' : a + ' ans'; }
   // Pas de re-rendu : la liste se reconstruirait sous le curseur en pleine série. Seul
   // le tri par cette colonne demanderait un redessin, et il attendra la prochaine action.
 }
@@ -3467,7 +3555,7 @@ function renderStudents() {
     const delBadge = del ? `<span class="delbdg" title="${del === 'titulaire' ? 'Délégué titulaire' : 'Délégué suppléant'} (élection close la plus récente)">🏅 ${del === 'titulaire' ? 'délégué' : 'suppléant'}</span>` : '';
     return `<tr${(isFuture || isGone) ? ' class="inactive"' : ''}>
       <td>${civBtn}<a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète"
-            style="text-decoration:none;color:inherit"><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}</a>${delBadge}${lifeBadge}</td>
+            style="text-decoration:none;color:inherit"><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}</a>${delBadge}${lifeBadge}${_ageSubHTML(s, 'age-' + s.id)}</td>
       <td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(s.id)}"
             max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)"
             title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>
@@ -3487,8 +3575,9 @@ function renderStudents() {
   const tri = `<div class="tb">${_sortPickerHTML(eleveSort.col, 'setEleveSort(this.value)', cls,
     [{ key: 'grp', label: 'par groupe' }, { key: 'amen', label: 'par aménagements' }])}
     <span class="tb-hint" style="margin-left:auto">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span></div>`;
+  const keep = _wrapScrollKeep(el);
   el.innerHTML = tri + filtered + (list.length ? `
-    <div class="rel-wrap"><table class="dt">
+    <div class="rel-wrap frozen"><table class="dt">
       <thead><tr>
         <th onclick="sortEleves('nom')" style="cursor:pointer">Élève${arrow('nom')}</th>
         <th onclick="sortEleves('nais')" style="cursor:pointer" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance${arrow('nais')}</th>
@@ -3500,6 +3589,7 @@ function renderStudents() {
       <tbody>${rows}</tbody>
     </table></div>` : _emptyStateHTML('🔍', 'Aucun élève ne correspond',
       `Le filtre « ${_escName(_eleveFilter)} » ne trouve personne. <button class="btn btn-g btn-sm" onclick="document.getElementById('eleve-search').value='';setEleveFilter('')">Effacer le filtre</button>`));
+  keep();
 }
 
 // ─── Bascules rapides depuis la liste ───
@@ -5433,14 +5523,16 @@ function renderCarnets() {
     const ld = lastDelta(s);
     const ldCls = ld === null ? '' : ld >= 5 ? ' hot' : ld >= 2 ? ' warm' : '';
     return `<tr${inactive ? ' class="inactive"' : ''}>
-      <td class="rel-name"><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}</td>
+      <td class="rel-name"><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${_ageSubHTML(s)}</td>
       ${cells}
       <td class="rel-delta${ldCls}">${ld === null ? '<span class="tb-hint">—</span>' : (ld > 0 ? '+' + ld : ld)}</td>
       ${periodsShown.map(p => { const t = _relPeriodTotal(cls.id, s.id, p.n - 1); return `<td class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}">${t === null ? '<span class="tb-hint">—</span>' : t}</td>`; }).join('')}
     </tr>`;
   }).join('');
 
-  el.innerHTML = toolbar + `<div class="rel-wrap"><table class="dt rel-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  const keep = _wrapScrollKeep(el);
+  el.innerHTML = toolbar + `<div class="rel-wrap frozen"><table class="dt rel-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  keep();
 }
 
 // ── Saisie ──
@@ -6372,17 +6464,19 @@ function _renderDocDetail(el, doc) {
         <option value="">—</option>${opts.map(x => `<option value="${_escAttr(x.id)}"${x.id === cur ? ' selected' : ''}>${_escName(x.label)}</option>`).join('')}</select></td>`;
     }).join('');
     return `<tr>
-      <td><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}${multi ? ` <span class="tb-hint">${_escName(S.classes[s.classe_id]?.nom || '')}</span>` : ''}</td>
+      <td><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}${multi ? ` <span class="tb-hint">${_escName(S.classes[s.classe_id]?.nom || '')}</span>` : ''}${_ageSubHTML(s)}</td>
       ${suivi ? `<td style="text-align:center"><input type="checkbox" class="doc-rendu"${r.rendu ? ' checked' : ''} onchange="docSetRenduUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.checked)" title="${r.rendu ? 'Rendu — décocher si ce n\'est pas le bon élève' : 'Cocher quand le papier est rendu (la date du jour est posée)'}"></td>
       <td><input type="date" class="doc-date" value="${_escAttr(r.dateRetour || '')}" onchange="docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.value)" title="Date de retour"${r.rendu ? '' : ' disabled'}></td>` : ''}
       ${cells}
       <td><input type="text" class="doc-note" value="${_escAttr(r.note)}" placeholder="mot sur ce retour…" maxlength="120" onchange="docSetNoteUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.value)" title="${_escAttr(r.note || 'Un mot sur CE retour : « manque la signature du père »')}"></td>
     </tr>`;
   }).join('');
-  el.innerHTML = head + `<div class="rel-wrap"><table class="dt doc-table"><thead><tr>
+  const keep = _wrapScrollKeep(el);
+  el.innerHTML = head + `<div class="rel-wrap frozen"><table class="dt doc-table"><thead><tr>
       <th>Élève</th>${suivi ? '<th style="text-align:center" title="Papier rendu">Rendu</th><th>Date</th>' : ''}${thChamps}<th>Note</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
     ${champs.length ? `<div class="tb-hint" style="margin-top:8px">👤 = champ rempli par le PP · les réponses se cochent même si le papier n'est pas rendu (dit à l'oral), et un papier rendu peut rester sans réponse (illisible, à relancer).</div>` : ''}`;
+  keep();
 }
 
 // ── Mutations depuis le tableau ──
@@ -6539,12 +6633,14 @@ function _renderRamassage(el) {
     }).join('');
     return `<tr${r.actif ? '' : ' class="inactive"'}>
       <td class="rel-name"><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}
-        <span class="ram-reste badge${r.reste ? ' warn' : ' ok'}" id="ram-r-${_escAttr(r.sid)}">${_ramResteLabel(r)}</span></td>
+        <span class="ram-reste" id="ram-r-${_escAttr(r.sid)}">${_ramResteHTML(r)}</span></td>
       ${cells}</tr>`;
   }).join('');
 
-  el.innerHTML = head + pick + `<div class="rel-wrap"><table class="dt rel-table ram-table">
+  const keep = _wrapScrollKeep(el);
+  el.innerHTML = head + pick + `<div class="rel-wrap frozen"><table class="dt rel-table ram-table">
     <thead><tr><th class="rel-name">Élève</th>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+  keep();
   _renderRamassageHint();
 }
 
@@ -6565,11 +6661,20 @@ function _ramChipsHTML(doc, sid, ch) {
   }).join('');
 }
 
+// Une pastille PAR reste, empilées (cf. .ram-reste) : « 2 à rendre » au-dessus de
+// « 1 à lire ». Le texte seul, sans balise, reste disponible pour un test ou un toast.
 function _ramResteLabel(r) {
   const bouts = [];
   if (r.reste) bouts.push(`${r.reste} à rendre`);
   if (r.resteRep) bouts.push(`${r.resteRep} à lire`);
   return bouts.length ? bouts.join(' · ') : 'complet';
+}
+function _ramResteHTML(r) {
+  const bouts = [];
+  if (r.reste) bouts.push(`${r.reste} à rendre`);
+  if (r.resteRep) bouts.push(`${r.resteRep} à lire`);
+  if (!bouts.length) return '<span class="badge ok">complet</span>';
+  return bouts.map(b => `<span class="badge warn">${b}</span>`).join('');
 }
 
 // Une réponse relevée pendant le ramassage. ⚠️ Ne coche PAS le retour au passage : les
@@ -6647,7 +6752,7 @@ function _ramRefreshCounters() {
   if (!cls) return;
   for (const r of _ramRows(_ramSel || [], cls.id)) {
     const b = document.getElementById('ram-r-' + r.sid);
-    if (b) { b.textContent = _ramResteLabel(r); b.className = 'ram-reste badge' + (r.reste || r.resteRep ? ' warn' : ' ok'); }
+    if (b) b.innerHTML = _ramResteHTML(r);
   }
   for (const id of (_ramSel || [])) {
     const d = S.documents[id];
@@ -7673,7 +7778,7 @@ function _synthCellsHTML(r, cls) {
     ? `<div class="synth-contact" title="${_escAttr(`${_journalType(r.contact.type).label} — ${r.contact.texte}${r.nbContacts > 1 ? `\n(${r.nbContacts} contacts notés)` : ''}`)}">${
         _journalType(r.contact.type).icon} ${_escName(_fmtDateFr(r.contact.date))}${r.nbContacts > 1 ? ` <span class="tb-hint">×${r.nbContacts}</span>` : ''}</div>` : '';
   const rem = (cont ? cont : '') + (r.remarque ? `<div class="synth-rem" title="${_escAttr(r.remarque)}">${_escName(r.remarque)}</div>` : '');
-  return `<td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}${del ? '<br>' + del : ''}</td>
+  return `<td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}${del ? '<br>' + del : ''}${_ageSubHTML(S.eleves[r.sid])}</td>
     <td style="white-space:nowrap">${civ}${grp}${opts}</td>
     <td>${_escName(r.amenagements) || '<span class="tb-hint">—</span>'}</td>
     <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
@@ -7700,7 +7805,9 @@ function renderSynthese() {
       <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="printSynthese()" title="Une page paysage par classe — Ctrl+P fait pareil">🖨 Imprimer</button>
     </div>`;
   const head = `<tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th title="Dernier cumul d'observations relevé">Carnet</th><th title="Évolution au dernier relevé">Δ</th><th title="Total de la période courante">${_escName(per)}</th><th title="Documents non rendus">Non rendus</th><th title="Réponses portées sur les documents (👤 = avis du PP)">Réponses</th><th>Remarque</th></tr>`;
-  el.innerHTML = tb + `<div class="rel-wrap"><table class="dt synth-table"><thead>${head}</thead><tbody>${rows.map(r => `<tr${r.actif ? '' : ' class="inactive"'}>${_synthCellsHTML(r, cls)}</tr>`).join('')}</tbody></table></div>`;
+  const keep = _wrapScrollKeep(el);
+  el.innerHTML = tb + `<div class="rel-wrap frozen"><table class="dt synth-table"><thead>${head}</thead><tbody>${rows.map(r => `<tr${r.actif ? '' : ' class="inactive"'}>${_synthCellsHTML(r, cls)}</tr>`).join('')}</tbody></table></div>`;
+  keep();
 }
 
 // ── Impressions ──
@@ -9540,6 +9647,12 @@ function init() {
   updateAutoSyncUI();
   tryRestoreDirHandle();
   _passiveUpdateCheck();
+
+  _topbarMeasure();
+  if (typeof ResizeObserver === 'function') {
+    const t = document.getElementById('topbar');
+    if (t) new ResizeObserver(_topbarMeasure).observe(t);
+  } else window.addEventListener('resize', _topbarMeasure);
 }
 init();
 </script>

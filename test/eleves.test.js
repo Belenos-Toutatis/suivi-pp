@@ -198,3 +198,17 @@ test('saisie d\'une date : RIEN ne s\'écrit tant que le champ a le focus', () =
   assert.strictEqual(ev(`S.eleves.s1.naissance`), '2013-05-21');
   assert.strictEqual(ev(`__inp.value`), '2013-05-21', 'et le champ affiche enfin l\'année entière');
 });
+
+// ─────────────────────── Âge sous le nom ───────────────────────
+
+test('_ageSubHTML : l\'âge révolu sous le nom, vide sans date de naissance', () => {
+  const ref = ev(`_todayYmd()`);
+  const [y] = ref.split('-').map(Number);
+  // Né il y a exactement 13 ans + 1 jour → 13 ans révolus, quelle que soit la date du jour.
+  const nais = ev(`(() => { const d = new Date(${y - 13}, ${Number(ref.slice(5, 7)) - 1}, ${Number(ref.slice(8, 10))} - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()`);
+  assert.strictEqual(ev(`_ageSubHTML({ naissance: '${nais}' })`), '<span class="age-sub">13 ans</span>');
+  assert.strictEqual(ev(`_ageSubHTML({ naissance: null })`), '<span class="age-sub"></span>');
+  assert.strictEqual(ev(`_ageSubHTML(undefined)`), '<span class="age-sub"></span>');
+  // L'id sert à la mise à jour en place depuis la saisie en série ; il est échappé.
+  assert.strictEqual(ev(`_ageSubHTML({ naissance: '' }, 'age-s"1')`), '<span class="age-sub" id="age-s&quot;1"></span>');
+});

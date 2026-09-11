@@ -336,3 +336,16 @@ test('_ramRows : un document PARTAGÉ avec une autre classe n\'y fait pas entrer
   // Classe inconnue → personne : une grille sans salle n'a personne dedans.
   assert.deepStrictEqual(evObj(`_ramRows(['d1'], 'fantome')`), []);
 });
+
+// ─────────────────────── Pastilles de reste, empilées ───────────────────────
+
+test('_ramResteHTML : une pastille PAR reste, « complet » sinon', () => {
+  // « 2 à rendre » et « 1 à lire » l'un SOUS l'autre : côte à côte, la colonne des noms —
+  // collante, donc toujours à l'écran — s'élargissait de toute la pastille.
+  const deux = ev(`_ramResteHTML({ reste: 2, resteRep: 1 })`);
+  assert.deepStrictEqual(deux.match(/<span class="badge warn">[^<]*<\/span>/g).map(x => x.replace(/<[^>]+>/g, '')),
+    ['2 à rendre', '1 à lire']);
+  assert.strictEqual(ev(`_ramResteHTML({ reste: 0, resteRep: 3 })`), '<span class="badge warn">3 à lire</span>');
+  assert.strictEqual(ev(`_ramResteHTML({ reste: 0, resteRep: 0 })`), '<span class="badge ok">complet</span>');
+  assert.strictEqual(ev(`_ramResteLabel({ reste: 2, resteRep: 1 })`), '2 à rendre · 1 à lire');
+});
