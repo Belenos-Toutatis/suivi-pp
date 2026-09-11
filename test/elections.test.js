@@ -397,3 +397,65 @@ test('éco-délégués désignés sans vote : cls.ecoDelegues, même arbitrage p
   assert.strictEqual(evObj(`'ecoDelegues' in S.classes['5C']`), false, 'vidée, la désignation disparaît');
   assert.strictEqual(ev(`deleguesClear(S.classes['5C'], 'eco')`), false);
 });
+
+// ─────────────────── Remplacement d'un délégué en cours d'année (v1.29.0)
+
+test('electionRemplacer : titulaire parti → son suppléant devient titulaire ; suppléant parti → pas de successeur ; refus des doublons', () => {
+  ev(FIXTURE);
+  ev(`B(['c1','c2'],['c1','c2'],['c1','c2'],['c1','c2']); electionCloreTour(EL, 0);`);
+  assert.deepStrictEqual(evObj(`[_delegueOf('s1'), _delegueOf('s11'), _delegueOf('s2'), _delegueOf('s12')]`), ['titulaire', 'suppleant', 'titulaire', 'suppleant']);
+  assert.strictEqual(evObj(`electionRemplacer(EL, { candId: 'c3', qui: 'titulaire', date: '2025-11-05', motif: 'demission' })`), null, 'c3 n’est pas élu');
+  assert.strictEqual(evObj(`electionRemplacer(EL, { candId: 'c1', qui: 'titulaire', date: '2025-13-05' })`), null, 'date illisible');
+  const r = evObj(`electionRemplacer(EL, { candId: 'c1', qui: 'titulaire', date: '2025-11-05', motif: 'depart', texte: ' déménage ' })`);
+  assert.deepStrictEqual([r.nomParti, r.nomRemplacant, r.remplacantCandId, r.motif, r.texte], ['T1', 'S1', 'c1', 'depart', 'déménage']);
+  // ⚠️ Le titulaire parti n'est PLUS délégué (avant la v1.29.0, il le restait) ; son suppléant est titulaire.
+  assert.deepStrictEqual(evObj(`[_delegueOf('s1'), _delegueOf('s11'), _delegueOf('s2'), _delegueOf('s12')]`), [null, 'titulaire', 'titulaire', 'suppleant']);
+  const eff = evObj(`_elEffectifs(EL)`);
+  assert.deepStrictEqual(eff.titulaires.map(t => [t.sid, t.promu]), [['s11', true], ['s2', false]]);
+  assert.deepStrictEqual(eff.suppleants.map(t => t.sid), ['s12']);
+  assert.strictEqual(evObj(`electionRemplacer(EL, { candId: 'c1', qui: 'titulaire', date: '2025-12-01' })`), null, 'le même mandat ne se remplace qu’une fois');
+  // Le suppléant de c2 part : pas de successeur, le titulaire reste seul.
+  const r2 = evObj(`electionRemplacer(EL, { candId: 'c2', qui: 'suppleant', date: '2026-01-10', motif: 'autre' })`);
+  assert.deepStrictEqual([r2.nomParti, r2.remplacantCandId], ['S2', null]);
+  assert.deepStrictEqual(evObj(`[_delegueOf('s2'), _delegueOf('s12'), _elEffectifs(EL).suppleants.length]`), ['titulaire', null, 0]);
+  // Retirer : tout revient.
+  assert.strictEqual(evObj(`electionRemplacementRemove(EL, '${r.id}')`), true);
+  assert.deepStrictEqual(evObj(`[_delegueOf('s1'), _delegueOf('s11')]`), ['titulaire', 'suppleant']);
+  // Une désignation sans vote plus récente prime toujours.
+  ev(`deleguesSet(S.classes['5C'], { date: '2026-02-01', titulaires: ['s5'] });`);
+  assert.deepStrictEqual(evObj(`[_delegueOf('s5'), _delegueOf('s11')]`), ['titulaire', null]);
+});
+
+test('remplacement sans suppléant (éco-délégué) : le siège est VACANT, et l’élection ne l’invente pas', () => {
+  ev(FIXTURE);
+  ev(`window.ECO = electionCreate('5C', { type: 'eco', date: '2025-10-14' });
+      ['e1','e2'].forEach((id, i) => ECO.candidats.push({ id, sidTitulaire: 's' + (i+20), sidSuppleant: null, nomTitulaire: 'E' + i, nomSuppleant: '', color: '#16a085', ordre: i, retire: false }));
+      ECO.tours[0].candidats = ['e1','e2'];
+      for (let i = 0; i < 9; i++) electionAddBulletin(ECO, 0, ['e1']);
+      for (let i = 0; i < 3; i++) electionAddBulletin(ECO, 0, ['e2']);
+      electionCloreTour(ECO, 0);`);
+  assert.strictEqual(evObj(`_ecoDelegueOf('s20')`), 'titulaire');
+  assert.strictEqual(evObj(`electionRemplacer(ECO, { candId: 'e1', qui: 'suppleant', date: '2026-01-10' })`), null, 'pas de suppléant à faire partir');
+  const r = evObj(`electionRemplacer(ECO, { candId: 'e1', qui: 'titulaire', date: '2026-01-10', motif: 'depart' })`);
+  assert.strictEqual(r.remplacantCandId, null);
+  assert.deepStrictEqual(evObj(`[_ecoDelegueOf('s20'), _elEffectifs(ECO).vacants, _elEffectifs(ECO).titulaires.length]`), [null, 1, 0]);
+});
+
+test('remplacement HORS binôme : le suppléant élu choisi prend le siège, une seule fois', () => {
+  ev(FIXTURE);
+  ev(`window.HB = electionCreate('5C', { binome: false, nbTitulaires: 2, nbSupplants: 2, nomsParBulletin: 2, date: '2025-10-10' });
+      ['h1','h2','h3','h4'].forEach((id, i) => HB.candidats.push({ id, sidTitulaire: 's' + (i+1), sidSuppleant: null, nomTitulaire: 'H' + (i+1), nomSuppleant: '', color: '#16a085', ordre: i, retire: false }));
+      HB.tours[0].candidats = ['h1','h2','h3','h4'];
+      for (let i = 0; i < 10; i++) electionAddBulletin(HB, 0, ['h1','h2']);
+      for (let i = 0; i < 3; i++) electionAddBulletin(HB, 0, ['h3']);
+      electionAddBulletin(HB, 0, ['h4']);
+      electionCloreTour(HB, 0);`);
+  assert.deepStrictEqual(evObj(`[HB.elus.titulaires, HB.elus.suppleants]`), [['h1', 'h2'], ['h3', 'h4']]);
+  assert.strictEqual(evObj(`electionRemplacer(HB, { candId: 'h1', qui: 'titulaire', date: '2025-12-01', remplacantCandId: 'h2' })`), null, 'h2 n’est pas suppléant');
+  const r = evObj(`electionRemplacer(HB, { candId: 'h1', qui: 'titulaire', date: '2025-12-01', remplacantCandId: 'h3' })`);
+  assert.strictEqual(r.nomRemplacant, 'H3');
+  assert.deepStrictEqual(evObj(`[_delegueOf('s1'), _delegueOf('s3'), _delegueOf('s4'), _elEffectifs(HB).vacants]`), [null, 'titulaire', 'suppleant', 0]);
+  assert.strictEqual(evObj(`electionRemplacer(HB, { candId: 'h2', qui: 'titulaire', date: '2026-01-01', remplacantCandId: 'h3' })`), null, 'h3 a déjà pris un siège');
+  const r2 = evObj(`electionRemplacer(HB, { candId: 'h2', qui: 'titulaire', date: '2026-01-01' })`);
+  assert.deepStrictEqual([r2.remplacantCandId, evObj(`_elEffectifs(HB).vacants`)], [null, 1], 'sans successeur choisi : vacant');
+});

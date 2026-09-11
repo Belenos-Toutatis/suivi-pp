@@ -233,8 +233,13 @@ test('l\'élection close porte les deux formes de bulletin nul', () => {
 test('les délégués se dérivent de l\'élection close', () => {
   ev(DEMO);
   const roles = evObj(`S.classes['5C'].eleves.map(sid => _delegueOf(sid)).filter(Boolean)`);
+  // Depuis la v1.29.0, la démo porte un REMPLACEMENT : un titulaire a démissionné en janvier
+  // et son suppléant est devenu titulaire — deux titulaires, un seul suppléant restant.
   assert.strictEqual(roles.filter(r => r === 'titulaire').length, 2);
-  assert.strictEqual(roles.filter(r => r === 'suppleant').length, 2);
+  assert.strictEqual(roles.filter(r => r === 'suppleant').length, 1);
+  const el = evObj(`_elList('5C').find(e => e.clos && _elType(e).key === 'delegues')`);
+  assert.strictEqual(el.remplacements.length, 1);
+  assert.ok(evObj(`_elEffectifs(_elList('5C').find(e => e.clos && _elType(e).key === 'delegues')).titulaires.some(t => t.promu)`));
 });
 
 test('l\'élection en cours est dépouillée à mi-parcours, avec un « déjà élu » et rien de plus', () => {

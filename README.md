@@ -112,6 +112,12 @@ circulaires de 2019 et 2020 (deux si votre établissement le décide : tout se r
 portent 🌱 après leur nom dans les listes, et se désignent aussi sans vote. Un éco-délégué
 n'est pas un délégué de classe : les deux mandats se cumulent sans se confondre.
 
+**Un délégué démissionne ou part.** Sur l'élection close, *🔁 Remplacer un délégué* : qui
+part, quand, pourquoi. Son suppléant devient titulaire (hors binôme, vous choisissez lequel ;
+sans suppléant, le siège est marqué vacant). Le dépouillement et le procès-verbal d'origine
+ne bougent pas — le PV gagne seulement une section « Remplacements en cours d'année » —,
+et les listes suivent : le surlignage passe du partant à son remplaçant.
+
 **Les textes.** Pour chaque mandat, les textes officiels qui décrivent le scrutin sont liés
 dans la modale de création et en tête de l'élection — art. R421-28 et R421-30 du Code de
 l'éducation et circulaire n° 2004-114 pour les délégués de classe ; circulaires du 27 août

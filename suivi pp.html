@@ -1995,8 +1995,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.28.3';
-const APP_BUILD_DATE = '2026-09-11T19:31:56Z';
+const APP_VERSION    = '1.29.0';
+const APP_BUILD_DATE = '2026-09-11T20:08:31Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8910,6 +8910,84 @@ function deleguesSet(cls, { date, titulaires, suppleants, note } = {}, kind) {
 }
 function deleguesClear(cls, kind) { const key = _delKey(kind); if (!cls || !cls[key]) return false; delete cls[key]; return true; }
 
+// ═══════════════ Remplacement d'un délégué en cours d'année ═══════════════
+// Démission ou départ (arbitré le 2026-09-11, option 1) : ce n'est PAS une nouvelle
+// élection — circulaire n° 2004-114 § 6.1 : « le chef d'établissement fait procéder à
+// nouveau, mais au maximum deux fois dans l'année scolaire, à l'élection d'un remplaçant ».
+// Ici : une trace DATÉE sur l'élection close, le dépouillement et le PV d'origine ne
+// bougent pas, et les mandats se DÉRIVENT (`_elEffectifs`). Un titulaire qui part est
+// remplacé par son suppléant (binôme) ; hors binôme, par le suppléant choisi ; sans
+// suppléant (éco-délégué), le siège est vacant — et l'écran le dit. Un suppléant qui part
+// n'a pas de successeur. Les noms sont FIGÉS comme sur les candidatures : un élève
+// supprimé ne rend pas le PV illisible.
+const _EL_MOTIFS = [
+  { key: 'demission', label: 'démission' },
+  { key: 'depart',    label: 'départ de l’établissement' },
+  { key: 'autre',     label: 'autre motif' },
+];
+function _elMotif(k) { return _EL_MOTIFS.find(m => m.key === k) || _EL_MOTIFS[2]; }
+function _elRemplacements(el) { return Array.isArray(el && el.remplacements) ? el.remplacements.filter(_isPlainObj) : []; }
+// Sans pushUndo ni save. Refuse : élection non close, candidat non élu dans ce rôle, date
+// illisible, doublon (le même mandat ne se remplace qu'une fois), successeur non suppléant élu.
+function electionRemplacer(el, { candId, qui, date, motif, texte, remplacantCandId } = {}) {
+  if (!el || !el.clos || !_ymdValid(date)) return null;
+  const role = qui === 'suppleant' ? 'suppleant' : 'titulaire';
+  const c = _elCand(el, candId);
+  if (!c) return null;
+  const elusT = el.elus?.titulaires || [], elusS = el.elus?.suppleants || [];
+  const enBinome = el.binome !== false;
+  // Qui peut partir : un titulaire élu ; un suppléant élu (en binôme : le suppléant d'un binôme élu).
+  if (role === 'titulaire' && !elusT.includes(candId)) return null;
+  if (role === 'suppleant' && !(enBinome ? elusT.includes(candId) && c.sidSuppleant !== null : elusS.includes(candId))) return null;
+  if (_elRemplacements(el).some(r => r.candId === candId && r.qui === role)) return null;
+  let succ = null;
+  if (role === 'titulaire') {
+    if (enBinome) succ = c.sidSuppleant !== null && !_elRemplacements(el).some(r => r.candId === candId && r.qui === 'suppleant') ? candId : null;
+    else if (remplacantCandId) { if (!elusS.includes(remplacantCandId) || _elRemplacements(el).some(r => r.remplacantCandId === remplacantCandId)) return null; succ = remplacantCandId; }
+  }
+  const r = { id: uid('rp'), ts: Date.now(), date, candId, qui: role, motif: _elMotif(motif).key, texte: String(texte || '').trim(),
+    nomParti: role === 'titulaire' ? _elCandNom(c) : _elCandNomSup(c) || _elCandNom(c),
+    remplacantCandId: succ,
+    nomRemplacant: succ ? (enBinome ? _elCandNomSup(c) : _elCandNom(_elCand(el, succ))) : '' };
+  if (!Array.isArray(el.remplacements)) el.remplacements = [];
+  el.remplacements.push(r);
+  return r;
+}
+function electionRemplacementRemove(el, id) {
+  if (!el || !Array.isArray(el.remplacements)) return false;
+  const i = el.remplacements.findIndex(r => r.id === id);
+  if (i < 0) return false;
+  el.remplacements.splice(i, 1);
+  return true;
+}
+// Les mandats EN EXERCICE d'une élection close, remplacements appliqués :
+// { titulaires: [{ sid, nom, candId, promu }], suppleants: [{ sid, nom, candId }], vacants: n }
+function _elEffectifs(el) {
+  const out = { titulaires: [], suppleants: [], vacants: 0 };
+  if (!el || !el.clos) return out;
+  const R = _elRemplacements(el);
+  const parti = (candId, qui) => R.some(r => r.candId === candId && r.qui === qui);
+  const enBinome = el.binome !== false;
+  const promusHors = new Set(R.filter(r => r.remplacantCandId && !enBinome).map(r => r.remplacantCandId));
+  for (const id of el.elus?.titulaires || []) {
+    const c = _elCand(el, id); if (!c) continue;
+    if (!parti(id, 'titulaire')) {
+      out.titulaires.push({ sid: c.sidTitulaire, nom: _elCandNom(c), candId: id, promu: false });
+      if (enBinome && c.sidSuppleant !== null && !parti(id, 'suppleant')) out.suppleants.push({ sid: c.sidSuppleant, nom: _elCandNomSup(c), candId: id });
+      continue;
+    }
+    const r = R.find(x => x.candId === id && x.qui === 'titulaire');
+    if (enBinome && r.remplacantCandId) out.titulaires.push({ sid: c.sidSuppleant, nom: _elCandNomSup(c), candId: id, promu: true });
+    else if (!enBinome && r.remplacantCandId) { const s2 = _elCand(el, r.remplacantCandId); if (s2) out.titulaires.push({ sid: s2.sidTitulaire, nom: _elCandNom(s2), candId: r.remplacantCandId, promu: true }); else out.vacants++; }
+    else out.vacants++;
+  }
+  if (!enBinome) for (const id of el.elus?.suppleants || []) {
+    const c = _elCand(el, id); if (!c || parti(id, 'suppleant') || promusHors.has(id)) continue;
+    out.suppleants.push({ sid: c.sidTitulaire, nom: _elCandNom(c), candId: id });
+  }
+  return out;
+}
+
 // ⚠️ Un mandat à la fois : `_delegueOf(sid)` ne voit que les élections de délégués de
 // classe et `cls.delegues` ; `_ecoDelegueOf(sid)` que les élections d'éco-délégués et
 // `cls.ecoDelegues`. Un éco-délégué n'est pas surligné en vert : il porte 🌱.
@@ -8930,10 +9008,12 @@ function _delegueOf(sid, kind) {
     return null;
   }
   if (!last) return null;
-  // Remplacements en cours d'année : un suppléant devenu titulaire.
-  const promus = (last.remplacements || []).map(r => r.candId);
-  for (const id of last.elus.titulaires || []) { const c = _elCand(last, id); if (c && c.sidTitulaire === sid) return 'titulaire'; if (c && c.sidSuppleant === sid && promus.includes(id)) return 'titulaire'; }
-  for (const id of last.elus.suppleants || []) { const c = _elCand(last, id); if (c && c.sidSuppleant === sid && !promus.includes(id)) return 'suppleant'; if (c && c.sidTitulaire === sid && !(last.elus.titulaires || []).includes(id)) return 'suppleant'; }
+  // Les mandats EN EXERCICE, remplacements en cours d'année appliqués (`_elEffectifs`).
+  // ⚠️ Avant la v1.29.0, un titulaire parti restait « titulaire » : le test des promus
+  // venait APRÈS le sien.
+  const eff = _elEffectifs(last);
+  if (eff.titulaires.some(t => t.sid === sid)) return 'titulaire';
+  if (eff.suppleants.some(t => t.sid === sid)) return 'suppleant';
   return null;
 }
 
@@ -9342,7 +9422,59 @@ function _elRenderResultats(el) {
   }).join('');
   const elus = (el.elus?.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
   const summary = el.clos ? `<div class="al al-i"><strong>${_elType(el).key === 'eco' ? '🌱 Éco-délégués élus' : '🏅 Délégués élus'} :</strong> ${elus.map(c => `${_escName(_elCandNom(c))}${el.binome !== false && _elCandNomSup(c) ? ` (suppléant : ${_escName(_elCandNomSup(c))})` : ''}`).join(' · ') || 'aucun'}${el.binome === false && _elNbSup(el) ? `<br><strong>Suppléants :</strong> ${(el.elus.suppleants || []).map(id => _escName(_elCandNom(_elCand(el, id)))).join(' · ') || 'aucun'}` : ''}</div>` : '';
-  return `<div class="el-block">${summary}${el.clos ? _pvBlocHTML('el', el.id, _pjRef(el.pv)) : ''}${tables}</div>`;
+  return `<div class="el-block">${summary}${el.clos ? _elRemplacementsHTML(el) : ''}${el.clos ? _pvBlocHTML('el', el.id, _pjRef(el.pv)) : ''}${tables}</div>`;
+}
+// ── Remplacements en cours d'année : la liste, les mandats en exercice, le formulaire ──
+let _elRemplOpen = false;
+function _elRemplacementsHTML(el) {
+  const R = _elRemplacements(el).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const eff = _elEffectifs(el);
+  const ty = _elType(el);
+  const lignes = R.map(r => `<div class="fi-j"><div class="fi-j-h">${_escName(_fmtDateFr(r.date))} · ${_escName(_elMotif(r.motif).label)}
+      <span class="fi-inc-act"><button class="btn btn-d btn-sm" onclick="electionRemplacementRemoveUI('${_escJsAttr(r.id)}')" title="Retirer ce remplacement (Ctrl+Z le rétablit)">🗑</button></span></div>
+      <strong>${_escName(r.nomParti)}</strong> <span class="tb-hint">(${r.qui === 'titulaire' ? 'titulaire' : 'suppléant'})</span> → ${r.remplacantCandId ? `<strong>${_escName(r.nomRemplacant)}</strong> devient titulaire` : (r.qui === 'titulaire' ? '<span class="badge warn">siège vacant</span>' : 'pas de successeur')}${r.texte ? `<div class="fi-inc-txt">${_escName(r.texte)}</div>` : ''}</div>`).join('');
+  const exercice = R.length ? `<div class="al al-i" style="margin-top:6px"><strong>En exercice :</strong> ${eff.titulaires.map(t => `${_escName(t.nom)}${t.promu ? ' <span class="tb-hint">(ex-suppléant)</span>' : ''}`).join(' · ') || 'personne'}${eff.suppleants.length ? ` · <strong>suppléant${eff.suppleants.length > 1 ? 's' : ''} :</strong> ${eff.suppleants.map(t => _escName(t.nom)).join(' · ')}` : ''}${eff.vacants ? ` · <span class="badge warn">${eff.vacants} siège${eff.vacants > 1 ? 's' : ''} vacant${eff.vacants > 1 ? 's' : ''}</span>` : ''}</div>` : '';
+  // Qui peut partir : les mandats encore en exercice.
+  const choix = [...eff.titulaires.filter(t => !t.promu).map(t => ({ v: `${t.candId}|titulaire`, l: `${t.nom} — titulaire` })),
+                 ...eff.titulaires.filter(t => t.promu).map(t => ({ v: `${t.candId}|suppleant`, l: `${t.nom} — titulaire (ex-suppléant)` })),
+                 ...eff.suppleants.map(t => ({ v: `${t.candId}|suppleant`, l: `${t.nom} — suppléant` }))];
+  const horsBinome = el.binome === false && eff.suppleants.length;
+  const form = !_elRemplOpen ? '' : `<div class="fi-form" style="margin-top:6px">
+      <label>Qui part <select id="rp-qui">${choix.map(c => `<option value="${_escAttr(c.v)}">${_escName(c.l)}</option>`).join('')}</select></label>
+      <label>Date <input type="date" id="rp-date" value="${_escAttr(_todayYmd())}" style="min-width:140px"></label>
+      <label>Motif <select id="rp-motif">${_EL_MOTIFS.map(m => `<option value="${m.key}">${_escName(m.label)}</option>`).join('')}</select></label>
+      ${horsBinome ? `<label>Remplacé par <select id="rp-succ"><option value="">— siège vacant —</option>${eff.suppleants.map(t => `<option value="${_escAttr(t.candId)}">${_escName(t.nom)}</option>`).join('')}</select></label>` : ''}
+      <label style="flex:1;min-width:180px">Mot <input type="text" id="rp-txt" maxlength="200" placeholder="souhaite se consacrer au conservatoire"></label>
+      <button class="btn btn-p btn-sm" onclick="electionRemplacerUI()">✓ Enregistrer</button> <button class="btn btn-g btn-sm" onclick="_elRemplOpen=false;renderDelegues()">Annuler</button></div>`;
+  return `<div class="fi-sec"><h3>🔁 Remplacements en cours d'année${R.length ? ` <span class="fi-vide">(${R.length})</span>` : ''}</h3>
+    <div class="tb-hint" style="margin-bottom:6px">Démission ou départ d'un ${ty.key === 'eco' ? 'éco-délégué' : 'délégué'} : une trace datée, le dépouillement et le PV ne bougent pas. ${el.binome !== false ? 'Le suppléant du binôme devient titulaire.' : (_elNbSup(el) ? 'Un suppléant élu peut prendre le siège.' : 'Sans suppléant, le siège reste vacant — au chef d\'établissement de faire élire un remplaçant.')}</div>
+    ${lignes}${exercice}${form}${_elRemplOpen ? '' : `<button class="btn btn-s btn-sm" onclick="_elRemplOpen=true;renderDelegues()"${choix.length ? '' : ' disabled'}>🔁 Remplacer un ${ty.key === 'eco' ? 'éco-délégué' : 'délégué'}</button>`}</div>`;
+}
+function electionRemplacerUI() {
+  const el = _elCurrent();
+  if (!el) return;
+  const [candId, qui] = String(document.getElementById('rp-qui')?.value || '').split('|');
+  const champD = document.getElementById('rp-date');
+  const date = champD && champD.value ? _ymdCompleteAnnee(champD.value) : '';
+  if (!_ymdValid(date)) return toast('⚠️ Date illisible.', 'warn');
+  if (date < String(el.date || '')) return toast('⚠️ Un remplacement ne peut pas précéder le scrutin.', 'warn');
+  const motif = document.getElementById('rp-motif')?.value;
+  const texte = document.getElementById('rp-txt')?.value;
+  const remplacantCandId = document.getElementById('rp-succ')?.value || null;
+  pushUndo();
+  const r = electionRemplacer(el, { candId, qui, date, motif, texte, remplacantCandId });
+  if (!r) { undoLast(); return toast('⚠️ Remplacement refusé (mandat inconnu, ou déjà remplacé).', 'warn'); }
+  save();
+  _elRemplOpen = false;
+  renderDelegues(); renderStudents();
+  toast(r.remplacantCandId ? `✓ ${r.nomRemplacant} devient titulaire.` : '✓ Remplacement noté.');
+}
+function electionRemplacementRemoveUI(id) {
+  const el = _elCurrent();
+  const r = el && _elRemplacements(el).find(x => x.id === id);
+  if (!r) return;
+  _uiConfirm({ title: '🗑 Retirer ce remplacement ?', message: `${_fmtDateFr(r.date)} — ${r.nomParti} (${_elMotif(r.motif).label})\n\nRécupérable par Ctrl+Z.`, okLabel: 'Retirer', okClass: 'btn-d',
+    onOk: () => { pushUndo(); electionRemplacementRemove(el, id); save(); renderDelegues(); renderStudents(); } });
 }
 function electionDeleteUI(id) {
   const cls = getCls();
@@ -9459,6 +9591,7 @@ function electionPrintPV() {
     <h3>Sont élus</h3>
     <table class="pv-t"><tr><th>${_escName(_elType(el).elu)}s${_elNbSup(el) ? ' titulaires' : ''}</th>${_elNbSup(el) ? `<th>${_escName(_elType(el).elu)}s suppléants</th>` : ''}</tr>${elus.map((c, i) => `<tr><td>${_escName(_elCandNom(c))}</td>${_elNbSup(el) ? `<td>${_escName(sups[i] || '')}</td>` : ''}</tr>`).join('') || '<tr><td colspan="2">Aucun élu</td></tr>'}</table>
     ${el.note ? `<p><strong>Observations :</strong> ${_escName(el.note)}</p>` : ''}
+    ${_elRemplacements(el).length ? `<h3>Remplacements en cours d'année (postérieurs au scrutin)</h3><table class="pv-t">${_elRemplacements(el).slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).map(r => `<tr><td>${_escName(_fmtDateFr(r.date))}</td><td>${_escName(r.nomParti)} (${r.qui === 'titulaire' ? 'titulaire' : 'suppléant'}) — ${_escName(_elMotif(r.motif).label)}</td><td>${r.remplacantCandId ? `${_escName(r.nomRemplacant)} devient titulaire` : (r.qui === 'titulaire' ? 'siège vacant' : '')}</td></tr>`).join('')}</table>` : ''}
     <div class="pv-sign">
       <div><div class="pv-sign-t">Assesseur</div><div class="pv-sign-n">${_escName(ass[0] || '')}</div><div class="pv-sign-l"></div></div>
       <div><div class="pv-sign-t">Assesseur</div><div class="pv-sign-n">${_escName(ass[1] || '')}</div><div class="pv-sign-l"></div></div>
@@ -10369,7 +10502,7 @@ function _applyReloadedData(data, f) {
     // 2026-09-11 : la leçon du verrou du ramassage, une troisième fois.
     if (_elUndoTimer) { clearTimeout(_elUndoTimer); _elUndoTimer = null; }
     _elUndoArmed = false;
-    _hvcEdit = null; _bilanOrdreFige = null;
+    _hvcEdit = null; _bilanOrdreFige = null; _elRemplOpen = false;
     document.body.classList.remove('el-projecting');
   } catch (_) {}
   S = data;
@@ -11641,6 +11774,7 @@ function createDemo(opts) {
     electionCloreTour(el1, 0);
   }
   el1.note = 'Un bulletin déclaré nul par les assesseurs pour une inscription inappropriée à côté d\'un nom. Le second tour a été tenu le même jour, après une courte pause.';
+
   const t2 = el1.tours[1];
   if (t2) {
     t2.votantsAnnonces = 24;
@@ -11651,6 +11785,12 @@ function createDemo(opts) {
       poser(el1, seq2, 1);
       electionCloreTour(el1, 1);
     }
+  }
+  // Un remplacement en cours d'année : le titulaire élu au second tour démissionne en
+  // janvier, son suppléant (binôme) devient titulaire — dérivé, jamais réécrit.
+  if (el1.clos && el1.elus.titulaires.length === 2) {
+    const rp = electionRemplacer(el1, { candId: el1.elus.titulaires[1], qui: 'titulaire', date: D('01-12'), motif: 'demission', texte: 'Souhaite se consacrer au conservatoire ; a prévenu la classe en heure de vie de classe.' });
+    if (rp) { rp.id = 'demo_rp01'; rp.ts = Date.parse(D('01-12') + 'T12:00:00'); }
   }
 
   // 1 bis) L'ÉCO-DÉLÉGUÉ : ce que disent les textes — un par classe, candidatures
