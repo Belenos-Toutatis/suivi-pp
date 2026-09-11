@@ -231,12 +231,14 @@ Le cas orientation est le plus riche : plusieurs champs sur le même document, d
 
 ### Cadre réglementaire
 
-⚠️ **Les références d'articles ci-dessous sont données de mémoire et doivent être vérifiées sur Légifrance ou Éduscol avant d'être imprimées sur un procès-verbal.** Ce qui suit est fiable sur le fond, pas nécessairement sur la numérotation.
+**Vérifié sur les textes le 2026-09-11** (demande de l'utilisateur : *« recherche avec précision »*). Les références sont portées dans le code (`_EL_TYPES[…].textes`), liées dans la modale de création et en tête de chaque élection, et citées au pied du PV — plus de « à vérifier avant impression ».
 
-- **Deux délégués titulaires et deux suppléants par division**, au collège comme au lycée (Code de l'éducation, partie réglementaire, chapitre sur les représentants des élèves — art. R. 421-28 sauf erreur).
-- **Mandat annuel**, élection **avant la fin de la septième semaine de l'année scolaire**.
-- **Tous les élèves de la division sont électeurs et éligibles**, sans condition.
-- Le texte prévoit un **scrutin uninominal à deux tours**. **Majorité absolue** des suffrages exprimés au premier tour, **majorité relative** au second.
+- **Deux délégués par classe, chacun avec son suppléant** — Code de l'éducation, **art. R421-28** (décret n° 2016-1228 du 16-9-2016) : *« Deux délégués d'élèves sont élus au scrutin uninominal à deux tours dans chaque classe […]. Le nom de chaque candidat est accompagné de celui de son suppléant. Tous les élèves sont électeurs et éligibles. »* → le **binôme** titulaire + suppléant est la lettre du texte.
+- **Avant la fin de la septième semaine de l'année scolaire** — **art. R421-30** (la circulaire de 2004 disait la sixième ; le code, plus récent, prime).
+- **Majorité absolue au premier tour, relative au second, le plus jeune en cas d'égalité**, candidatures individuelles, un élève non candidat peut être élu s'il accepte, remplaçant élu en cours d'année (deux fois au plus) — **circulaire n° 2004-114 du 15-7-2004, § 6.1** (BO n° 29 du 22-7-2004).
+- Le texte dit **scrutin uninominal** : un nom par bulletin, et si un seul candidat atteint la majorité absolue, un second tour pour le second siège.
+- **Éco-délégués** — **circulaire n° 2019-121 du 27-8-2019, § 1.2** (*EDD 2030*, BO n° 31 du 29-8-2019) : *« chaque établissement est incité à organiser l'élection, dans chaque classe, d'un éco-délégué […]. Cette élection peut utilement intervenir concomitamment aux élections des délégués d'élèves et selon les mêmes modalités. »* Et le « binôme paritaire d'éco-délégués » de la même circulaire est **par établissement** (élu parmi les volontaires du CVC / CVL), pas par classe. **Circulaire du 24-9-2020, § 3.1** (*Agenda 2030*, BO n° 36) : *« L'élection des éco-délégués de classe est désormais obligatoire au collège et au lycée et peut être organisée simultanément avec celle des délégués de classes. Elle peut également être proposée aux élèves de CM1 et CM2. Les mêmes élèves peuvent, le cas échéant, être à la fois délégués de classe et éco-délégués. »* → **UN éco-délégué par classe, AUCUN suppléant, un nom par bulletin, uninominal à deux tours** (par renvoi aux modalités des délégués). Aucun texte n'impose deux éco-délégués ni la parité par classe : c'est un choix d'établissement, fréquent, à régler dans la modale.
+- ⚠️ Les pages `education.gouv.fr` et `legifrance.gouv.fr` refusent les robots (403 Cloudflare) : les URL ont été vérifiées par les moteurs de recherche et le contenu par les PDF du BO ; à ouvrir à la main si un lien casse.
 - L'élection est organisée par l'établissement, en pratique par le **professeur principal**, après une information sur le rôle des délégués (heure de vie de classe).
 - Les délégués siègent au **conseil de classe** et forment l'**assemblée générale des délégués**, qui élit les représentants au conseil d'administration et au CVC / CVL.
 
@@ -406,10 +408,13 @@ Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisati
   tranchée) : **la même mécanique, un autre mandat**. `election.type` (`_EL_TYPES` :
   `delegues` 🗳 · `eco` 🌱 — libellé, titre par défaut, intitulé du PV, défauts), choisi
   dans la modale de création (le mandat pose titre, binôme, suppléants, noms par bulletin
-  — sur une élection en cours de création seulement). Défauts éco : **deux élus, sans
-  suppléant ni binôme**, deux noms par bulletin, majorité absolue au 1er tour — circulaire
-  de 2019 sur l'EDD, un binôme paritaire est encouragé, rien n'est imposé ; le règlement
-  intérieur prime, ce ne sont que des défauts.
+  — sur une élection en cours de création seulement). Défauts éco **= les textes** (v1.28.1,
+  après vérification — la v1.27.0 mettait deux élus et deux noms par bulletin, de mémoire) :
+  **un élu, sans suppléant ni binôme, un nom par bulletin**, majorité absolue au 1er tour ;
+  « deux si l'établissement le décide » se règle dans la modale. Chaque mandat porte ses
+  `textes` (`{ ref, quoi, url }`), rendus par `_elTextesHTML` (liens `target=_blank
+  rel=noopener`, échappés, testés) dans la modale, en tête de l'élection ouverte, et cités
+  au pied du PV. Démo : un éco-délégué élu au premier tour (13 voix sur 24).
   - ⚠️ **`nbSupplants` = 0 est une valeur.** `rest.slice(0, el.nbSupplants || el.nbTitulaires)`
     aurait fait deux suppléants d'une élection qui n'en veut pas ; `_elNbSup(el)` distingue
     0 (aucun) de absent (fichier antérieur : autant que de titulaires). Hors binôme, le
@@ -921,6 +926,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 39 | **Textes officiels des élections** : cadre vérifié, `_EL_TYPES[…].textes` liés dans la modale et l'élection, cités au pied du PV ; défauts éco ramenés aux textes (un élu, un nom par bulletin) | ✅ **fait** (2026-09-11, v1.28.1) |
 | 38 | **Heures de vie de classe** (`cls.vieClasse`, `_hvcOf`, `_hvcPeriode`) : onglet renommé 🏫 Vie de classe, journal en tête, bloc optionnel de la synthèse de période, démo ; 4 tests | ✅ **fait** (2026-09-11, v1.28.0) |
 | 37 | **Éco-délégués** : `election.type`, défauts par mandat, `nbSupplants` à 0, `_ecoDelegueOf`, 🌱 dans les grilles, PV, désignation sans vote, purge, démo ; 4 tests | ✅ **fait** (2026-09-11, v1.27.0) |
 | 36 | **Synthèse de période imprimable** (`_periodeSynthese`, `_periodePrintHTML`, modale `mperiode`) : conseil ou mi-période, blocs au choix, tableau paysage ou fiches portrait, tout borné à la période ; 2 tests | ✅ **fait** (2026-09-11, v1.26.0) |

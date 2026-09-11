@@ -721,6 +721,8 @@ html[data-theme="dark"] #toast { background: var(--paper-deep); color: var(--ink
 .nom.del-t { background: var(--del-t-bg); color: var(--del-t-fg); padding: 1px 4px; }
 .nom.del-s { background: var(--del-s-bg); color: var(--del-s-fg); padding: 1px 4px; }
 .eco-bdg { font-size: .9em; cursor: help; }
+.el-textes { flex-basis: 100%; }
+.el-textes a { color: var(--ink-blue); }
 .fi-j.hvc-avenir { border-left-color: var(--warn-fg); }
 /* Aménagements en LECTURE dans la liste : seuls les actifs, en texte coloré. Les huit
    boutons cliquables d'origine faisaient de cette colonne la plus large du tableau, pour
@@ -1873,9 +1875,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div id="mel-locked" class="al al-i" style="display:none">Le dépouillement a commencé : les modalités qui changent l'arithmétique (sièges, binômes, noms par bulletin, majorité) sont figées.</div>
     <div class="fg"><label for="mel-type">Mandat</label>
       <select id="mel-type" onchange="_elTypeChange()" style="max-width:100%">
-        <option value="delegues">🗳 délégués de classe — deux titulaires et deux suppléants, en binôme</option>
-        <option value="eco">🌱 éco-délégués — deux par classe, sans suppléant</option>
-      </select></div>
+        <option value="delegues">🗳 délégués de classe — deux titulaires, chacun avec son suppléant (R421-28)</option>
+        <option value="eco">🌱 éco-délégués — un par classe, sans suppléant (circulaires 2019 et 2020) ; deux si l'établissement le décide</option>
+      </select><div id="mel-textes"></div></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div class="fg" style="flex:1;min-width:150px"><label for="mel-date">Date du scrutin</label><input type="date" id="mel-date" data-autofocus onchange="document.getElementById('mel-inscrits').value=_elInscrits(S.cur,this.value)"></div>
       <div class="fg" style="flex:1;min-width:150px"><label for="mel-inscrits">Inscrits <span style="font-weight:400;font-size:.85em">(effectif, corrigible)</span></label><input type="number" id="mel-inscrits" min="1" max="60"></div>
@@ -1985,8 +1987,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.28.0';
-const APP_BUILD_DATE = '2026-09-11T18:31:32Z';
+const APP_VERSION    = '1.28.1';
+const APP_BUILD_DATE = '2026-09-11T18:47:00Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8572,14 +8574,42 @@ function _elInscrits(classId, ymd) {
 // Deux élections que le PP organise (2026-09-11, demande de l'utilisateur pour les
 // éco-délégués) : la même mécanique, des défauts différents, et deux mandats qui ne se
 // confondent pas — `_delegueOf` ne regarde que les délégués de classe, `_ecoDelegueOf`
-// que les éco-délégués. Éco-délégués : deux par classe, sans suppléant ni binôme par
-// défaut (circulaire de 2019 sur l'éducation au développement durable — un binôme
-// paritaire est encouragé, rien n'est imposé) ; le règlement intérieur prime, comme
-// toujours : ce ne sont que des défauts.
+// que les éco-délégués.
+// ⚠️ Les DÉFAUTS sont ceux des TEXTES, vérifiés le 2026-09-11 (les liens sont dans
+// `textes`, affichés dans la modale, en tête de l'élection et au pied du PV) :
+// - délégués de classe : art. R421-28 du Code de l'éducation — « deux délégués d'élèves
+//   sont élus au scrutin uninominal à deux tours dans chaque classe … le nom de chaque
+//   candidat est accompagné de celui de son suppléant » (donc en binôme) ; circulaire
+//   n° 2004-114 § 6.1 — majorité absolue au 1er tour, relative au 2nd, le plus jeune en
+//   cas d'égalité ; art. R421-30 — avant la fin de la 7e semaine. Le texte dit UNINOMINAL ;
+//   la pratique de l'utilisateur (deux noms par bulletin) est un écart assumé — cf.
+//   CLAUDE.md — et reste le défaut ici parce que c'est SA présentation.
+// - éco-délégués : circulaire n° 2019-121 du 27-8-2019 § 1.2 — « l'élection, dans chaque
+//   classe, d'UN éco-délégué … concomitamment aux élections des délégués d'élèves et
+//   selon les mêmes modalités » ; circulaire du 24-9-2020 § 3.1 — « désormais obligatoire
+//   au collège et au lycée … les mêmes élèves peuvent être à la fois délégués de classe et
+//   éco-délégués ». UN par classe, AUCUN suppléant, UN nom par bulletin, deux tours. Le
+//   « binôme paritaire » de 2019 est PAR ÉTABLISSEMENT (élu au CVC / CVL), pas par classe.
+//   Beaucoup d'établissements en élisent deux : c'est un choix local, à régler ici.
 const _EL_TYPES = {
-  delegues: { key: 'delegues', icon: '🗳', label: 'délégués de classe', titre: 'Élection des délégués', pv: 'Procès-verbal d’élection des délégués de classe', elu: 'Délégué', defaults: { nbTitulaires: 2, nbSupplants: 2, binome: true, nomsParBulletin: 2 } },
-  eco:      { key: 'eco',      icon: '🌱', label: 'éco-délégués',       titre: 'Élection des éco-délégués', pv: 'Procès-verbal d’élection des éco-délégués', elu: 'Éco-délégué', defaults: { nbTitulaires: 2, nbSupplants: 0, binome: false, nomsParBulletin: 2 } },
+  delegues: { key: 'delegues', icon: '🗳', label: 'délégués de classe', titre: 'Élection des délégués', pv: 'Procès-verbal d’élection des délégués de classe', elu: 'Délégué',
+    defaults: { nbTitulaires: 2, nbSupplants: 2, binome: true, nomsParBulletin: 2 },
+    textes: [
+      { ref: 'Code de l’éducation, art. R421-28', quoi: 'deux délégués par classe, scrutin uninominal à deux tours, chaque candidat avec son suppléant, tous électeurs et éligibles', url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000033124215' },
+      { ref: 'Code de l’éducation, art. R421-30', quoi: 'avant la fin de la septième semaine de l’année scolaire', url: 'https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006071191/LEGISCTA000018380728/' },
+      { ref: 'Circulaire n° 2004-114 du 15-7-2004, § 6.1 (BO n° 29 du 22-7-2004)', quoi: 'majorité absolue au premier tour, relative au second, le plus jeune en cas d’égalité, remplaçant en cours d’année', url: 'https://www.education.gouv.fr/bo/2004/29/MENE0401597C.htm' },
+    ] },
+  eco:      { key: 'eco',      icon: '🌱', label: 'éco-délégués',       titre: 'Élection des éco-délégués', pv: 'Procès-verbal d’élection des éco-délégués', elu: 'Éco-délégué',
+    defaults: { nbTitulaires: 1, nbSupplants: 0, binome: false, nomsParBulletin: 1 },
+    textes: [
+      { ref: 'Circulaire n° 2019-121 du 27-8-2019, § 1.2 (BO n° 31 du 29-8-2019)', quoi: 'un éco-délégué par classe, élu en même temps que les délégués d’élèves et selon les mêmes modalités ; un binôme paritaire par établissement, élu au CVC / CVL', url: 'https://www.education.gouv.fr/bo/19/Hebdo31/MENE1924799C.htm' },
+      { ref: 'Circulaire du 24-9-2020, Agenda 2030, § 3.1 (BO n° 36 du 24-9-2020)', quoi: 'élection désormais obligatoire au collège et au lycée, en même temps que les délégués de classe ; un même élève peut cumuler les deux mandats', url: 'https://www.education.gouv.fr/bo/20/Hebdo36/MENE2025449C.htm' },
+    ] },
 };
+// Les textes d'un mandat, en liens — dans la modale et en tête de l'élection.
+function _elTextesHTML(ty) {
+  return `<div class="el-textes tb-hint">📜 ${ty.textes.map(t => `<a href="${_escAttr(t.url)}" target="_blank" rel="noopener" title="${_escAttr(t.quoi)}">${_escName(t.ref)}</a>`).join(' · ')}</div>`;
+}
 function _elType(el) { return _EL_TYPES[el && el.type] || _EL_TYPES.delegues; }
 // Nombre de suppléants — 0 est une valeur (les éco-délégués n'en ont pas), un champ absent
 // (fichier antérieur à la v1.27.0) vaut « autant que de titulaires ».
@@ -8978,7 +9008,7 @@ function renderDelegues() {
     <span class="tb-hint">Délégués de classe ou éco-délégués — une élection par an et par mandat, historisée : on garde celle de l'an dernier.</span></div>`;
   const direct = _deleguesDirectHTML(cls, list, 'delegues') + _deleguesDirectHTML(cls, list, 'eco');
   if (!list.length) {
-    box.innerHTML = hvc + tb + _emptyStateHTML('🗳', 'Aucune élection', 'Cliquez sur <strong>+ Nouvelle élection</strong> : les modalités (binômes, noms par bulletin, majorité, départage) se règlent à la création et sont rappelées sur le procès-verbal.<br>À tenir <strong>avant la fin de la septième semaine</strong> de l\'année scolaire.') + direct;
+    box.innerHTML = hvc + tb + _emptyStateHTML('🗳', 'Aucune élection', 'Cliquez sur <strong>+ Nouvelle élection</strong> : les modalités (binômes, noms par bulletin, majorité, départage) se règlent à la création et sont rappelées sur le procès-verbal.<br>À tenir <strong>avant la fin de la septième semaine</strong> de l\'année scolaire (art. R421-30).<br>Les textes qui décrivent chaque scrutin sont liés dans la modale de création et en tête de chaque élection.') + direct;
     _hvcFocus(box);
     return;
   }
@@ -9110,6 +9140,7 @@ function _elRenderOne(box, el, cls) {
       <button class="btn btn-g btn-sm" onclick="_elView=null;renderDelegues()">← Élections</button>
       <strong style="font-family:var(--font-serif);font-size:1.15em">${_escName(el.titre)}</strong>
       <span class="tb-hint">${_escName(_fmtDateFr(el.date))} · ${el.inscrits} inscrits · ${el.binome !== false ? 'binômes' : 'candidats seuls'} · ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue au 1er tour' : 'majorité relative'}</span>
+      ${_elTextesHTML(_elType(el))}
       <span style="margin-left:auto;display:flex;gap:6px">
         ${el.clos ? `<button class="btn btn-p btn-sm" onclick="electionPrintPV()" title="Le procès-verbal, une page portrait, avec les lignes de signature">🖨 Procès-verbal</button><button class="btn btn-g btn-sm" onclick="electionRouvrirUI()">↺ Rouvrir</button>`
                   : `<button class="btn btn-g btn-sm" onclick="_elProject=!_elProject;renderDelegues()" title="Masquer la grille : seul le graphique reste, en grand, pour le vidéoprojecteur">${_elProject ? '↩ Revenir à la saisie' : '📽 Projeter'}</button><button class="btn btn-g btn-sm" onclick="openElectionSettings()">⚙ Modalités</button>`}
@@ -9328,6 +9359,7 @@ function _elTypeChange() {
   const autre = _EL_TYPES[ty.key === 'eco' ? 'delegues' : 'eco'];
   const titre = g('mel-titre').value.trim();
   if (!titre || titre.startsWith(autre.titre) || titre.startsWith(ty.titre)) g('mel-titre').value = `${ty.titre} — ${cls.nom} — ${cls.annee || ''}`.trim();
+  g('mel-textes').innerHTML = _elTextesHTML(ty);
   if (g('mel-nbt').disabled) return;
   g('mel-nbt').value = ty.defaults.nbTitulaires; g('mel-binome').checked = ty.defaults.binome; g('mel-nbs').value = ty.defaults.nbSupplants; g('mel-npb').value = ty.defaults.nomsParBulletin;
   _elBinomeChange();
@@ -9345,6 +9377,7 @@ function _elFillSettings(el) {
   const ty = _elType(el);
   g('mel-title').textContent = el ? '⚙ Modalités de l\'élection' : '🗳 Nouvelle élection';
   g('mel-type').value = ty.key;
+  g('mel-textes').innerHTML = _elTextesHTML(ty);
   g('mel-date').value = el?.date || _todayYmd();
   g('mel-titre').value = el?.titre || `${ty.titre} — ${cls.nom} — ${cls.annee || ''}`.trim();
   g('mel-etab').value = el?.etablissement || _prefs().etablissement || '';
@@ -9425,7 +9458,7 @@ function electionPrintPV() {
       <div><div class="pv-sign-t">Assesseur</div><div class="pv-sign-n">${_escName(ass[1] || '')}</div><div class="pv-sign-l"></div></div>
       <div><div class="pv-sign-t">Le professeur principal</div><div class="pv-sign-n">&nbsp;</div><div class="pv-sign-l"></div></div>
     </div>
-    <p class="pv-foot">Fait le ${_escName(_fmtDateFr(el.date))}. Références réglementaires : Code de l'éducation, art. R. 421-28 et suivants (à vérifier avant impression).</p>
+    <p class="pv-foot">Fait le ${_escName(_fmtDateFr(el.date))}. Références : ${_elType(el).textes.map(t => _escName(t.ref)).join(' ; ')}.</p>
   </div>`;
   document.body.classList.add('printing-pv');
   _setPageOrientation('portrait');
@@ -11581,13 +11614,14 @@ function createDemo(opts) {
     }
   }
 
-  // 1 bis) Les ÉCO-DÉLÉGUÉS : candidatures individuelles, deux élus, pas de suppléant,
-  //    un seul tour — l'autre forme d'élection que le PP organise, pour qu'elle se
-  //    rencontre dans la démo (🌱 après le nom dans les listes).
+  // 1 bis) L'ÉCO-DÉLÉGUÉ : ce que disent les textes — un par classe, candidatures
+  //    individuelles, pas de suppléant, un nom par bulletin, deux tours. Ici 13 voix sur
+  //    24 exprimés : élu au premier tour (13 × 2 = 26 > 24). L'autre forme d'élection que
+  //    le PP organise, pour qu'elle se rencontre dans la démo (🌱 après le nom).
   const el3 = electionCreate(cls.id, { type: 'eco', date: D('10-14'), assesseurs: [sids[20], sids[21]] });
   const c3 = [7, 11, 18].map(i => electionAddCandidat(el3, sids[i], null));
   el3.tours[0].votantsAnnonces = 24;
-  const b4 = _demoBulletins({ [c3[0].id]: 15, [c3[1].id]: 12, [c3[2].id]: 9 }, 18, 0);
+  const b4 = _demoBulletins({ [c3[0].id]: 13, [c3[1].id]: 7, [c3[2].id]: 4 }, 0, 24);
   if (b4) { poser(el3, b4.map(v => [v, null]), 0); electionCloreTour(el3, 0); }
 
   // 2) Une élection EN COURS DE DÉPOUILLEMENT, pour régler la projection sans avoir à

@@ -337,10 +337,21 @@ test('_purgeStudentRefs retire un délégué désigné, et la désignation vide 
 
 // ─────────────────────────────── Éco-délégués (v1.27.0)
 
-test('electionCreate type eco : deux élus, sans binôme ni suppléant, titre et PV à son nom ; un fichier ancien vaut délégués', () => {
+test('electionCreate type eco : UN élu, sans binôme ni suppléant, un nom par bulletin (les textes) ; un fichier ancien vaut délégués', () => {
   ev(FIXTURE);
+  // Circulaire n° 2019-121 § 1.2 : « l'élection, dans chaque classe, d'un éco-délégué … selon
+  // les mêmes modalités » que les délégués (uninominal à deux tours) ; aucun suppléant.
   const eco = evObj(`electionCreate('5C', { type: 'eco', date: '2025-10-14' })`);
-  assert.deepStrictEqual([eco.type, eco.nbTitulaires, eco.nbSupplants, eco.binome, eco.nomsParBulletin, eco.titre], ['eco', 2, 0, false, 2, 'Élection des éco-délégués — 5C — 2025-26']);
+  assert.deepStrictEqual([eco.type, eco.nbTitulaires, eco.nbSupplants, eco.binome, eco.nomsParBulletin, eco.titre], ['eco', 1, 0, false, 1, 'Élection des éco-délégués — 5C — 2025-26']);
+  // Deux si l'établissement le décide : un réglage, pas une constante.
+  assert.deepStrictEqual(evObj(`(e => [e.nbTitulaires, e.nomsParBulletin])(electionCreate('5C', { type: 'eco', nbTitulaires: 2, nomsParBulletin: 2 }))`), [2, 2]);
+  // Chaque mandat cite ses textes, avec un lien https, et le HTML les échappe.
+  for (const k of ['delegues', 'eco']) {
+    const t = evObj(`_EL_TYPES.${k}.textes`);
+    assert.ok(t.length >= 2 && t.every(x => /^https:\/\/(www\.)?(legifrance|education)\.gouv\.fr\//.test(x.url) && x.ref && x.quoi), k);
+  }
+  assert.ok(ev(`_elTextesHTML(_EL_TYPES.eco)`).includes('rel="noopener"'));
+  assert.ok(ev(`_elTextesHTML({ textes: [{ ref: 'a<b', quoi: 'x"y', url: 'https://x/"' }] })`).includes('a&lt;b'), 'échappé');
   assert.strictEqual(evObj(`_elType(EL).key`), 'delegues');
   assert.strictEqual(evObj(`_elType({ type: 'zut' }).key`), 'delegues', 'type inconnu → délégués');
   // nbSupplants absent (fichier antérieur) = autant que de titulaires ; 0 est une valeur.
@@ -353,16 +364,20 @@ test('electionCreate type eco : deux élus, sans binôme ni suppléant, titre et
   assert.strictEqual(evObj(`electionCreate('5C', { binome: true, nbTitulaires: 2, nbSupplants: 0 }).nbSupplants`), 2);
 });
 
-test('éco-délégués élus : un tour, deux élus, AUCUN suppléant ; _ecoDelegueOf les voit, _delegueOf non', () => {
+test('éco-délégué élu : scrutin uninominal, un élu au premier tour, AUCUN suppléant ; _ecoDelegueOf le voit, _delegueOf non', () => {
   ev(FIXTURE);
   ev(`window.ECO = electionCreate('5C', { type: 'eco', date: '2025-10-14' });
       ['e1','e2','e3'].forEach((id, i) => ECO.candidats.push({ id, sidTitulaire: 's' + (i+20), sidSuppleant: null, nomTitulaire: 'E' + i, nomSuppleant: '', color: '#16a085', ordre: i, retire: false }));
       ECO.tours[0].candidats = ['e1','e2','e3'];
-      for (let i = 0; i < 10; i++) electionAddBulletin(ECO, 0, ['e1','e2']);
-      for (let i = 0; i < 4; i++) electionAddBulletin(ECO, 0, ['e3']);
+      for (let i = 0; i < 9; i++) electionAddBulletin(ECO, 0, ['e1']);
+      for (let i = 0; i < 5; i++) electionAddBulletin(ECO, 0, ['e2']);
+      for (let i = 0; i < 2; i++) electionAddBulletin(ECO, 0, ['e3']);
       electionCloreTour(ECO, 0);`);
-  assert.deepStrictEqual(evObj(`[ECO.clos, ECO.tours.length, ECO.elus.titulaires, ECO.elus.suppleants]`), [true, 1, ['e1', 'e2'], []]);
-  assert.deepStrictEqual(evObj(`['s20','s21','s22'].map(_ecoDelegueOf)`), ['titulaire', 'titulaire', null]);
+  // 9 voix sur 16 exprimés : majorité absolue (9 × 2 = 18 > 16), un seul siège, élection close.
+  assert.deepStrictEqual(evObj(`[ECO.clos, ECO.tours.length, ECO.elus.titulaires, ECO.elus.suppleants]`), [true, 1, ['e1'], []]);
+  // Deux noms sur un bulletin à un nom : nul, déduit.
+  assert.strictEqual(ev(`_elStatut(electionAddBulletin(ECO, 0, ['e1','e2']) || { voix: ['e1','e2'] }, ECO)`), 'nul');
+  assert.deepStrictEqual(evObj(`['s20','s21','s22'].map(_ecoDelegueOf)`), ['titulaire', null, null]);
   assert.deepStrictEqual(evObj(`['s20','s21','s22'].map(sid => _delegueOf(sid))`), [null, null, null], 'un éco-délégué n’est pas délégué de classe');
   // Et l'inverse : clore l'élection des délégués ne fait pas d'éco-délégués.
   ev(`B(['c1','c2'],['c1','c2'],['c1','c2'],['c1','c2']); electionCloreTour(EL, 0);`);

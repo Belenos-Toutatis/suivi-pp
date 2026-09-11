@@ -308,14 +308,15 @@ test('la démo donne des dates de naissance, dont une paire qui bloque le dépar
   assert.ok(el.candidats.every(c => c.naissanceTitulaire), 'chaque candidature porte sa date figée');
 });
 
-test('la démo porte une élection d’éco-délégués close : deux élus, sans suppléant, un seul tour, 🌱 dans les listes', () => {
+test('la démo porte une élection d’éco-délégué close : un élu au premier tour, sans suppléant, un nom par bulletin, 🌱 dans les listes', () => {
   ev(DEMO);
   const eco = evObj(`_elList('5C').find(e => _elType(e).key === 'eco')`);
   assert.ok(eco && eco.clos, 'élection d’éco-délégués close');
-  assert.deepStrictEqual([eco.binome, eco.nbSupplants, eco.tours.length, eco.elus.titulaires.length, eco.elus.suppleants.length], [false, 0, 1, 2, 0]);
+  assert.deepStrictEqual([eco.binome, eco.nbTitulaires, eco.nbSupplants, eco.nomsParBulletin, eco.tours.length, eco.elus.titulaires.length, eco.elus.suppleants.length], [false, 1, 0, 1, 1, 1, 0]);
+  assert.strictEqual(evObj(`_elDepouillement(_elList('5C').find(e => _elType(e).key === 'eco'), 0).exprimes`), 24);
   // Les deux mandats ne se confondent pas : un éco-délégué n'est pas délégué de classe pour autant.
   const ecos = evObj(`_elList('5C').find(e => _elType(e).key === 'eco').elus.titulaires.map(id => _elCand(_elList('5C').find(e => _elType(e).key === 'eco'), id).sidTitulaire)`);
-  assert.deepStrictEqual(ecos.map(sid => ev(`_ecoDelegueOf('${sid}')`)), ['titulaire', 'titulaire']);
+  assert.deepStrictEqual(ecos.map(sid => ev(`_ecoDelegueOf('${sid}')`)), ['titulaire']);
   const delegues = evObj(`Object.keys(S.eleves).filter(sid => _delegueOf(sid) === 'titulaire')`);
   assert.strictEqual(delegues.length, 2, 'toujours deux délégués de classe titulaires');
   assert.ok(!delegues.some(sid => ecos.includes(sid)) || true, 'un cumul est possible mais non requis');

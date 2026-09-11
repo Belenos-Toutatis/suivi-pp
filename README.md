@@ -107,9 +107,15 @@ une date future pour noter un thème à venir. La synthèse de période peut les
 tête de la feuille du conseil.
 
 **Éco-délégués.** La même élection, un autre mandat : *+ Nouvelle élection* → 🌱
-éco-délégués — deux par classe, sans suppléant ni binôme par défaut (tout se règle). Ils
+éco-délégués — **un par classe, sans suppléant, un nom par bulletin**, ce que disent les
+circulaires de 2019 et 2020 (deux si votre établissement le décide : tout se règle). Ils
 portent 🌱 après leur nom dans les listes, et se désignent aussi sans vote. Un éco-délégué
 n'est pas un délégué de classe : les deux mandats se cumulent sans se confondre.
+
+**Les textes.** Pour chaque mandat, les textes officiels qui décrivent le scrutin sont liés
+dans la modale de création et en tête de l'élection — art. R421-28 et R421-30 du Code de
+l'éducation et circulaire n° 2004-114 pour les délégués de classe ; circulaires du 27 août
+2019 et du 24 septembre 2020 pour les éco-délégués — et cités au pied du procès-verbal.
 
 **Préparer le conseil de classe.** Dans la liste des élèves, la colonne *Conseil S1* : un
 clic sur 🎓 ouvre ce que vous direz de l'élève au conseil — ou ce que vous retenez au bilan
