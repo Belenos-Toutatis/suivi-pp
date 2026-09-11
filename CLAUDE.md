@@ -154,6 +154,9 @@ stu = {
   // `type` pointe le catalogue S.instances ; `pdf` n'est qu'une RÉFÉRENCE vers le dossier
   // des pièces jointes (cf. *Incidents et instances*), jamais le fichier.
   incidents: [ { id, date: 'YYYY-MM-DD', ts, type: instanceId, objet, texte, pdf: null | { nom, fichier, taille } } ],
+  // Bilans de période (2026-09-11) : ce que je dirai au conseil, ce que je retiens à
+  // mi-période. La PÉRIODE se déduit de la date (cf. *Bilans de période*).
+  bilans: [ { id, date: 'YYYY-MM-DD', ts, type: 'conseil' | 'miperiode', texte } ],
 }
 
 // Catalogue des instances — pré-rempli (INSTANCES_DEFAUT, `builtin: true`), renommable,
@@ -395,6 +398,38 @@ Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisati
   - ⚠️ Contrairement aux élections (PV historique, exception de purge), **c'est un état courant** : `_purgeStudentRefs` retire l'élève parti, et une désignation vidée disparaît. Dans l'état maximal du test de balayage.
 - ⚠️ **Ne pas stocker `stu.delegue` en dur** : le dériver de `S.elections`, sinon une correction du dépouillement laisse un ancien délégué marqué. Si un cache est nécessaire, le recalculer dans `postLoadHook`.
 - Prévoir la **démission ou le départ d'un délégué** en cours d'année : le suppléant devient titulaire. Ce n'est pas une nouvelle élection — un champ `remplacements: [{ date, candId, motif }]` sur l'élection suffit, sans toucher au dépouillement.
+
+## Bilans de période — préparer le conseil de classe, faire le point à mi-période
+
+Demandé le 2026-09-11 (*« préparation du conseil de classe », « bilan de mi-période »*).
+La remarque libre servait à ça par défaut, mais elle n'est pas datée : au S2 on écrasait
+le S1. D'où une entrée **datée et qualifiée** par élève — `stu.bilans`, `_BILAN_TYPES` =
+`conseil` 🎓 · `miperiode` 📝 — dont **la période se DÉDUIT de la date** (`_periodOf`),
+comme tout le reste : rien n'est stocké par période, changer semestre ↔ trimestre ne perd
+rien. Sans note ni moyenne : elles sont dans Pronote, ceci est le brouillon du PP.
+
+- Modèle pur et testé : `bilanAdd/Set/Remove` (refus d'une date illisible ou d'un texte
+  vide — *un bilan vide se supprime, il ne se vide pas*), `_bilansOf` (récent d'abord),
+  **`_bilanPeriode(cls, sid, pIdx, type)`** : le plus récent DE la période, du type demandé
+  d'abord, l'autre type à défaut (un bilan de mi-période vaut mieux que rien quand on
+  prépare le conseil). `_syntheseRow.bilan` = celui de la **période courante**.
+- **La liste des élèves** porte une colonne *Conseil S1* (bouton 🎓 / 📝 coloré s'il y en a
+  un — 6,94:1 —, texte tronqué dessous comme la remarque), triable « rédigé d'abord », et
+  **imprimée** avec la liste. **La fiche** a sa section 🎓 (toutes les entrées, période
+  en clair, ✏️ 🗑, pastille `+`).
+- **La modale `mbilan` ENCHAÎNE les élèves** (`openBilan`, `bilanNav(±1)`, Ctrl+Entrée) dans
+  l'ordre de la liste à l'écran, tri et filtre compris (`_bilanOrdre` = `_elevesRows`) :
+  préparer un conseil, c'est passer sur les vingt-cinq, pas rouvrir vingt-cinq fiches.
+  Ouverte sans id depuis la liste, elle **reprend** le bilan de la période courante s'il
+  existe (on le complète, on n'en crée pas un second) ; depuis la fiche, `+` force une
+  entrée vierge. `_bilanCommit` n'empile un undo que si quelque chose a changé ; « Suivant »
+  garde le moment choisi (conseil / mi-période) d'un élève à l'autre.
+- ⚠️ **La date par défaut est ramenée dans l'année scolaire de la classe**
+  (`_ymdClampAnnee`) : en septembre on relit encore la classe de l'an dernier, et un bilan
+  daté d'aujourd'hui tomberait hors de toutes ses périodes — donc nulle part.
+- Démo : cinq bilans au S1, trois au S2 (la colonne de la liste n'est pas vide en fin
+  d'année). `postLoadHook` crée la section et écarte les entrées non-objets. Dans l'état
+  maximal du test de balayage.
 
 ## Incidents et instances
 
@@ -824,6 +859,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 35 | **Bilans de période** (`stu.bilans`, `_bilanPeriode`) : colonne *Conseil* dans la liste (triable, imprimée), section 🎓 de la fiche, modale qui enchaîne les élèves (◀ ▶, Ctrl+Entrée) ; 6 tests | ✅ **fait** (2026-09-11, v1.25.0) |
 | 34 | **Incidents depuis la liste** : la case ⚖️ ouvre la saisie d'une entrée, la dernière s'ouvre en modification ; 1 test de plus | ✅ **fait** (2026-09-11, v1.24.0) |
 | 33 | **Synthèse fusionnée dans Élèves** : une liste, identité + suivi, `_elevesRows` pour l'écran et l'impression, tri par en-tête sur les colonnes de suivi, naissances derrière une case ; colonne Réponses retirée ; 5 onglets | ✅ **fait** (2026-09-11, v1.23.0) |
 | 32 | **Libellés qui nomment le geste** : 📓 Observations, 📄 Retours, *+ Relever les carnets*, *🧺 Ramasser · vérifier…*, *Remarque · contacts* ; identifiants du code inchangés | ✅ **fait** (2026-09-11, v1.22.0) |

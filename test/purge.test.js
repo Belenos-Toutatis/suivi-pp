@@ -41,7 +41,8 @@ const MAXIMAL = `S = {
     // le catalogue S.instances — qui, lui, ne connaît aucun sid : rien à purger, et le
     // balayage doit le constater plutôt que le supposer.
     s1: { id: 's1', nom: 'Durand', prenom: 'Léa',  classe_id: '5C', tags: ['tag_1'], remarque: 'Appel à la mère le 11/10',
-          incidents: [ { id: 'inc_1', date: '2025-10-03', ts: 3, type: 'fiche_incident', objet: 'Insolence', texte: '', pdf: { nom: 'f.pdf', fichier: 'inc_1-f.pdf', taille: 1000 } } ] },
+          incidents: [ { id: 'inc_1', date: '2025-10-03', ts: 3, type: 'fiche_incident', objet: 'Insolence', texte: '', pdf: { nom: 'f.pdf', fichier: 'inc_1-f.pdf', taille: 1000 } } ],
+          bilans: [ { id: 'b_1', date: '2026-01-20', ts: 4, type: 'conseil', texte: 'Sérieuse.' } ] },
     s2: { id: 's2', nom: 'Martin', prenom: 'Noé',  classe_id: '5C', tags: [] },
     s3: { id: 's3', nom: 'Petit',  prenom: 'Inès', classe_id: '5D', tags: ['tag_1'] },
   },

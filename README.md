@@ -101,6 +101,13 @@ dernier contact remonte sur la liste des élèves — « ai-je déjà appelé
 cette famille, et quand ? » est la question qu'on se pose en préparant un conseil, et le
 texte libre ne permettait ni de la compter ni de la retrouver.
 
+**Préparer le conseil de classe.** Dans la liste des élèves, la colonne *Conseil S1* : un
+clic sur 🎓 ouvre ce que vous direz de l'élève au conseil — ou ce que vous retenez au bilan
+de mi-période —, et **Suivant ▶** (ou Ctrl+Entrée) enregistre et passe à l'élève suivant,
+dans l'ordre de la liste : on prépare les vingt-cinq d'une traite. La période se déduit de
+la date, l'historique se relit sur la fiche (section 🎓), et la colonne s'imprime avec la
+liste. Sans note ni moyenne : elles sont dans Pronote, ceci est votre brouillon.
+
 **Incidents et instances.** Sur la fiche, une section ⚖️ — et dans la liste des élèves, la
 case ⚖️ de la colonne Incidents, qui ouvre la saisie d'un clic (la dernière entrée s'y
 lit, et se modifie au clic) — pour noter ce qui s'est passé et ce qui en a découlé : fiche incident, retenue, commission éducative, conseil de discipline…

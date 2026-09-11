@@ -1545,6 +1545,27 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 </div>
 
 <!-- ═══════════════ REMARQUE LIBRE ═══════════════ -->
+<div id="mbilan" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:620px;width:100%">
+    <h2 id="mbilan-title">🎓 Conseil de classe</h2>
+    <div class="tb-hint" style="margin-bottom:8px">Ce que je dirai de l'élève au conseil, ou ce que je retiens à mi-période — sans note ni moyenne, elles sont dans Pronote. La période se déduit de la date. <strong>Ctrl+Entrée</strong> enregistre et passe à l'élève suivant, dans l'ordre de la liste.</div>
+    <div class="fi-form" style="margin-bottom:10px">
+      <label>Date <input type="date" id="mbilan-date" style="min-width:140px"></label>
+      <label>Moment <select id="mbilan-type" onchange="_bilanHint()"></select></label>
+      <span id="mbilan-per" class="tb-hint"></span>
+    </div>
+    <div class="fg">
+      <textarea id="mbilan-txt" data-autofocus rows="6" placeholder="Élève sérieux, en progrès à l'oral. Le carnet reste chargé (+6 ce semestre) : rappeler le cadre. Encourager à demander de l'aide en maths." onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
+    </div>
+    <div class="ma">
+      <button class="btn btn-d btn-sm" id="mbilan-del" onclick="bilanRemoveUI()" title="Supprimer ce bilan">🗑</button>
+      <button class="btn btn-g" onclick="closeMod2('mbilan')">Fermer</button>
+      <button class="btn btn-g" onclick="bilanNav(-1)" title="Enregistrer et passer à l'élève précédent">◀</button>
+      <button class="btn btn-p" onclick="bilanSaveUI()">✓ Enregistrer</button>
+      <button class="btn btn-p" onclick="bilanNav(1)" title="Enregistrer et passer à l'élève suivant (Ctrl+Entrée)">Suivant ▶</button>
+    </div>
+  </div>
+</div>
 <div id="mrem" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%">
     <h2 id="mrem-title">📋 Remarque et contacts</h2>
@@ -1921,8 +1942,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.24.0';
-const APP_BUILD_DATE = '2026-09-11T17:21:46Z';
+const APP_VERSION    = '1.25.0';
+const APP_BUILD_DATE = '2026-09-11T18:11:49Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2633,6 +2654,8 @@ function _sanitizeCoreSections() {
     if (!Array.isArray(e.journal)) e.journal = [];
     if (!Array.isArray(e.incidents)) e.incidents = [];
     e.incidents = e.incidents.filter(_isPlainObj);
+    if (!Array.isArray(e.bilans)) e.bilans = [];
+    e.bilans = e.bilans.filter(_isPlainObj);
   }
   for (const d of Object.values(S.documents)) {
     if (!Array.isArray(d.classIds)) d.classIds = [];
@@ -3688,6 +3711,64 @@ function journalRemove(sid, id) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// BILANS DE PÉRIODE — ce que je dirai de cet élève au conseil de classe, ou ce que je
+// retiens au bilan de mi-période. Demandé le 2026-09-11 : la remarque libre servait à ça
+// par défaut, mais elle n'est pas datée — au S2 on écrasait le S1. Une entrée DATÉE et
+// QUALIFIÉE (conseil · mi-période) par élève, dont la période se DÉDUIT de la date (rien
+// n'est stocké par période, comme partout ailleurs : changer semestre ↔ trimestre ne perd
+// rien). Sans note ni moyenne — celles-ci restent dans Pronote — c'est le brouillon du
+// PP, celui qu'on relit pendant que le conseil parle de l'élève.
+// ═══════════════════════════════════════════════════════════════════════════
+const _BILAN_TYPES = [
+  { key: 'conseil',   label: 'Conseil de classe',   icon: '🎓' },
+  { key: 'miperiode', label: 'Bilan de mi-période', icon: '📝' },
+];
+function _bilanType(k) { return _BILAN_TYPES.find(t => t.key === k) || _BILAN_TYPES[0]; }
+// Du plus récent au plus ancien ; à date égale, le dernier saisi devant.
+function _bilansOf(sid) {
+  const stu = S.eleves[sid];
+  if (!stu || !Array.isArray(stu.bilans)) return [];
+  return stu.bilans.slice().sort((a, b) =>
+    String(b.date || '').localeCompare(String(a.date || '')) || ((b.ts || 0) - (a.ts || 0)));
+}
+// Sans pushUndo ni save : l'appelant s'en charge. Refuse une date illisible ou un texte vide.
+function bilanAdd(sid, { date, type, texte }) {
+  const stu = S.eleves[sid];
+  const txt = String(texte || '').trim();
+  if (!stu || !_ymdValid(date) || !txt) return null;
+  if (!Array.isArray(stu.bilans)) stu.bilans = [];
+  const e = { id: uid('b'), date, ts: Date.now(), type: _bilanType(type).key, texte: txt };
+  stu.bilans.push(e);
+  return e;
+}
+function bilanSet(sid, id, { date, type, texte }) {
+  const stu = S.eleves[sid];
+  const txt = String(texte || '').trim();
+  if (!stu || !Array.isArray(stu.bilans) || !_ymdValid(date) || !txt) return false;
+  const e = stu.bilans.find(x => x.id === id);
+  if (!e) return false;
+  e.date = date; e.type = _bilanType(type).key; e.texte = txt;
+  return true;
+}
+function bilanRemove(sid, id) {
+  const stu = S.eleves[sid];
+  if (!stu || !Array.isArray(stu.bilans)) return false;
+  const i = stu.bilans.findIndex(x => x.id === id);
+  if (i < 0) return false;
+  stu.bilans.splice(i, 1);
+  return true;
+}
+// Le bilan d'UNE période : le plus récent dont la date tombe dedans — du type demandé
+// s'il y en a un, sinon de l'autre (un bilan de mi-période vaut mieux que rien quand on
+// prépare le conseil). null si la période est vide.
+function _bilanPeriode(cls, sid, periodIdx, type) {
+  const p = _periods(cls)[periodIdx];
+  if (!p) return null;
+  const dans = _bilansOf(sid).filter(e => e.date >= p.start && e.date <= p.end);
+  return (type ? dans.find(e => e.type === type) : null) || dans[0] || null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // INCIDENTS ET INSTANCES — ce qui se passe quand ça se passe mal, et ce qui en découle.
 // Une fiche incident, une commission éducative, un conseil de discipline : le PP est
 // convoqué, décide, ou doit s'en souvenir au conseil de classe. Chaque entrée est DATÉE,
@@ -3898,7 +3979,7 @@ function _elevesRows(cls) {
     return rows.sort((a, b) => ordre.indexOf(a.s.id) - ordre.indexOf(b.s.id));
   }
   const num = (x) => col === 'cumul' ? x.r.cumul : col === 'delta' ? x.r.delta : col === 'periode' ? x.r.periodeTotal
-    : col === 'docs' ? x.r.nonRendus.length : col === 'incidents' ? x.r.nbIncidents : null;
+    : col === 'docs' ? x.r.nonRendus.length : col === 'incidents' ? x.r.nbIncidents : col === 'bilan' ? (x.r.bilan ? 1 : 0) : null;
   return rows.sort((a, b) => {
     // Les élèves sans date de naissance vont au bout dans les DEUX sens : ils ne sont pas
     // « les plus vieux » ni « les plus jeunes », ils sont inconnus — et c'est justement
@@ -3910,7 +3991,7 @@ function _elevesRows(cls) {
     }
     if (col === 'grp')  return (((a.s.groupe || 9) - (b.s.groupe || 9)) * dir) || byName(a, b);
     if (col === 'amen') return ((_amenLabel(b.s) ? 1 : 0) - (_amenLabel(a.s) ? 1 : 0)) * dir || byName(a, b);
-    if (['cumul', 'delta', 'periode', 'docs', 'incidents'].includes(col)) {
+    if (['cumul', 'delta', 'periode', 'docs', 'incidents', 'bilan'].includes(col)) {
       const va = num(a), vb = num(b);
       if ((va === null) !== (vb === null)) return va === null ? 1 : -1;
       const d = ((vb ?? 0) - (va ?? 0)) * dir;
@@ -4082,6 +4163,13 @@ function renderStudents() {
     const inc = `<button class="btn btn-sm" style="${stSty(!!r.nbIncidents, '#8c3f1d', 0)}" onclick="openIncident('${_escJsAttr(s.id)}')" title="${_escAttr(incTitre)}">⚖️${r.nbIncidents ? ' ' + r.nbIncidents : ''}</button>${
       r.nbIncidents ? `<div class="synth-inc" role="button" tabindex="0" title="${_escAttr(r.incident.objet)} — clic pour modifier cette entrée" onclick="openIncident('${_escJsAttr(s.id)}','${_escJsAttr(r.incident.id)}')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.click()}">${_escName(_fmtDateFr(r.incident.date))} · ${_escName(_instanceOf(r.incident.type).label)}</div>` : ''}`;
 
+    // Bilan de la période courante : le bouton ouvre la rédaction (et enchaîne les élèves
+    // dans l'ordre de la liste — préparer un conseil, c'est passer sur les vingt-cinq).
+    const bil = r.bilan;
+    const bilTitre = bil ? `${_bilanType(bil.type).label} — ${_fmtDateFr(bil.date)}\n${bil.texte}` : `Préparer le conseil de classe ${r.periodeLabel} : ce que je dirai de cet élève`;
+    const bilBtn = `<button class="btn btn-sm" style="${stSty(!!bil, '#3b5a8c', 0)}" onclick="openBilan('${_escJsAttr(s.id)}')" title="${_escAttr(bilTitre)}">${bil ? _bilanType(bil.type).icon : '🎓'}</button>${
+      bil ? `<div class="synth-rem" title="${_escAttr(bil.texte)}">${_escName(bil.texte)}</div>` : ''}`;
+
     return `<tr${(isFuture || isGone) ? ' class="inactive"' : ''}>
       <td>${civBtn}<a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète"
             style="text-decoration:none;color:inherit">${_nomHTML(s.id, s.nom, s.prenom)}</a>${lifeBadge}${_ageSubHTML(s, 'age-' + s.id)}</td>
@@ -4093,6 +4181,7 @@ function renderStudents() {
       <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
       <td>${nr}</td><td class="synth-inc-td">${inc}</td>
       <td class="synth-rem-td">${remBtn}</td>
+      <td class="synth-rem-td">${bilBtn}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-g btn-sm" onclick="openEdit('${_escJsAttr(s.id)}')" title="Modifier l'élève">✏️</button>
         <button class="btn btn-d btn-sm" onclick="deleteStudent('${_escJsAttr(s.id)}')" title="Supprimer l'élève">🗑</button>
@@ -4107,7 +4196,8 @@ function renderStudents() {
   const tri = `<div class="tb">${_sortPickerHTML(eleveSort.col, 'setEleveSort(this.value)', cls,
     [{ key: 'grp', label: 'par groupe' }, { key: 'amen', label: 'par aménagements' },
      { key: 'delta', label: 'par Δ du dernier relevé' }, { key: 'cumul', label: 'par total d\'observations' },
-     { key: 'periode', label: `par total ${per}` }, { key: 'docs', label: 'par documents non rendus' }, { key: 'incidents', label: 'par incidents' }])}
+     { key: 'periode', label: `par total ${per}` }, { key: 'docs', label: 'par documents non rendus' }, { key: 'incidents', label: 'par incidents' },
+     { key: 'bilan', label: `par bilan ${per} (rédigé d'abord)` }])}
     <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Afficher la colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée"><input type="checkbox"${_elevesNais ? ' checked' : ''} onchange="_elevesNais=this.checked;renderStudents()"> 📅 naissances</label>
     <span class="tb-hint">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span>
     <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="printEleves()" title="Une page paysage pour le conseil de classe — Ctrl+P fait pareil">🖨 Imprimer</button></div>`;
@@ -4125,6 +4215,7 @@ function renderStudents() {
         <th onclick="sortEleves('docs')" style="cursor:pointer" title="Documents non rendus — survol ou clic pour la liste">Non rendus${arrow('docs')}</th>
         <th onclick="sortEleves('incidents')" style="cursor:pointer" title="Incidents et instances — le nombre, et le dernier">Incidents${arrow('incidents')}</th>
         <th title="Dernier contact avec la famille, puis la remarque libre">Remarque · contacts</th>
+        <th onclick="sortEleves('bilan')" style="cursor:pointer" title="Ce que je dirai de l'élève au conseil de classe, ou ce que je retiens au bilan de mi-période — pour la période courante. Clic sur 🎓 pour rédiger, élève après élève.">Conseil ${_escName(per)}${arrow('bilan')}</th>
         <th style="cursor:default">Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -4331,6 +4422,9 @@ function ficheVersRemarque() { const sid = _ficheSid; closeMod2('mfiche'); openR
 // Même aller-retour pour un incident : la fiche est l'écran de LECTURE, la saisie a sa
 // modale — et l'on retombe sur la fiche, pour voir l'entrée à sa place dans l'histoire.
 function ficheVersIncident(id) { const sid = _ficheSid; closeMod2('mfiche'); openIncident(sid, id || null); _modalReturnTo['mincident'] = () => openFiche(sid); }
+// Vers la rédaction d'un bilan — et retour à la fiche de l'élève sur lequel on FINIT (on a
+// pu enchaîner les élèves par ◀ ▶ depuis la modale).
+function ficheVersBilan(id) { const sid = _ficheSid; closeMod2('mfiche'); openBilan(sid, id || null, { nouveau: !id }); _modalReturnTo['mbilan'] = () => openFiche(_bilanSid || sid); }
 
 function _ficheRender() {
   const stu = S.eleves[_ficheSid];
@@ -4489,6 +4583,16 @@ function _ficheRender() {
       }).join('')
     : vide('Aucun incident ni instance — tant mieux.'));
 
+  // ── Bilans de période : conseil de classe, mi-période ──
+  const bilans = _bilansOf(stu.id);
+  const bilHTML = bilans.length
+    ? bilans.map(e => { const ty = _bilanType(e.type); const per = cls ? _periodOf(cls, e.date) : null;
+        return `<div class="fi-j fi-bil"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ${ty.icon} ${_escName(ty.label)}${per ? ` · ${_escName(per.label)}` : ''}
+          <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersBilan('${_escJsAttr(e.id)}')" title="Modifier ce bilan">✏️</button> <button class="btn btn-d btn-sm" onclick="bilanRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer ce bilan">🗑</button></span></div>
+          <div class="fi-inc-txt">${_escName(e.texte)}</div></div>`;
+      }).join('')
+    : vide('Rien de rédigé pour un conseil de classe ou un bilan de mi-période.');
+
   const remHTML = _ficheEdit === 'remarque'
     ? `<textarea id="fi-rem-edit" data-fi-focus rows="4" style="width:100%" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral.">${_escName(stu.remarque || '')}</textarea>
        <div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="ficheSaveRemarque()">✓ Enregistrer</button><button class="btn btn-g btn-sm" onclick="ficheEdit('remarque')">Annuler</button></div>`
@@ -4524,7 +4628,8 @@ function _ficheRender() {
     + sec('🗳 Élections', elsHTML)
     + sec('📋 Remarque', remHTML, { onclick: "ficheEdit('remarque')", title: stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', icone: stu.remarque ? '✎' : '+' })
     + sec(`📇 Contacts avec la famille${journal.length ? ` <span class="fi-vide">(${journal.length})</span>` : ''}`, contactForm + jHTML, { onclick: "ficheEdit('contact')", title: 'Noter un contact avec la famille' })
-    + sec(`⚖️ Incidents et instances${incs.length ? ` <span class="fi-vide">(${incs.length})</span>` : ''}`, incHTML, { onclick: 'ficheVersIncident()', title: 'Noter un incident ou une instance' });
+    + sec(`⚖️ Incidents et instances${incs.length ? ` <span class="fi-vide">(${incs.length})</span>` : ''}`, incHTML, { onclick: 'ficheVersIncident()', title: 'Noter un incident ou une instance' })
+    + sec(`🎓 Conseils de classe et bilans${bilans.length ? ` <span class="fi-vide">(${bilans.length})</span>` : ''}`, bilHTML, { onclick: 'ficheVersBilan()', title: 'Rédiger ce que je dirai au conseil, ou un bilan de mi-période' });
   const f = box.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
 }
@@ -4698,6 +4803,105 @@ function journalRemoveUI(id) {
     okLabel: 'Supprimer', okClass: 'btn-d',
     onOk: () => { pushUndo(); journalRemove(_remSid, id); save(); _journalRender(); renderStudents(); },
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BILAN — la modale de rédaction, qui ENCHAÎNE les élèves dans l'ordre de la liste :
+// préparer un conseil, c'est passer sur les vingt-cinq, pas rouvrir vingt-cinq fiches.
+// Ouverte sans id, elle reprend le bilan de la PÉRIODE COURANTE s'il existe (on le
+// complète, on n'en crée pas un second) ; `nouveau` force une entrée vierge (depuis la
+// fiche, où l'on voit la liste).
+// ═══════════════════════════════════════════════════════════════════════════
+let _bilanSid = null, _bilanId = null;
+function openBilan(sid, id, opts) {
+  const stu = S.eleves[sid];
+  const cls = stu && S.classes[stu.classe_id];
+  if (!stu || !cls) return;
+  const o = opts || {};
+  let e = id ? _bilansOf(sid).find(x => x.id === id) : null;
+  if (!e && !id && !o.nouveau) e = _bilanPeriode(cls, sid, _carnetCurrentPeriodIdx(cls), 'conseil');
+  _bilanSid = sid; _bilanId = e ? e.id : null;
+  const t = document.getElementById('mbilan-title');
+  if (t) t.textContent = `🎓 ${stu.prenom} ${stu.nom}`;
+  const sel = document.getElementById('mbilan-type');
+  if (sel) sel.innerHTML = _BILAN_TYPES.map(ty => `<option value="${_escAttr(ty.key)}"${e && e.type === ty.key ? ' selected' : ''}>${ty.icon} ${_escName(ty.label)}</option>`).join('');
+  const d = document.getElementById('mbilan-date');
+  // Date du jour, RAMENÉE dans l'année scolaire de la classe : on relit la classe de
+  // l'an dernier en septembre, et un bilan daté d'aujourd'hui tomberait hors de toutes
+  // ses périodes — donc nulle part dans la synthèse.
+  if (d) d.value = e ? e.date : _ymdClampAnnee(cls, _todayYmd());
+  const tx = document.getElementById('mbilan-txt');
+  if (tx) tx.value = e ? e.texte : '';
+  const del = document.getElementById('mbilan-del');
+  if (del) del.style.display = e ? '' : 'none';
+  _bilanHint();
+  const mo = document.getElementById('mbilan');
+  if (mo && !mo.classList.contains('on')) openMod('mbilan'); else if (tx) { tx.focus(); }
+}
+function _bilanHint() {
+  const stu = S.eleves[_bilanSid];
+  const cls = stu && S.classes[stu.classe_id];
+  const d = document.getElementById('mbilan-date');
+  const el = document.getElementById('mbilan-per');
+  if (!cls || !d || !el) return;
+  const p = _periodOf(cls, d.value);
+  const pos = _bilanOrdre().indexOf(_bilanSid);
+  el.textContent = `${p ? `période ${p.label}` : 'hors année scolaire'} · élève ${pos + 1} / ${_bilanOrdre().length}`;
+}
+// L'ordre de la liste des élèves à l'écran (tri et filtre compris) — celui qu'on a sous les yeux.
+function _bilanOrdre() {
+  const stu = S.eleves[_bilanSid];
+  const cls = stu && S.classes[stu.classe_id];
+  return cls ? _elevesRows(cls).map(x => x.s.id) : [];
+}
+// Enregistre si quelque chose a changé. Retourne false si la saisie est refusée (et le dit).
+function _bilanCommit() {
+  const stu = S.eleves[_bilanSid];
+  if (!stu) return true;
+  const champD = document.getElementById('mbilan-date');
+  const d = champD && champD.value ? _ymdCompleteAnnee(champD.value) : '';
+  if (champD && d && d !== champD.value) champD.value = d;
+  const type = document.getElementById('mbilan-type')?.value;
+  const texte = (document.getElementById('mbilan-txt')?.value || '').trim();
+  const e = _bilanId ? _bilansOf(_bilanSid).find(x => x.id === _bilanId) : null;
+  if (!texte) {
+    if (!e) return true;                       // rien tapé, rien à créer
+    toast('⚠️ Un bilan vide se supprime (🗑), il ne se vide pas.', 'warn'); return false;
+  }
+  if (!_ymdValid(d)) { toast('⚠️ Date illisible.', 'warn'); return false; }
+  if (e && e.date === d && e.type === type && e.texte === texte) return true;
+  pushUndo();
+  if (e) bilanSet(_bilanSid, e.id, { date: d, type, texte });
+  else { const n = bilanAdd(_bilanSid, { date: d, type, texte }); if (n) _bilanId = n.id; }
+  save();
+  renderStudents();
+  if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
+  return true;
+}
+function bilanSaveUI() { if (_bilanCommit()) { closeMod2('mbilan'); } }
+// ◀ ▶ : enregistre, puis ouvre le même moment (conseil / mi-période) chez l'élève voisin
+// dans l'ordre de la liste. Au bout, on le dit et on reste.
+function bilanNav(dir) {
+  if (!_bilanCommit()) return;
+  const ordre = _bilanOrdre();
+  const i = ordre.indexOf(_bilanSid);
+  const suivant = ordre[i + dir];
+  if (!suivant) return toast(dir > 0 ? '✓ Dernier élève de la liste.' : '✓ Premier élève de la liste.');
+  const type = document.getElementById('mbilan-type')?.value;
+  const stu = S.eleves[suivant];
+  const cls = stu && S.classes[stu.classe_id];
+  const e = cls ? _bilanPeriode(cls, suivant, _carnetCurrentPeriodIdx(cls), type) : null;
+  openBilan(suivant, e ? e.id : null, { nouveau: !e });
+  if (!e) { const sel = document.getElementById('mbilan-type'); if (sel && type) sel.value = type; _bilanHint(); }
+}
+function bilanRemoveUI(sid, id) {
+  const s = sid || _bilanSid, i = id || _bilanId;
+  const e = _bilansOf(s).find(x => x.id === i);
+  if (!e) return;
+  _uiConfirm({ title: '🗑 Supprimer ce bilan ?', message: `${_fmtDateFr(e.date)} — ${_bilanType(e.type).label}\n« ${e.texte.slice(0, 120)}${e.texte.length > 120 ? '…' : ''} »\n\nRécupérable par Ctrl+Z.`, okLabel: 'Supprimer', okClass: 'btn-d',
+    onOk: () => { pushUndo(); bilanRemove(s, i); save(); renderStudents();
+      if (document.getElementById('mbilan')?.classList.contains('on')) closeMod2('mbilan');
+      if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); } });
 }
 
 function saveRemarque() {
@@ -6482,6 +6686,12 @@ function _periods(cls) {
   const prev = ymd => { const d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() - 1); return _todayYmd(d); };
   const L = mode === 'trimestre' ? 'T' : 'S';
   return starts.map((start, i) => ({ n: i + 1, label: L + (i + 1), start, end: i + 1 < starts.length ? prev(starts[i + 1]) : endOfYear }));
+}
+// Une date ramenée dans l'année scolaire de la classe (1er août → 31 juillet).
+function _ymdClampAnnee(cls, ymd) {
+  const ps = _periods(cls);
+  const debut = ps[0].start, fin = ps[ps.length - 1].end;
+  return ymd < debut ? debut : ymd > fin ? fin : ymd;
 }
 function _periodOf(cls, ymd) {
   return _periods(cls).find(p => ymd >= p.start && ymd <= p.end) || null;
@@ -9066,6 +9276,10 @@ function _syntheseRow(cls, stu) {
     // conseil de classe ou une commission, quand il faut dire « depuis quand, et combien ».
     nbIncidents: Array.isArray(stu.incidents) ? stu.incidents.length : 0,
     incident: (() => { const e = _incidentLast(stu.id); return e ? { id: e.id, date: e.date, type: e.type, objet: e.objet } : null; })(),
+    // Le bilan de la PÉRIODE COURANTE (conseil de classe ou mi-période) : c'est lui qu'on
+    // relit et qu'on complète en préparant le conseil — pas celui de l'an dernier.
+    bilan: (() => { const e = _bilanPeriode(cls, stu.id, pIdx); return e ? { id: e.id, date: e.date, type: e.type, texte: e.texte } : null; })(),
+    nbBilans: Array.isArray(stu.bilans) ? stu.bilans.length : 0,
   };
 }
 function _syntheseRows(cls) {
@@ -9117,14 +9331,15 @@ function printEleves() {
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
   const html = `<h1>${_escName(cls.nom)} — ${_escName(cls.annee || '')}</h1>
     <p class="print-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}</p>
-    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Incidents</th><th>Remarque · contacts</th></tr></thead>
+    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Incidents</th><th>Remarque · contacts</th><th>Conseil ${_escName(per)}</th></tr></thead>
     <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}</td>
       <td>${r.groupe ? 'G' + r.groupe + ' ' : ''}${_escName(r.options.join(' '))}</td><td>${_escName(r.amenagements)}</td>
       <td>${r.cumul === null ? '' : `${r.cumul} <small>(${_escName(_fmtDateFr(r.cumulDate))})</small>`}</td>
       <td>${r.delta === null ? '' : (r.deltaDecroissant ? '▼' : '') + (r.delta > 0 ? '+' : '') + r.delta}</td><td>${r.periodeTotal ?? ''}</td>
       <td>${_escName(r.nonRendus.join(', '))}</td>
       <td>${r.nbIncidents ? `${r.nbIncidents} — <small>${_escName(_fmtDateFr(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}</small>` : ''}</td>
-      <td class="print-rem">${_printContactHTML(r)}${_escName(r.remarque)}</td></tr>`).join('')}</tbody></table>`;
+      <td class="print-rem">${_printContactHTML(r)}${_escName(r.remarque)}</td>
+      <td class="print-rem">${r.bilan ? _escName(r.bilan.texte) : ''}</td></tr>`).join('')}</tbody></table>`;
   _printHTML(html, 'landscape');
 }
 // Le tableau des retours sur papier. Les colonnes viennent de la modale, l'ordre du tri
@@ -10783,6 +10998,22 @@ function createDemo(opts) {
   incidents.forEach(([i, md, type, objet, texte], k) => {
     const e = incidentAdd(sids[i], { date: D(md), type, objet, texte });
     if (e) { e.id = `demo_i${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
+  });
+  // ── Bilans de période — le brouillon du conseil de classe, et un bilan de mi-période.
+  const bilans = [
+    [0, '01-20', 'conseil',   'Carnet très chargé (+9 au S1) malgré deux appels et une commission. Le contrat de comportement est signé : le conseil doit rappeler le cadre, sans fermer la porte. Volontaire à l\'oral, s\'appuyer là-dessus.'],
+    [5, '01-20', 'conseil',   'Sérieux, régulier. Le tiers-temps est en place ; vérifier avec les collègues qu\'il est appliqué partout. Encourager : vise le latin en 4e.'],
+    [12, '01-20', 'conseil',  'Difficultés d\'apprentissage — équipe éducative de décembre, PAP en cours. Dire que l\'élève s\'accroche, et que la famille suit.'],
+    [16, '01-20', 'conseil',  'Aucun incident, carnet vierge, devoirs faits. Féliciter.'],
+    [9, '11-15', 'miperiode', 'Deux exclusions de cours en un mois, bavardages. Point fait avec l\'élève : se placer devant. À revoir avant le conseil.'],
+    // Et le S2, pour que la colonne « Conseil » de la liste ne soit pas vide en fin d'année.
+    [0, '05-20', 'conseil',   'Le contrat a tenu jusqu\'en avril, puis relâchement (+11 au S2). Rencontre prévue avec la mère avant le conseil. Ne pas parler d\'orientation sans elle.'],
+    [16, '05-20', 'conseil',  'Année exemplaire. Proposer les félicitations.'],
+    [9, '04-10', 'miperiode', 'Carnet remplacé en février : le cumul repart de zéro, ne pas s\'y tromper. Comportement stabilisé depuis le changement de place.'],
+  ];
+  bilans.forEach(([i, md, type, texte], k) => {
+    const e = bilanAdd(sids[i], { date: D(md), type, texte });
+    if (e) { e.id = `demo_b${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
   });
   E(5).remarque = 'Tiers-temps : prévoir une salle à part pour les évaluations longues.';
   E(9).remarque = 'Carnet perdu, remplacé en février — le cumul repart plus bas.\nCe n\'est pas une faute de frappe : ne pas « corriger », le relevé dit vrai.';
