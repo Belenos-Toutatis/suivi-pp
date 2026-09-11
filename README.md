@@ -65,7 +65,7 @@ optimiste.
 | 1 | Squelette : design system, CSP, sauvegarde locale, undo, modales, nav 6 onglets | ✅ fait |
 | 2 | Onglet Élèves + import CSV / Pronote | ✅ fait |
 | 3 | Import depuis un export JSON de *Plan de classe* | ✅ fait |
-| 4 | Onglet Carnets : relevés, cumuls, deltas, totaux de période | ✅ fait |
+| 4 | Onglet Observations (le carnet) : relevés, cumuls, deltas, totaux de période | ✅ fait |
 | 5 | Onglet Documents : champs, tableau de retours, duplication | ✅ fait |
 | 6 | Onglet Délégués : calcul, dépouillement, projection, PV | ✅ fait |
 | 7 | Onglet Synthèse + impressions | ✅ fait |
@@ -143,7 +143,7 @@ est plus récente, c'est elle qui fait foi.
 nés le même jour, **l'app ne tranche pas** : elle le dit et vous laisse décider. Elle ne
 tire jamais au sort.
 
-**Trier les élèves comme on marche dans la salle.** Les quatre grilles — Élèves, Carnets,
+**Trier les élèves comme on marche dans la salle.** Les quatre grilles — Élèves, Observations,
 Ramassage, Synthèse, et le tableau d'un document — se trient par **nom**, par **prénom**, par **place dans la salle**,
 ou selon un **ordre de ramassage** : la séquence de tables que vous suivez pour récupérer
 les copies. Places et ordres sont repris de *Plan de classe*, jamais redessinés ici ; un

@@ -1288,8 +1288,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <!-- ═══════════════ NAV — un seul niveau, 6 onglets ═══════════════ -->
 <nav id="nav">
   <button class="nb on" onclick="showTab('eleves',this)"    title="Liste des élèves, import, aménagements, remarque libre">👥 Élèves</button>
-  <button class="nb"    onclick="showTab('carnets',this)"   title="Relevés de carnet : cumul d'observations par date, évolution depuis le dernier relevé">📓 Carnets</button>
-  <button class="nb"    onclick="showTab('documents',this)" title="Documents administratifs : qui a rendu quoi, et ce qui est porté dessus">📄 Documents</button>
+  <button class="nb"    onclick="showTab('carnets',this)"   title="Suivre les observations portées au carnet : le total relevé à chaque date, et l'évolution depuis le relevé précédent">📓 Observations</button>
+  <button class="nb"    onclick="showTab('documents',this)" title="Les papiers distribués aux familles : qui a rendu quoi, signé quoi, coché quoi — ramassage et vérification">📄 Retours</button>
   <button class="nb"    onclick="showTab('delegues',this)"  title="Élection des délégués : candidatures, dépouillement projeté, procès-verbal">🗳 Délégués</button>
   <button class="nb"    onclick="showTab('synthese',this)"  title="Tout ce qui est connu de chaque élève — préparation du conseil de classe">📊 Synthèse</button>
   <button class="nb"    onclick="showTab('donnees',this)"   title="Réglages, options, salles et placements, sauvegarde, export/import, vie privée">💾 Données et réglages</button>
@@ -1309,8 +1309,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
     <div id="eleves-body"></div>
   </div>
-  <div id="tab-carnets"   class="tab"><div class="sh"><h2>📓 Relevés de carnet</h2></div><div id="carnets-body"></div></div>
-  <div id="tab-documents" class="tab"><div class="sh"><h2>📄 Documents</h2></div><div id="documents-body"></div></div>
+  <div id="tab-carnets"   class="tab"><div class="sh"><h2>📓 Observations du carnet</h2></div><div id="carnets-body"></div></div>
+  <div id="tab-documents" class="tab"><div class="sh"><h2>📄 Retours de documents</h2></div><div id="documents-body"></div></div>
   <div id="tab-delegues"  class="tab"><div class="sh"><h2>🗳 Délégués</h2></div><div id="delegues-body"></div></div>
   <div id="tab-synthese"  class="tab"><div class="sh"><h2>📊 Synthèse</h2></div><div id="synthese-body"></div></div>
   <div id="tab-donnees"   class="tab">
@@ -1677,7 +1677,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <!-- ═══════════════ RELEVÉ DE CARNET — nouveau / modifier ═══════════════ -->
 <div id="mrel" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:440px;width:100%">
-    <h2 id="mrel-title">📓 Nouveau relevé</h2>
+    <h2 id="mrel-title">📓 Relever les carnets</h2>
     <div class="fg"><label for="mrel-date">Date du relevé</label>
       <input type="date" id="mrel-date" data-autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();releveModalOk()}">
       <div class="tb-hint" style="margin-top:4px">Une seule colonne par jour : la date est la clé du relevé.</div>
@@ -1915,8 +1915,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.21.0';
-const APP_BUILD_DATE = '2026-09-11T16:27:19Z';
+const APP_VERSION    = '1.22.0';
+const APP_BUILD_DATE = '2026-09-11T16:34:17Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4062,7 +4062,7 @@ function renderStudents() {
         <th onclick="sortEleves('nais')" style="cursor:pointer" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance${arrow('nais')}</th>
         <th onclick="sortEleves('grp')" style="cursor:pointer">Groupe · options${arrow('grp')}</th>
         <th onclick="sortEleves('amen')" style="cursor:pointer" title="Aménagements pédagogiques (PPRE · PAP · PPS · ULIS · UPE2A — exclusifs à l'intérieur de leur groupe), médicaux (PAI) et d'examen (📄-A agrandissement · ⏱+⅓ tiers-temps), cumulables. Se modifient par ✏️, ou d'un clic sur la case.">Aménagements${arrow('amen')}</th>
-        <th>Remarque</th>
+        <th title="Remarque libre, et le dernier contact avec la famille">Remarque · contacts</th>
         <th style="cursor:default">Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -4457,7 +4457,7 @@ function _ficheRender() {
 
   box.innerHTML =
       sec('🪪 Identité', identite)
-    + sec('📓 Carnet', relevesHTML)
+    + sec('📓 Observations', relevesHTML)
     + docsSection
     + sec('🗳 Élections', elsHTML)
     + sec('📋 Remarque', remHTML, { onclick: "ficheEdit('remarque')", title: stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', icone: stu.remarque ? '✎' : '+' })
@@ -6539,7 +6539,7 @@ function renderCarnets() {
   const el = document.getElementById('carnets-body');
   if (!el) return;
   const cls = getCls();
-  if (!cls) { el.innerHTML = _needClassHTML('voir les relevés de carnet'); return; }
+  if (!cls) { el.innerHTML = _needClassHTML('suivre les observations'); return; }
   const roster = cls.eleves.map(id => S.eleves[id]).filter(Boolean);
   if (!roster.length) {
     el.innerHTML = _emptyStateHTML('👥', `Aucun élève dans ${_escName(cls.nom)}`,
@@ -6553,7 +6553,7 @@ function renderCarnets() {
   const today = _todayYmd();
 
   const toolbar = `<div class="tb">
-      <button class="btn btn-p btn-sm" onclick="openReleveNew()" title="Ajouter une colonne : la date du jour où vous relevez les carnets">+ Nouveau relevé</button>
+      <button class="btn btn-p btn-sm" onclick="openReleveNew()" title="Ajouter une colonne : la date du jour où vous relevez les carnets">+ Relever les carnets</button>
       ${_sortPickerHTML(carnetSort, 'setCarnetSort(this.value)', cls, [
         { key: 'delta', label: 'par Δ du dernier relevé — à voir en priorité' },
         { key: 'total', label: `par total ${periods[curIdx]?.label || ''}` }])}
@@ -6565,7 +6565,7 @@ function renderCarnets() {
 
   if (!dates.length) {
     el.innerHTML = toolbar + _emptyStateHTML('📓', 'Aucun relevé pour l\'instant',
-      'Cliquez sur <strong>+ Nouveau relevé</strong> : une colonne à la date du jour, où vous tapez pour chaque élève le <strong>total</strong> d\'observations lu dans son carnet. Au relevé suivant, l\'évolution se calcule toute seule.');
+      'Cliquez sur <strong>+ Relever les carnets</strong> : une colonne à la date du jour, où vous tapez pour chaque élève le <strong>total</strong> d\'observations lu dans son carnet. Au relevé suivant, l\'évolution se calcule toute seule.');
     return;
   }
 
@@ -6748,7 +6748,7 @@ let _relEditYmd = null;
 function openReleveNew() {
   if (!getCls()) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
   _relEditYmd = null;
-  document.getElementById('mrel-title').textContent = '📓 Nouveau relevé';
+  document.getElementById('mrel-title').textContent = '📓 Relever les carnets';
   document.getElementById('mrel-date').value = _todayYmd();
   document.getElementById('mrel-label').value = '';
   document.getElementById('mrel-del').style.display = 'none';
@@ -7341,13 +7341,13 @@ function renderDocuments() {
   if (_ramSel) return _renderRamassage(el);
   if (_docView) return _renderDocDetail(el, S.documents[_docView]);
   const cls = getCls();
-  if (!cls) { el.innerHTML = _needClassHTML('voir ses documents'); return; }
+  if (!cls) { el.innerHTML = _needClassHTML('suivre les retours de documents'); return; }
   const docs = _docsOfCurrent();
   const shown = docs.filter(d => _docShowArchived || !d.archive);
   const nbArch = docs.length - docs.filter(d => !d.archive).length;
   const toolbar = `<div class="tb">
       <button class="btn btn-p btn-sm" onclick="openDocNew()">+ Nouveau document</button>
-      <button class="btn btn-s btn-sm" onclick="openRamassage()" title="Cocher les retours de PLUSIEURS documents en une seule passe — ramasser des papiers, ou vérifier que les signatures sont là, en repassant une seule fois dans les rangs">🧺 Ramasser…</button>
+      <button class="btn btn-s btn-sm" onclick="openRamassage()" title="Cocher les retours de PLUSIEURS documents en une seule passe — ramasser des papiers, ou vérifier que les signatures sont là, en repassant une seule fois dans les rangs">🧺 Ramasser · vérifier…</button>
       <button class="btn btn-g btn-sm" onclick="openGridPrint()" title="Imprimer la grille élèves × documents — ou l'enregistrer en PDF : une seule feuille pour plusieurs papiers">🖨 Imprimer la grille…</button>
       ${nbArch ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox"${_docShowArchived ? ' checked' : ''} onchange="_docShowArchived=this.checked;renderDocuments()"> ${nbArch} archivé${nbArch > 1 ? 's' : ''}</label>` : ''}
       <span class="tb-hint" style="margin-left:auto">Un document = un papier distribué. On y suit le retour, et ce que la famille a coché dessus.</span>
@@ -7536,7 +7536,7 @@ function _renderDocDetail(el, doc) {
   const champs = doc.champs || [];
   const suivi = doc.suiviRetour !== false;
   const head = `<div class="tb">
-      <button class="btn btn-g btn-sm" onclick="closeDoc()">← Documents</button>
+      <button class="btn btn-g btn-sm" onclick="closeDoc()">← Liste</button>
       <strong style="font-family:var(--font-serif);font-size:1.15em">${_escName(doc.titre)}</strong>
       ${doc.archive ? '<span class="tb-hint">(archivé)</span>' : ''}
       <span class="tb-hint">${_escName((doc.classIds || []).map(c => S.classes[c]?.nom || c).join(', '))}${doc.dateDistribution ? ` · distribué le ${_escName(_fmtDateFr(doc.dateDistribution))}` : ''}${doc.dateEcheance ? ` · à rendre pour le ${_escName(_fmtDateFr(doc.dateEcheance))}` : ''}</span>
@@ -7673,7 +7673,7 @@ function _renderRamassage(el) {
   const rows = _ramShowGone ? toutes : toutes.filter(r => r.actif);
 
   const head = `<div class="tb">
-      <button class="btn btn-g btn-sm" onclick="closeRamassage()">← Documents</button>
+      <button class="btn btn-g btn-sm" onclick="closeRamassage()">← Liste</button>
       <strong style="font-size:1.02em">🧺 Ramassage</strong>
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px">Reçus le
         <input type="date" id="ram-date" value="${_escAttr(_ramDate || _todayYmd())}" onchange="ramSetDate(this.value)"
@@ -9047,7 +9047,7 @@ function renderSynthese() {
       <span class="tb-hint">${rows.length} élève${rows.length > 1 ? 's' : ''}</span>
       <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="printSynthese()" title="Une page paysage par classe — Ctrl+P fait pareil">🖨 Imprimer</button>
     </div>`;
-  const head = `<tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th title="Dernier cumul d'observations relevé">Carnet</th><th title="Évolution au dernier relevé">Δ</th><th title="Total de la période courante">${_escName(per)}</th><th title="Documents non rendus">Non rendus</th><th title="Réponses portées sur les documents (👤 = avis du PP)">Réponses</th><th title="Incidents et instances (fiche incident, commission éducative…) — le nombre, et le dernier">Incidents</th><th>Remarque</th></tr>`;
+  const head = `<tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th title="Dernier total d'observations relevé dans le carnet">Observations</th><th title="Évolution au dernier relevé">Δ</th><th title="Total de la période courante">${_escName(per)}</th><th title="Documents non rendus">Non rendus</th><th title="Réponses portées sur les documents (👤 = avis du PP)">Réponses</th><th title="Incidents et instances (rapport d'incident, commission éducative…) — le nombre, et le dernier">Incidents</th><th title="Dernier contact avec la famille, puis la remarque libre">Remarque · contacts</th></tr>`;
   const keep = _wrapScrollKeep(el);
   el.innerHTML = tb + `<div class="rel-wrap frozen"><table class="dt synth-table"><thead>${head}</thead><tbody>${rows.map(r => `<tr${r.actif ? '' : ' class="inactive"'}>${_synthCellsHTML(r, cls)}</tr>`).join('')}</tbody></table></div>`;
   keep();
@@ -9104,7 +9104,7 @@ function printSynthese() {
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
   const html = `<h1>Synthèse — ${_escName(cls.nom)} — ${_escName(cls.annee || '')}</h1>
     <p class="print-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${syntheseSort !== 'nom' ? ` · tri : ${_escName(syntheseSort)}` : ''}</p>
-    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Carnet</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Réponses</th><th>Incidents</th><th>Remarque</th></tr></thead>
+    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Réponses</th><th>Incidents</th><th>Remarque · contacts</th></tr></thead>
     <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}</td>
       <td>${r.groupe ? 'G' + r.groupe + ' ' : ''}${_escName(r.options.join(' '))}</td><td>${_escName(r.amenagements)}</td>
       <td>${r.cumul === null ? '' : `${r.cumul} <small>(${_escName(_fmtDateFr(r.cumulDate))})</small>`}</td>

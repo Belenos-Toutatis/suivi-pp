@@ -482,6 +482,16 @@ officielles, l'utilisateur les règle ou les décoche, et il note la décision p
 
 Navigation à un seul niveau, 6 onglets (l'app reste petite ; pas de `.tab-group` à deux étages ici).
 
+⚠️ **Les libellés nomment ce qu'on FAIT, pas l'objet qu'on manipule** (arbitré le 2026-09-11 :
+*« dans l'onglet carnet, en fait on fait le suivi des observations ; dans Documents, on
+vérifie la signature ou on note qu'on a ramassé »*). D'où, depuis la v1.22.0 : l'onglet
+**📓 Observations** (titre *Observations du carnet*, bouton *+ Relever les carnets*, colonne
+*Observations* dans la Synthèse et la fiche), l'onglet **📄 Retours** (titre *Retours de
+documents*, bouton *🧺 Ramasser · vérifier…*, retour arrière *← Liste*), et la colonne
+*Remarque · contacts* (elle porte le dernier contact avant la remarque). Les identifiants du
+code (`tab-carnets`, `documents-body`, `S.releves`, `renderCarnets`…) ne bougent pas : on
+renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
+
 1. **👥 Élèves** — liste triable, import, ajout/édition, remarque libre, aménagements, arrivée/départ.
    - **Aménagements en LECTURE dans la liste** (2026-09-11) : seuls les actifs, en texte
      coloré (`_amenBadgesHTML`, mêmes encres `--st-*-fg` que les cases de la modale ✏️).
@@ -806,6 +816,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 32 | **Libellés qui nomment le geste** : 📓 Observations, 📄 Retours, *+ Relever les carnets*, *🧺 Ramasser · vérifier…*, *Remarque · contacts* ; identifiants du code inchangés | ✅ **fait** (2026-09-11, v1.22.0) |
 | 31 | **Catalogue des instances aux noms réels**, rangé par famille (signalement · punitions · sanctions · mesures · instances · protection), migration des anciens libellés ; 2 tests | ✅ **fait** (2026-09-11, v1.21.0) |
 | 30 | **PV signé en PDF** sur l'élection close et la désignation (`election.pv`, `cls.delegues.pv`) · **choix du nom** à la copie (`pjChooseName`, `_pjAutoNom`, `_pjUnique`, plus de préfixe d'id) ; 2 tests | ✅ **fait** (2026-09-11, v1.20.0) |
 | 29 | **Délégués désignés sans vote** (`cls.delegues`, `deleguesSet`, arbitrage par la date dans `_delegueOf`, purge) ; 3 tests de plus | ✅ **fait** (2026-09-11, v1.19.0) |
