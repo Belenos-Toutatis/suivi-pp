@@ -157,7 +157,8 @@ test('_syntheseRow porte le nombre d\'incidents et le dernier', () => {
       incidentAdd('s1', { date: '2026-02-05', type: 'commission_educative', objet: 'Convocation' });`);
   const r = evObj(`_syntheseRow(S.classes['5C'], S.eleves.s1)`);
   assert.strictEqual(r.nbIncidents, 2);
-  assert.deepStrictEqual(r.incident, { date: '2026-02-05', type: 'commission_educative', objet: 'Convocation' });
+  assert.deepStrictEqual(r.incident, { id: r.incident.id, date: '2026-02-05', type: 'commission_educative', objet: 'Convocation' });
+  assert.strictEqual(r.incident.id, evObj(`_incidentsOf('s1')[0].id`), "l’id de la dernière entrée : la liste des élèves l’ouvre en modification");
   const r2 = evObj(`_syntheseRow(S.classes['5C'], S.eleves.s2)`);
   assert.deepStrictEqual([r2.nbIncidents, r2.incident], [0, null]);
   // Tri « par incidents » : le plus chargé d'abord, puis le plus récent, puis le nom.

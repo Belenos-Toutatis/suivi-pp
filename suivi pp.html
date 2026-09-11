@@ -1073,6 +1073,9 @@ body.el-projecting #main { padding-top: 8px; }
 .synth-rep { font-size: .88em; line-height: 1.35; }
 .synth-rem { font-size: .85em; color: var(--ink-deep); white-space: pre-line; max-width: 260px; max-height: 4.2em; overflow: hidden; }
 .synth-rem-td { min-width: 160px; }
+.synth-inc { font-size: .85em; color: var(--ink-deep); cursor: pointer; white-space: nowrap; margin-top: 2px; text-decoration: underline dotted; text-underline-offset: 2px; }
+.synth-inc:hover, .synth-inc:focus-visible { color: var(--ink-blue); }
+.synth-inc-td { white-space: nowrap; }
 .synth-nr { cursor: pointer; }
 .synth-nr-list { font-size: .82em; line-height: 1.35; margin-top: 3px; white-space: nowrap; }
 /* Touches de saisie du carnet — dimensionnées pour le DOIGT (44 px de haut), pas pour
@@ -1918,8 +1921,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.23.2';
-const APP_BUILD_DATE = '2026-09-11T17:13:34Z';
+const APP_VERSION    = '1.24.0';
+const APP_BUILD_DATE = '2026-09-11T17:21:46Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4070,9 +4073,14 @@ function renderStudents() {
       ? `<button class="badge warn synth-nr" title="${_escAttr(r.nonRendus.join(' · '))} — clic pour ${ouvert ? 'replier' : 'détailler'}" onclick="synthToggleNr('${_escJsAttr(s.id)}')">${r.nonRendus.length}${ouvert ? ' ▾' : ''}</button>${
           ouvert ? `<div class="synth-nr-list">${r.nonRendus.map(t => `<div>☐ ${_escName(t)}</div>`).join('')}</div>` : ''}`
       : '<span class="tb-hint">✓</span>';
-    const inc = r.nbIncidents
-      ? `<span class="badge warn" title="${_escAttr(r.nbIncidents + ' entrée' + (r.nbIncidents > 1 ? 's' : ''))}">${r.nbIncidents}</span> <span class="tb-hint" title="${_escAttr(r.incident.objet)}">${_escName(_fmtDateFr(r.incident.date))} · ${_escName(_instanceOf(r.incident.type).label)}</span>`
-      : '<span class="tb-hint">—</span>';
+    // Incidents : même geste que la remarque (demande de l'utilisateur, 2026-09-11) — le
+    // bouton ⚖️ ouvre la saisie d'une NOUVELLE entrée sans passer par la fiche ; la dernière
+    // entrée s'affiche dessous et s'ouvre en modification au clic.
+    const incTitre = r.nbIncidents
+      ? `${r.nbIncidents} entrée${r.nbIncidents > 1 ? 's' : ''} — dernière : ${_fmtDateFr(r.incident.date)} — ${_instanceOf(r.incident.type).label} — ${r.incident.objet}\nClic : noter un nouvel incident ou une instance`
+      : 'Noter un incident ou une instance (rapport, retenue, commission éducative…)';
+    const inc = `<button class="btn btn-sm" style="${stSty(!!r.nbIncidents, '#8c3f1d', 0)}" onclick="openIncident('${_escJsAttr(s.id)}')" title="${_escAttr(incTitre)}">⚖️${r.nbIncidents ? ' ' + r.nbIncidents : ''}</button>${
+      r.nbIncidents ? `<div class="synth-inc" role="button" tabindex="0" title="${_escAttr(r.incident.objet)} — clic pour modifier cette entrée" onclick="openIncident('${_escJsAttr(s.id)}','${_escJsAttr(r.incident.id)}')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.click()}">${_escName(_fmtDateFr(r.incident.date))} · ${_escName(_instanceOf(r.incident.type).label)}</div>` : ''}`;
 
     return `<tr${(isFuture || isGone) ? ' class="inactive"' : ''}>
       <td>${civBtn}<a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète"
@@ -4083,7 +4091,7 @@ function renderStudents() {
       <td style="white-space:nowrap">${grpBadge}${tagsHtml ? '<br><span style="display:inline-block;margin-top:3px">' + tagsHtml + '</span>' : ''}</td>
       <td class="amen-td" onclick="openEdit('${_escJsAttr(s.id)}')" title="${_escAttr(_amenLabel(s) || 'Aucun aménagement')} — clic pour modifier">${_amenBadgesHTML(s)}</td>
       <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
-      <td>${nr}</td><td style="white-space:nowrap">${inc}</td>
+      <td>${nr}</td><td class="synth-inc-td">${inc}</td>
       <td class="synth-rem-td">${remBtn}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-g btn-sm" onclick="openEdit('${_escJsAttr(s.id)}')" title="Modifier l'élève">✏️</button>
@@ -9057,7 +9065,7 @@ function _syntheseRow(cls, stu) {
     // Incidents et instances : le nombre, et le dernier — c'est ce qu'on regarde avant un
     // conseil de classe ou une commission, quand il faut dire « depuis quand, et combien ».
     nbIncidents: Array.isArray(stu.incidents) ? stu.incidents.length : 0,
-    incident: (() => { const e = _incidentLast(stu.id); return e ? { date: e.date, type: e.type, objet: e.objet } : null; })(),
+    incident: (() => { const e = _incidentLast(stu.id); return e ? { id: e.id, date: e.date, type: e.type, objet: e.objet } : null; })(),
   };
 }
 function _syntheseRows(cls) {

@@ -101,8 +101,9 @@ dernier contact remonte sur la liste des élèves — « ai-je déjà appelé
 cette famille, et quand ? » est la question qu'on se pose en préparant un conseil, et le
 texte libre ne permettait ni de la compter ni de la retrouver.
 
-**Incidents et instances.** Sur la fiche, une section ⚖️ pour noter ce qui s'est passé et
-ce qui en a découlé : fiche incident, retenue, commission éducative, conseil de discipline…
+**Incidents et instances.** Sur la fiche, une section ⚖️ — et dans la liste des élèves, la
+case ⚖️ de la colonne Incidents, qui ouvre la saisie d'un clic (la dernière entrée s'y
+lit, et se modifie au clic) — pour noter ce qui s'est passé et ce qui en a découlé : fiche incident, retenue, commission éducative, conseil de discipline…
 Chaque entrée porte une date, l'instance, un objet, la décision prise ou les points dits,
 et — si vous le voulez — **le PDF de la fiche scannée**. Le catalogue est pré-rempli avec
 les noms réels du collège, rangés par famille : le rapport d'incident, les punitions

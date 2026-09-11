@@ -76,3 +76,29 @@ test('_elevesRows : par Δ décroissant au premier clic, les inconnus en fin ; l
   assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s1']);
   ev(`_eleveFilter = ''`);
 });
+
+test('liste des élèves : la case Incidents ouvre la saisie d\'une entrée, comme la remarque ; la dernière entrée s\'ouvre en modification', () => {
+  // Demande de l'utilisateur (2026-09-11) : « comme pour les remarques, je dois pouvoir
+  // cliquer sur la case incident pour en saisir un ». On capture le HTML rendu en
+  // détournant getElementById le temps du rendu.
+  ev(FIXTURE);
+  ev(`_eleveFilter = ''; eleveSort = { col: 'nom', dir: 1 };`);
+  const capture = () => ev(`(() => {
+    const zone = document.createElement('div'); const orig = document.getElementById;
+    document.getElementById = id => id === 'eleves-body' ? zone : orig.call(document, id);
+    try { renderStudents(); } finally { document.getElementById = orig; }
+    return zone.innerHTML; })()`);
+  let html = capture();
+  // Sans entrée : un bouton ⚖️ qui ouvre la saisie d'une NOUVELLE entrée pour cet élève.
+  assert.ok(/onclick="openIncident\('s2'\)"[^>]*>⚖️<\/button>/.test(html), 'bouton de saisie sur un élève sans incident');
+  assert.ok(!html.includes(`openIncident('s2','`), 'rien à modifier chez s2');
+  // Avec une entrée : le compteur sur le bouton, et la dernière entrée cliquable vers sa modification.
+  ev(`incidentAdd('s1', { date:'2025-12-03', type:'retenue', objet:'Bavardages', texte:'' });
+      incidentAdd('s1', { date:'2026-01-15', type:'commission_educative', objet:'Récidive', texte:'Décision : tutorat' });`);
+  html = capture();
+  assert.ok(/onclick="openIncident\('s1'\)"[^>]*>⚖️ 2<\/button>/.test(html), 'le nombre d\'entrées sur le bouton');
+  const id = evObj(`_incidentsOf('s1')[0].id`);
+  assert.strictEqual(evObj(`_incidentsOf('s1')[0].date`), '2026-01-15', 'la plus récente d\'abord');
+  assert.ok(html.includes(`openIncident('s1','${id}')`), 'la dernière entrée s\'ouvre en modification');
+  assert.ok(html.includes('15/01/2026 · Commission éducative'), 'date et instance de la dernière entrée');
+});

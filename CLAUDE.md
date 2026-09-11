@@ -442,7 +442,13 @@ officielles, l'utilisateur les règle ou les décoche, et il note la décision p
   « commission éducative » sans dire pourquoi ne sert à rien au conseil) · texte libre (la
   décision prise, les points dits) · PDF facultatif. Saisie dans la modale `mincident`,
   ouverte depuis la **fiche** (section ⚖️, boutons ✏️ 🗑 et « + Noter »), qui y revient
-  (`ficheVersIncident` + `_modalReturnTo`). `pushUndo()` avant chaque mutation.
+  (`ficheVersIncident` + `_modalReturnTo`) — **et depuis la liste des élèves** (v1.24.0,
+  demande de l'utilisateur : *« comme pour les remarques, je dois pouvoir cliquer sur la
+  case incident pour en saisir un »*) : la case Incidents est un bouton ⚖️ (le nombre
+  d'entrées dessus, coloré s'il y en a — 7,38:1 mesuré), qui ouvre la saisie d'une
+  NOUVELLE entrée ; la dernière entrée s'affiche dessous et s'ouvre en modification au clic
+  (`_syntheseRow` porte désormais `incident.id`). Même geste que le bouton 📋 de la
+  remarque, à côté. `saveIncident` re-rend la liste. `pushUndo()` avant chaque mutation.
 - **Le PDF ne va JAMAIS dans la sauvegarde JSON** : un scan pèse 200 Ko à 2 Mo, localStorage
   plafonne à quelques Mo (le projet voisin a touché ce plafond). Il est **copié** dans un
   dossier **choisi par l'utilisateur** (`pjDirHandle`, persisté en IndexedDB sous `pjdir`,
@@ -818,6 +824,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 34 | **Incidents depuis la liste** : la case ⚖️ ouvre la saisie d'une entrée, la dernière s'ouvre en modification ; 1 test de plus | ✅ **fait** (2026-09-11, v1.24.0) |
 | 33 | **Synthèse fusionnée dans Élèves** : une liste, identité + suivi, `_elevesRows` pour l'écran et l'impression, tri par en-tête sur les colonnes de suivi, naissances derrière une case ; colonne Réponses retirée ; 5 onglets | ✅ **fait** (2026-09-11, v1.23.0) |
 | 32 | **Libellés qui nomment le geste** : 📓 Observations, 📄 Retours, *+ Relever les carnets*, *🧺 Ramasser · vérifier…*, *Remarque · contacts* ; identifiants du code inchangés | ✅ **fait** (2026-09-11, v1.22.0) |
 | 31 | **Catalogue des instances aux noms réels**, rangé par famille (signalement · punitions · sanctions · mesures · instances · protection), migration des anciens libellés ; 2 tests | ✅ **fait** (2026-09-11, v1.21.0) |
