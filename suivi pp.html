@@ -1165,6 +1165,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 .fi-inc-txt { white-space: pre-line; font-size: .92em; margin-top: 2px; }
 .fi-inc-act { float: right; margin-left: 8px; }
 .inst-table input[type="text"] { width: 100%; font-size: .9em; }
+.inst-table tr.inst-fam td { background: var(--paper-warm); font: 600 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--pencil); padding: 6px 12px; }
 .fi-rem { white-space: pre-line; background: var(--paper-warm); border-radius: var(--radius-md); padding: 8px 10px; font-size: .93em; }
 .synth-contact { font-size: .82em; font-family: var(--font-mono); color: var(--ink-blue-soft); white-space: nowrap; margin-bottom: 2px; }
 
@@ -1914,8 +1915,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.20.1';
-const APP_BUILD_DATE = '2026-09-11T16:14:26Z';
+const APP_VERSION    = '1.21.0';
+const APP_BUILD_DATE = '2026-09-11T16:27:19Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3694,38 +3695,67 @@ function journalRemove(sid, id) {
 // ═══════════════════════════════════════════════════════════════════════════
 // Les instances proposées d'office. ⚠️ Les descriptions sont des repères, pas le texte
 // réglementaire : elles s'éditent dans Données, et le règlement intérieur prime.
+// Les instances proposées d'office, avec les NOMS RÉELS et rangées par nature — recherche
+// du 2026-09-11 (éduscol « Les procédures disciplinaires », circulaire n° 2014-059 du
+// 27 mai 2014 « Application de la règle, mesures de prévention et sanctions », Code de
+// l'éducation R511-13 et R511-19-1). Quatre familles qui ne se confondent pas :
+//   · le SIGNALEMENT (le rapport d'incident, que tout personnel peut rédiger) ;
+//   · les PUNITIONS scolaires, réponse immédiate d'un enseignant ou d'un personnel, jamais
+//     au dossier — la circulaire en donne la liste indicative ;
+//   · les SANCTIONS disciplinaires, prononcées par le chef d'établissement ou le conseil de
+//     discipline, inscrites au dossier — R511-13 en fixe l'échelle, exhaustive : six, pas une
+//     de plus, aucun règlement intérieur ne peut en ajouter ;
+//   · les MESURES de prévention et d'accompagnement, et les INSTANCES qui les décident.
+// ⚠️ Les descriptions sont des repères, pas le texte réglementaire : elles s'éditent dans
+// Données et réglages, et le règlement intérieur de l'établissement prime.
+// [id, libellé, description, famille, { label, description } d'une version antérieure]
+// Le cinquième champ sert à la migration : un libellé resté à son ancienne valeur par
+// défaut est mis à jour, un libellé modifié par l'utilisateur est respecté.
+const INSTANCES_FAMILLES = { signalement: 'Signalement', punition: 'Punitions scolaires', sanction: 'Sanctions disciplinaires', mesure: 'Mesures de prévention et d’accompagnement', instance: 'Instances et réunions', protection: 'Protection de l’enfance', autre: 'Autre' };
 const INSTANCES_DEFAUT = [
-  ['fiche_incident',      'Fiche incident',                 'Signalement écrit d’un incident (rapport à la vie scolaire ou au chef d’établissement).'],
-  ['punition',            'Punition scolaire',              'Décidée par un enseignant ou un personnel : excuse orale ou écrite, devoir supplémentaire, retenue…'],
-  ['exclusion_cours',     'Exclusion ponctuelle de cours',  'Punition exceptionnelle : l’élève est pris en charge par la vie scolaire, un rapport écrit est remis.'],
-  ['avertissement',       'Avertissement',                  'Sanction prononcée par le chef d’établissement.'],
-  ['blame',               'Blâme',                          'Sanction prononcée par le chef d’établissement, plus grave que l’avertissement.'],
-  ['responsabilisation',  'Mesure de responsabilisation',   'Sanction : activité de solidarité, culturelle ou de formation, hors temps de classe.'],
-  ['exclusion_temp',      'Exclusion temporaire',           'Sanction du chef d’établissement : de la classe ou de l’établissement, huit jours au plus.'],
-  ['commission_educative','Commission éducative',           'Réunie par le chef d’établissement autour d’un élève dont le comportement est inadapté : cherche une réponse éducative, peut proposer une mesure de responsabilisation.'],
-  ['conseil_discipline',  'Conseil de discipline',          'Seule instance qui peut prononcer une exclusion définitive, ou temporaire de plus de huit jours.'],
-  ['equipe_educative',    'Équipe éducative',               'Réunion des personnels et de la famille sur la situation scolaire d’un élève : difficultés, aménagements, orientation.'],
-  ['gpds',                'Cellule de veille / GPDS',       'Groupe de prévention du décrochage scolaire : suivi des élèves qui décrochent ou risquent de le faire.'],
-  ['info_preoccupante',   'Information préoccupante',       'Transmission à la cellule départementale (CRIP) d’une inquiétude sur un mineur — hors discipline.'],
-  ['autre',               'Autre',                          'Tout ce qui n’entre dans aucune case : l’objet dit quoi.'],
+  ['fiche_incident',      'Rapport d’incident',                          'Signalement écrit d’un incident par un personnel — la « fiche incident » de l’établissement, transmise à la vie scolaire ou au chef d’établissement.', 'signalement', { label: 'Fiche incident', description: 'Signalement écrit d’un incident (rapport à la vie scolaire ou au chef d’établissement).' }],
+  ['excuse',              'Excuse orale ou écrite',                      'Punition : présentation d’excuses, pour faire prendre conscience du manquement à la règle.', 'punition'],
+  ['devoir_supp',         'Devoir supplémentaire',                       'Punition : travail supplémentaire, corrigé par celui qui l’a donné ; fait au collège, il est surveillé.', 'punition'],
+  ['retenue',             'Retenue',                                     'Punition : heure(s) de retenue pour faire un travail non fait ou supplémentaire ; les parents en sont informés par écrit.', 'punition'],
+  ['exclusion_cours',     'Exclusion ponctuelle de cours',               'Punition exceptionnelle : l’élève est pris en charge par la vie scolaire avec un travail, et un rapport écrit est remis au CPE ou au chef d’établissement.', 'punition'],
+  ['punition',            'Autre punition',                              'Toute autre punition prévue au règlement intérieur ; les parents en sont informés par écrit.', 'punition', { label: 'Punition scolaire', description: 'Décidée par un enseignant ou un personnel : excuse orale ou écrite, devoir supplémentaire, retenue…' }],
+  ['avertissement',       'Avertissement',                               'Sanction prononcée par le chef d’établissement ; effacée du dossier à la fin de l’année scolaire.', 'sanction', { description: 'Sanction prononcée par le chef d’établissement.' }],
+  ['blame',               'Blâme',                                       'Sanction prononcée par le chef d’établissement, plus grave que l’avertissement ; effacée à la fin de l’année scolaire suivante.', 'sanction', { description: 'Sanction prononcée par le chef d’établissement, plus grave que l’avertissement.' }],
+  ['responsabilisation',  'Mesure de responsabilisation',                'Sanction : activité de solidarité, culturelle ou de formation, hors temps de classe, vingt heures au plus ; peut aussi remplacer une exclusion.', 'sanction', { description: 'Sanction : activité de solidarité, culturelle ou de formation, hors temps de classe.' }],
+  ['exclusion_classe',    'Exclusion temporaire de la classe',           'Sanction du chef d’établissement : huit jours au plus, l’élève reste accueilli dans l’établissement.', 'sanction'],
+  ['exclusion_temp',      'Exclusion temporaire de l’établissement',     'Sanction du chef d’établissement : huit jours au plus.', 'sanction', { label: 'Exclusion temporaire', description: 'Sanction du chef d’établissement : de la classe ou de l’établissement, huit jours au plus.' }],
+  ['exclusion_def',       'Exclusion définitive',                        'Sanction que seul le conseil de discipline peut prononcer.', 'sanction'],
+  ['fiche_suivi',         'Fiche de suivi',                              'Mesure d’accompagnement : l’élève fait viser une fiche à chaque cours pendant une période donnée.', 'mesure'],
+  ['engagement',          'Engagement écrit (contrat)',                  'Mesure d’accompagnement : l’élève s’engage par écrit sur des objectifs précis, avec un point à date fixe.', 'mesure'],
+  ['tutorat',             'Tutorat',                                     'Mesure d’accompagnement : un adulte référent suit l’élève pendant une période donnée.', 'mesure'],
+  ['commission_educative','Commission éducative',                        'Réunie par le chef d’établissement (art. R511-19-1) autour d’un élève dont le comportement est inadapté : cherche une réponse éducative, peut proposer une mesure de responsabilisation, et assure le suivi des mesures.', 'instance', { description: 'Réunie par le chef d’établissement autour d’un élève dont le comportement est inadapté : cherche une réponse éducative, peut proposer une mesure de responsabilisation.' }],
+  ['conseil_discipline',  'Conseil de discipline',                       'Seule instance qui peut prononcer une exclusion définitive, ou une exclusion temporaire de plus de huit jours.', 'instance', { description: 'Seule instance qui peut prononcer une exclusion définitive, ou temporaire de plus de huit jours.' }],
+  ['equipe_educative',    'Équipe éducative',                            'Réunion des personnels et de la famille sur la situation scolaire d’un élève : difficultés, aménagements, orientation.', 'instance'],
+  ['ess',                 'Équipe de suivi de la scolarisation (ESS)',   'Pour un élève avec PPS : réunion annuelle au moins, avec l’enseignant référent, qui évalue le projet et propose ses ajustements.', 'instance'],
+  ['gpds',                'Cellule de veille / GPDS',                    'Groupe de prévention du décrochage scolaire : suivi des élèves qui décrochent ou risquent de le faire.', 'instance'],
+  ['info_preoccupante',   'Information préoccupante',                    'Transmission à la cellule départementale (CRIP) d’une inquiétude sur un mineur en danger ou en risque de l’être — hors discipline.', 'protection', { description: 'Transmission à la cellule départementale (CRIP) d’une inquiétude sur un mineur — hors discipline.' }],
+  ['autre',               'Autre',                                       'Tout ce qui n’entre dans aucune case : l’objet dit quoi.', 'autre'],
 ];
 // Complète le catalogue SANS écraser : une instance renommée, décrite ou désactivée par
 // l'utilisateur garde ses réglages ; une instance ajoutée par une version ultérieure
-// apparaît d'elle-même. Un fichier antérieur à la section arrive donc avec le catalogue
-// complet — et la sanitisation a déjà garanti que S.instances est un objet.
+// apparaît d'elle-même ; un libellé resté à son ancienne valeur par défaut suit la
+// nouvelle (migration v1.21.0). Un fichier antérieur à la section arrive donc avec le
+// catalogue complet — et la sanitisation a déjà garanti que S.instances est un objet.
+// ⚠️ L'ordre des instances d'office est celui du tableau, toujours : une instance insérée
+// au milieu doit s'y placer, pas en queue.
 function _instancesSeed() {
-  INSTANCES_DEFAUT.forEach(([id, label, description], i) => {
+  INSTANCES_DEFAUT.forEach(([id, label, description, cat, anc], i) => {
     const cur = S.instances[id];
-    if (!_isPlainObj(cur)) { S.instances[id] = { id, label, description, actif: true, ord: i, builtin: true }; return; }
-    cur.id = id; cur.builtin = true;
-    if (typeof cur.label !== 'string' || !cur.label.trim()) cur.label = label;
-    if (typeof cur.description !== 'string') cur.description = description;
+    if (!_isPlainObj(cur)) { S.instances[id] = { id, label, description, cat, actif: true, ord: i, builtin: true }; return; }
+    cur.id = id; cur.builtin = true; cur.cat = cat; cur.ord = i;
+    if (typeof cur.label !== 'string' || !cur.label.trim() || (anc && anc.label && cur.label === anc.label)) cur.label = label;
+    if (typeof cur.description !== 'string' || (anc && anc.description && cur.description === anc.description)) cur.description = description;
     if (typeof cur.actif !== 'boolean') cur.actif = true;
-    if (typeof cur.ord !== 'number') cur.ord = i;
   });
   for (const [id, v] of Object.entries(S.instances)) {
     if (!INSTANCES_DEFAUT.some(d => d[0] === id)) {
       v.id = id; v.builtin = false;
+      if (!INSTANCES_FAMILLES[v.cat]) v.cat = 'autre';
       if (typeof v.label !== 'string' || !v.label.trim()) v.label = id;
       if (typeof v.description !== 'string') v.description = '';
       if (typeof v.actif !== 'boolean') v.actif = true;
@@ -3737,13 +3767,22 @@ function _instancesAll() { return Object.values(S.instances).sort((a, b) => (a.o
 function _instancesActives() { return _instancesAll().filter(i => i.actif); }
 // Une entrée dont l'instance a été désactivée — ou vient d'un fichier plus récent — garde
 // un libellé : on ne perd jamais la lecture d'un incident pour une question de catalogue.
-function _instanceOf(id) { return S.instances[id] || { id, label: String(id || 'Autre'), description: '', actif: false, builtin: false }; }
+function _instanceOf(id) { return S.instances[id] || { id, label: String(id || 'Autre'), description: '', cat: 'autre', actif: false, builtin: false }; }
+// Les instances groupées par famille, dans l'ordre des familles puis celui du catalogue.
+function _instancesParFamille(liste) {
+  const out = [];
+  for (const [cat, titre] of Object.entries(INSTANCES_FAMILLES)) {
+    const items = liste.filter(i => (INSTANCES_FAMILLES[i.cat] ? i.cat : 'autre') === cat);
+    if (items.length) out.push({ cat, titre, items });
+  }
+  return out;
+}
 function _instanceUsee(id) { return Object.values(S.eleves).some(e => (e.incidents || []).some(x => x.type === id)); }
 function instanceAdd(label, description) {
   const lab = String(label || '').trim();
   if (!lab) return null;
   const ord = Math.max(-1, ..._instancesAll().map(i => i.ord)) + 1;
-  const e = { id: uid('inst'), label: lab, description: String(description || '').trim(), actif: true, ord, builtin: false };
+  const e = { id: uid('inst'), label: lab, description: String(description || '').trim(), cat: 'autre', actif: true, ord, builtin: false };
   S.instances[e.id] = e;
   return e;
 }
@@ -4443,7 +4482,8 @@ function openIncident(sid, id) {
   // L'instance de l'entrée reste proposée même désactivée depuis : on la modifie, on ne la perd pas.
   const liste = e && !actives.some(i => i.id === e.type) ? [...actives, _instanceOf(e.type)] : actives;
   const sel = document.getElementById('minc-type');
-  if (sel) sel.innerHTML = liste.map(i => `<option value="${_escAttr(i.id)}"${e && e.type === i.id ? ' selected' : ''}>${_escName(i.label)}</option>`).join('');
+  if (sel) sel.innerHTML = _instancesParFamille(liste).map(g => `<optgroup label="${_escAttr(g.titre)}">${
+      g.items.map(i => `<option value="${_escAttr(i.id)}"${e && e.type === i.id ? ' selected' : ''}>${_escName(i.label)}</option>`).join('')}</optgroup>`).join('');
   const d = document.getElementById('minc-date');
   if (d) d.value = e ? e.date : _todayYmd();
   const o = document.getElementById('minc-objet');
@@ -6231,13 +6271,13 @@ function patternRemoveUI(salleId, patId) {
 function patternToggleUI(salleId, patId, pos) { _salleMut(() => patternToggle(salleId, patId, pos)); }
 
 function _instancesTableHTML() {
-  const rows = _instancesAll().map(i => `<tr${i.actif ? '' : ' class="inactive"'}>
+  const rows = _instancesParFamille(_instancesAll()).map(g => `<tr class="inst-fam"><td colspan="4">${_escName(g.titre)}</td></tr>` + g.items.map(i => `<tr${i.actif ? '' : ' class="inactive"'}>
       <td style="text-align:center"><input type="checkbox"${i.actif ? ' checked' : ''} onchange="instanceSetUI('${_escJsAttr(i.id)}',{actif:this.checked})" title="${i.actif ? 'Proposée à la saisie — décocher pour la retirer' : 'Retirée de la saisie'}"></td>
       <td style="min-width:180px"><input type="text" value="${_escAttr(i.label)}" maxlength="60" onchange="instanceSetUI('${_escJsAttr(i.id)}',{label:this.value})"></td>
       <td style="width:99%"><input type="text" value="${_escAttr(i.description)}" maxlength="240" placeholder="description, à ta main" onchange="instanceSetUI('${_escJsAttr(i.id)}',{description:this.value})"></td>
       <td style="white-space:nowrap">${i.builtin ? '<span class="tb-hint" title="Instance d\'office : se décoche, ne se supprime pas">d\'office</span>'
         : `<button class="btn btn-d btn-sm" onclick="instanceRemoveUI('${_escJsAttr(i.id)}')" title="${_instanceUsee(i.id) ? 'Utilisée par au moins une entrée — décocher plutôt' : 'Supprimer cette instance'}"${_instanceUsee(i.id) ? ' disabled' : ''}>🗑</button>`}</td>
-    </tr>`).join('');
+    </tr>`).join('')).join('');
   return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée à la saisie">Actif</th><th>Instance</th><th>Description</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="tb" style="max-width:900px;margin-bottom:18px"><input type="text" id="inst-new" placeholder="Nouvelle instance (ex. : Tutorat, Contrat de comportement…)" maxlength="60" style="flex:1;min-width:200px"
          onkeydown="if(event.key==='Enter'){event.preventDefault();instanceAddUI()}"> <button class="btn btn-s btn-sm" onclick="instanceAddUI()">+ Ajouter</button></div>`;

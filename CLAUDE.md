@@ -405,10 +405,31 @@ les commissions éducatives ou autres instances ; on propose toutes les instance
 officielles, l'utilisateur les règle ou les décoche, et il note la décision prise. »*
 
 - **Le catalogue est pré-rempli et réglable** (`INSTANCES_DEFAUT`, semé par `_instancesSeed`
-  dans `postLoadHook`) : fiche incident · punition scolaire · exclusion ponctuelle de cours ·
-  avertissement · blâme · mesure de responsabilisation · exclusion temporaire · commission
-  éducative · conseil de discipline · équipe éducative · cellule de veille / GPDS ·
-  information préoccupante · autre. Renommer, décrire, décocher, ajouter — dans 💾 Données.
+  dans `postLoadHook`), **avec les noms réels et rangé par famille** (révisé le 2026-09-11 à
+  la demande de l'utilisateur — *« des noms plus logiques, qui correspondent à ce que l'on fait
+  réellement »* — après lecture d'éduscol *Les procédures disciplinaires*, de la circulaire
+  n° 2014-059 et de R511-13 / R511-19-1) :
+  - **Signalement** — rapport d'incident (la « fiche incident » de l'établissement) ;
+  - **Punitions scolaires** (circulaire 2014-059, liste indicative, jamais au dossier) — excuse
+    orale ou écrite · devoir supplémentaire · retenue · exclusion ponctuelle de cours · autre
+    punition ;
+  - **Sanctions disciplinaires** (R511-13, échelle EXHAUSTIVE : six, aucun règlement intérieur
+    ne peut en ajouter) — avertissement · blâme · mesure de responsabilisation · exclusion
+    temporaire de la classe · exclusion temporaire de l'établissement · exclusion définitive ;
+  - **Mesures de prévention et d'accompagnement** — fiche de suivi · engagement écrit (contrat) ·
+    tutorat ;
+  - **Instances et réunions** — commission éducative · conseil de discipline · équipe éducative ·
+    équipe de suivi de la scolarisation (ESS) · cellule de veille / GPDS ;
+  - **Protection de l'enfance** — information préoccupante ; **Autre**.
+  Chaque instance porte sa famille (`cat`, `INSTANCES_FAMILLES`) : le sélecteur de la modale
+  les groupe en `<optgroup>`, le tableau de Données en lignes d'en-tête. Renommer, décrire,
+  décocher, ajouter — dans 💾 Données et réglages (une instance ajoutée va dans *Autre*).
+  ⚠️ **Migration des libellés** : un libellé resté à son ancienne valeur par défaut suit le
+  nouveau (« Fiche incident » → « Rapport d'incident », « Exclusion temporaire » → « … de
+  l'établissement », « Punition scolaire » → « Autre punition »), un libellé modifié par
+  l'utilisateur est respecté — le cinquième champ de `INSTANCES_DEFAUT` porte l'ancien défaut.
+  Et l'ordre des instances d'office suit TOUJOURS le tableau (une insertion au milieu s'y
+  place). Testé dans les deux sens.
   ⚠️ **Le semis complète sans écraser** : un réglage de l'utilisateur survit, une instance
   ajoutée par une version ultérieure apparaît d'elle-même, un fichier antérieur à la section
   arrive avec le catalogue complet. Testé dans les trois sens.
@@ -785,6 +806,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 31 | **Catalogue des instances aux noms réels**, rangé par famille (signalement · punitions · sanctions · mesures · instances · protection), migration des anciens libellés ; 2 tests | ✅ **fait** (2026-09-11, v1.21.0) |
 | 30 | **PV signé en PDF** sur l'élection close et la désignation (`election.pv`, `cls.delegues.pv`) · **choix du nom** à la copie (`pjChooseName`, `_pjAutoNom`, `_pjUnique`, plus de préfixe d'id) ; 2 tests | ✅ **fait** (2026-09-11, v1.20.0) |
 | 29 | **Délégués désignés sans vote** (`cls.delegues`, `deleguesSet`, arbitrage par la date dans `_delegueOf`, purge) ; 3 tests de plus | ✅ **fait** (2026-09-11, v1.19.0) |
 | 28 | **Classe = son nom** dans la fiche (`ficheSaveClasse`) · **ordre de ramassage au glisser** (`ordrePaint*`, traînée sans re-rendu) | ✅ **fait** (2026-09-11, v1.18.0) |

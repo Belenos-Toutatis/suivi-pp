@@ -103,8 +103,12 @@ texte libre ne permettait ni de la compter ni de la retrouver.
 **Incidents et instances.** Sur la fiche, une section ⚖️ pour noter ce qui s'est passé et
 ce qui en a découlé : fiche incident, retenue, commission éducative, conseil de discipline…
 Chaque entrée porte une date, l'instance, un objet, la décision prise ou les points dits,
-et — si vous le voulez — **le PDF de la fiche scannée**. Le catalogue des instances est
-pré-rempli des instances officielles du collège ; dans 💾 Données et réglages, renommez-les,
+et — si vous le voulez — **le PDF de la fiche scannée**. Le catalogue est pré-rempli avec
+les noms réels du collège, rangés par famille : le rapport d'incident, les punitions
+scolaires (excuse, devoir supplémentaire, retenue, exclusion de cours), les six sanctions
+disciplinaires du Code de l'éducation, les mesures d'accompagnement (fiche de suivi,
+engagement écrit, tutorat), les instances (commission éducative, conseil de discipline,
+équipe éducative, ESS, GPDS) et l'information préoccupante ; dans 💾 Données et réglages, renommez-les,
 décrivez-les, décochez celles que votre établissement n'utilise pas, ajoutez les vôtres.
 ⚠️ Les PDF ne vont **pas** dans la sauvegarde (trop lourds pour la mémoire du navigateur) :
 ils sont copiés dans un **dossier que vous choisissez** — placez-le sous Nextcloud, il

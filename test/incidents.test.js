@@ -173,3 +173,32 @@ test('la démo porte des incidents de plusieurs instances, aux ids déterministe
   assert.ok(new Set(l.map(e => e.type)).size >= 4, 'plusieurs instances rencontrées');
   assert.ok(l.every(e => /^demo_i\d{2}$/.test(e.id) && e.pdf === null));
 });
+
+test('le catalogue porte les noms réels, rangés par famille, dans l\'ordre du texte', () => {
+  ev(`S = _emptyState(); postLoadHook();`);
+  const fam = evObj(`_instancesParFamille(_instancesAll()).map(g => [g.cat, g.items.map(i => i.id)])`);
+  assert.deepStrictEqual(fam.map(g => g[0]), ['signalement', 'punition', 'sanction', 'mesure', 'instance', 'protection', 'autre']);
+  // R511-13 : l'échelle des sanctions, exhaustive et dans l'ordre.
+  assert.deepStrictEqual(fam.find(g => g[0] === 'sanction')[1], ['avertissement', 'blame', 'responsabilisation', 'exclusion_classe', 'exclusion_temp', 'exclusion_def']);
+  // Circulaire 2014-059 : la liste indicative des punitions.
+  assert.deepStrictEqual(fam.find(g => g[0] === 'punition')[1], ['excuse', 'devoir_supp', 'retenue', 'exclusion_cours', 'punition']);
+  assert.strictEqual(evObj(`S.instances.fiche_incident.label`), 'Rapport d’incident');
+  assert.strictEqual(evObj(`S.instances.exclusion_temp.label`), 'Exclusion temporaire de l’établissement');
+  assert.ok(evObj(`_instancesAll().every(i => INSTANCES_FAMILLES[i.cat])`), 'chaque instance a une famille connue');
+});
+
+test('migration des libellés : l\'ancien défaut suit le nouveau, un libellé de l\'utilisateur est respecté', () => {
+  ev(`S = _emptyState(); S.instances = {
+    fiche_incident: { id:'fiche_incident', label:'Fiche incident', description:'Signalement écrit d’un incident (rapport à la vie scolaire ou au chef d’établissement).', actif:true, ord:0, builtin:true },
+    exclusion_temp: { id:'exclusion_temp', label:'Mise à pied', description:'À ma sauce', actif:false, ord:6, builtin:true },
+    punition:       { id:'punition', label:'Punition scolaire', description:'Ma description', actif:true, ord:1, builtin:true },
+    perso:          { id:'perso', label:'Tutorat maison', actif:true, ord:50 },
+  }; postLoadHook();`);
+  assert.deepStrictEqual(evObj(`[S.instances.fiche_incident.label, S.instances.fiche_incident.description.slice(0, 20)]`), ['Rapport d’incident', 'Signalement écrit d’']);
+  assert.deepStrictEqual(evObj(`[S.instances.exclusion_temp.label, S.instances.exclusion_temp.description, S.instances.exclusion_temp.actif]`), ['Mise à pied', 'À ma sauce', false]);
+  assert.deepStrictEqual(evObj(`[S.instances.punition.label, S.instances.punition.description]`), ['Autre punition', 'Ma description'], 'libellé migré, description de l\'utilisateur gardée');
+  // L'ordre des instances d'office suit le tableau, même pour un fichier ancien.
+  assert.ok(evObj(`S.instances.exclusion_temp.ord > S.instances.exclusion_classe.ord`));
+  assert.deepStrictEqual(evObj(`[S.instances.perso.cat, S.instances.perso.builtin]`), ['autre', false]);
+  assert.strictEqual(evObj(`_instancesParFamille(_instancesAll()).find(g => g.cat === 'autre').items.map(i => i.id).join()`), 'autre,perso');
+});
