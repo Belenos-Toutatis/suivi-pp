@@ -120,3 +120,15 @@ test('la grille se dessine VUE DU BUREAU : rang 1 en bas, place 1 à droite, le 
   assert.match(m[0], /class="salle-bureau"/, 'le bureau est dessiné');
   assert.ok(m[0].indexOf('salle-bureau') > m[0].indexOf('r >= 0; r--'), 'le bureau vient APRÈS les rangs, donc en bas');
 });
+
+test('seatSwap : échange deux occupants, déplace vers une case vide, refuse deux cases vides', () => {
+  ev(FIXTURE);
+  assert.strictEqual(ev(`seatSwap(S.classes['5C'], 'sa1', '0,0', '1,1')`), true);
+  assert.deepStrictEqual(evObj(`[S.classes['5C'].rooms.sa1.seating['0,0'], S.classes['5C'].rooms.sa1.seating['1,1']]`), ['s2', 's1']);
+  assert.strictEqual(ev(`seatSwap(S.classes['5C'], 'sa1', '0,0', '2,3')`), true, 'vers une case vide = déplacement');
+  assert.deepStrictEqual(evObj(`['0,0' in S.classes['5C'].rooms.sa1.seating, S.classes['5C'].rooms.sa1.seating['2,3']]`), [false, 's2']);
+  assert.strictEqual(ev(`seatSwap(S.classes['5C'], 'sa1', '0,0', '0,1')`), false, 'deux cases vides : rien à faire');
+  assert.strictEqual(ev(`seatSwap(S.classes['5C'], 'sa1', '1,1', '1,1')`), false);
+  assert.strictEqual(ev(`seatSwap(S.classes['5C'], 'sa1', '1,1', '9,9')`), false);
+  assert.strictEqual(ev(`seatSwap(S.classes['5D'], 'sa1', '0,0', '1,1')`), false, 'pas de placement dans cette salle');
+});
