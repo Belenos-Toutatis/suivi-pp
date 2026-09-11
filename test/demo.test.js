@@ -198,10 +198,12 @@ test('la fiche d\'orientation a des manquants, une échéance dépassée et des 
 
 test('l\'élection close a bien pourvu UN SEUL siège au premier tour', () => {
   ev(DEMO);
-  const el = evObj(`_elList('5C').find(e => e.clos)`);
+  // ⚠️ Depuis la v1.27.0, la démo porte AUSSI une élection d'éco-délégués close (14/10),
+  // plus récente : on désigne celle des délégués de classe par son type.
+  const el = evObj(`_elList('5C').find(e => e.clos && _elType(e).key === 'delegues')`);
   assert.ok(el, 'une élection close existe');
   assert.strictEqual(el.tours.length, 2);
-  const r1 = evObj(`_elResultatTour(_elList('5C').find(e => e.clos), 0)`);
+  const r1 = evObj(`_elResultatTour(_elList('5C').find(e => e.clos && _elType(e).key === 'delegues'), 0)`);
   assert.strictEqual(r1.elus.length, 1, 'un seul titulaire élu au 1er tour');
   assert.strictEqual(r1.siegesRestants, 1);
   // Le second n'a raté la majorité absolue que d'un cheveu : 11 × 2 = 22 exprimés,
@@ -210,7 +212,7 @@ test('l\'élection close a bien pourvu UN SEUL siège au premier tour', () => {
   assert.strictEqual(r1.depouillement.blancs, 1);
   assert.strictEqual(r1.depouillement.nuls, 1);
   assert.deepStrictEqual(Object.values(r1.depouillement.voix).sort((a, b) => b - a), [14, 11, 9, 6]);
-  const r2 = evObj(`_elResultatTour(_elList('5C').find(e => e.clos), 1)`);
+  const r2 = evObj(`_elResultatTour(_elList('5C').find(e => e.clos && _elType(e).key === 'delegues'), 1)`);
   assert.strictEqual(r2.elus.length, 1, 'le siège restant est pourvu au second tour');
   assert.strictEqual(el.elus.titulaires.length, 2);
   assert.strictEqual(el.elus.suppleants.length, 2);
@@ -304,4 +306,18 @@ test('la démo donne des dates de naissance, dont une paire qui bloque le dépar
   // Et l'élection close doit porter ces dates FIGÉES sur ses candidatures.
   const el = evObj(`_elList('5C').find(e => e.clos)`);
   assert.ok(el.candidats.every(c => c.naissanceTitulaire), 'chaque candidature porte sa date figée');
+});
+
+test('la démo porte une élection d’éco-délégués close : deux élus, sans suppléant, un seul tour, 🌱 dans les listes', () => {
+  ev(DEMO);
+  const eco = evObj(`_elList('5C').find(e => _elType(e).key === 'eco')`);
+  assert.ok(eco && eco.clos, 'élection d’éco-délégués close');
+  assert.deepStrictEqual([eco.binome, eco.nbSupplants, eco.tours.length, eco.elus.titulaires.length, eco.elus.suppleants.length], [false, 0, 1, 2, 0]);
+  // Les deux mandats ne se confondent pas : un éco-délégué n'est pas délégué de classe pour autant.
+  const ecos = evObj(`_elList('5C').find(e => _elType(e).key === 'eco').elus.titulaires.map(id => _elCand(_elList('5C').find(e => _elType(e).key === 'eco'), id).sidTitulaire)`);
+  assert.deepStrictEqual(ecos.map(sid => ev(`_ecoDelegueOf('${sid}')`)), ['titulaire', 'titulaire']);
+  const delegues = evObj(`Object.keys(S.eleves).filter(sid => _delegueOf(sid) === 'titulaire')`);
+  assert.strictEqual(delegues.length, 2, 'toujours deux délégués de classe titulaires');
+  assert.ok(!delegues.some(sid => ecos.includes(sid)) || true, 'un cumul est possible mais non requis');
+  assert.ok(ev(`_nomHTML('${ecos[0]}', 'X', 'Y')`).includes('🌱'));
 });

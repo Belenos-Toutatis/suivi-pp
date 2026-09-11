@@ -128,6 +128,7 @@ cls = {
   pdcImportAt,             // 'YYYY-MM-DD' — dernier import depuis Plan de classe (la fiche et Données préviennent)
   // Délégués DÉSIGNÉS sans vote dans l'app (2026-09-11) — élection sur papier, classe reprise :
   delegues: { date: 'YYYY-MM-DD', titulaires: [sid], suppleants: [sid], note },
+  ecoDelegues: { … même forme … },   // les éco-délégués désignés sans vote (v1.27.0)
 }
 
 salle = {
@@ -252,11 +253,12 @@ Ces variantes (uninominal ou plurinominal, binôme ou suppléants élus à part,
 ```js
 election = {
   id, classId,
+  type: 'delegues' | 'eco', // le MANDAT (v1.27.0) — absent = délégués de classe
   date,                    // 'YYYY-MM-DD'
   titre,                   // « Élection des délégués — 5C — 2025-26 »
   // modalités, figées à la création et rappelées sur le PV :
   nbTitulaires: 2,
-  nbSupplants: 2,
+  nbSupplants: 2,          // 0 est une valeur (éco-délégués) ; absent = autant que de titulaires (`_elNbSup`)
   binome: true,            // un candidat titulaire se présente avec son suppléant
   nomsParBulletin: 2,      // nombre max de noms qu'un bulletin peut porter
   majoriteAbsolueT1: true, // majorité absolue au 1er tour, relative au 2nd
@@ -397,6 +399,36 @@ Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisati
   - ⚠️ **`_delegueOf` arbitre par la DATE** : la désignation prime si elle est plus récente que la dernière élection close (ou s'il n'y en a pas), sinon l'élection fait foi — et l'écran le dit (« remplacée par l'élection du … »). C'est ce qui permet aussi de noter une démission après une élection tenue dans l'app : une désignation plus récente reprend la main. À date égale, la désignation gagne (`>=`) : c'est le geste le plus délibéré.
   - ⚠️ Contrairement aux élections (PV historique, exception de purge), **c'est un état courant** : `_purgeStudentRefs` retire l'élève parti, et une désignation vidée disparaît. Dans l'état maximal du test de balayage.
 - ⚠️ **Ne pas stocker `stu.delegue` en dur** : le dériver de `S.elections`, sinon une correction du dépouillement laisse un ancien délégué marqué. Si un cache est nécessaire, le recalculer dans `postLoadHook`.
+- **Éco-délégués** (v1.27.0, demande de l'utilisateur — la question 6 ci-dessous est
+  tranchée) : **la même mécanique, un autre mandat**. `election.type` (`_EL_TYPES` :
+  `delegues` 🗳 · `eco` 🌱 — libellé, titre par défaut, intitulé du PV, défauts), choisi
+  dans la modale de création (le mandat pose titre, binôme, suppléants, noms par bulletin
+  — sur une élection en cours de création seulement). Défauts éco : **deux élus, sans
+  suppléant ni binôme**, deux noms par bulletin, majorité absolue au 1er tour — circulaire
+  de 2019 sur l'EDD, un binôme paritaire est encouragé, rien n'est imposé ; le règlement
+  intérieur prime, ce ne sont que des défauts.
+  - ⚠️ **`nbSupplants` = 0 est une valeur.** `rest.slice(0, el.nbSupplants || el.nbTitulaires)`
+    aurait fait deux suppléants d'une élection qui n'en veut pas ; `_elNbSup(el)` distingue
+    0 (aucun) de absent (fichier antérieur : autant que de titulaires). Hors binôme, le
+    sélecteur *Suppléants* de la modale est libre (2 titulaires + 1 suppléant, c'est
+    possible) ; en binôme il suit les titulaires.
+  - ⚠️ **Deux mandats qui ne se confondent JAMAIS** : `_delegueOf(sid)` ne regarde que les
+    élections `delegues` et `cls.delegues` ; `_ecoDelegueOf(sid)` (= `_delegueOf(sid,
+    'eco')`) que les élections `eco` et `cls.ecoDelegues`. Même arbitrage par la date entre
+    désignation et élection close. Testé dans les deux sens (clore l'une ne fait rien à
+    l'autre). Un élève peut cumuler.
+  - **Affichage** : l'éco-délégué n'est pas surligné (le vert et le jaune sont pris) — il
+    porte **🌱 après le nom** (`.eco-bdg`, dans `_nomHTML`, donc dans les cinq grilles),
+    une ligne *Éco-délégué* sur la fiche, `(éco-délégué)` sur la liste imprimée et la
+    synthèse de période, `r.eco` dans `_syntheseRow`. PV : titre, modalités (« sans
+    suppléant », « candidatures individuelles »), tableau des élus à une colonne.
+  - **Désignation sans vote** : le même bloc, une seconde fois (`_deleguesDirectHTML(cls,
+    list, kind)`, ids `de-*`, `deleguesSet(cls, data, 'eco')`, `_delDirectOpen` par mandat,
+    cible PV `'de'`). `_purgeStudentRefs` purge `cls.ecoDelegues` comme `cls.delegues` ;
+    dans l'état maximal du test de balayage.
+  - Démo : une élection d'éco-délégués close (14/10), trois candidats, un tour, 18 bulletins
+    à deux noms. ⚠️ Elle est plus récente que celle des délégués : un `find(e => e.clos)`
+    tombe dessus — les tests désignent l'élection par son type.
 - Prévoir la **démission ou le départ d'un délégué** en cours d'année : le suppléant devient titulaire. Ce n'est pas une nouvelle élection — un champ `remplacements: [{ date, candId, motif }]` sur l'élection suffit, sans toucher au dépouillement.
 
 ## Bilans de période — préparer le conseil de classe, faire le point à mi-période
@@ -884,6 +916,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 37 | **Éco-délégués** : `election.type`, défauts par mandat, `nbSupplants` à 0, `_ecoDelegueOf`, 🌱 dans les grilles, PV, désignation sans vote, purge, démo ; 4 tests | ✅ **fait** (2026-09-11, v1.27.0) |
 | 36 | **Synthèse de période imprimable** (`_periodeSynthese`, `_periodePrintHTML`, modale `mperiode`) : conseil ou mi-période, blocs au choix, tableau paysage ou fiches portrait, tout borné à la période ; 2 tests | ✅ **fait** (2026-09-11, v1.26.0) |
 | 35 | **Bilans de période** (`stu.bilans`, `_bilanPeriode`) : colonne *Conseil* dans la liste (triable, imprimée), section 🎓 de la fiche, modale qui enchaîne les élèves (◀ ▶, Ctrl+Entrée) ; 6 tests | ✅ **fait** (2026-09-11, v1.25.0) |
 | 34 | **Incidents depuis la liste** : la case ⚖️ ouvre la saisie d'une entrée, la dernière s'ouvre en modification ; 1 test de plus | ✅ **fait** (2026-09-11, v1.24.0) |
@@ -1396,5 +1429,5 @@ Aucune ne bloque le démarrage — les étapes 1 à 3 se font sans réponse — 
 3. ~~**Journal des contacts.**~~ — **répondu le 2026-09-09 : oui.** `stu.journal = [{ id, date, ts, type, texte }]`, types `appel · rencontre · courriel · mot · autre`. ⚠️ **Il ne REMPLACE pas `stu.remarque`** : les observations qui ne sont pas des contacts (« peu d'apprentissage des leçons ») n'ont pas de date et n'en veulent pas. Les deux cohabitent dans la même modale. Le dernier contact remonte sur le bouton 📋 de la liste (« ai-je déjà appelé, et quand ? » est la question qu'on se pose en parcourant), dans la Synthèse et sur son impression.
 4. ~~**Date de naissance des élèves.**~~ — **répondu le 2026-09-09 : ajoutée** (`stu.naissance`, saisie à la main, reconnue à l'import CSV et repris de Plan de classe). Elle débloque le départage automatique par l'âge. ⚠️ **Donnée personnelle de plus** : à mentionner dans le texte RGPD, et le champ reste facultatif — l'app fonctionne sans, elle demande alors de trancher.
 5. **Modalités exactes de son établissement** : uninominal ou plurinominal, suppléants élus avec les titulaires ou séparément, départage. Les défauts viennent de sa propre présentation, mais le règlement intérieur de l'établissement prime — à vérifier une fois avant la première élection réelle.
-6. **Éco-délégués.** Beaucoup d'établissements en élisent aussi, souvent par le même PP et selon la même procédure. Un simple champ « type d'élection » suffirait ; ne rien construire avant de savoir si le besoin existe.
+6. ~~**Éco-délégués.**~~ — **répondu le 2026-09-11 : oui**, `election.type` (cf. *Après l'élection*). *Le texte d'origine :* Beaucoup d'établissements en élisent aussi, souvent par le même PP et selon la même procédure. Un simple champ « type d'élection » suffirait ; ne rien construire avant de savoir si le besoin existe.
 7. **Alerte d'échéance.** Un document a une `dateEcheance` : faut-il un signalement à l'ouverture (« 3 fiches d'orientation manquantes, échéance dans 2 jours ») ?

@@ -25,6 +25,7 @@ const MAXIMAL = `S = {
     '5C': { id: '5C', nom: '5C', annee: '2025-26', eleves: ['s1','s2'], ord: 0,
             // Délégués désignés SANS vote : un état courant indexé par sid, à purger.
             delegues: { date: '2025-10-01', titulaires: ['s1'], suppleants: ['s2'], note: '' },
+            ecoDelegues: { date: '2025-10-14', titulaires: ['s1', 's2'], suppleants: [], note: '' },
             salleCur: 'sa1',
             rooms: { sa1: { seating: { '0,0': 's1', '1,2': 's2' } },
                      sa2: { seating: { '2,1': 's1' } } } },

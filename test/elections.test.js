@@ -334,3 +334,51 @@ test('_purgeStudentRefs retire un délégué désigné, et la désignation vide 
   ev(`_purgeStudentRefs('s3');`);
   assert.strictEqual(ev(`S.classes['5C'].delegues`), undefined);
 });
+
+// ─────────────────────────────── Éco-délégués (v1.27.0)
+
+test('electionCreate type eco : deux élus, sans binôme ni suppléant, titre et PV à son nom ; un fichier ancien vaut délégués', () => {
+  ev(FIXTURE);
+  const eco = evObj(`electionCreate('5C', { type: 'eco', date: '2025-10-14' })`);
+  assert.deepStrictEqual([eco.type, eco.nbTitulaires, eco.nbSupplants, eco.binome, eco.nomsParBulletin, eco.titre], ['eco', 2, 0, false, 2, 'Élection des éco-délégués — 5C — 2025-26']);
+  assert.strictEqual(evObj(`_elType(EL).key`), 'delegues');
+  assert.strictEqual(evObj(`_elType({ type: 'zut' }).key`), 'delegues', 'type inconnu → délégués');
+  // nbSupplants absent (fichier antérieur) = autant que de titulaires ; 0 est une valeur.
+  assert.strictEqual(evObj(`_elNbSup({ nbTitulaires: 3 })`), 3);
+  assert.strictEqual(evObj(`_elNbSup({ nbTitulaires: 3, nbSupplants: 0 })`), 0);
+  // Hors binôme, 2 titulaires et 1 suppléant : c'est possible aussi.
+  const mixte = evObj(`electionCreate('5C', { type: 'delegues', binome: false, nbSupplants: 1 })`);
+  assert.deepStrictEqual([mixte.binome, mixte.nbSupplants], [false, 1]);
+  // En binôme, les suppléants suivent les titulaires quoi qu'on demande.
+  assert.strictEqual(evObj(`electionCreate('5C', { binome: true, nbTitulaires: 2, nbSupplants: 0 }).nbSupplants`), 2);
+});
+
+test('éco-délégués élus : un tour, deux élus, AUCUN suppléant ; _ecoDelegueOf les voit, _delegueOf non', () => {
+  ev(FIXTURE);
+  ev(`window.ECO = electionCreate('5C', { type: 'eco', date: '2025-10-14' });
+      ['e1','e2','e3'].forEach((id, i) => ECO.candidats.push({ id, sidTitulaire: 's' + (i+20), sidSuppleant: null, nomTitulaire: 'E' + i, nomSuppleant: '', color: '#16a085', ordre: i, retire: false }));
+      ECO.tours[0].candidats = ['e1','e2','e3'];
+      for (let i = 0; i < 10; i++) electionAddBulletin(ECO, 0, ['e1','e2']);
+      for (let i = 0; i < 4; i++) electionAddBulletin(ECO, 0, ['e3']);
+      electionCloreTour(ECO, 0);`);
+  assert.deepStrictEqual(evObj(`[ECO.clos, ECO.tours.length, ECO.elus.titulaires, ECO.elus.suppleants]`), [true, 1, ['e1', 'e2'], []]);
+  assert.deepStrictEqual(evObj(`['s20','s21','s22'].map(_ecoDelegueOf)`), ['titulaire', 'titulaire', null]);
+  assert.deepStrictEqual(evObj(`['s20','s21','s22'].map(sid => _delegueOf(sid))`), [null, null, null], 'un éco-délégué n’est pas délégué de classe');
+  // Et l'inverse : clore l'élection des délégués ne fait pas d'éco-délégués.
+  ev(`B(['c1','c2'],['c1','c2'],['c1','c2'],['c1','c2']); electionCloreTour(EL, 0);`);
+  assert.deepStrictEqual(evObj(`[_delegueOf('s1'), _ecoDelegueOf('s1')]`), ['titulaire', null]);
+  assert.ok(ev(`_nomHTML('s20', 'A', 'B')`).includes('🌱') && !ev(`_nomHTML('s20', 'A', 'B')`).includes('del-t'));
+  assert.ok(ev(`_nomHTML('s1', 'A', 'B')`).includes('del-t') && !ev(`_nomHTML('s1', 'A', 'B')`).includes('🌱'));
+});
+
+test('éco-délégués désignés sans vote : cls.ecoDelegues, même arbitrage par la date, purge', () => {
+  ev(FIXTURE);
+  assert.strictEqual(ev(`deleguesSet(S.classes['5C'], { date: '2025-10-01', titulaires: ['s5'], suppleants: ['s6'] }, 'eco')`), true);
+  assert.deepStrictEqual(evObj(`[S.classes['5C'].ecoDelegues.titulaires, 'delegues' in S.classes['5C']]`), [['s5'], false], 'la désignation éco ne touche pas celle des délégués');
+  assert.deepStrictEqual(evObj(`[_ecoDelegueOf('s5'), _ecoDelegueOf('s6'), _delegueOf('s5')]`), ['titulaire', 'suppleant', null]);
+  ev(`_purgeStudentRefs('s5');`);
+  assert.deepStrictEqual(evObj(`[S.classes['5C'].ecoDelegues.titulaires, S.classes['5C'].ecoDelegues.suppleants]`), [[], ['s6']]);
+  ev(`_purgeStudentRefs('s6');`);
+  assert.strictEqual(evObj(`'ecoDelegues' in S.classes['5C']`), false, 'vidée, la désignation disparaît');
+  assert.strictEqual(ev(`deleguesClear(S.classes['5C'], 'eco')`), false);
+});

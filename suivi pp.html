@@ -720,6 +720,7 @@ html[data-theme="dark"] #toast { background: var(--paper-deep); color: var(--ink
 .nom { border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .nom.del-t { background: var(--del-t-bg); color: var(--del-t-fg); padding: 1px 4px; }
 .nom.del-s { background: var(--del-s-bg); color: var(--del-s-fg); padding: 1px 4px; }
+.eco-bdg { font-size: .9em; cursor: help; }
 /* Aménagements en LECTURE dans la liste : seuls les actifs, en texte coloré. Les huit
    boutons cliquables d'origine faisaient de cette colonne la plus large du tableau, pour
    un réglage qui vient de l'import et se corrige par ✏️ (arbitré le 2026-09-11). */
@@ -1304,7 +1305,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <button class="nb on" onclick="showTab('eleves',this)"    title="Liste des élèves, import, aménagements, remarque libre">👥 Élèves</button>
   <button class="nb"    onclick="showTab('carnets',this)"   title="Suivre les observations portées au carnet : le total relevé à chaque date, et l'évolution depuis le relevé précédent">📓 Observations</button>
   <button class="nb"    onclick="showTab('documents',this)" title="Les papiers distribués aux familles : qui a rendu quoi, signé quoi, coché quoi — ramassage et vérification">📄 Retours</button>
-  <button class="nb"    onclick="showTab('delegues',this)"  title="Élection des délégués : candidatures, dépouillement projeté, procès-verbal">🗳 Délégués</button>
+  <button class="nb"    onclick="showTab('delegues',this)"  title="Élection des délégués de classe et des éco-délégués : candidatures, dépouillement projeté, procès-verbal">🗳 Délégués</button>
   <button class="nb"    onclick="showTab('donnees',this)"   title="Réglages, options, salles et placements, sauvegarde, export/import, vie privée">💾 Données et réglages</button>
 </nav>
 </div>
@@ -1867,6 +1868,11 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <div class="mb" style="max-width:600px;width:100%">
     <h2 id="mel-title">🗳 Nouvelle élection</h2>
     <div id="mel-locked" class="al al-i" style="display:none">Le dépouillement a commencé : les modalités qui changent l'arithmétique (sièges, binômes, noms par bulletin, majorité) sont figées.</div>
+    <div class="fg"><label for="mel-type">Mandat</label>
+      <select id="mel-type" onchange="_elTypeChange()" style="max-width:100%">
+        <option value="delegues">🗳 délégués de classe — deux titulaires et deux suppléants, en binôme</option>
+        <option value="eco">🌱 éco-délégués — deux par classe, sans suppléant</option>
+      </select></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div class="fg" style="flex:1;min-width:150px"><label for="mel-date">Date du scrutin</label><input type="date" id="mel-date" data-autofocus onchange="document.getElementById('mel-inscrits').value=_elInscrits(S.cur,this.value)"></div>
       <div class="fg" style="flex:1;min-width:150px"><label for="mel-inscrits">Inscrits <span style="font-weight:400;font-size:.85em">(effectif, corrigible)</span></label><input type="number" id="mel-inscrits" min="1" max="60"></div>
@@ -1876,11 +1882,12 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="st-hint">Modalités — celles de votre présentation par défaut ; le règlement intérieur prime.</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbt">Titulaires à élire</label><select id="mel-nbt"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+      <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbs">Suppléants</label><select id="mel-nbs" title="En binôme, autant que de titulaires ; sinon les mieux placés après les élus"><option value="0">aucun</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-npb">Noms max par bulletin</label><select id="mel-npb"><option value="1">1 (uninominal)</option><option value="2" selected>2 (plurinominal)</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:160px"><label for="mel-dep">Départage d'une égalité</label><select id="mel-dep"><option value="plusJeune">le plus jeune</option><option value="plusAge">le plus âgé</option><option value="manuel">à la main</option></select></div>
     </div>
     <div class="st-group">
-      <label style="color:var(--ink-deep)"><input type="checkbox" id="mel-binome" checked> Candidatures en binôme — le suppléant est élu avec son titulaire</label>
+      <label style="color:var(--ink-deep)"><input type="checkbox" id="mel-binome" checked onchange="_elBinomeChange()"> Candidatures en binôme — le suppléant est élu avec son titulaire</label>
       <label style="color:var(--ink-deep)"><input type="checkbox" id="mel-maj" checked> Majorité absolue au 1er tour (relative au 2nd)</label>
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -1975,8 +1982,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.26.0';
-const APP_BUILD_DATE = '2026-09-11T18:18:28Z';
+const APP_VERSION    = '1.27.0';
+const APP_BUILD_DATE = '2026-09-11T18:25:37Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2801,9 +2808,9 @@ function _purgeStudentRefs(sid) {
     }
     // Délégués désignés sans vote : contrairement aux élections (PV historique), c'est
     // un état courant, pas un document — l'élève parti n'est plus délégué.
-    if (_isPlainObj(c.delegues)) {
-      for (const k of ['titulaires', 'suppleants']) if (Array.isArray(c.delegues[k])) c.delegues[k] = c.delegues[k].filter(x => x !== sid);
-      if (!(c.delegues.titulaires || []).length && !(c.delegues.suppleants || []).length) delete c.delegues;
+    for (const key of ['delegues', 'ecoDelegues']) if (_isPlainObj(c[key])) {
+      for (const k of ['titulaires', 'suppleants']) if (Array.isArray(c[key][k])) c[key][k] = c[key][k].filter(x => x !== sid);
+      if (!(c[key].titulaires || []).length && !(c[key].suppleants || []).length) delete c[key];
     }
   }
   for (const byDate of Object.values(S.releves)) {
@@ -3554,7 +3561,10 @@ function _nomHTML(sid, nom, prenom) {
   const del = _delegueOf(sid);
   const cls = del === 'titulaire' ? ' del-t' : del === 'suppleant' ? ' del-s' : '';
   const tip = del ? ` title="${del === 'titulaire' ? 'Délégué titulaire' : 'Délégué suppléant'} — élection close la plus récente"` : '';
-  return `<span class="nom${cls}"${tip}><strong>${_escName(nom)}</strong> ${_escName(prenom)}</span>`;
+  // Éco-délégué : une feuille après le nom, pas un second surlignage (les deux mandats se cumulent).
+  const eco = _ecoDelegueOf(sid);
+  const feuille = eco ? ` <span class="eco-bdg" title="Éco-délégué ${eco === 'titulaire' ? 'titulaire' : 'suppléant'}">🌱</span>` : '';
+  return `<span class="nom${cls}"${tip}><strong>${_escName(nom)}</strong> ${_escName(prenom)}</span>${feuille}`;
 }
 // Aménagements d'un élève en lecture : les seuls actifs, chacun dans son encre (les
 // mêmes tokens que les cases de la modale ✏️, déjà mesurés). Vide → tiret discret.
@@ -4504,6 +4514,7 @@ function _ficheRender() {
   const opts = (stu.tags || []).map(id => tagById(id)).filter(Boolean);
   const amen = _amenLabel(stu);
   const del = _delegueOf(stu.id);
+  const eco = _ecoDelegueOf(stu.id);
   const places = _fichePlaces(cls, stu.id);
   // Chaque champ d'identité se corrige en place : date directement dans le champ (écrite
   // une fois le champ quitté), civilité qui cycle au clic, classe et place par sélecteur.
@@ -4538,6 +4549,7 @@ function _ficheRender() {
     [`Aménagements`, `<button class="fi-val" onclick="ficheEdit('amen')" title="Régler les aménagements">${amen ? _escName(amen) : vide('aucun')}</button>${edAmen}`],
     [`Présence`, `${_ficheePresence(stu)}<div class="fi-editor"><label class="tb-hint">arrivée ${dateInp('arrivalDate', stu.arrivalDate)}</label><label class="tb-hint">départ ${dateInp('departureDate', stu.departureDate)}</label></div>`],
     del ? [`Délégué`, `<span class="badge ok" title="Dérivé de l'élection close la plus récente — se change dans 🗳 Délégués">${del === 'titulaire' ? '🏅 titulaire' : '🎗 suppléant'}</span>`] : null,
+    eco ? [`Éco-délégué`, `<span class="badge ok" title="Dérivé de l'élection d'éco-délégués close la plus récente — se change dans 🗳 Délégués">${eco === 'titulaire' ? '🌱 titulaire' : '🌱 suppléant'}</span>`] : null,
     [`Place`, `<button class="fi-val" onclick="ficheEdit('place')" title="Changer de place">${places.length
       ? places.map(p => `${_escName(p.salleNom)} <span class="fi-vide">rang ${p.rang}, place ${p.colonne}</span>`).join('<br>')
       : vide('aucune place')}</button>${edPlace}`],
@@ -8509,21 +8521,40 @@ function _elInscrits(classId, ymd) {
   const cls = S.classes[classId];
   return cls ? cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, ymd)).length : 0;
 }
+// Deux élections que le PP organise (2026-09-11, demande de l'utilisateur pour les
+// éco-délégués) : la même mécanique, des défauts différents, et deux mandats qui ne se
+// confondent pas — `_delegueOf` ne regarde que les délégués de classe, `_ecoDelegueOf`
+// que les éco-délégués. Éco-délégués : deux par classe, sans suppléant ni binôme par
+// défaut (circulaire de 2019 sur l'éducation au développement durable — un binôme
+// paritaire est encouragé, rien n'est imposé) ; le règlement intérieur prime, comme
+// toujours : ce ne sont que des défauts.
+const _EL_TYPES = {
+  delegues: { key: 'delegues', icon: '🗳', label: 'délégués de classe', titre: 'Élection des délégués', pv: 'Procès-verbal d’élection des délégués de classe', elu: 'Délégué', defaults: { nbTitulaires: 2, nbSupplants: 2, binome: true, nomsParBulletin: 2 } },
+  eco:      { key: 'eco',      icon: '🌱', label: 'éco-délégués',       titre: 'Élection des éco-délégués', pv: 'Procès-verbal d’élection des éco-délégués', elu: 'Éco-délégué', defaults: { nbTitulaires: 2, nbSupplants: 0, binome: false, nomsParBulletin: 2 } },
+};
+function _elType(el) { return _EL_TYPES[el && el.type] || _EL_TYPES.delegues; }
+// Nombre de suppléants — 0 est une valeur (les éco-délégués n'en ont pas), un champ absent
+// (fichier antérieur à la v1.27.0) vaut « autant que de titulaires ».
+function _elNbSup(el) { return Number.isInteger(el.nbSupplants) ? Math.max(0, el.nbSupplants) : (el.nbTitulaires || 2); }
 // Crée une élection avec les modalités par défaut (celles de la présentation de
 // l'utilisateur), un premier tour ouvert. Sans pushUndo ni save.
 function electionCreate(classId, opts) {
   const cls = S.classes[classId];
   if (!cls) return null;
   opts = opts || {};
+  const ty = _EL_TYPES[opts.type] || _EL_TYPES.delegues;
   const date = _ymdValid(opts.date) ? opts.date : _todayYmd();
-  const nbT = Math.max(1, Math.min(4, +opts.nbTitulaires || 2));
+  const nbT = Math.max(1, Math.min(4, +opts.nbTitulaires || ty.defaults.nbTitulaires));
+  const binome = typeof opts.binome === 'boolean' ? opts.binome : ty.defaults.binome;
+  // En binôme, le suppléant est élu AVEC son titulaire : autant de suppléants que de titulaires.
+  const nbS = binome ? nbT : (Number.isInteger(+opts.nbSupplants) && opts.nbSupplants !== undefined && opts.nbSupplants !== null ? Math.max(0, Math.min(4, +opts.nbSupplants)) : ty.defaults.nbSupplants);
   const el = {
-    id: uid('el'), classId, date,
-    titre: String(opts.titre || '').trim() || `Élection des délégués — ${cls.nom} — ${cls.annee || ''}`.trim(),
+    id: uid('el'), classId, date, type: ty.key,
+    titre: String(opts.titre || '').trim() || `${ty.titre} — ${cls.nom} — ${cls.annee || ''}`.trim(),
     etablissement: String(opts.etablissement || _prefs().etablissement || '').trim(),
-    nbTitulaires: nbT, nbSupplants: nbT,
-    binome: opts.binome !== false,
-    nomsParBulletin: Math.max(1, Math.min(4, +opts.nomsParBulletin || nbT)),
+    nbTitulaires: nbT, nbSupplants: nbS,
+    binome,
+    nomsParBulletin: Math.max(1, Math.min(4, +opts.nomsParBulletin || Math.min(nbT, ty.defaults.nomsParBulletin))),
     majoriteAbsolueT1: opts.majoriteAbsolueT1 !== false,
     departage: ['plusJeune', 'plusAge', 'manuel'].includes(opts.departage) ? opts.departage : 'plusJeune',
     assesseurs: Array.isArray(opts.assesseurs) ? opts.assesseurs.filter(sid => S.eleves[sid]).slice(0, 2) : [],
@@ -8723,7 +8754,7 @@ function electionCloreTour(el, tourIdx) {
       const d = _elDepouillement(el, tourIdx);
       const rest = t.candidats.filter(id => !el.elus.titulaires.includes(id) && !_elCand(el, id)?.retire)
         .sort((a, b) => (d.voix[b] || 0) - (d.voix[a] || 0));
-      el.elus.suppleants = rest.slice(0, el.nbSupplants || el.nbTitulaires);
+      el.elus.suppleants = rest.slice(0, _elNbSup(el));
     }
     el.clos = true;
     if (r.siegesRestants > 0) warnings.push(`${r.siegesRestants} siège${r.siegesRestants > 1 ? 's' : ''} resté${r.siegesRestants > 1 ? 's' : ''} vacant${r.siegesRestants > 1 ? 's' : ''}${restants.length ? ' après le second tour' : ' faute de candidat'}.`);
@@ -8779,28 +8810,36 @@ function _elLive(el, tourIdx) {
 // année déjà entamée) : `cls.delegues = { date, titulaires: [sid], suppleants: [sid], note }`.
 // Sans pushUndo ni save : l'appelant s'en charge. Un élève ne figure qu'une fois, dans
 // une seule liste ; les ids inconnus de la classe sont écartés.
-function deleguesSet(cls, { date, titulaires, suppleants, note } = {}) {
+// `kind` = 'delegues' (défaut) ou 'eco' → `cls.delegues` / `cls.ecoDelegues`, même forme.
+function _delKey(kind) { return kind === 'eco' ? 'ecoDelegues' : 'delegues'; }
+function deleguesSet(cls, { date, titulaires, suppleants, note } = {}, kind) {
+  const key = _delKey(kind);
   if (!cls || !_ymdValid(date)) return false;
   const roster = new Set(cls.eleves || []);
   const vus = new Set();
   const nettoie = l => (Array.isArray(l) ? l : []).filter(sid => roster.has(sid) && !vus.has(sid) && (vus.add(sid), true));
   const t = nettoie(titulaires), sup = nettoie(suppleants);
   if (!t.length && !sup.length) return false;
-  const pv = _isPlainObj(cls.delegues) ? _pjRef(cls.delegues.pv) : null;   // le PV joint survit à une correction des noms
-  cls.delegues = { date, titulaires: t, suppleants: sup, note: String(note || '').trim(), pv };
+  const pv = _isPlainObj(cls[key]) ? _pjRef(cls[key].pv) : null;   // le PV joint survit à une correction des noms
+  cls[key] = { date, titulaires: t, suppleants: sup, note: String(note || '').trim(), pv };
   return true;
 }
-function deleguesClear(cls) { if (!cls || !cls.delegues) return false; delete cls.delegues; return true; }
+function deleguesClear(cls, kind) { const key = _delKey(kind); if (!cls || !cls[key]) return false; delete cls[key]; return true; }
 
-function _delegueOf(sid) {
+// ⚠️ Un mandat à la fois : `_delegueOf(sid)` ne voit que les élections de délégués de
+// classe et `cls.delegues` ; `_ecoDelegueOf(sid)` que les élections d'éco-délégués et
+// `cls.ecoDelegues`. Un éco-délégué n'est pas surligné en vert : il porte 🌱.
+function _ecoDelegueOf(sid) { return _delegueOf(sid, 'eco'); }
+function _delegueOf(sid, kind) {
   const stu = S.eleves[sid];
   if (!stu) return null;
   const cls = S.classes[stu.classe_id];
-  const last = _elList(stu.classe_id).find(e => e.clos);
+  const ty = kind === 'eco' ? 'eco' : 'delegues';
+  const last = _elList(stu.classe_id).find(e => e.clos && _elType(e).key === ty);
   // ⚠️ La désignation directe PRIME si elle est plus récente que la dernière élection
   // close (ou s'il n'y en a pas) : c'est la plus récente des deux qui dit la vérité de
   // l'année. Plus ancienne, elle s'efface derrière l'élection tenue dans l'app.
-  const man = cls && _isPlainObj(cls.delegues) ? cls.delegues : null;
+  const man = cls && _isPlainObj(cls[_delKey(ty)]) ? cls[_delKey(ty)] : null;
   if (man && (!last || String(man.date || '') >= String(last.date || ''))) {
     if ((man.titulaires || []).includes(sid)) return 'titulaire';
     if ((man.suppleants || []).includes(sid)) return 'suppleant';
@@ -8841,15 +8880,15 @@ function renderDelegues() {
   if (el) return _elRenderOne(box, el, cls);
   const list = _elList(cls.id);
   const tb = `<div class="tb"><button class="btn btn-p btn-sm" onclick="openElectionNew()">+ Nouvelle élection</button>
-    <span class="tb-hint">Une élection par an, historisée : on garde celle de l'an dernier.</span></div>`;
-  const direct = _deleguesDirectHTML(cls, list);
+    <span class="tb-hint">Délégués de classe ou éco-délégués — une élection par an et par mandat, historisée : on garde celle de l'an dernier.</span></div>`;
+  const direct = _deleguesDirectHTML(cls, list, 'delegues') + _deleguesDirectHTML(cls, list, 'eco');
   if (!list.length) {
     box.innerHTML = tb + _emptyStateHTML('🗳', 'Aucune élection', 'Cliquez sur <strong>+ Nouvelle élection</strong> : les modalités (binômes, noms par bulletin, majorité, départage) se règlent à la création et sont rappelées sur le procès-verbal.<br>À tenir <strong>avant la fin de la septième semaine</strong> de l\'année scolaire.') + direct;
     return;
   }
   box.innerHTML = tb + `<div class="rel-wrap"><table class="dt"><thead><tr><th>Élection</th><th>Date</th><th>Candidats</th><th>Tours</th><th>État</th><th>Élus</th><th style="cursor:default"></th></tr></thead><tbody>${list.map(e => {
     const elus = (e.elus?.titulaires || []).map(id => _elCandNom(_elCand(e, id))).join(', ');
-    return `<tr><td><a href="#" onclick="_elOpen('${_escJsAttr(e.id)}');return false" style="font-weight:600;text-decoration:none">${_escName(e.titre)}</a></td>
+    return `<tr><td>${_elType(e).icon} <a href="#" onclick="_elOpen('${_escJsAttr(e.id)}');return false" style="font-weight:600;text-decoration:none" title="${_escAttr(_elType(e).label)}">${_escName(e.titre)}</a></td>
       <td style="font-family:var(--font-mono);font-size:.85em">${_escName(_fmtDateFr(e.date))}</td><td>${(e.candidats || []).length}</td><td>${e.tours.length}</td>
       <td>${e.clos ? '<span class="badge ok">close</span>' : '<span class="badge warn">en cours</span>'}</td><td>${_escName(elus) || '<span class="tb-hint">—</span>'}</td>
       <td style="white-space:nowrap"><button class="btn btn-g btn-sm" onclick="_elOpen('${_escJsAttr(e.id)}')">Ouvrir</button> <button class="btn btn-d btn-sm" onclick="electionDeleteUI('${_escJsAttr(e.id)}')" title="Supprimer l'élection">🗑</button></td></tr>`;
@@ -8875,6 +8914,7 @@ function _pvBlocHTML(cible, id, pv) {
 function _pvCible(cible, id) {
   if (cible === 'el') { const cls = getCls(); return cls ? S.elections[cls.id]?.[id] || null : null; }
   if (cible === 'dd') { const cls = S.classes[id]; return cls && _isPlainObj(cls.delegues) ? cls.delegues : null; }
+  if (cible === 'de') { const cls = S.classes[id]; return cls && _isPlainObj(cls.ecoDelegues) ? cls.ecoDelegues : null; }
   return null;
 }
 async function pvAttachUI(cible, id, input) {
@@ -8885,7 +8925,7 @@ async function pvAttachUI(cible, id, input) {
   if (!pjDirHandle) return toast('⚠️ Choisis d\'abord le dossier où ranger les PDF (💾 Données et réglages).', 'warn');
   if (!(await _pjReady('readwrite'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
   const cls = getCls();
-  const auto = cible === 'el' ? _pjAutoNom('pv', { date: obj.date, classe: cls?.nom }) : _pjAutoNom('pvdd', { date: obj.date, classe: cls?.nom });
+  const auto = cible === 'el' ? _pjAutoNom('pv', { date: obj.date, classe: cls?.nom, eco: _elType(obj).key === 'eco' }) : _pjAutoNom('pvdd', { date: obj.date, classe: cls?.nom, eco: cible === 'de' });
   const nom = await pjChooseName(file.name, auto);
   if (nom === null) { input.value = ''; return; }
   let ref;
@@ -8912,50 +8952,56 @@ function pvOpenUI(cible, id) { const obj = _pvCible(cible, id); if (obj && obj.p
 // doit quand même pouvoir dire à l'app qui sont ses délégués — la Synthèse, la fiche et
 // la liste en dépendent. Deux titulaires, deux suppléants (le nombre réglementaire), une
 // date, un mot ; c'est `_delegueOf` qui arbitre avec une élection close éventuelle.
-let _delDirectOpen = false;
-function _deleguesDirectHTML(cls, list) {
-  const d = _isPlainObj(cls.delegues) ? cls.delegues : null;
-  const last = list.find(e => e.clos);
+const _delDirectOpen = { delegues: false, eco: false };
+function _deleguesDirectHTML(cls, list, kind) {
+  const ty = _EL_TYPES[kind] || _EL_TYPES.delegues;
+  const key = _delKey(ty.key), px = ty.key === 'eco' ? 'de' : 'dd';
+  const d = _isPlainObj(cls[key]) ? cls[key] : null;
+  const last = list.find(e => e.clos && _elType(e).key === ty.key);
   const eleves = (cls.eleves || []).map(id => S.eleves[id]).filter(Boolean).sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr', { sensitivity: 'base' }));
   const nom = sid => { const e = S.eleves[sid]; return e ? `${e.prenom} ${e.nom}` : sid; };
   const prime = d && (!last || String(d.date || '') >= String(last.date || ''));
   const etat = d
     ? `<div style="margin-bottom:6px">Titulaires : <strong>${_escName((d.titulaires || []).map(nom).join(', ') || '—')}</strong> · Suppléants : <strong>${_escName((d.suppleants || []).map(nom).join(', ') || '—')}</strong>
         <span class="tb-hint">désignés le ${_escName(_fmtDateFr(d.date))}${d.note ? ` — ${_escName(d.note)}` : ''}</span>${
-        !prime ? ` <span class="badge warn" title="L'élection close du ${_escAttr(_fmtDateFr(last.date))} est plus récente : c'est elle qui fait foi">remplacée par l'élection du ${_escName(_fmtDateFr(last.date))}</span>` : ''}${_pvBlocHTML('dd', cls.id, _pjRef(d.pv))}</div>`
+        !prime ? ` <span class="badge warn" title="L'élection close du ${_escAttr(_fmtDateFr(last.date))} est plus récente : c'est elle qui fait foi">remplacée par l'élection du ${_escName(_fmtDateFr(last.date))}</span>` : ''}${_pvBlocHTML(px, cls.id, _pjRef(d.pv))}</div>`
     : '';
   const sel = (id, cur) => `<select id="${id}" style="min-width:160px"><option value="">—</option>${eleves.map(e => `<option value="${_escAttr(e.id)}"${cur === e.id ? ' selected' : ''}>${_escName(e.nom)} ${_escName(e.prenom)}</option>`).join('')}</select>`;
-  const form = !_delDirectOpen ? '' : `<div class="fi-form" style="margin-top:6px">
-      <label>Date <input type="date" id="dd-date" value="${_escAttr(d ? d.date : _todayYmd())}" style="min-width:140px"></label>
-      <label>Titulaire 1 ${sel('dd-t1', d?.titulaires?.[0])}</label><label>Titulaire 2 ${sel('dd-t2', d?.titulaires?.[1])}</label>
-      <label>Suppléant 1 ${sel('dd-s1', d?.suppleants?.[0])}</label><label>Suppléant 2 ${sel('dd-s2', d?.suppleants?.[1])}</label>
-      <label style="flex:1;min-width:180px">Mot <input type="text" id="dd-note" value="${_escAttr(d ? d.note || '' : '')}" placeholder="élus sur papier le …, PV au secrétariat" maxlength="160"></label>
-      <button class="btn btn-p btn-sm" onclick="deleguesSetUI()">✓ Enregistrer</button> <button class="btn btn-g btn-sm" onclick="_delDirectOpen=false;renderDelegues()">Annuler</button></div>`;
-  return `<div class="fi-sec" style="margin-top:22px"><h3>✍️ Délégués désignés sans vote dans l'app</h3>
-    <div class="tb-hint" style="margin-bottom:6px">Élection tenue sur papier, ou classe reprise en cours d'année : indique ici qui sont les délégués — la Synthèse, la fiche et la liste des élèves les afficheront. Si une élection close dans l'app est plus récente, c'est elle qui fait foi.</div>
-    ${etat}${form}${_delDirectOpen ? '' : `<button class="btn btn-s btn-sm" onclick="_delDirectOpen=true;renderDelegues()">${d ? '✏️ Modifier' : '+ Désigner les délégués'}</button>${
-      d ? ` <button class="btn btn-d btn-sm" onclick="deleguesClearUI()" title="Retirer la désignation (Ctrl+Z pour la rétablir)">🗑</button>` : ''}`}</div>`;
+  const ouvert = !!_delDirectOpen[ty.key];
+  const form = !ouvert ? '' : `<div class="fi-form" style="margin-top:6px">
+      <label>Date <input type="date" id="${px}-date" value="${_escAttr(d ? d.date : _todayYmd())}" style="min-width:140px"></label>
+      <label>Titulaire 1 ${sel(px + '-t1', d?.titulaires?.[0])}</label><label>Titulaire 2 ${sel(px + '-t2', d?.titulaires?.[1])}</label>
+      <label>Suppléant 1 ${sel(px + '-s1', d?.suppleants?.[0])}</label><label>Suppléant 2 ${sel(px + '-s2', d?.suppleants?.[1])}</label>
+      <label style="flex:1;min-width:180px">Mot <input type="text" id="${px}-note" value="${_escAttr(d ? d.note || '' : '')}" placeholder="élus sur papier le …, PV au secrétariat" maxlength="160"></label>
+      <button class="btn btn-p btn-sm" onclick="deleguesSetUI('${ty.key}')">✓ Enregistrer</button> <button class="btn btn-g btn-sm" onclick="_delDirectOpen.${ty.key}=false;renderDelegues()">Annuler</button></div>`;
+  const quoi = ty.key === 'eco' ? 'éco-délégués' : 'délégués';
+  return `<div class="fi-sec" style="margin-top:22px"><h3>✍️ ${ty.icon} ${ty.key === 'eco' ? 'Éco-délégués' : 'Délégués'} désignés sans vote dans l'app</h3>
+    <div class="tb-hint" style="margin-bottom:6px">Élection tenue sur papier, ou classe reprise en cours d'année : indique ici qui sont les ${quoi} — la fiche et la liste des élèves les afficheront. Si une élection close dans l'app est plus récente, c'est elle qui fait foi.</div>
+    ${etat}${form}${ouvert ? '' : `<button class="btn btn-s btn-sm" onclick="_delDirectOpen.${ty.key}=true;renderDelegues()">${d ? '✏️ Modifier' : `+ Désigner les ${quoi}`}</button>${
+      d ? ` <button class="btn btn-d btn-sm" onclick="deleguesClearUI('${ty.key}')" title="Retirer la désignation (Ctrl+Z pour la rétablir)">🗑</button>` : ''}`}</div>`;
 }
-function deleguesSetUI() {
+function deleguesSetUI(kind) {
   const cls = getCls();
   if (!cls) return;
-  const champD = document.getElementById('dd-date');
+  const ty = _EL_TYPES[kind] || _EL_TYPES.delegues, px = ty.key === 'eco' ? 'de' : 'dd';
+  const champD = document.getElementById(px + '-date');
   const date = champD.value ? _ymdCompleteAnnee(champD.value) : '';
   if (!_ymdValid(date)) return toast('⚠️ Date illisible.', 'warn');
-  const v = id => document.getElementById(id)?.value || '';
-  const titulaires = [v('dd-t1'), v('dd-t2')].filter(Boolean), suppleants = [v('dd-s1'), v('dd-s2')].filter(Boolean);
+  const v = id => document.getElementById(px + '-' + id)?.value || '';
+  const titulaires = [v('t1'), v('t2')].filter(Boolean), suppleants = [v('s1'), v('s2')].filter(Boolean);
   if (new Set([...titulaires, ...suppleants]).size !== titulaires.length + suppleants.length) return toast('⚠️ Un même élève ne peut pas tenir deux rôles.', 'warn');
   pushUndo();
-  if (!deleguesSet(cls, { date, titulaires, suppleants, note: v('dd-note') })) { undoLast(); return toast('⚠️ Désigne au moins un élève.', 'warn'); }
+  if (!deleguesSet(cls, { date, titulaires, suppleants, note: v('note') }, ty.key)) { undoLast(); return toast('⚠️ Désigne au moins un élève.', 'warn'); }
   save();
-  _delDirectOpen = false;
+  _delDirectOpen[ty.key] = false;
   renderDelegues(); renderStudents();
-  toast('✓ Délégués désignés.');
+  toast(ty.key === 'eco' ? '✓ Éco-délégués désignés.' : '✓ Délégués désignés.');
 }
-function deleguesClearUI() {
+function deleguesClearUI(kind) {
   const cls = getCls();
-  if (!cls || !cls.delegues) return;
-  pushUndo(); deleguesClear(cls); save(); renderDelegues(); renderStudents();
+  const key = _delKey(kind);
+  if (!cls || !cls[key]) return;
+  pushUndo(); deleguesClear(cls, kind); save(); renderDelegues(); renderStudents();
 }
 
 function _elRenderOne(box, el, cls) {
@@ -9160,7 +9206,7 @@ function _elRenderResultats(el) {
       </tbody></table></div>`;
   }).join('');
   const elus = (el.elus?.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
-  const summary = el.clos ? `<div class="al al-i"><strong>🏅 Délégués élus :</strong> ${elus.map(c => `${_escName(_elCandNom(c))}${el.binome !== false && _elCandNomSup(c) ? ` (suppléant : ${_escName(_elCandNomSup(c))})` : ''}`).join(' · ') || 'aucun'}${el.binome === false ? `<br><strong>Suppléants :</strong> ${(el.elus.suppleants || []).map(id => _escName(_elCandNom(_elCand(el, id)))).join(' · ') || 'aucun'}` : ''}</div>` : '';
+  const summary = el.clos ? `<div class="al al-i"><strong>${_elType(el).key === 'eco' ? '🌱 Éco-délégués élus' : '🏅 Délégués élus'} :</strong> ${elus.map(c => `${_escName(_elCandNom(c))}${el.binome !== false && _elCandNomSup(c) ? ` (suppléant : ${_escName(_elCandNomSup(c))})` : ''}`).join(' · ') || 'aucun'}${el.binome === false && _elNbSup(el) ? `<br><strong>Suppléants :</strong> ${(el.elus.suppleants || []).map(id => _escName(_elCandNom(_elCand(el, id)))).join(' · ') || 'aucun'}` : ''}</div>` : '';
   return `<div class="el-block">${summary}${el.clos ? _pvBlocHTML('el', el.id, _pjRef(el.pv)) : ''}${tables}</div>`;
 }
 function electionDeleteUI(id) {
@@ -9175,15 +9221,38 @@ function electionDeleteUI(id) {
 let _elSettingsId = null;
 function openElectionNew() { _elSettingsId = null; _elFillSettings(null); openMod('mel'); }
 function openElectionSettings() { const el = _elCurrent(); if (!el) return; _elSettingsId = el.id; _elFillSettings(el); openMod('mel'); }
+// Le mandat change les DÉFAUTS (titre, binôme, suppléants) — d'une élection en cours de
+// création seulement : sur une élection existante, on ne touche qu'au type et au titre.
+function _elTypeChange() {
+  const g = id => document.getElementById(id);
+  const ty = _EL_TYPES[g('mel-type').value] || _EL_TYPES.delegues;
+  const cls = getCls();
+  const autre = _EL_TYPES[ty.key === 'eco' ? 'delegues' : 'eco'];
+  const titre = g('mel-titre').value.trim();
+  if (!titre || titre.startsWith(autre.titre) || titre.startsWith(ty.titre)) g('mel-titre').value = `${ty.titre} — ${cls.nom} — ${cls.annee || ''}`.trim();
+  if (g('mel-nbt').disabled) return;
+  g('mel-nbt').value = ty.defaults.nbTitulaires; g('mel-binome').checked = ty.defaults.binome; g('mel-nbs').value = ty.defaults.nbSupplants; g('mel-npb').value = ty.defaults.nomsParBulletin;
+  _elBinomeChange();
+}
+// En binôme, le nombre de suppléants suit celui des titulaires.
+function _elBinomeChange() {
+  const g = id => document.getElementById(id);
+  const b = g('mel-binome').checked;
+  if (b) g('mel-nbs').value = g('mel-nbt').value;
+  g('mel-nbs').disabled = b || g('mel-nbt').disabled;
+}
 function _elFillSettings(el) {
   const cls = getCls();
   const g = id => document.getElementById(id);
+  const ty = _elType(el);
   g('mel-title').textContent = el ? '⚙ Modalités de l\'élection' : '🗳 Nouvelle élection';
+  g('mel-type').value = ty.key;
   g('mel-date').value = el?.date || _todayYmd();
-  g('mel-titre').value = el?.titre || `Élection des délégués — ${cls.nom} — ${cls.annee || ''}`.trim();
+  g('mel-titre').value = el?.titre || `${ty.titre} — ${cls.nom} — ${cls.annee || ''}`.trim();
   g('mel-etab').value = el?.etablissement || _prefs().etablissement || '';
-  g('mel-nbt').value = el?.nbTitulaires || 2;
-  g('mel-binome').checked = el ? el.binome !== false : true;
+  g('mel-nbt').value = el?.nbTitulaires || ty.defaults.nbTitulaires;
+  g('mel-binome').checked = el ? el.binome !== false : ty.defaults.binome;
+  g('mel-nbs').value = el ? _elNbSup(el) : ty.defaults.nbSupplants;
   g('mel-npb').value = el?.nomsParBulletin || 2;
   g('mel-maj').checked = el ? el.majoriteAbsolueT1 !== false : true;
   g('mel-dep').value = el?.departage || 'plusJeune';
@@ -9196,14 +9265,15 @@ function _elFillSettings(el) {
     g(k).innerHTML = '<option value="">— assesseur —</option>' + students.map(s => `<option value="${_escAttr(s.id)}"${s.id === cur ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('');
   }
   const locked = !!(el && (el.tours.some(t => t.bulletins.length) || el.clos));
-  ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj'].forEach(k => { g(k).disabled = locked; });
+  ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj', 'mel-nbs'].forEach(k => { g(k).disabled = locked; });
   g('mel-locked').style.display = locked ? '' : 'none';
+  _elBinomeChange();
 }
 function electionSettingsOk() {
   const g = id => document.getElementById(id);
   const date = g('mel-date').value;
   if (!_ymdValid(date)) return toast('⚠️ Date invalide.', 'warn');
-  const opts = { date, titre: g('mel-titre').value, etablissement: g('mel-etab').value, nbTitulaires: +g('mel-nbt').value, binome: g('mel-binome').checked,
+  const opts = { date, type: g('mel-type').value, titre: g('mel-titre').value, etablissement: g('mel-etab').value, nbTitulaires: +g('mel-nbt').value, binome: g('mel-binome').checked, nbSupplants: +g('mel-nbs').value,
                  nomsParBulletin: +g('mel-npb').value, majoriteAbsolueT1: g('mel-maj').checked, departage: g('mel-dep').value,
                  inscrits: parseInt(g('mel-inscrits').value, 10), assesseurs: [g('mel-a1').value, g('mel-a2').value].filter(Boolean) };
   if (opts.assesseurs.length === 2 && opts.assesseurs[0] === opts.assesseurs[1]) return toast('⚠️ Deux assesseurs différents.', 'warn');
@@ -9215,10 +9285,10 @@ function electionSettingsOk() {
     _elView = el.id;
   } else {
     const el = _elCurrent();
-    Object.assign(el, { date, titre: opts.titre.trim() || el.titre, etablissement: opts.etablissement, departage: opts.departage, inscrits: Number.isInteger(opts.inscrits) ? opts.inscrits : el.inscrits,
+    Object.assign(el, { date, type: (_EL_TYPES[opts.type] || _EL_TYPES.delegues).key, titre: opts.titre.trim() || el.titre, etablissement: opts.etablissement, departage: opts.departage, inscrits: Number.isInteger(opts.inscrits) ? opts.inscrits : el.inscrits,
                         assesseurs: opts.assesseurs, assesseursNoms: opts.assesseurs.map(sid => `${S.eleves[sid].prenom} ${S.eleves[sid].nom}`) });
     el.affichage = { ...el.affichage, ordre: g('mel-ordre').value, pourcentages: g('mel-pct').checked };
-    if (!g('mel-nbt').disabled) { el.nbTitulaires = el.nbSupplants = Math.max(1, Math.min(4, opts.nbTitulaires)); el.binome = opts.binome; el.nomsParBulletin = Math.max(1, Math.min(4, opts.nomsParBulletin)); el.majoriteAbsolueT1 = opts.majoriteAbsolueT1; el.tours[0].siegesAPourvoir = el.nbTitulaires; }
+    if (!g('mel-nbt').disabled) { el.nbTitulaires = Math.max(1, Math.min(4, opts.nbTitulaires)); el.binome = opts.binome; el.nbSupplants = opts.binome ? el.nbTitulaires : Math.max(0, Math.min(4, opts.nbSupplants || 0)); el.nomsParBulletin = Math.max(1, Math.min(4, opts.nomsParBulletin)); el.majoriteAbsolueT1 = opts.majoriteAbsolueT1; el.tours[0].siegesAPourvoir = el.nbTitulaires; }
   }
   save(); closeMod2('mel'); renderDelegues();
 }
@@ -9244,13 +9314,13 @@ function electionPrintPV() {
   const ass = el.assesseursNoms?.length ? el.assesseursNoms : (el.assesseurs || []).map(sid => S.eleves[sid] ? `${S.eleves[sid].prenom} ${S.eleves[sid].nom}` : '?');
   const pa = document.getElementById('pa');
   pa.innerHTML = `<div class="pv">
-    <h1>Procès-verbal d'élection des délégués de classe</h1>
+    <h1>${_escName(_elType(el).pv)}</h1>
     <p class="pv-sub">${_escName(el.etablissement || '')}${el.etablissement ? ' — ' : ''}Classe de <strong>${_escName(cls?.nom || el.classId)}</strong> — année ${_escName(cls?.annee || '')} — scrutin du <strong>${_escName(_fmtDateFr(el.date))}</strong></p>
-    <p class="pv-mod"><strong>Modalités :</strong> ${el.nbTitulaires} titulaire${el.nbTitulaires > 1 ? 's' : ''} et ${el.nbSupplants} suppléant${el.nbSupplants > 1 ? 's' : ''} · ${el.binome !== false ? 'candidatures en binôme (le suppléant est élu avec son titulaire)' : 'suppléants élus séparément'} · au plus ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin, bulletin vierge = blanc, trop de noms ou inscription inappropriée = nul · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue des suffrages exprimés au premier tour, relative au second' : 'majorité relative'} · départage ${el.departage === 'plusAge' ? 'par le candidat le plus âgé' : el.departage === 'manuel' ? 'à la main' : 'par le candidat le plus jeune'}. Tous les élèves de la division sont électeurs et éligibles.</p>
+    <p class="pv-mod"><strong>Modalités :</strong> ${el.nbTitulaires} titulaire${el.nbTitulaires > 1 ? 's' : ''}${_elNbSup(el) ? ` et ${_elNbSup(el)} suppléant${_elNbSup(el) > 1 ? 's' : ''}` : ', sans suppléant'} · ${el.binome !== false ? 'candidatures en binôme (le suppléant est élu avec son titulaire)' : (_elNbSup(el) ? 'suppléants élus séparément' : 'candidatures individuelles')} · au plus ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin, bulletin vierge = blanc, trop de noms ou inscription inappropriée = nul · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue des suffrages exprimés au premier tour, relative au second' : 'majorité relative'} · départage ${el.departage === 'plusAge' ? 'par le candidat le plus âgé' : el.departage === 'manuel' ? 'à la main' : 'par le candidat le plus jeune'}. Tous les élèves de la division sont électeurs et éligibles.</p>
     <h3>Candidats</h3><p>${el.candidats.map(c => `${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}${c.retire ? ' (retiré)' : ''}`).join(' · ')}</p>
     ${tours}
     <h3>Sont élus</h3>
-    <table class="pv-t"><tr><th>Délégués titulaires</th><th>Délégués suppléants</th></tr>${elus.map((c, i) => `<tr><td>${_escName(_elCandNom(c))}</td><td>${_escName(sups[i] || '')}</td></tr>`).join('') || '<tr><td colspan="2">Aucun élu</td></tr>'}</table>
+    <table class="pv-t"><tr><th>${_escName(_elType(el).elu)}s${_elNbSup(el) ? ' titulaires' : ''}</th>${_elNbSup(el) ? `<th>${_escName(_elType(el).elu)}s suppléants</th>` : ''}</tr>${elus.map((c, i) => `<tr><td>${_escName(_elCandNom(c))}</td>${_elNbSup(el) ? `<td>${_escName(sups[i] || '')}</td>` : ''}</tr>`).join('') || '<tr><td colspan="2">Aucun élu</td></tr>'}</table>
     ${el.note ? `<p><strong>Observations :</strong> ${_escName(el.note)}</p>` : ''}
     <div class="pv-sign">
       <div><div class="pv-sign-t">Assesseur</div><div class="pv-sign-n">${_escName(ass[0] || '')}</div><div class="pv-sign-l"></div></div>
@@ -9297,7 +9367,7 @@ function _syntheseRow(cls, stu) {
   return {
     sid: stu.id, nom: stu.nom, prenom: stu.prenom, civilite: stu.civilite || null, groupe: stu.groupe || null,
     options: _studentTags(stu).map(t => t.abbr), amenagements: _amenLabel(stu, false),
-    delegue: _delegueOf(stu.id), actif: _isStudentActive(stu),
+    delegue: _delegueOf(stu.id), eco: _ecoDelegueOf(stu.id), actif: _isStudentActive(stu),
     cumul: last ? last.n : null, cumulDate: last ? last.ymd : null,
     delta: delta ? delta.delta : null, deltaDecroissant: !!delta?.decreasing,
     periodeLabel: periode ? periode.label : '', periodeTotal: _relPeriodTotal(cid, stu.id, pIdx),
@@ -9366,7 +9436,7 @@ function printEleves() {
   const html = `<h1>${_escName(cls.nom)} — ${_escName(cls.annee || '')}</h1>
     <p class="print-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}</p>
     <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Incidents</th><th>Remarque · contacts</th><th>Conseil ${_escName(per)}</th></tr></thead>
-    <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}</td>
+    <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}</td>
       <td>${r.groupe ? 'G' + r.groupe + ' ' : ''}${_escName(r.options.join(' '))}</td><td>${_escName(r.amenagements)}</td>
       <td>${r.cumul === null ? '' : `${r.cumul} <small>(${_escName(_fmtDateFr(r.cumulDate))})</small>`}</td>
       <td>${r.delta === null ? '' : (r.deltaDecroissant ? '▼' : '') + (r.delta > 0 ? '+' : '') + r.delta}</td><td>${r.periodeTotal ?? ''}</td>
@@ -9411,7 +9481,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
     const b = _bilanPeriode(cls, stu.id, periodIdx, o.type || 'conseil');
     return {
       sid: stu.id, nom: stu.nom, prenom: stu.prenom, groupe: stu.groupe || null,
-      options: _studentTags(stu).map(t => t.abbr), amenagements: _amenLabel(stu, false), delegue: _delegueOf(stu.id),
+      options: _studentTags(stu).map(t => t.abbr), amenagements: _amenLabel(stu, false), delegue: _delegueOf(stu.id), eco: _ecoDelegueOf(stu.id),
       arrive: stu.arrivalDate && stu.arrivalDate > p.start ? stu.arrivalDate : null,
       parti: stu.departureDate && stu.departureDate <= p.end ? stu.departureDate : null,
       cumulFin, cumulFinDate, totalPeriode: _relPeriodTotal(cid, stu.id, periodIdx), absents,
@@ -9450,7 +9520,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   });
   const titre = `${_periodeTitre(o.type, p)} — ${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}`;
   const sub = `du ${_fmtDateFr(p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet · imprimé le ${_fmtDateFr(_todayYmd())}`;
-  const nomCell = r => `<strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${
+  const nomCell = r => `<strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}${
     r.arrive ? `<br><small>arrivé le ${_escName(_fmtDateFr(r.arrive))}</small>` : ''}${r.parti ? `<br><small>parti le ${_escName(_fmtDateFr(r.parti))}</small>` : ''}`;
   const identCell = r => [r.groupe ? 'G' + r.groupe : '', r.options.join(' '), r.amenagements].filter(Boolean).map(_escName).join(' · ');
   const obsCell = r => r.cumulFin === null ? (r.absents ? `<small>absent à ${r.absents} relevé${r.absents > 1 ? 's' : ''}</small>` : '')
@@ -9704,8 +9774,8 @@ function _pjSafeName(nom) {
 function _pjAutoNom(kind, o) {
   const d = _ymdValid(o.date) ? o.date : _todayYmd();
   if (kind === 'incident') return _pjSafeName(`${o.instance || 'Incident'} — ${`${o.nom || ''} ${o.prenom || ''}`.trim()} — ${d}`);
-  if (kind === 'pv') return _pjSafeName(`PV élection délégués — ${o.classe || ''} — ${d}`);
-  if (kind === 'pvdd') return _pjSafeName(`PV délégués — ${o.classe || ''} — ${d}`);
+  if (kind === 'pv') return _pjSafeName(`PV élection ${o.eco ? 'éco-délégués' : 'délégués'} — ${o.classe || ''} — ${d}`);
+  if (kind === 'pvdd') return _pjSafeName(`PV ${o.eco ? 'éco-délégués' : 'délégués'} — ${o.classe || ''} — ${d}`);
   return _pjSafeName(`${o.nom || 'document'} — ${d}`);
 }
 // Un nom libre dans le dossier : « x.pdf », puis « x (2).pdf », « x (3).pdf »…
@@ -11393,6 +11463,15 @@ function createDemo(opts) {
       electionCloreTour(el1, 1);
     }
   }
+
+  // 1 bis) Les ÉCO-DÉLÉGUÉS : candidatures individuelles, deux élus, pas de suppléant,
+  //    un seul tour — l'autre forme d'élection que le PP organise, pour qu'elle se
+  //    rencontre dans la démo (🌱 après le nom dans les listes).
+  const el3 = electionCreate(cls.id, { type: 'eco', date: D('10-14'), assesseurs: [sids[20], sids[21]] });
+  const c3 = [7, 11, 18].map(i => electionAddCandidat(el3, sids[i], null));
+  el3.tours[0].votantsAnnonces = 24;
+  const b4 = _demoBulletins({ [c3[0].id]: 15, [c3[1].id]: 12, [c3[2].id]: 9 }, 18, 0);
+  if (b4) { poser(el3, b4.map(v => [v, null]), 0); electionCloreTour(el3, 0); }
 
   // 2) Une élection EN COURS DE DÉPOUILLEMENT, pour régler la projection sans avoir à
   //    ressaisir des bulletins à chaque essai. 18 bulletins ouverts sur 25 annoncés :
