@@ -254,7 +254,7 @@ Le cas orientation est le plus riche : plusieurs champs sur le même document, d
 - **égalité de voix → le candidat le plus jeune est élu** ;
 - **deux assesseurs**, élèves volontaires non candidats, qui surveillent le vote, ramassent et comptent les bulletins, puis **signent le procès-verbal**.
 
-Ces variantes (uninominal ou plurinominal, binôme ou suppléants élus à part, départage par le plus jeune ou par le plus âgé) diffèrent d'un établissement à l'autre. **Conséquence de conception : les modalités sont des RÉGLAGES de l'élection, pas des constantes du code.** ~~Les valeurs par défaut sont celles de sa présentation.~~ **Révisé le 2026-09-12 (v1.30.0), arbitré par l'utilisateur : le DÉFAUT est celui des textes liés — scrutin UNINOMINAL, un nom par bulletin** (*« c'est ce qui est indiqué dans les textes officiels qui sont liés »*). Le reste des défauts ne bouge pas (deux titulaires, binômes, majorité absolue au 1er tour, le plus jeune). Le plurinominal de sa présentation reste au menu de la modale (« 2 (plurinominal) »).
+Ces variantes (uninominal ou plurinominal, binôme ou suppléants élus à part, départage par le plus jeune ou par le plus âgé) diffèrent d'un établissement à l'autre. **Conséquence de conception : les modalités sont des RÉGLAGES de l'élection, pas des constantes du code.** ~~Les valeurs par défaut sont celles de sa présentation.~~ **Révisé le 2026-09-12 (v1.30.0), arbitré par l'utilisateur : le DÉFAUT est celui des textes liés — scrutin UNINOMINAL, un nom par bulletin** (*« c'est ce qui est indiqué dans les textes officiels qui sont liés »*). Le reste des défauts ne bouge pas (deux titulaires, binômes, majorité absolue au 1er tour, le plus jeune). Le plurinominal de sa présentation reste au menu de la modale (« 2 (plurinominal) »). **La modale le DIT** (v1.30.1) : sous « Modalités », `_elDefautsHint(ty)` décrit les défauts du mandat en clair — *« Par défaut, ce que disent les textes : 2 titulaires, chacun avec son suppléant, 1 nom par bulletin (uninominal)… »* —, dérivé de `ty.defaults` pour ne jamais décrire autre chose que ce que le bouton **↺ Défauts des textes** (`_elDefautsReset`, inerte quand le dépouillement a commencé) remet.
   - ⚠️ **Les fixtures de tests et l'élection EN COURS de la démo restent plurinominales À DESSEIN** (`nomsParBulletin: 2` explicite, commenté) : c'est le cas arithmétiquement piégeux (exprimés en bulletins, pas en voix), et « déjà élu » + « un autre au seuil courant » ne coexistent qu'à deux noms par bulletin — en uninominal, celui qui a plus de la moitié des voix n'en laisse pas assez aux autres. L'élection CLOSE de la démo, elle, est uninominale (12 · 7 · 2 · 1 sur 22 exprimés : un seul siège pourvu au 1er tour, le second au 2nd), et le test le vérifie dans les deux sens.
   - `_elStatut` garde `|| 2` en repli : les fichiers d'avant le champ ont été créés quand 2 était le défaut.
 
@@ -422,9 +422,16 @@ Le livrable de l'onglet. Une page portrait, sans thème sombre (cf. neutralisati
   au pied du PV. Démo : un éco-délégué élu au premier tour (13 voix sur 24).
   - ⚠️ **`nbSupplants` = 0 est une valeur.** `rest.slice(0, el.nbSupplants || el.nbTitulaires)`
     aurait fait deux suppléants d'une élection qui n'en veut pas ; `_elNbSup(el)` distingue
-    0 (aucun) de absent (fichier antérieur : autant que de titulaires). Hors binôme, le
+    0 (aucun) de absent (fichier antérieur : autant que de titulaires). ~~Hors binôme, le
     sélecteur *Suppléants* de la modale est libre (2 titulaires + 1 suppléant, c'est
-    possible) ; en binôme il suit les titulaires.
+    possible) ; en binôme il suit les titulaires.~~ **Révisé en v1.30.1 (demande de
+    l'utilisateur : *« laisser le nombre de suppléants réglable pour les délégués »*) : le
+    sélecteur n'est plus grisé en binôme.** Le binôme signifie « chaque titulaire élu avec
+    SON suppléant », donc autant de l'un que de l'autre : cocher le binôme aligne les
+    suppléants, changer les titulaires en binôme les fait suivre (`_elNbtChange`), et
+    choisir un AUTRE nombre de suppléants **défait le binôme en le disant** (`_elNbsChange`,
+    toast) plutôt que d'être refusé en silence. Testé par événements sur des éléments
+    persistants (le stub du harnais en rend un neuf par appel).
   - ⚠️ **Deux mandats qui ne se confondent JAMAIS** : `_delegueOf(sid)` ne regarde que les
     élections `delegues` et `cls.delegues` ; `_ecoDelegueOf(sid)` (= `_delegueOf(sid,
     'eco')`) que les élections `eco` et `cls.ecoDelegues`. Même arbitrage par la date entre
@@ -935,6 +942,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 46 | **Modale d'élection** : les défauts des textes écrits en clair + bouton ↺, suppléants réglables même en binôme (le binôme se défait, ne refuse pas) ; 1 test | ✅ **fait** (2026-09-12, v1.30.1) |
 | 45 | **Scrutin uninominal par défaut** (`nomsParBulletin: 1`, comme les textes liés), lien service-public sans fragment ; démo close uninominale, fixtures et démo en cours plurinominales à dessein | ✅ **fait** (2026-09-12, v1.30.0) |
 | 44 | **Textes des délégués** : fiche service-public F1370 ajoutée, R421-30 et circulaire 2004-114 retirés | ✅ **fait** (2026-09-12, v1.29.2) |
 | 43 | **Lien R421-28** : la section Légifrance avec fragment de texte, fournie par l'utilisateur | ✅ **fait** (2026-09-12, v1.29.1) |

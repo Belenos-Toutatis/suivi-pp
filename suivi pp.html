@@ -1892,10 +1892,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
     <div class="fg"><label for="mel-titre">Titre</label><input type="text" id="mel-titre" maxlength="80"></div>
     <div class="fg"><label for="mel-etab">Établissement <span style="font-weight:400;font-size:.85em">(pour le PV, mémorisé)</span></label><input type="text" id="mel-etab" maxlength="80" placeholder="Collège …"></div>
-    <div class="st-hint">Modalités — celles de votre présentation par défaut ; le règlement intérieur prime.</div>
+    <div class="st-hint" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">Modalités<span id="mel-defauts-txt" style="font-weight:400"></span><button type="button" class="btn btn-g btn-sm" id="mel-defauts" onclick="_elDefautsReset()" title="Remettre les modalités à ce que disent les textes liés ci-dessus">↺ Défauts des textes</button></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbt">Titulaires à élire</label><select id="mel-nbt"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
-      <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbs">Suppléants</label><select id="mel-nbs" title="En binôme, autant que de titulaires ; sinon les mieux placés après les élus"><option value="0">aucun</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+      <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbt">Titulaires à élire</label><select id="mel-nbt" onchange="_elNbtChange()"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+      <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbs">Suppléants</label><select id="mel-nbs" onchange="_elNbsChange()" title="En binôme, chaque titulaire a le sien : en choisir un autre nombre défait le binôme (les suppléants sont alors les mieux placés après les élus)"><option value="0">aucun</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-npb">Noms max par bulletin</label><select id="mel-npb"><option value="1" selected>1 (uninominal)</option><option value="2">2 (plurinominal)</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:160px"><label for="mel-dep">Départage d'une égalité</label><select id="mel-dep"><option value="plusJeune">le plus jeune</option><option value="plusAge">le plus âgé</option><option value="manuel">à la main</option></select></div>
     </div>
@@ -1995,8 +1995,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.30.0';
-const APP_BUILD_DATE = '2026-09-12T07:00:36Z';
+const APP_VERSION    = '1.30.1';
+const APP_BUILD_DATE = '2026-09-12T07:13:18Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9504,16 +9504,43 @@ function _elTypeChange() {
   const titre = g('mel-titre').value.trim();
   if (!titre || titre.startsWith(autre.titre) || titre.startsWith(ty.titre)) g('mel-titre').value = `${ty.titre} — ${cls.nom} — ${cls.annee || ''}`.trim();
   g('mel-textes').innerHTML = _elTextesHTML(ty);
+  g('mel-defauts-txt').textContent = _elDefautsHint(ty);
   if (g('mel-nbt').disabled) return;
-  g('mel-nbt').value = ty.defaults.nbTitulaires; g('mel-binome').checked = ty.defaults.binome; g('mel-nbs').value = ty.defaults.nbSupplants; g('mel-npb').value = ty.defaults.nomsParBulletin;
-  _elBinomeChange();
+  _elDefautsReset();
 }
-// En binôme, le nombre de suppléants suit celui des titulaires.
+// Les défauts d'un mandat, en clair — ce sont CEUX DES TEXTES liés (v1.30.1, demande de
+// l'utilisateur : « indiquer que les réglages par défaut correspondent au texte officiel »).
+// Dérivé de `ty.defaults`, pour ne jamais décrire autre chose que ce que le bouton pose.
+function _elDefautsHint(ty) {
+  const d = ty.defaults;
+  const sup = d.binome ? 'chacun avec son suppléant' : (d.nbSupplants ? `${d.nbSupplants} suppléant${d.nbSupplants > 1 ? 's' : ''} élu${d.nbSupplants > 1 ? 's' : ''} à part` : 'sans suppléant');
+  return `Par défaut, ce que disent les textes : ${d.nbTitulaires} titulaire${d.nbTitulaires > 1 ? 's' : ''}, ${sup}, ${d.nomsParBulletin} nom${d.nomsParBulletin > 1 ? 's' : ''} par bulletin (${d.nomsParBulletin > 1 ? 'plurinominal' : 'uninominal'}), majorité absolue au 1er tour, le plus jeune en cas d'égalité. Le règlement intérieur prime.`;
+}
+// Remet les modalités aux défauts du mandat choisi — à la création, ou tant que rien
+// n'est dépouillé (les champs sont alors désactivés, et on ne touche à rien).
+function _elDefautsReset() {
+  const g = id => document.getElementById(id);
+  if (g('mel-nbt').disabled) return;
+  const ty = _EL_TYPES[g('mel-type').value] || _EL_TYPES.delegues;
+  g('mel-nbt').value = ty.defaults.nbTitulaires; g('mel-binome').checked = ty.defaults.binome; g('mel-nbs').value = ty.defaults.nbSupplants; g('mel-npb').value = ty.defaults.nomsParBulletin;
+  g('mel-maj').checked = true; g('mel-dep').value = 'plusJeune';
+}
+// ⚠️ Le nombre de suppléants reste RÉGLABLE (v1.30.1, demande de l'utilisateur) — il n'est
+// plus grisé en binôme. Le binôme veut dire « chaque titulaire est élu avec SON
+// suppléant », donc autant de suppléants que de titulaires : cocher le binôme aligne les
+// suppléants, changer les titulaires en binôme les suit, et choisir un AUTRE nombre de
+// suppléants défait le binôme — en le disant — plutôt que d'être refusé en silence.
 function _elBinomeChange() {
   const g = id => document.getElementById(id);
-  const b = g('mel-binome').checked;
-  if (b) g('mel-nbs').value = g('mel-nbt').value;
-  g('mel-nbs').disabled = b || g('mel-nbt').disabled;
+  if (g('mel-binome').checked) g('mel-nbs').value = g('mel-nbt').value;
+}
+function _elNbtChange() { _elBinomeChange(); }
+function _elNbsChange() {
+  const g = id => document.getElementById(id);
+  if (g('mel-binome').checked && g('mel-nbs').value !== g('mel-nbt').value) {
+    g('mel-binome').checked = false;
+    toast('Suppléants ≠ titulaires : les candidatures ne sont plus en binôme — les suppléants seront les mieux placés après les élus.', 'info');
+  }
 }
 function _elFillSettings(el) {
   const cls = getCls();
@@ -9522,6 +9549,7 @@ function _elFillSettings(el) {
   g('mel-title').textContent = el ? '⚙ Modalités de l\'élection' : '🗳 Nouvelle élection';
   g('mel-type').value = ty.key;
   g('mel-textes').innerHTML = _elTextesHTML(ty);
+  g('mel-defauts-txt').textContent = _elDefautsHint(ty);
   g('mel-date').value = el?.date || _todayYmd();
   g('mel-titre').value = el?.titre || `${ty.titre} — ${cls.nom} — ${cls.annee || ''}`.trim();
   g('mel-etab').value = el?.etablissement || _prefs().etablissement || '';
@@ -9540,7 +9568,7 @@ function _elFillSettings(el) {
     g(k).innerHTML = '<option value="">— assesseur —</option>' + students.map(s => `<option value="${_escAttr(s.id)}"${s.id === cur ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('');
   }
   const locked = !!(el && (el.tours.some(t => t.bulletins.length) || el.clos));
-  ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj', 'mel-nbs'].forEach(k => { g(k).disabled = locked; });
+  ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj', 'mel-nbs', 'mel-defauts'].forEach(k => { g(k).disabled = locked; });
   g('mel-locked').style.display = locked ? '' : 'none';
   _elBinomeChange();
 }

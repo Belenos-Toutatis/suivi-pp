@@ -464,3 +464,39 @@ test('remplacement HORS binôme : le suppléant élu choisi prend le siège, une
   const r2 = evObj(`electionRemplacer(HB, { candId: 'h2', qui: 'titulaire', date: '2026-01-01' })`);
   assert.deepStrictEqual([r2.remplacantCandId, evObj(`_elEffectifs(HB).vacants`)], [null, 1], 'sans successeur choisi : vacant');
 });
+
+// ─────────────────────────────────────────────── Modale : défauts des textes, suppléants réglables
+
+test('modale : le nombre de suppléants reste réglable en binôme — le binôme se défait, ne refuse pas ; ↺ remet les défauts des textes', () => {
+  ev(FIXTURE);
+  // Des éléments PERSISTANTS par id (le stub du harnais en rend un neuf à chaque appel).
+  ev(`window.__reg = {}; window.__gebi = document.getElementById;
+      document.getElementById = id => window.__reg[id] || (window.__reg[id] = { value: '', checked: false, disabled: false, textContent: '', innerHTML: '', style: {}, classList: { add() {}, remove() {}, contains() { return false; } } });
+      const g = document.getElementById; g('mel-type').value = 'delegues'; g('mel-nbt').value = '2'; g('mel-binome').checked = true; g('mel-nbs').value = '2';`);
+  try {
+    // Choisir un AUTRE nombre de suppléants en binôme → le binôme se décoche (et un toast le dit).
+    ev(`document.getElementById('mel-nbs').value = '1'; _elNbsChange()`);
+    assert.strictEqual(evObj(`[document.getElementById('mel-binome').checked, document.getElementById('mel-nbs').value]`).join(), 'false,1');
+    assert.ok(evObj(`document.getElementById('toast').textContent`).includes('binôme'));
+    // Recocher le binôme aligne les suppléants ; changer les titulaires en binôme les fait suivre.
+    ev(`document.getElementById('mel-binome').checked = true; _elBinomeChange()`);
+    assert.strictEqual(ev(`document.getElementById('mel-nbs').value`), '2');
+    ev(`document.getElementById('mel-nbt').value = '3'; _elNbtChange()`);
+    assert.strictEqual(ev(`document.getElementById('mel-nbs').value`), '3');
+    // Hors binôme, le même nombre reste libre : 2 titulaires + 1 suppléant ne défait rien.
+    ev(`document.getElementById('mel-binome').checked = false; document.getElementById('mel-nbs').value = '1'; _elNbsChange()`);
+    assert.strictEqual(ev(`document.getElementById('mel-binome').checked`), false);
+    // ↺ Défauts des textes : ceux de _EL_TYPES, et rien d'autre — le texte les décrit.
+    ev(`document.getElementById('mel-npb').value = '2'; document.getElementById('mel-maj').checked = false; document.getElementById('mel-dep').value = 'manuel'; _elDefautsReset()`);
+    assert.deepStrictEqual(evObj(`(g => [g('mel-nbt').value, g('mel-binome').checked, g('mel-nbs').value, g('mel-npb').value, g('mel-maj').checked, g('mel-dep').value])(document.getElementById)`), [2, true, 2, 1, true, 'plusJeune']);
+    const hint = ev(`_elDefautsHint(_EL_TYPES.delegues)`);
+    assert.ok(/textes/.test(hint) && /2 titulaires/.test(hint) && /chacun avec son suppléant/.test(hint) && /1 nom par bulletin \(uninominal\)/.test(hint), hint);
+    const hintEco = ev(`_elDefautsHint(_EL_TYPES.eco)`);
+    assert.ok(/1 titulaire,/.test(hintEco) && /sans suppléant/.test(hintEco) && /uninominal/.test(hintEco), hintEco);
+    // Verrouillée (dépouillement commencé) : ↺ ne touche à rien.
+    ev(`document.getElementById('mel-nbt').disabled = true; document.getElementById('mel-npb').value = '2'; _elDefautsReset()`);
+    assert.strictEqual(ev(`document.getElementById('mel-npb').value`), '2');
+  } finally {
+    ev(`document.getElementById = window.__gebi`);
+  }
+});
