@@ -1995,8 +1995,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.30.1';
-const APP_BUILD_DATE = '2026-09-12T07:13:18Z';
+const APP_VERSION    = '1.30.2';
+const APP_BUILD_DATE = '2026-09-12T07:30:38Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8613,9 +8613,11 @@ const _EL_TYPES = {
     ] },
   eco:      { key: 'eco',      icon: '🌱', label: 'éco-délégués',       titre: 'Élection des éco-délégués', pv: 'Procès-verbal d’élection des éco-délégués', elu: 'Éco-délégué',
     defaults: { nbTitulaires: 1, nbSupplants: 0, binome: false, nomsParBulletin: 1 },
+    // Liens fournis par l'utilisateur (2026-09-12) : les mêmes pages du BO, avec un fragment
+    // `#:~:text=` qui surligne le passage sur les éco-délégués de classe à l'ouverture.
     textes: [
-      { ref: 'Circulaire n° 2019-121 du 27-8-2019, § 1.2 (BO n° 31 du 29-8-2019)', quoi: 'un éco-délégué par classe, élu en même temps que les délégués d’élèves et selon les mêmes modalités ; un binôme paritaire par établissement, élu au CVC / CVL', url: 'https://www.education.gouv.fr/bo/19/Hebdo31/MENE1924799C.htm' },
-      { ref: 'Circulaire du 24-9-2020, Agenda 2030, § 3.1 (BO n° 36 du 24-9-2020)', quoi: 'élection désormais obligatoire au collège et au lycée, en même temps que les délégués de classe ; un même élève peut cumuler les deux mandats', url: 'https://www.education.gouv.fr/bo/20/Hebdo36/MENE2025449C.htm' },
+      { ref: 'Circulaire n° 2019-121 du 27-8-2019, § 1.2 (BO n° 31 du 29-8-2019)', quoi: 'un éco-délégué par classe, élu en même temps que les délégués d’élèves et selon les mêmes modalités ; un binôme paritaire par établissement, élu au CVC / CVL', url: 'https://www.education.gouv.fr/bo/19/Hebdo31/MENE1924799C.htm#:~:text=Au%2Ddel%C3%A0%2C%20chaque,%C3%AAtre%20fortement%20encourag%C3%A9.' },
+      { ref: 'Circulaire du 24-9-2020, Agenda 2030, § 3.1 (BO n° 36 du 24-9-2020)', quoi: 'élection désormais obligatoire au collège et au lycée, en même temps que les délégués de classe ; un même élève peut cumuler les deux mandats', url: 'https://www.education.gouv.fr/bo/20/Hebdo36/MENE2025449C.htm#:~:text=L%27%C3%A9lection%20des%20%C3%A9co,et%20%C3%A9co%2Dd%C3%A9l%C3%A9gu%C3%A9s.' },
     ] },
 };
 // Les textes d'un mandat, en liens — dans la modale et en tête de l'élection.
