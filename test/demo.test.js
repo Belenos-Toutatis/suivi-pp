@@ -203,15 +203,17 @@ test('l\'élection close a bien pourvu UN SEUL siège au premier tour', () => {
   const el = evObj(`_elList('5C').find(e => e.clos && _elType(e).key === 'delegues')`);
   assert.ok(el, 'une élection close existe');
   assert.strictEqual(el.tours.length, 2);
+  // Uninominale — le défaut des textes (v1.30.0) ; l'élection EN COURS, elle, est
+  // plurinominale à dessein (le réglage), cf. plus bas.
+  assert.strictEqual(el.nomsParBulletin, 1);
   const r1 = evObj(`_elResultatTour(_elList('5C').find(e => e.clos && _elType(e).key === 'delegues'), 0)`);
   assert.strictEqual(r1.elus.length, 1, 'un seul titulaire élu au 1er tour');
   assert.strictEqual(r1.siegesRestants, 1);
-  // Le second n'a raté la majorité absolue que d'un cheveu : 11 × 2 = 22 exprimés,
-  // et il en faut STRICTEMENT plus. C'est ce cas-là que la démo doit exposer.
+  // 12 × 2 = 24 > 22 exprimés : élu ; 7 non. En uninominal, un seul peut passer par tour.
   assert.strictEqual(r1.depouillement.exprimes, 22);
   assert.strictEqual(r1.depouillement.blancs, 1);
   assert.strictEqual(r1.depouillement.nuls, 1);
-  assert.deepStrictEqual(Object.values(r1.depouillement.voix).sort((a, b) => b - a), [14, 11, 9, 6]);
+  assert.deepStrictEqual(Object.values(r1.depouillement.voix).sort((a, b) => b - a), [12, 7, 2, 1]);
   const r2 = evObj(`_elResultatTour(_elList('5C').find(e => e.clos && _elType(e).key === 'delegues'), 1)`);
   assert.strictEqual(r2.elus.length, 1, 'le siège restant est pourvu au second tour');
   assert.strictEqual(el.elus.titulaires.length, 2);
@@ -244,6 +246,7 @@ test('les délégués se dérivent de l\'élection close', () => {
 
 test('l\'élection en cours est dépouillée à mi-parcours, avec un « déjà élu » et rien de plus', () => {
   ev(DEMO);
+  assert.strictEqual(evObj(`_elList('5C').find(e => !e.clos).nomsParBulletin`), 2, 'plurinominale à dessein : le réglage doit se rencontrer dans la démo');
   const live = evObj(`(() => { const el = _elList('5C').find(e => !e.clos); return _elLive(el, 0); })()`);
   assert.strictEqual(live.votantsAnnonces, 25);
   assert.strictEqual(live.depouilles, 18);

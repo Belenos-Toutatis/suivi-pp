@@ -20,7 +20,7 @@ const evObj = c => JSON.parse(JSON.stringify(app.__TESTEVAL(c)));
 const FIXTURE = `S = _emptyState(); postLoadHook();
   S.classes['5C'] = { id:'5C', nom:'5C', annee:'2025-26', eleves:[], ord:0 }; S.cur = '5C';
   for (let i = 1; i <= 25; i++) { const id = 's' + i; S.eleves[id] = { id, nom: 'N' + i, prenom: 'P' + i, classe_id: '5C', tags: [] }; S.classes['5C'].eleves.push(id); }
-  const el = electionCreate('5C', { date: '2025-10-07', titre: 'Test' });
+  const el = electionCreate('5C', { date: '2025-10-07', titre: 'Test', nomsParBulletin: 2 });   // plurinominale à dessein, comme elections.test.js
   ['c1','c2','c3','c4'].forEach((id, i) => el.candidats.push({ id, sidTitulaire: 's' + (i+1), sidSuppleant: 's' + (i+11), nomTitulaire: 'T' + (i+1), nomSuppleant: 'S' + (i+1), color: '#16a085', ordre: i, retire: false }));
   el.tours[0].candidats = ['c1','c2','c3','c4'];
   window.EL = el;`;

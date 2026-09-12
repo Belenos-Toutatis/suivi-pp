@@ -16,7 +16,9 @@ const FIXTURE = `S = _emptyState(); postLoadHook();
   S.classes['5C'] = { id:'5C', nom:'5C', annee:'2025-26', eleves:[], ord:0 }; S.cur = '5C';
   for (let i = 1; i <= 25; i++) { const id = 's' + i; S.eleves[id] = { id, nom: 'N' + i, prenom: 'P' + i, classe_id: '5C', tags: [] }; S.classes['5C'].eleves.push(id); }
   S.eleves.s26 = { id:'s26', nom:'PARTI', prenom:'X', classe_id:'5C', tags:[], departureDate:'2025-09-20' }; S.classes['5C'].eleves.push('s26');
-  const el = electionCreate('5C', { date: '2025-10-07', titre: 'Test' });
+  // ⚠️ PLURINOMINALE à dessein (deux noms par bulletin) : c'est le cas arithmétiquement
+  // piégeux (exprimés en bulletins, pas en voix), et un réglage — plus le défaut (v1.30.0).
+  const el = electionCreate('5C', { date: '2025-10-07', titre: 'Test', nomsParBulletin: 2 });
   ['c1','c2','c3','c4'].forEach((id, i) => el.candidats.push({ id, sidTitulaire: 's' + (i+1), sidSuppleant: 's' + (i+11), nomTitulaire: 'T' + (i+1), nomSuppleant: 'S' + (i+1), color: '#16a085', ordre: i, retire: false }));
   el.tours[0].candidats = ['c1','c2','c3','c4'];
   window.EL = el;
@@ -24,8 +26,11 @@ const FIXTURE = `S = _emptyState(); postLoadHook();
 
 // ─────────────────────────────────────────────── Création et modalités
 
-test('electionCreate : modalités par défaut = celles de la présentation de l\'utilisateur', () => {
+test('electionCreate : modalités par défaut = les textes (uninominal, binômes) ; le plurinominal reste un réglage', () => {
   ev(FIXTURE);
+  // Le DÉFAUT (v1.30.0, arbitré par l'utilisateur) : UN nom par bulletin, comme R421-28.
+  assert.strictEqual(evObj(`(() => { const e = electionCreate('5C', { date: '2025-10-07' }); delete S.elections['5C'][e.id]; return e.nomsParBulletin; })()`), 1);
+  // Et la fixture, elle, demande explicitement deux noms.
   const el = evObj(`EL`);
   assert.deepStrictEqual(
     { nbT: el.nbTitulaires, nbS: el.nbSupplants, binome: el.binome, npb: el.nomsParBulletin, maj: el.majoriteAbsolueT1, dep: el.departage, clos: el.clos, tours: el.tours.length, sieges: el.tours[0].siegesAPourvoir },

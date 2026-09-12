@@ -1896,7 +1896,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbt">Titulaires à élire</label><select id="mel-nbt"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbs">Suppléants</label><select id="mel-nbs" title="En binôme, autant que de titulaires ; sinon les mieux placés après les élus"><option value="0">aucun</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
-      <div class="fg" style="flex:1;min-width:140px"><label for="mel-npb">Noms max par bulletin</label><select id="mel-npb"><option value="1">1 (uninominal)</option><option value="2" selected>2 (plurinominal)</option><option value="3">3</option><option value="4">4</option></select></div>
+      <div class="fg" style="flex:1;min-width:140px"><label for="mel-npb">Noms max par bulletin</label><select id="mel-npb"><option value="1" selected>1 (uninominal)</option><option value="2">2 (plurinominal)</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:160px"><label for="mel-dep">Départage d'une égalité</label><select id="mel-dep"><option value="plusJeune">le plus jeune</option><option value="plusAge">le plus âgé</option><option value="manuel">à la main</option></select></div>
     </div>
     <div class="st-group">
@@ -1995,8 +1995,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.29.2';
-const APP_BUILD_DATE = '2026-09-12T06:49:42Z';
+const APP_VERSION    = '1.30.0';
+const APP_BUILD_DATE = '2026-09-12T07:00:36Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8587,9 +8587,10 @@ function _elInscrits(classId, ymd) {
 //   sont élus au scrutin uninominal à deux tours dans chaque classe … le nom de chaque
 //   candidat est accompagné de celui de son suppléant » (donc en binôme) ; circulaire
 //   n° 2004-114 § 6.1 — majorité absolue au 1er tour, relative au 2nd, le plus jeune en
-//   cas d'égalité ; art. R421-30 — avant la fin de la 7e semaine. Le texte dit UNINOMINAL ;
-//   la pratique de l'utilisateur (deux noms par bulletin) est un écart assumé — cf.
-//   CLAUDE.md — et reste le défaut ici parce que c'est SA présentation.
+//   cas d'égalité ; art. R421-30 — avant la fin de la 7e semaine. Le texte dit UNINOMINAL,
+//   et c'est le DÉFAUT depuis la v1.30.0 (arbitré par l'utilisateur le 2026-09-12 : « c'est
+//   ce qui est indiqué dans les textes officiels qui sont liés »). Sa pratique antérieure
+//   (deux noms par bulletin, plurinominal) reste un RÉGLAGE de la modale — cf. CLAUDE.md.
 // - éco-délégués : circulaire n° 2019-121 du 27-8-2019 § 1.2 — « l'élection, dans chaque
 //   classe, d'UN éco-délégué … concomitamment aux élections des délégués d'élèves et
 //   selon les mêmes modalités » ; circulaire du 24-9-2020 § 3.1 — « désormais obligatoire
@@ -8599,16 +8600,16 @@ function _elInscrits(classId, ymd) {
 //   Beaucoup d'établissements en élisent deux : c'est un choix local, à régler ici.
 const _EL_TYPES = {
   delegues: { key: 'delegues', icon: '🗳', label: 'délégués de classe', titre: 'Élection des délégués', pv: 'Procès-verbal d’élection des délégués de classe', elu: 'Délégué',
-    defaults: { nbTitulaires: 2, nbSupplants: 2, binome: true, nomsParBulletin: 2 },
+    defaults: { nbTitulaires: 2, nbSupplants: 2, binome: true, nomsParBulletin: 1 },
     textes: [
       // ⚠️ Lien fourni par l'utilisateur (2026-09-12) : la SECTION du code, avec un fragment de
       // texte (`#:~:text=`) qui surligne le passage sur le type de scrutin à l'ouverture.
       { ref: 'Code de l’éducation, art. R421-28', quoi: 'élection à deux degrés ; deux délégués par classe, scrutin uninominal à deux tours, le nom de chaque candidat accompagné de celui de son suppléant, tous électeurs et éligibles', url: 'https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006071191/LEGISCTA000018377476/#LEGISCTA000018380728:~:text=L%27%C3%A9lection%20des%20repr%C3%A9sentants%20des%20%C3%A9l%C3%A8ves,%C3%A9l%C3%A8ves%20sont%20%C3%A9lecteurs%20et%20%C3%A9ligibles.' },
-      // Fiche service-public.gouv.fr (lien fourni par l'utilisateur, 2026-09-12), même
-      // fragment surligné : la procédure en clair — majorité absolue au 1er tour, relative
+      // Fiche service-public.gouv.fr (lien fourni par l'utilisateur, 2026-09-12, SANS fragment
+      // de texte : la structure du site ne l'affiche pas) : la procédure en clair — majorité absolue au 1er tour, relative
       // au 2nd, le plus jeune en cas d'égalité. Elle REMPLACE les liens vers R421-30 et la
       // circulaire n° 2004-114 (retirés à sa demande) ; les règles restent celles-là.
-      { ref: 'Service-public.fr, « Délégués de classe » (fiche F1370)', quoi: 'la procédure en clair : chaque classe élit deux délégués au scrutin uninominal à deux tours, majorité absolue au premier tour, second tour à la majorité relative, le plus jeune en cas d’égalité', url: 'https://www.service-public.gouv.fr/particuliers/vosdroits/F1370#:~:text=Chaque%20classe%20%C3%A9lit,candidats%20est%20%C3%A9lu.' },
+      { ref: 'Service-public.fr, « Délégués de classe » (fiche F1370)', quoi: 'la procédure en clair : chaque classe élit deux délégués au scrutin uninominal à deux tours, majorité absolue au premier tour, second tour à la majorité relative, le plus jeune en cas d’égalité', url: 'https://www.service-public.gouv.fr/particuliers/vosdroits/F1370' },
     ] },
   eco:      { key: 'eco',      icon: '🌱', label: 'éco-délégués',       titre: 'Élection des éco-délégués', pv: 'Procès-verbal d’élection des éco-délégués', elu: 'Éco-délégué',
     defaults: { nbTitulaires: 1, nbSupplants: 0, binome: false, nomsParBulletin: 1 },
@@ -8689,7 +8690,7 @@ function _elStatut(b, el) {
   if (b.nul) return 'nul';
   const n = (b.voix || []).length;
   if (n === 0) return 'blanc';
-  if (n > (el.nomsParBulletin || 2)) return 'nul';
+  if (n > (el.nomsParBulletin || 2)) return 'nul';    // repli 2 : les fichiers d'avant le champ ont été créés avec ce défaut-là
   return 'valide';
 }
 // Ajoute un bulletin au tour. Un nom écrit deux fois compte une voix. null si tour clos.
@@ -9527,7 +9528,7 @@ function _elFillSettings(el) {
   g('mel-nbt').value = el?.nbTitulaires || ty.defaults.nbTitulaires;
   g('mel-binome').checked = el ? el.binome !== false : ty.defaults.binome;
   g('mel-nbs').value = el ? _elNbSup(el) : ty.defaults.nbSupplants;
-  g('mel-npb').value = el?.nomsParBulletin || 2;
+  g('mel-npb').value = el?.nomsParBulletin || ty.defaults.nomsParBulletin;
   g('mel-maj').checked = el ? el.majoriteAbsolueT1 !== false : true;
   g('mel-dep').value = el?.departage || 'plusJeune';
   g('mel-inscrits').value = el?.inscrits ?? _elInscrits(cls.id, g('mel-date').value);
@@ -11762,14 +11763,16 @@ function createDemo(opts) {
   const binomes = [[1, 4], [6, 9], [12, 15], [2, 17]];
   const poser = (el, seq, tourIdx) => { for (const [voix, extra] of seq) electionAddBulletin(el, tourIdx, voix, extra || undefined); };
 
-  // 1) L'élection de l'année, CLOSE, en deux tours — et dont le premier tour n'a pourvu
-  //    QU'UN SIÈGE : 14 voix sur 22 exprimés passent la majorité absolue, 11 non
-  //    (11 × 2 = 22, il en faut strictement plus). C'est le cas que tout le monde
-  //    suppose impossible tant qu'il ne l'a pas vu.
+  // 1) L'élection de l'année, CLOSE, en deux tours — UNINOMINALE (le défaut depuis la
+  //    v1.30.0 : un nom par bulletin, comme R421-28) — et dont le premier tour n'a pourvu
+  //    QU'UN SIÈGE : 12 voix sur 22 exprimés passent la majorité absolue (12 × 2 = 24 > 22),
+  //    7 non. En uninominal, un seul candidat peut la passer par tour : le second siège
+  //    va au second tour. C'est le cas que tout le monde suppose impossible tant qu'il
+  //    ne l'a pas vu.
   const el1 = electionCreate(cls.id, { date: D('10-07'), assesseurs: [sids[20], sids[21]] });
   const c1 = binomes.map(([t, s]) => electionAddCandidat(el1, sids[t], sids[s]));
   el1.tours[0].votantsAnnonces = 24;
-  const b1 = _demoBulletins({ [c1[0].id]: 14, [c1[1].id]: 11, [c1[2].id]: 9, [c1[3].id]: 6 }, 18, 4);
+  const b1 = _demoBulletins({ [c1[0].id]: 12, [c1[1].id]: 7, [c1[2].id]: 2, [c1[3].id]: 1 }, 0, 22);
   if (b1) {
     const seq = b1.map(v => [v, null]);
     seq.splice(6, 0, [[], null]);                                        // bulletin blanc
@@ -11813,9 +11816,13 @@ function createDemo(opts) {
   //    le premier binôme est « déjà élu » (13 × 2 = 26 > 25, quoi que disent les 7
   //    derniers bulletins), le deuxième atteint le seuil COURANT sans atteindre le seuil
   //    PROJETÉ — et l'app ne dit rien de lui, ce qui est exactement le comportement voulu.
+  //    ⚠️ PLURINOMINALE à dessein (`nomsParBulletin: 2`, le réglage, pas le défaut) : ces
+  //    deux situations ne coexistent qu'avec deux noms par bulletin — en uninominal, un
+  //    candidat « déjà élu » a plus de la moitié des voix, il n'en reste pas assez pour
+  //    qu'un autre atteigne un seuil. C'est aussi ce qui rend le réglage rencontrable.
   const el2 = electionCreate(cls.id, {
     date: D('05-19'), titre: 'Dépouillement en cours — démonstration de la projection',
-    assesseurs: [sids[3], sids[8]],
+    assesseurs: [sids[3], sids[8]], nomsParBulletin: 2,
   });
   const c2 = binomes.map(([t, s]) => electionAddCandidat(el2, sids[t], sids[s]));
   el2.tours[0].votantsAnnonces = 25;
