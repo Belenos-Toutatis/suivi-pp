@@ -1995,8 +1995,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.29.1';
-const APP_BUILD_DATE = '2026-09-12T06:46:14Z';
+const APP_VERSION    = '1.29.2';
+const APP_BUILD_DATE = '2026-09-12T06:49:42Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8604,8 +8604,11 @@ const _EL_TYPES = {
       // ⚠️ Lien fourni par l'utilisateur (2026-09-12) : la SECTION du code, avec un fragment de
       // texte (`#:~:text=`) qui surligne le passage sur le type de scrutin à l'ouverture.
       { ref: 'Code de l’éducation, art. R421-28', quoi: 'élection à deux degrés ; deux délégués par classe, scrutin uninominal à deux tours, le nom de chaque candidat accompagné de celui de son suppléant, tous électeurs et éligibles', url: 'https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006071191/LEGISCTA000018377476/#LEGISCTA000018380728:~:text=L%27%C3%A9lection%20des%20repr%C3%A9sentants%20des%20%C3%A9l%C3%A8ves,%C3%A9l%C3%A8ves%20sont%20%C3%A9lecteurs%20et%20%C3%A9ligibles.' },
-      { ref: 'Code de l’éducation, art. R421-30', quoi: 'avant la fin de la septième semaine de l’année scolaire', url: 'https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006071191/LEGISCTA000018380728/' },
-      { ref: 'Circulaire n° 2004-114 du 15-7-2004, § 6.1 (BO n° 29 du 22-7-2004)', quoi: 'majorité absolue au premier tour, relative au second, le plus jeune en cas d’égalité, remplaçant en cours d’année', url: 'https://www.education.gouv.fr/bo/2004/29/MENE0401597C.htm' },
+      // Fiche service-public.gouv.fr (lien fourni par l'utilisateur, 2026-09-12), même
+      // fragment surligné : la procédure en clair — majorité absolue au 1er tour, relative
+      // au 2nd, le plus jeune en cas d'égalité. Elle REMPLACE les liens vers R421-30 et la
+      // circulaire n° 2004-114 (retirés à sa demande) ; les règles restent celles-là.
+      { ref: 'Service-public.fr, « Délégués de classe » (fiche F1370)', quoi: 'la procédure en clair : chaque classe élit deux délégués au scrutin uninominal à deux tours, majorité absolue au premier tour, second tour à la majorité relative, le plus jeune en cas d’égalité', url: 'https://www.service-public.gouv.fr/particuliers/vosdroits/F1370#:~:text=Chaque%20classe%20%C3%A9lit,candidats%20est%20%C3%A9lu.' },
     ] },
   eco:      { key: 'eco',      icon: '🌱', label: 'éco-délégués',       titre: 'Élection des éco-délégués', pv: 'Procès-verbal d’élection des éco-délégués', elu: 'Éco-délégué',
     defaults: { nbTitulaires: 1, nbSupplants: 0, binome: false, nomsParBulletin: 1 },

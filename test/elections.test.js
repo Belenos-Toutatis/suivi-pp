@@ -348,7 +348,7 @@ test('electionCreate type eco : UN élu, sans binôme ni suppléant, un nom par 
   // Chaque mandat cite ses textes, avec un lien https, et le HTML les échappe.
   for (const k of ['delegues', 'eco']) {
     const t = evObj(`_EL_TYPES.${k}.textes`);
-    assert.ok(t.length >= 2 && t.every(x => /^https:\/\/(www\.)?(legifrance|education)\.gouv\.fr\//.test(x.url) && x.ref && x.quoi), k);
+    assert.ok(t.length >= 2 && t.every(x => /^https:\/\/(www\.)?(legifrance|education|service-public)\.gouv\.fr\//.test(x.url) && x.ref && x.quoi), k);
   }
   assert.ok(ev(`_elTextesHTML(_EL_TYPES.eco)`).includes('rel="noopener"'));
   assert.ok(ev(`_elTextesHTML({ textes: [{ ref: 'a<b', quoi: 'x"y', url: 'https://x/"' }] })`).includes('a&lt;b'), 'échappé');
