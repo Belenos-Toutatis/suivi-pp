@@ -679,6 +679,15 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      - `Ctrl+P` sur un document ouvert ouvre **le choix des colonnes**, pas l'impression
        directe : une feuille de huit colonnes partie sans avoir été choisie est une feuille
        jetée. La liste des manquants reste dans sa propre modale 📋.
+     - **Un bilan au pied de la feuille** (v1.31.0, demande de l'utilisateur : *« le nombre
+       d'élèves qui ont rendu et le nombre qui correspond à chaque choix »*) —
+       `_docPrintBilan(doc, sids, keys)`, pur et testé, rendu par `_docPrintBilanHTML` :
+       « Rendus 19 / 24 », puis une ligne par champ **imprimé** avec le compte de chaque
+       option et les « sans réponse ». ⚠️ Compté sur les **lignes imprimées** (filtre
+       compris), comme `_gridPrintTotals`, et seulement pour les champs dont la colonne est
+       sur la feuille — le rendu, lui, se compte dès que le document le suit, colonne ou
+       pas. Un choix multiple le **dit** (ses comptes dépassent l'effectif). Une option
+       retirée du champ ne compte plus : l'élève passe « sans réponse », comme sa ligne.
    - **Imprimer la grille élèves × documents** (v1.10.0) — l'impression de la **vue globale**,
      et ce n'est pas la même feuille que celle d'un document : on ne ramasse pas un papier à
      la fois. Une colonne par document retenu, une ligne par élève, un pied qui totalise
@@ -943,6 +952,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 47 | **Bilan au pied du document imprimé** : rendus et compte de chaque option, sur les lignes et colonnes imprimées (`_docPrintBilan`) ; 3 tests | ✅ **fait** (2026-09-16, v1.31.0) |
 | 46 | **Modale d'élection** : les défauts des textes écrits en clair + bouton ↺, suppléants réglables même en binôme (le binôme se défait, ne refuse pas) ; 1 test | ✅ **fait** (2026-09-12, v1.30.1) |
 | 45 | **Scrutin uninominal par défaut** (`nomsParBulletin: 1`, comme les textes liés), lien service-public sans fragment ; démo close uninominale, fixtures et démo en cours plurinominales à dessein | ✅ **fait** (2026-09-12, v1.30.0) |
 | 44 | **Textes des délégués** : fiche service-public F1370 ajoutée, R421-30 et circulaire 2004-114 retirés | ✅ **fait** (2026-09-12, v1.29.2) |

@@ -1211,6 +1211,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   .print-na { color: #777; }        /* « sans objet » : un tiret gris, jamais une case vide */
   .print-t tfoot th { background: #f4f4f4; font-size: 8.5pt; }
   .print-rem { white-space: pre-line; min-width: 45mm; }
+  .print-bilan { width: auto; margin-top: 8pt; page-break-inside: avoid; }
+  .print-bilan caption { text-align: left; font-weight: 700; font-size: 9.5pt; padding: 0 0 2pt; }
+  .print-bilan th { white-space: nowrap; }
   .print-list { columns: 2; font-size: 11pt; line-height: 1.8; }
   /* Synthèse de période en fiches : un bloc par élève, jamais coupé par un saut de page. */
   .print-fiche { page-break-inside: avoid; border: 1px solid #888; border-radius: 4pt; padding: 4pt 7pt; margin: 0 0 6pt; font-size: 10pt; }
@@ -1995,8 +1998,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.30.2';
-const APP_BUILD_DATE = '2026-09-12T07:30:38Z';
+const APP_VERSION    = '1.31.0';
+const APP_BUILD_DATE = '2026-09-16T07:39:27Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -7617,6 +7620,34 @@ function _docPrintSubtitle(doc, filtre, nbLignes) {
   return bits.join(' · ');
 }
 
+// Le bilan au pied de la feuille (v1.31.0, demande de l'utilisateur) : combien ont rendu,
+// et combien ont coché CHAQUE choix — ce qu'on recompte sinon au stylo dans la marge.
+// ⚠️ Compté sur les lignes IMPRIMÉES et sur les champs dont la colonne est imprimée,
+// pour la même raison que `_gridPrintTotals` : un total qu'on ne retrouve pas en
+// comptant la colonne au-dessus fait douter de toute la feuille. Le rendu, lui, se
+// compte dès que le document le suit, colonne imprimée ou non — c'est le premier chiffre
+// qu'on cherche. « Sans réponse » = aucune option CONNUE cochée : une option supprimée
+// du champ ne compte plus, comme elle ne s'imprime plus dans la ligne.
+function _docPrintBilan(doc, sids, keys) {
+  const veut = Array.isArray(keys) ? new Set(keys) : null;
+  const out = { n: sids.length, rendus: null, champs: [] };
+  if (doc.suiviRetour !== false) out.rendus = sids.filter(sid => _retour(doc, sid).rendu).length;
+  for (const c of (doc.champs || [])) {
+    if (veut && !veut.has('ch:' + c.id)) continue;
+    const counts = new Map((c.options || []).map(o => [o.id, 0]));
+    let sans = 0;
+    for (const sid of sids) {
+      const v = _retour(doc, sid).reponses[c.id];
+      const ids = (Array.isArray(v) ? v : (typeof v === 'string' && v ? [v] : [])).filter(id => counts.has(id));
+      if (!ids.length) sans++;
+      for (const id of ids) counts.set(id, counts.get(id) + 1);
+    }
+    out.champs.push({ id: c.id, label: c.label || '(sans libellé)', prof: c.par === 'prof', multi: c.type === 'multi',
+                      options: (c.options || []).map(o => ({ id: o.id, label: o.label || '', n: counts.get(o.id) })), sans });
+  }
+  return out;
+}
+
 
 // ── La grille élèves × documents, sur papier ──
 // La vue globale a son impression à elle, et ce n'est pas la même feuille : on ne ramasse
@@ -9928,8 +9959,23 @@ function printDoc(docId, opts) {
     <p class="print-sub">${_escName(_docPrintSubtitle(doc, filtre, rows.length))}</p>
     ${doc.description ? `<p class="print-sub">${_escName(doc.description)}</p>` : ''}
     <table class="print-t"><thead><tr>${th}</tr></thead>
-    <tbody>${rows.map(r => `<tr>${r.cells.map((v, i) => td(keys[i], v)).join('')}</tr>`).join('')}</tbody></table>`;
+    <tbody>${rows.map(r => `<tr>${r.cells.map((v, i) => td(keys[i], v)).join('')}</tr>`).join('')}</tbody></table>
+    ${_docPrintBilanHTML(_docPrintBilan(doc, rows.map(r => r.sid), keys))}`;
   _printHTML(html, kind);
+}
+// Le bilan sous le tableau : une ligne « Rendus », puis une ligne par champ imprimé avec
+// le compte de chaque option. ⚠️ Un choix MULTIPLE le dit : ses comptes dépassent le
+// nombre d'élèves, et sans l'avertissement on croirait la feuille fausse.
+function _docPrintBilanHTML(b) {
+  if (b.rendus === null && !b.champs.length) return '';
+  const lignes = [];
+  if (b.rendus !== null) lignes.push(`<tr><th>Rendus</th><td>${b.rendus} / ${b.n}</td></tr>`);
+  for (const c of b.champs) {
+    const parts = c.options.map(o => `${_escName(o.label)} : <strong>${o.n}</strong>`);
+    parts.push(`sans réponse : ${c.sans}`);
+    lignes.push(`<tr><th>${c.prof ? 'PP — ' : ''}${_escName(c.label)}</th><td>${parts.join(' · ')}${c.multi ? ' <small>(choix multiple : un élève peut compter plusieurs fois)</small>' : ''}</td></tr>`);
+  }
+  return `<table class="print-t print-bilan"><caption>Bilan sur ${b.n} élève${b.n > 1 ? 's' : ''} imprimé${b.n > 1 ? 's' : ''}</caption><tbody>${lignes.join('')}</tbody></table>`;
 }
 function _docPrintCellClass(key) {
   return key === 'rendu' ? 'print-c' : key === 'note' ? 'print-rem' : '';

@@ -163,6 +163,65 @@ test('_docPrintSubtitle : la feuille se relit seule trois semaines plus tard', (
   assert.ok(!/rendus/.test(ev(`_docPrintSubtitle(S.documents.d3, 'tous', 4)`)));
 });
 
+test('_docPrintBilan : rendus et compte de CHAQUE choix, sur les lignes et colonnes imprimées', () => {
+  ev(FIXTURE);
+  const sids = evObj(`_docPrintRows(S.documents.d1, ['eleve'], { filtre:'tous' }).map(r => r.sid)`);
+  const b = evObj(`_docPrintBilan(S.documents.d1, ${JSON.stringify(sids)}, ['eleve','rendu','ch:opt1','ch:opts','ch:avis'])`);
+  assert.strictEqual(b.n, 3);
+  assert.strictEqual(b.rendus, 2);
+  // Option 1 : s1 → latin, s3 → bil (réponse connue AVANT le papier : elle compte), s2 → rien.
+  const opt1 = b.champs.find(c => c.id === 'opt1');
+  assert.deepStrictEqual(opt1.options.map(o => [o.id, o.n]), [['latin', 1], ['bil', 1]]);
+  assert.strictEqual(opt1.sans, 1);
+  assert.strictEqual(opt1.multi, false);
+  // Choix multiple : s1 coche DNL puis CATHO F → deux comptes pour un seul élève, et le bilan le dit.
+  ev(`docToggleReponse(S.documents.d1, 's1', 'opts', 'catho')`);
+  const b2 = evObj(`_docPrintBilan(S.documents.d1, ${JSON.stringify(sids)}, null)`);
+  const opts = b2.champs.find(c => c.id === 'opts');
+  assert.strictEqual(opts.multi, true);
+  assert.deepStrictEqual(opts.options.map(o => o.n), [1, 1]);
+  assert.strictEqual(opts.sans, 2);
+  // Le champ du PP est signalé comme tel, pour porter « PP — » sur la feuille.
+  assert.strictEqual(b2.champs.find(c => c.id === 'avis').prof, true);
+});
+
+test('_docPrintBilan : suit les LIGNES imprimées (filtre) et les COLONNES choisies', () => {
+  ev(FIXTURE);
+  // Filtre « non rendus » → une ligne (s3) : 0 rendu sur 1, et son option compte seule.
+  const sids = evObj(`_docPrintRows(S.documents.d1, ['eleve'], { filtre:'manquants' }).map(r => r.sid)`);
+  assert.deepStrictEqual(sids, ['s3']);
+  const b = evObj(`_docPrintBilan(S.documents.d1, ['s3'], ['eleve','ch:opt1'])`);
+  assert.strictEqual(b.rendus, 0);
+  assert.strictEqual(b.n, 1);
+  // Seule la colonne Option 1 est imprimée → un seul champ au bilan, pas les deux autres.
+  assert.deepStrictEqual(b.champs.map(c => c.id), ['opt1']);
+  assert.deepStrictEqual(b.champs[0].options.map(o => o.n), [0, 1]);
+  // ⚠️ Le rendu se compte même si sa colonne n'est PAS imprimée : c'est le premier chiffre
+  // qu'on cherche. Mais pas sur un document sans suivi de retour.
+  assert.strictEqual(evObj(`_docPrintBilan(S.documents.d1, ['s1','s2'], ['eleve'])`).rendus, 2);
+  assert.strictEqual(evObj(`_docPrintBilan(S.documents.d3, ['s1','s2'], null)`).rendus, null);
+  // Une option retirée du champ ne compte plus : l'élève passe « sans réponse ».
+  ev(`S.documents.d1.champs[0].options = S.documents.d1.champs[0].options.filter(o => o.id !== 'bil')`);
+  const b3 = evObj(`_docPrintBilan(S.documents.d1, ['s3'], ['ch:opt1'])`);
+  assert.strictEqual(b3.champs[0].sans, 1);
+  assert.deepStrictEqual(b3.champs[0].options.map(o => o.id), ['latin']);
+});
+
+test('_docPrintBilanHTML : échappé, un choix multiple prévenu, rien sur un document sans retour ni champ', () => {
+  ev(FIXTURE);
+  ev(`S.documents.d1.champs[0].label = '<b>Option</b>'; S.documents.d1.champs[0].options[0].label = '<i>L</i>'`);
+  const sids = evObj(`_docPrintRows(S.documents.d1, ['eleve'], {}).map(r => r.sid)`);
+  const h = ev(`_docPrintBilanHTML(_docPrintBilan(S.documents.d1, ${JSON.stringify(sids)}, null))`);
+  assert.ok(!/<b>|<i>/.test(h));
+  assert.match(h, /&lt;b&gt;Option&lt;\/b&gt;/);
+  assert.match(h, /Rendus<\/th><td>2 \/ 3/);
+  assert.match(h, /PP — Avis PP/);
+  assert.match(h, /choix multiple/);
+  assert.match(h, /Bilan sur 3 élèves imprimés/);
+  // d3 : ni retour suivi, ni champ → aucun bloc, pas un tableau vide.
+  assert.strictEqual(ev(`_docPrintBilanHTML(_docPrintBilan(S.documents.d3, ['s1'], null))`), '');
+});
+
 test('le PORTRAIT est le défaut — le paysage et l\'automatique restent à un clic', () => {
   ev(FIXTURE);
   // ⚠️ C'est l'orientation habituelle de ce genre de feuille (classeurs, bannettes de la
