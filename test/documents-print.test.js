@@ -274,6 +274,40 @@ test('_gridPrintRows : les élèves partis sont masqués par défaut, retrouvabl
   assert.ok(ids({ inclurePartis: true }).includes('s4'));
 });
 
+test('_gridPrintBilan : un bilan PAR document, sur les attendus imprimés, champs des familles seulement', () => {
+  ev(FIXTURE);
+  const b = evObj(`_gridPrintBilan(_gridPrintRows(['d1','d2'], '5C', {}), ['d1','d2'])`);
+  assert.deepStrictEqual(b.map(x => x.docId), ['d1', 'd2']);
+  // d1 : s4 est « sans objet » (parti avant la distribution) → hors dénominateur, comme
+  // dans le pied du tableau. 3 attendus, 2 rendus.
+  assert.strictEqual(b[0].bilan.n, 3);
+  assert.strictEqual(b[0].bilan.rendus, 2);
+  // ⚠️ Les champs des FAMILLES seulement : « Avis PP » ne descend pas dans les rangs.
+  assert.deepStrictEqual(b[0].bilan.champs.map(c => c.id), ['opt1', 'opts']);
+  assert.deepStrictEqual(b[0].bilan.champs[0].options.map(o => o.n), [1, 1]);
+  assert.strictEqual(b[0].bilan.champs[0].sans, 1);
+  // d2 : aucun champ → une ligne « Rendus » seulement. s4 y est attendu (il était là)
+  // mais PARTI depuis : masqué par défaut, donc hors bilan — la feuille et son bilan
+  // comptent les mêmes lignes. Sur demande, il revient dans les deux.
+  assert.strictEqual(b[1].bilan.champs.length, 0);
+  assert.strictEqual(b[1].bilan.n, 3);
+  assert.strictEqual(b[1].bilan.rendus, 1);
+  assert.strictEqual(evObj(`_gridPrintBilan(_gridPrintRows(['d2'], '5C', { inclurePartis:true }), ['d2'])`)[0].bilan.n, 4);
+  // Le bilan suit les LIGNES imprimées : filtre « incomplets » sur d1 + d2 → s2, s3
+  // seulement (s2 a rendu d1 mais pas d2). Sur d1 : s2 rendu, s3 non.
+  const f = evObj(`_gridPrintBilan(_gridPrintRows(['d1','d2'], '5C', { filtre:'incomplets' }), ['d1','d2'])`);
+  assert.strictEqual(f[0].bilan.n, 2);
+  assert.strictEqual(f[0].bilan.rendus, 1);
+  // Rendu : le titre du document en tête de chaque ligne, échappé.
+  ev(`S.documents.d1.titre = '<b>Fiche</b>'`);
+  const h = ev(`_gridPrintBilanHTML(_gridPrintBilan(_gridPrintRows(['d1','d2'], '5C', {}), ['d1','d2']), 3)`);
+  assert.ok(!/<b>/.test(h));
+  assert.match(h, /&lt;b&gt;Fiche&lt;\/b&gt; — Rendus<\/th><td>2 \/ 3/);
+  assert.match(h, /Fiche de renseignement — Rendus<\/th><td>1 \/ 3/);
+  assert.match(h, /Bilan sur 3 élèves imprimés/);
+  assert.ok(!/Avis PP/.test(h));
+});
+
 test('_gridPrintRows : le filtre « incomplets » ne garde que ceux à qui il manque un papier', () => {
   ev(FIXTURE);
   // s1 a rendu d1 ET d2 → complet. s2 a rendu d1 mais pas d2. s3 n'a rien rendu.

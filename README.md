@@ -37,7 +37,8 @@ sauvegarde dans un dossier Nextcloud (onglet 💾 Données et réglages).
    seule chose qui dit qui est à voir en priorité. Un cumul de 38 ne veut rien dire sans
    savoir qu'il était à 27 il y a trois semaines.
 2. **📄 Documents administratifs** — qui a rendu quoi, et quand. La feuille imprimée d'un
-   document se termine par un **bilan** : combien ont rendu, et combien ont coché chaque choix.
+   document — comme la grille élèves × documents — se termine par un **bilan** : combien ont
+   rendu, et combien ont coché chaque choix.
 3. **Réponses portées sur ces documents** — le choix de la famille (participation à
    Devoirs Faits, options d'orientation…), avec un **avis du PP** quand il y en a un.
 4. **🗳 Élection des délégués** — candidatures en binôme, dépouillement bulletin par

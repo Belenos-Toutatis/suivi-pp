@@ -1998,8 +1998,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.31.0';
-const APP_BUILD_DATE = '2026-09-16T07:39:27Z';
+const APP_VERSION    = '1.31.1';
+const APP_BUILD_DATE = '2026-09-16T07:59:04Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -7704,6 +7704,21 @@ function _gridPrintTotals(rows, nbDocs) {
   });
 }
 
+// Le bilan de la grille (v1.31.1) : le même que sous un document, une fois PAR document —
+// sur les élèves imprimés et ATTENDUS de la colonne (un « sans objet » n'a rien à rendre ni
+// à cocher, il sort du dénominateur comme dans `_gridPrintTotals`), et sur les champs des
+// FAMILLES seulement, comme les réponses sous les coches : l'avis du PP ne descend pas dans
+// les rangs. Un document sans champ n'a qu'une ligne « Rendus ».
+function _gridPrintBilan(rows, docIds) {
+  return docIds.map((id, i) => {
+    const d = S.documents[id];
+    if (!d) return null;
+    const sids = rows.filter(r => r.cells[i] && r.cells[i].etat !== 'sansobjet').map(r => r.sid);
+    const keys = (d.champs || []).filter(c => c.par !== 'prof').map(c => 'ch:' + c.id);
+    return { docId: id, titre: d.titre, bilan: _docPrintBilan(d, sids, keys) };
+  }).filter(Boolean);
+}
+
 // Ce qui fait qu'une feuille retrouvée plus tard se relit seule — et qui DIT ce qu'elle
 // ne montre pas : les élèves partis qu'on a laissés de côté.
 function _gridPrintSubtitle(classId, docIds, rows, opts) {
@@ -9967,15 +9982,28 @@ function printDoc(docId, opts) {
 // le compte de chaque option. ⚠️ Un choix MULTIPLE le dit : ses comptes dépassent le
 // nombre d'élèves, et sans l'avertissement on croirait la feuille fausse.
 function _docPrintBilanHTML(b) {
-  if (b.rendus === null && !b.champs.length) return '';
+  const lignes = _docPrintBilanRows(b, '');
+  if (!lignes.length) return '';
+  return `<table class="print-t print-bilan"><caption>Bilan sur ${b.n} élève${b.n > 1 ? 's' : ''} imprimé${b.n > 1 ? 's' : ''}</caption><tbody>${lignes.join('')}</tbody></table>`;
+}
+// Les lignes d'un bilan, avec un préfixe d'en-tête (le titre du document sur la grille,
+// rien sous un document seul). Partagées entre les deux feuilles : un seul rendu à relire.
+function _docPrintBilanRows(b, prefix) {
+  const pre = prefix ? _escName(prefix) + ' — ' : '';
   const lignes = [];
-  if (b.rendus !== null) lignes.push(`<tr><th>Rendus</th><td>${b.rendus} / ${b.n}</td></tr>`);
+  if (b.rendus !== null) lignes.push(`<tr><th>${pre}Rendus</th><td>${b.rendus} / ${b.n}</td></tr>`);
   for (const c of b.champs) {
     const parts = c.options.map(o => `${_escName(o.label)} : <strong>${o.n}</strong>`);
     parts.push(`sans réponse : ${c.sans}`);
-    lignes.push(`<tr><th>${c.prof ? 'PP — ' : ''}${_escName(c.label)}</th><td>${parts.join(' · ')}${c.multi ? ' <small>(choix multiple : un élève peut compter plusieurs fois)</small>' : ''}</td></tr>`);
+    lignes.push(`<tr><th>${pre}${c.prof ? 'PP — ' : ''}${_escName(c.label)}</th><td>${parts.join(' · ')}${c.multi ? ' <small>(choix multiple : un élève peut compter plusieurs fois)</small>' : ''}</td></tr>`);
   }
-  return `<table class="print-t print-bilan"><caption>Bilan sur ${b.n} élève${b.n > 1 ? 's' : ''} imprimé${b.n > 1 ? 's' : ''}</caption><tbody>${lignes.join('')}</tbody></table>`;
+  return lignes;
+}
+// Le bilan de la grille : une section par document, le titre en tête de chaque ligne.
+function _gridPrintBilanHTML(list, n) {
+  const lignes = list.flatMap(x => _docPrintBilanRows(x.bilan, x.titre));
+  if (!lignes.length) return '';
+  return `<table class="print-t print-bilan"><caption>Bilan sur ${n} élève${n > 1 ? 's' : ''} imprimé${n > 1 ? 's' : ''}</caption><tbody>${lignes.join('')}</tbody></table>`;
 }
 function _docPrintCellClass(key) {
   return key === 'rendu' ? 'print-c' : key === 'note' ? 'print-rem' : '';
@@ -10003,7 +10031,8 @@ function printDocsGrid(classId, docIds, opts) {
     <table class="print-t"><thead><tr><th>Élève</th>${th}</tr></thead>
     <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}</td>${r.cells.map(cell).join('')}</tr>`).join('')}</tbody>
     <tfoot><tr><th>Rendus</th>${tot.map(t => `<th class="print-c">${t.rendus} / ${t.attendus}</th>`).join('')}</tr></tfoot></table>
-    <p class="print-sub">✓ rendu · ☐ pas encore rendu · — sans objet : l'élève n'a pas reçu ce papier.</p>`;
+    <p class="print-sub">✓ rendu · ☐ pas encore rendu · — sans objet : l'élève n'a pas reçu ce papier.</p>
+    ${_gridPrintBilanHTML(_gridPrintBilan(rows, ids), rows.length)}`;
   _printHTML(html, kind);
 }
 

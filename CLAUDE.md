@@ -711,6 +711,14 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        panne qui n'existe pas. Même leçon que le toast de `ramSetColonne`.
      - Le pied compte sur les **lignes imprimées**, pas sur le document entier : un total
        qu'on ne retrouve pas en comptant la colonne au-dessus fait douter de toute la feuille.
+     - **Le même bilan qu'au pied d'un document, une fois PAR document** (v1.31.1, demande de
+       l'utilisateur) : `_gridPrintBilan(rows, docIds)` appelle `_docPrintBilan` sur les
+       élèves imprimés **et attendus** de chaque colonne (un « sans objet » sort du
+       dénominateur, comme dans le pied), avec les champs des **familles seulement** — l'avis
+       du PP ne descend pas dans les rangs, ni sous les coches ni au bilan. Rendu partagé
+       (`_docPrintBilanRows(b, prefix)`, le titre du document en tête de ligne) : un seul
+       rendu à relire pour les deux feuilles. Un élève parti masqué est hors bilan, comme il
+       est hors feuille. Testé.
      - Option « porter les réponses des familles sous les coches » : la feuille de ramassage
        devient un récapitulatif. ⚠️ **Les champs `par: 'prof'` n'y descendent pas** — l'avis
        du PP se donne au bureau, pas dans une allée.
@@ -952,6 +960,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 48 | **Le même bilan sur la grille élèves × documents imprimée**, une section par document, champs des familles seulement (`_gridPrintBilan`) ; 1 test | ✅ **fait** (2026-09-16, v1.31.1) |
 | 47 | **Bilan au pied du document imprimé** : rendus et compte de chaque option, sur les lignes et colonnes imprimées (`_docPrintBilan`) ; 3 tests | ✅ **fait** (2026-09-16, v1.31.0) |
 | 46 | **Modale d'élection** : les défauts des textes écrits en clair + bouton ↺, suppléants réglables même en binôme (le binôme se défait, ne refuse pas) ; 1 test | ✅ **fait** (2026-09-12, v1.30.1) |
 | 45 | **Scrutin uninominal par défaut** (`nomsParBulletin: 1`, comme les textes liés), lien service-public sans fragment ; démo close uninominale, fixtures et démo en cours plurinominales à dessein | ✅ **fait** (2026-09-12, v1.30.0) |
