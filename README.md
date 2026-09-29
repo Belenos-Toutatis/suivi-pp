@@ -347,6 +347,10 @@ Polices embarquées, toutes sous SIL Open Font License 1.1 :
 [IBM Plex Sans](https://github.com/IBM/plex),
 [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono).
 
+Pour les impressions : [Latin Modern Roman](https://www.gust.org.pl/projects/e-foundry/latin-modern)
+(GUST e-foundry), sous GUST Font License — sous-ensemble latin, régénérable par
+`scripts/gen_print_font.py`.
+
 ## Licence
 
 MIT — voir [LICENSE](LICENSE).

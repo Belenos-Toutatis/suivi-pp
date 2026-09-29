@@ -326,9 +326,24 @@ releveMoy = {
 - **Cadre figé** (`.rel-wrap.frozen`, cf. *Grilles*) : les deux vues rendent `[tableau,
   légende]` et c'est `renderMoyennes` qui pose le cadre entre `_wrapScrollKeep` et `keep()`
   — changer d'import ou de tri ne renvoie pas la grille en haut à gauche.
-- **Impression** (`printMoyennes`, bouton 🖨 et Ctrl+P sur l'onglet) : la vue affichée, en
-  paysage, statistiques en pied. ⚠️ Sur le papier, « sous 10 » se marque en **gras**, pas
-  en couleur : la feuille sort souvent en noir et blanc.
+- **Statistiques retenues** (v1.35.0, demande de l'utilisateur : *« toutes ne sont pas
+  forcément nécessaires, je dois pouvoir en décocher »*) : `S.prefs.moyStats`, UN réglage
+  pour l'écran (volet *Σ Statistiques en pied* de la barre) et pour le papier (la modale
+  d'impression). `_moyStatsShown()` filtre et remet dans l'ordre canonique ; `setMoyStat`
+  pose un `pushUndo` comme `setPref`, et n'empile rien si rien ne change. ⚠️ Le tableau est
+  toujours **remplacé**, jamais modifié en place : `DEFAULT_PREFS.moyStats` est la même
+  référence que celle posée par `postLoadHook` (testé).
+- **Impression** (bouton 🖨 et Ctrl+P ouvrent la modale `mmoyprint`, jamais l'impression
+  directe) : la vue affichée — même import, même tri — sur **une page paysage A4 ou A3**,
+  taille de texte calculée par `_printFitMeasure` (cf. *Synthèse de période imprimable*),
+  annoncée dans la modale avant d'imprimer. Feuille `.pp-t.pp-moy` : colonnes fixes (nom
+  17 %, matières à parts égales, Moy. 7 % séparée d'un filet, « < 10 » 4 %), chiffres
+  centrés, rangées alternées, statistiques en pied sur fond gris. ⚠️ Sur le papier, « sous
+  10 » se marque en **gras**, pas en couleur : la feuille sort souvent en noir et blanc.
+  ⚠️ En-têtes **en casse normale** : en capitales, « FRANÇAIS » se cassait en « FRANÇAI / S »
+  dans une colonne de matière. Mesuré sur le cas réel de l'utilisateur (27 élèves) avec la
+  démo à onze matières : 7,75 pt en A4 avec les huit statistiques, 8,5 pt avec quatre,
+  11,75 pt en A3.
 
 ## Élection des délégués de classe
 
@@ -1004,6 +1019,17 @@ Reprendre l'architecture de Plan de classe **sans la simplifier** — chaque pi�
 
 ## Design system
 
+**Police des impressions : Latin Modern Roman** (v1.35.0, demande de l'utilisateur : *« j'aime
+bien que les documents soient imprimés avec la police Latin Modern »* — celle de ses
+documents LuaLaTeX). Quatre variantes embarquées en base64, sous-ensemble latin (≈ 85 Ko),
+GUST Font License, **régénérées par `scripts/gen_print_font.py`** (entre les marqueurs
+`/* LM-DEBUT */` et `/* LM-FIN */`). Token `--font-print`, **papier seulement** : `.print-area *`
+et le PV la prennent en `!important` (les cellules portent des styles en ligne à l'écran).
+⚠️ Elle doit être **chargée avant toute mesure** (`_printFontLoad`, appelé au démarrage, à
+l'ouverture des modales d'impression et avant `window.print`) : une police `swap` ne se
+charge qu'au premier usage, et une mesure faite avec la police de repli choisirait une
+taille fausse.
+
 Reprendre le design « carnet du prof » **à l'identique** : tokens, polices embarquées, filet rouge de marge, lignes Seyès, thème sombre, bloc de neutralisation à l'impression.
 
 ⚠️ **Les quatre règles qui ont coûté le plus cher dans le projet de référence :**
@@ -1103,6 +1129,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 52 | **Feuille des moyennes** : sur une page A4 / A3 (modale `mmoyprint`, taille calculée), statistiques en pied **au choix** (`S.prefs.moyStats`, écran et papier) · **Latin Modern** pour toutes les impressions (`--font-print`, `scripts/gen_print_font.py`) ; 2 tests | ✅ **fait** (2026-09-30, v1.35.0) |
 | 51 | **Synthèse de période en une page** : tableau refait (`.pp-t`, colonnes fixes, rangées grisées, contenu condensé), taille de texte calculée pour tenir sur une page (`_printFitSize`, `_printFitMeasure`), papier A4 / A3 ; 3 tests | ✅ **fait** (2026-09-29, v1.34.0) |
 | 50 | **Moyennes sur la synthèse de période** : bloc *Moyennes* (`_moyPourPeriode`, `_moyPeriodeEleve`) — dernier import de la période du bureau numérique, évolution depuis le premier, sous 10 en gras ; 3 tests | ✅ **fait** (2026-09-29, v1.33.0) |
 | 49 | **Onglet 📈 Moyennes** : lecture de l'export du bureau numérique (`_moyParse`, `_moyMatch`, `moyImport`), catalogue de matières qui réaligne les colonnes, statistiques (`_moyStats`, σ de population), évolution par période (`_moyDelta`, `_moyEvolution`), aperçu d'import avec rattachement manuel, vue Évolution, impression ; section de la fiche, colonne *Moy.* de la liste des élèves ; démo à 4 imports ; 38 tests de plus | ✅ **fait** (2026-09-29, v1.32.0) |

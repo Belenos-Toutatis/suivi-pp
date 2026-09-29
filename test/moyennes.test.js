@@ -395,3 +395,43 @@ test('Rendu : un intitulé de matière, une période et un nom de fichier hostil
   assert.ok(!ev(`document.getElementById('mfiche-body').innerHTML`).includes('<img'),
     'fiche élève : balise hostile en clair');
 });
+
+// ─────────────────────────────────────────────── Statistiques retenues et feuille imprimée
+
+test('Statistiques en pied : toutes par défaut, décochables, un geste = un Ctrl+Z', () => {
+  ev(CLASSE);
+  assert.strictEqual(evObj(`_moyStatsShown()`).length, 8);
+  ev(`undoStack.length = 0`);
+  ev(`setMoyStat('min', false); setMoyStat('max', false)`);
+  assert.deepStrictEqual(evObj(`_moyStatsShown()`), ['moyenne', 'mediane', 'ecartType', 'sous10', 'auMoins10', 'n']);
+  assert.strictEqual(ev(`undoStack.length`), 2);
+  ev(`setMoyStat('min', false)`);
+  assert.strictEqual(ev(`undoStack.length`), 2, 'déjà décochée : rien d\'empilé');
+  ev(`setMoyStat('inconnue', true)`);
+  assert.strictEqual(evObj(`_moyStatsShown()`).length, 6);
+  // ⚠️ Le défaut n'a pas été modifié en place.
+  assert.strictEqual(ev(`DEFAULT_PREFS.moyStats.length`), 8);
+  // Une valeur abîmée (fichier ancien, main humaine) ne casse rien.
+  ev(`S.prefs.moyStats = ['n', 'zzz', 'moyenne']`);
+  assert.deepStrictEqual(evObj(`_moyStatsShown()`), ['moyenne', 'n'], 'filtrée, et dans l\'ordre canonique');
+});
+
+test('Feuille des moyennes : seules les statistiques cochées, colonnes fixes, sous 10 en gras, échappée', () => {
+  ev(CLASSE);
+  imp(CSV1, '2025-10-01');
+  imp(CSV2.replace('ANGLAIS LV2(Mme ALPHA)', 'ANGLAIS <img src=x>(Mme ALPHA)'), '2025-10-22');
+  ev(`_moyVue = 'tableau'; _moyPeriodeSel = null; _moyRidSel = null; moySort = 'nom';
+      S.prefs.moyStats = ['moyenne', 'sous10']`);
+  const f = evObj(`_moyFeuilleHTML(S.classes['5C'])`);
+  assert.strictEqual(f.kind, 'landscape');
+  const pied = f.html.slice(f.html.indexOf('<tfoot>'));
+  assert.ok(pied.includes('<th>Moyenne</th>') && pied.includes('<th>Sous 10</th>'));
+  assert.ok(!pied.includes('Médiane') && !pied.includes('Écart type'), 'les décochées n\'apparaissent pas');
+  assert.ok(!f.html.includes('écart type de la classe'), 'ni la mention du σ au sous-titre');
+  const w = [...f.html.matchAll(/<col style="width:([\d.]+)%">/g)].map(m => +m[1]);
+  assert.ok(Math.abs(w.reduce((a, b) => a + b, 0) - 100) < 0.05, 'les largeurs somment à 100 %');
+  assert.ok(f.html.includes('<strong>9</strong>'), 'Noé, anglais 9 : sous 10 en gras');
+  assert.ok(!f.html.includes('<img'), 'l\'intitulé venu du fichier est échappé');
+  ev(`S.prefs.moyStats = []`);
+  assert.ok(!evObj(`_moyFeuilleHTML(S.classes['5C'])`).html.includes('<tfoot>'), 'aucune statistique : pas de pied du tout');
+});
