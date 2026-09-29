@@ -607,6 +607,33 @@ dit combien d'élèves sont **sans bilan rédigé**. Les choix se retiennent pou
   au 31/01 et au 01/02), papiers distribués **jusqu'à sa fin** et pas rendus (un papier de
   février n'est pas un manquant du S1 ; `suiviRetour: false` n'y entre jamais), bilan de
   la période (type demandé d'abord, l'autre à défaut).
+- **Le tableau tient sur UNE page** (v1.34.0, demande de l'utilisateur : *« plus lisible, en
+  une page — si c'est petit, je l'imprime en A3 »*). Choix **A4 / A3** dans la modale
+  (`_periodePrintOpts.format`, A4 par défaut). La taille de texte n'est pas fixée : elle
+  est **calculée** — `_printFitMeasure` rend la feuille hors champ à la largeur
+  imprimable, et `_printFitSize` (pur, testé) cherche par dichotomie la plus grande taille,
+  au quart de point, qui tient dans la hauteur (marge de sécurité 4 %). Plafond 10,5 pt en
+  A4, 13 en A3 ; plancher **6 pt** — en dessous, on ne triche pas : le résumé et un toast
+  disent « ≈ N pages, passe en A3 ou décoche un bloc ». Le résumé de la modale annonce la
+  taille AVANT d'imprimer (« tient sur une page A4, texte en 6 pt — petit : l'A3 le rendra
+  plus lisible »). Démo complète : 6 pt en A4, 9 pt en A3.
+  - ⚠️ **Les règles `.pp-*` sont HORS `@media print`, et tout y est en `em`.** La mesure se
+    fait à l'écran : des règles cantonnées au papier ne s'appliqueraient pas à la boîte de
+    mesure, et la taille calculée serait fausse. Elles ne touchent que ce qui vit dans une
+    `.print-area` (invisible à l'écran). Titre en `div.pp-titre`, pas en `h1` : la règle
+    papier `.print-area h1` (en pt, plus spécifique) aurait divergé de la mesure.
+  - ⚠️ **`table-layout: fixed` + `<colgroup>` pondéré** (le bilan a la plus large colonne) :
+    sans largeurs fixes, la hauteur dépend de ce que le navigateur devine, et une mesure
+    faite à l'écran ne prédit plus le papier.
+  - ⚠️ **Tout ce qui peut tenir sur une ligne y tient** : une cellule sur deux lignes double
+    la hauteur de toute la rangée. Première version mesurée : 1 018 px à 7 pt pour 703
+    disponibles — « trop long même en 6 pt » ; après condensation, 646 px à 6 pt.
+  - Une ligne sur deux grisée (`print-color-adjust: exact`), en-têtes soulignés, dates en
+    jj/mm (l'année est au sous-titre), évolution des moyennes datée une fois au sous-titre.
+  - ⚠️ **A3 : la page nommée `landscape` imposerait l'A4** — `.print-area.a3 { page: auto }`,
+    et c'est le `@page` anonyme (`_setPageOrientation(kind, format)`) qui décide.
+  - Les fiches portrait ne sont pas ajustées : un bloc par élève sur plusieurs pages, c'est
+    leur forme. Le format A3 s'y applique quand même.
 - **Moyennes** (v1.33.0, demande de l'utilisateur) : générale du dernier import, son
   évolution depuis le premier import de la période (ou depuis le premier où l'élève avait
   une générale chiffrée, s'il est arrivé en route), et les matières — toutes sur les
@@ -1076,6 +1103,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 51 | **Synthèse de période en une page** : tableau refait (`.pp-t`, colonnes fixes, rangées grisées, contenu condensé), taille de texte calculée pour tenir sur une page (`_printFitSize`, `_printFitMeasure`), papier A4 / A3 ; 3 tests | ✅ **fait** (2026-09-29, v1.34.0) |
 | 50 | **Moyennes sur la synthèse de période** : bloc *Moyennes* (`_moyPourPeriode`, `_moyPeriodeEleve`) — dernier import de la période du bureau numérique, évolution depuis le premier, sous 10 en gras ; 3 tests | ✅ **fait** (2026-09-29, v1.33.0) |
 | 49 | **Onglet 📈 Moyennes** : lecture de l'export du bureau numérique (`_moyParse`, `_moyMatch`, `moyImport`), catalogue de matières qui réaligne les colonnes, statistiques (`_moyStats`, σ de population), évolution par période (`_moyDelta`, `_moyEvolution`), aperçu d'import avec rattachement manuel, vue Évolution, impression ; section de la fiche, colonne *Moy.* de la liste des élèves ; démo à 4 imports ; 38 tests de plus | ✅ **fait** (2026-09-29, v1.32.0) |
 | 48 | **Le même bilan sur la grille élèves × documents imprimée**, une section par document, champs des familles seulement (`_gridPrintBilan`) ; 1 test | ✅ **fait** (2026-09-16, v1.31.1) |

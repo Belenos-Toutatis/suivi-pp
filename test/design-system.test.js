@@ -82,8 +82,10 @@ test('les deux orientations d\'impression sont posées ET retirées', () => {
   // Les pages nommées ne suffisent pas (Firefox les ignore) : un `@page` anonyme est
   // injecté le temps de l'impression. ⚠️ S'il n'était pas retiré, il imposerait son
   // orientation à l'impression SUIVANTE, qui n'a pas la même.
-  assert.ok(/@page \{ size: A4 landscape/.test(SRC), 'orientation paysage injectée');
-  assert.ok(/@page \{ size: A4 portrait/.test(SRC), 'orientation portrait injectée');
+  // Le format est un paramètre depuis la v1.34.0 (A4 ou A3), l'A4 restant le défaut.
+  assert.ok(/@page \{ size: \$\{f\} landscape/.test(SRC), 'orientation paysage injectée');
+  assert.ok(/@page \{ size: \$\{f\} portrait/.test(SRC), 'orientation portrait injectée');
+  assert.ok(/const f = format === 'A3' \? 'A3' : 'A4';/.test(SRC), 'A4 par défaut, A3 seulement si demandé');
   // Chaque `_setPageOrientation` a son `_clearPageOrientation` dans le même chemin.
   const poses = (SRC.match(/_setPageOrientation\(/g) || []).length;
   const retraits = (SRC.match(/_clearPageOrientation\(/g) || []).length;

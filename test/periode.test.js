@@ -115,11 +115,41 @@ test('_periodePrintHTML : le bloc Moyennes, sous 10 en gras, échappé, et dit q
   assert.ok(vide.html.includes('<th>Moyenne</th>') && vide.html.includes('aucune moyenne importée pour cette période'));
   impMoy(MOY('Premier <img src=x>', [['DURAND Léa', 13, 8, '11,8']]), '2025-11-01');
   const t = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['moy'], type:'conseil', forme:'tableau' })`);
-  assert.ok(t.html.includes('<strong>11,8</strong>'));
-  assert.ok(t.html.includes('sous 10 : <strong>Phys.-chimie 8</strong>'), 'la matière sous 10 en gras, jamais en couleur');
+  assert.ok(t.html.includes('<span class="pp-big">11,8</span>'));
+  assert.ok(t.html.includes('&lt; 10 : <strong>Phys.-chimie 8</strong>'), 'la matière sous 10 en gras, jamais en couleur');
   assert.ok(!t.html.includes('<img'), 'le nom de période venu du fichier est échappé');
   const f = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['moy'], type:'conseil', forme:'fiches' })`);
   assert.ok(f.html.includes('générale <strong>11,8</strong> — Maths 13 · <strong>Phys.-chimie 8</strong>'), 'en fiche : toutes les matières');
   const sans = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs'], type:'conseil', forme:'tableau' })`);
   assert.ok(!sans.html.includes('<th>Moyenne</th>') && !sans.html.includes('moyennes'), 'bloc décoché : ni colonne ni mention');
+});
+
+// ─────────────────────────────────────────────── Une page : la taille de texte se calcule
+
+test('_printFitSize : la plus grande taille qui tient, au quart de point, et l\'aveu quand rien ne tient', () => {
+  // Hauteur rendue proportionnelle à la taille : 100 px par point.
+  const lin = `pt => pt * 100`;
+  assert.deepStrictEqual(evObj(`_printFitSize(${lin}, 2000, 6, 10.5)`), { size: 10.5, fits: true, pages: 1 }, 'tout tient au maximum : on ne grossit pas au-delà');
+  assert.deepStrictEqual(evObj(`_printFitSize(${lin}, 820, 6, 10.5)`), { size: 8, fits: true, pages: 1 }, '8,2 → 8 : arrondi vers le BAS, sinon ça déborde');
+  const r = evObj(`_printFitSize(${lin}, 820, 6, 10.5)`);
+  assert.ok(r.size * 100 <= 820);
+  assert.deepStrictEqual(evObj(`_printFitSize(${lin}, 250, 6, 10.5)`), { size: 6, fits: false, pages: 3 }, 'sous le plancher : on le dit, on ne descend pas');
+});
+
+test('_printPageMm : surface imprimable A4 et A3, marges comprises', () => {
+  assert.deepStrictEqual(evObj(`_printPageMm('A4', 'landscape')`), { w: 273, h: 186 });
+  assert.deepStrictEqual(evObj(`_printPageMm('A3', 'landscape')`), { w: 396, h: 273 });
+  assert.deepStrictEqual(evObj(`_printPageMm('A4', 'portrait')`), { w: 180, h: 267 });
+  assert.deepStrictEqual(evObj(`_printPageMm('??', 'landscape')`), { w: 273, h: 186 }, 'format inconnu : A4');
+});
+
+test('Tableau de période : colonnes de largeur fixe, qui somment à 100 %, une par bloc coché', () => {
+  ev(FIXTURE);
+  const t = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs','bilan'], type:'conseil', forme:'tableau' })`);
+  assert.ok(t.html.includes('class="pp-t"'));
+  const w = [...t.html.matchAll(/<col style="width:([\d.]+)%">/g)].map(m => +m[1]);
+  assert.strictEqual(w.length, 4, 'élève, identité, observations, conseil');
+  assert.ok(Math.abs(w.reduce((a, b) => a + b, 0) - 100) < 0.05);
+  assert.ok(w[3] > w[2], 'le texte libre du conseil a plus de place qu\'une colonne de chiffres');
+  assert.strictEqual((t.html.match(/<th>/g) || []).length, 4);
 });

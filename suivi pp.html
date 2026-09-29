@@ -1227,6 +1227,28 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 /* Zone d'impression : masquée à l'écran, seule visible sur papier. Deux pages nommées,
    choisies par la classe de la zone — c'est ainsi qu'on impose l'orientation. */
 #pa .print-area { display: none; }
+/* Synthèse de période en TABLEAU — hors @media print, et tout en `em` : la taille de base
+   est calculée pour que la feuille tienne sur UNE page (_printFitSize), et ce calcul se fait
+   en mesurant ce même rendu dans une boîte hors écran. Des règles cantonnées à @media print
+   ne s'appliqueraient pas à la mesure, et la mesure mentirait. Ces classes ne vivent que
+   dans une .print-area — invisible à l'écran (#pa) ou hors champ (la boîte de mesure). */
+.pp-titre { font-family: var(--font-serif); font-size: 1.55em; font-weight: 700; line-height: 1.15; margin: 0 0 .15em; }
+.pp-sub { font-size: .9em; color: #333; margin: 0 0 .6em; }
+.pp-t { table-layout: fixed; width: 100%; border-collapse: collapse; line-height: 1.22;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pp-t th, .pp-t td { border: 0; border-bottom: .6pt solid #9a9a9a; padding: .18em .34em; vertical-align: top; text-align: left; overflow-wrap: anywhere; }
+.pp-t th + th, .pp-t td + td { border-left: .4pt solid #cfcfcf; }
+.pp-t thead { display: table-header-group; }
+.pp-t thead th { background: #e4e4e4; font-size: .82em; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; border-bottom: 1.2pt solid #000; vertical-align: bottom; }
+/* Une ligne sur deux grisée : c'est ce qui permet de suivre un élève d'un bout à l'autre
+   d'une feuille paysage sans règle posée dessus. */
+.pp-t tbody tr:nth-child(even) td { background: #f0f0f0; }
+.pp-t tbody tr { break-inside: avoid; page-break-inside: avoid; }
+.pp-t .pp-nom { font-weight: 700; }
+.pp-t .pp-big { font-weight: 700; font-size: 1.12em; }
+.pp-t small, .pp-t .pp-m { font-size: .84em; color: #333; }
+.pp-t .pp-l { display: block; }
+.pp-t .pp-rem { white-space: pre-line; }
 @page landscape { size: A4 landscape; margin: 12mm; }
 @page portrait  { size: A4 portrait;  margin: 15mm; }
 @media print {
@@ -1234,6 +1256,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   body.printing-pa #pa .print-area { display: block; color: #000; font-family: var(--font-sans); font-size: 9.5pt; }
   .print-area.landscape { page: landscape; }
   .print-area.portrait  { page: portrait; font-size: 11pt; }
+  /* A3 : la page nommée imposerait l'A4 — on la retire, et c'est le @page anonyme posé
+     par _setPageOrientation (« A3 landscape ») qui décide. Placée APRÈS : même spécificité. */
+  .print-area.a3 { page: auto; }
   .print-area h1 { font-family: var(--font-serif); font-size: 15pt; margin: 0 0 4pt; }
   .print-sub { color: #333; font-size: 9pt; margin: 0 0 8pt; }
   .print-t { border-collapse: collapse; width: 100%; }
@@ -1883,11 +1908,18 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
     <div class="fg"><label>Blocs</label>
       <div id="mper-blocs" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
-    <div class="fg"><label for="mper-forme">Forme</label>
-      <select id="mper-forme" onchange="_periodePrintRefresh()" style="max-width:100%">
-        <option value="tableau">tableau — une ligne par élève, paysage</option>
-        <option value="fiches">fiches — un bloc par élève, portrait (à lire pendant le conseil)</option>
-      </select></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="fg" style="flex:3;min-width:200px"><label for="mper-forme">Forme</label>
+        <select id="mper-forme" onchange="_periodePrintRefresh()" style="max-width:100%">
+          <option value="tableau">tableau — une ligne par élève, paysage, sur une page</option>
+          <option value="fiches">fiches — un bloc par élève, portrait (à lire pendant le conseil)</option>
+        </select></div>
+      <div class="fg" style="flex:1;min-width:110px"><label for="mper-format">Papier</label>
+        <select id="mper-format" onchange="_periodePrintRefresh()" style="max-width:100%">
+          <option value="A4">A4</option>
+          <option value="A3">A3 — texte plus grand</option>
+        </select></div>
+    </div>
     <div class="al al-i" id="mper-hint"></div>
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('mperiode')">Annuler</button>
@@ -2082,8 +2114,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.33.0';
-const APP_BUILD_DATE = '2026-09-29T21:44:28Z';
+const APP_VERSION    = '1.34.0';
+const APP_BUILD_DATE = '2026-09-29T21:55:58Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -10704,25 +10736,66 @@ function _moyPrintHTML(m) {
 function _syntheseRows(cls) {
   return cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => _syntheseRow(cls, s));
 }
-function _setPageOrientation(kind) {
+function _setPageOrientation(kind, format) {
   _clearPageOrientation();
   const st = document.createElement('style');
   st.id = '__pageorient';
+  const f = format === 'A3' ? 'A3' : 'A4';
   st.textContent = kind === 'landscape'
-    ? '@page { size: A4 landscape; margin: 12mm; }'
-    : '@page { size: A4 portrait; margin: 15mm; }';
+    ? `@page { size: ${f} landscape; margin: 12mm; }`
+    : `@page { size: ${f} portrait; margin: 15mm; }`;
   document.head.appendChild(st);
+}
+// Surface imprimable d'une page, en mm — les marges sont celles de _setPageOrientation.
+const _PRINT_FORMATS = { A4: [297, 210], A3: [420, 297] };
+function _printPageMm(format, kind) {
+  const [L, l] = _PRINT_FORMATS[format] || _PRINT_FORMATS.A4;
+  const m = kind === 'landscape' ? 12 : 15;
+  const [w, h] = kind === 'landscape' ? [L, l] : [l, L];
+  return { w: w - 2 * m, h: h - 2 * m };
+}
+// La plus grande taille de texte (en pt, au quart de point) pour laquelle `mesure(pt)` —
+// la hauteur rendue — tient dans `hMax`. PUR : la mesure est passée en argument, donc
+// testable sans navigateur. La hauteur croît avec la taille : dichotomie. Si même `min`
+// déborde, on le dit (fits: false) avec le nombre de pages estimé — on ne descend pas
+// sous un plancher illisible pour « tenir » quand même.
+function _printFitSize(mesure, hMax, min, max) {
+  if (mesure(max) <= hMax) return { size: max, fits: true, pages: 1 };
+  const hMin = mesure(min);
+  if (hMin > hMax) return { size: min, fits: false, pages: Math.ceil(hMin / hMax) };
+  let lo = min, hi = max;
+  while (hi - lo > 0.125) { const mid = (lo + hi) / 2; if (mesure(mid) <= hMax) lo = mid; else hi = mid; }
+  return { size: Math.floor(lo * 4) / 4, fits: true, pages: 1 };
+}
+// Mesure réelle : le HTML de la feuille rendu hors champ, à la largeur imprimable, avec
+// les règles `.pp-*` (hors @media print, justement pour ça). ⚠️ Marge de sécurité de 4 % :
+// le moteur d'impression arrondit un peu différemment de l'écran, et une dernière ligne
+// qui passe à la page suivante vaut une feuille entière.
+function _printFitMeasure(html, kind, format) {
+  const { w, h } = _printPageMm(format, kind);
+  const box = document.createElement('div');
+  box.className = 'print-area ' + kind;
+  box.style.cssText = `position:absolute;left:-20000px;top:0;width:${w}mm;display:block;visibility:hidden;color:#000;font-family:var(--font-sans)`;
+  box.innerHTML = html;
+  document.body.appendChild(box);
+  try {
+    const hMax = h * 96 / 25.4 * 0.96;
+    const mesure = pt => { box.style.fontSize = pt + 'pt'; return box.getBoundingClientRect().height; };
+    return _printFitSize(mesure, hMax, 6, format === 'A3' ? 13 : 10.5);
+  } finally { box.remove(); }
 }
 function _clearPageOrientation() {
   const st = document.getElementById('__pageorient');
   if (st && st.parentNode) st.parentNode.removeChild(st);
 }
 
-function _printHTML(html, kind) {
+// opts = { format: 'A4' | 'A3', fontPt } — la taille calculée par _printFitMeasure.
+function _printHTML(html, kind, opts) {
+  const o = opts || {};
   const pa = document.getElementById('pa');
-  pa.innerHTML = `<div class="print-area ${kind}">${html}</div>`;
+  pa.innerHTML = `<div class="print-area ${kind}${o.format === 'A3' ? ' a3' : ''}"${o.fontPt ? ` style="font-size:${+o.fontPt}pt"` : ''}>${html}</div>`;
   document.body.classList.add('printing-pa');
-  _setPageOrientation(kind);
+  _setPageOrientation(kind, o.format);
   const done = () => { document.body.classList.remove('printing-pa'); pa.innerHTML = ''; _clearPageOrientation(); window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);
   setTimeout(() => { try { window.print(); } catch (_) { done(); } }, 50);
@@ -10847,7 +10920,7 @@ const _PERIODE_BLOCS = [
   { key: 'bilan',     label: 'Bilan',               hint: 'Ce que j\'ai rédigé pour ce conseil (ou ce bilan de mi-période)' },
   { key: 'hvc',       label: 'Heures de vie de classe', hint: 'Les heures de vie de classe tenues pendant la période, en tête de la feuille' },
 ];
-let _periodePrintOpts = { blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc'), type: 'conseil', forme: 'tableau' };
+let _periodePrintOpts = { blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc'), type: 'conseil', forme: 'tableau', format: 'A4' };
 function _periodeTitre(type, p) { return `${type === 'miperiode' ? 'Bilan de mi-période' : 'Conseil de classe'} ${p.label}`; }
 // Le HTML de la feuille : un tableau paysage (une ligne par élève), ou des fiches portrait
 // (un bloc par élève — ce qu'on lit pendant que le conseil parle de lui).
@@ -10901,15 +10974,42 @@ function _periodePrintHTML(cls, periodIdx, opts) {
       ${on('bilan') ? bloc(o.type === 'miperiode' ? 'Bilan' : 'Conseil', bilCell(r) ? `<div class="print-rem">${bilCell(r)}</div>` : '') : ''}
     </div>`).join('') };
   }
-  const th = ['<th>Élève</th><th>Groupe · options · aménag.</th>',
-    on('obs') ? `<th>Observations ${_escName(p.label)}</th>` : '', on('moy') ? '<th>Moyenne</th>' : '', on('docs') ? '<th>Non rendus</th>' : '',
-    on('incidents') ? '<th>Incidents</th>' : '', on('contacts') ? '<th>Contacts</th>' : '',
-    on('bilan') ? `<th>${o.type === 'miperiode' ? 'Bilan' : 'Conseil'}</th>` : ''].join('');
-  return { kind: 'landscape', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>${hvcHTML}
-    <table class="print-t"><thead><tr>${th}</tr></thead><tbody>${rows.map(r => `<tr><td>${nomCell(r)}</td><td>${identCell(r)}</td>${
-      on('obs') ? `<td>${obsCell(r)}</td>` : ''}${on('moy') ? `<td>${moyCell(r)}</td>` : ''}${on('docs') ? `<td>${_escName(r.nonRendus.join(', '))}</td>` : ''}${
-      on('incidents') ? `<td>${incCell(r)}</td>` : ''}${on('contacts') ? `<td>${conCell(r)}</td>` : ''}${
-      on('bilan') ? `<td class="print-rem">${bilCell(r)}</td>` : ''}</tr>`).join('')}</tbody></table>` };
+  // ── TABLEAU : une page paysage, lisible d'un bout à l'autre ──
+  // Colonnes de largeur FIXE (table-layout: fixed) : la hauteur ne dépend plus de ce que
+  // le navigateur devine, donc la mesure qui choisit la taille de texte est fiable. Les
+  // poids donnent la place au texte libre (le bilan) plutôt qu'aux colonnes de chiffres.
+  // Dates en jj/mm : l'année est celle de la période, dite au sous-titre.
+  const jm = ymd => { const x = String(ymd || '').split('-'); return x.length === 3 ? `${x[2]}/${x[1]}` : ''; };
+  // ⚠️ Tout ce qui PEUT tenir sur une ligne y tient : une cellule écrite sur deux lignes
+  // double la hauteur de TOUTE la rangée — mesuré sur la démo, 25 rangées de 27 px au
+  // minimum à 7 pt, soit la page entière avant même le premier bilan.
+  const cols = [['eleve', 11], ['ident', 7], on('obs') && ['obs', 7], on('moy') && ['moy', 16], on('docs') && ['docs', 9],
+    on('incidents') && ['incidents', 16], on('contacts') && ['contacts', 8], on('bilan') && ['bilan', 26]].filter(Boolean);
+  const tot = cols.reduce((n, c) => n + c[1], 0);
+  const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c[1] / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
+  const titres = { eleve: 'Élève', ident: 'Groupe · options', obs: `Observ. ${_escName(p.label)}`, moy: 'Moyenne',
+    docs: 'Non rendus', incidents: 'Incidents', contacts: 'Contacts', bilan: o.type === 'miperiode' ? 'Bilan' : 'Conseil' };
+  const premier = syn.moyennes ? syn.moyennes.premier : null;
+  const cell = {
+    eleve: r => `<span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${
+      r.delegue || r.eco ? ` <small>${[r.delegue ? (r.delegue === 'titulaire' ? 'délégué' : 'délégué suppléant') : '', r.eco ? (r.eco === 'suppleant' ? 'éco-délégué suppléant' : 'éco-délégué') : ''].filter(Boolean).join(' · ')}</small>` : ''}${
+      r.arrive ? ` <small>arrivé le ${_escName(jm(r.arrive))}</small>` : ''}${r.parti ? ` <small>parti le ${_escName(jm(r.parti))}</small>` : ''}`,
+    ident: r => `<small>${identCell(r)}</small>`,
+    obs: r => r.cumulFin === null ? (r.absents ? `<small>abs. ×${r.absents}</small>` : '')
+      : `<span class="pp-big">${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</span> <small>(${r.cumulFin}${r.absents ? `, abs.×${r.absents}` : ''})</small>`,
+    moy: r => { const m = r.moyennes; if (!m) return '';
+      const g = m.generale === null ? '' : typeof m.generale === 'string' ? `<em>${_escName(m.generale)}</em>`
+        : `<span class="pp-big">${_escName(_fmtNote(m.generale))}</span>${m.delta ? ` <small>${_escName(_fmtDelta(m.delta.delta))}${m.delta.depuis !== premier ? ` depuis le ${_escName(jm(m.delta.depuis))}` : ''}</small>` : ''}`;
+      return `${g}${m.sous10.length ? ` <small>· &lt; 10 : ${m.sous10.map(noteHTML).join(' · ')}</small>` : ''}`; },
+    docs: r => r.nonRendus.length ? `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` : '',
+    incidents: r => `<small>${r.incidents.map(e => `<span class="pp-l">${_escName(jm(e.date))} <strong>${_escName(_instanceOf(e.type).label)}</strong> — ${_escName(e.objet)}</span>`).join('')}</small>`,
+    contacts: r => `<small>${r.contacts.map(e => `${_escName(jm(e.date))} ${_escName(_journalType(e.type).label.toLowerCase())}`).join(' · ')}</small>`,
+    bilan: r => `<div class="pp-rem">${bilCell(r)}</div>`,
+  };
+  const subT = sub + (on('moy') && premier ? ` · évolution des moyennes depuis le ${_fmtDateFr(premier)}` : '');
+  return { kind: 'landscape', html: `<div class="pp-titre">${_escName(titre)}</div><p class="pp-sub">${_escName(subT)}</p>${hvcHTML}
+    <table class="pp-t">${colgroup}<thead><tr>${cols.map(c => `<th>${titres[c[0]]}</th>`).join('')}</tr></thead><tbody>${
+      rows.map(r => `<tr>${cols.map(c => `<td>${cell[c[0]](r)}</td>`).join('')}</tr>`).join('')}</tbody></table>` };
 }
 // ── La modale : période, moment, blocs, forme ──
 function openPeriodePrint() {
@@ -10920,6 +11020,7 @@ function openPeriodePrint() {
   document.getElementById('mper-periode').innerHTML = ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('');
   document.getElementById('mper-type').value = _periodePrintOpts.type;
   document.getElementById('mper-forme').value = _periodePrintOpts.forme;
+  document.getElementById('mper-format').value = _periodePrintOpts.format === 'A3' ? 'A3' : 'A4';
   document.getElementById('mper-blocs').innerHTML = _PERIODE_BLOCS.map(b =>
     `<label class="tagpick" style="background:var(--paper-warm)" title="${_escAttr(b.hint)}"><input type="checkbox" data-ck="${_escAttr(b.key)}"${_periodePrintOpts.blocs.includes(b.key) ? ' checked' : ''} onchange="_periodePrintRefresh()"> ${_escName(b.label)}</label>`).join('');
   openMod('mperiode');
@@ -10930,6 +11031,7 @@ function _periodePrintLire() {
     idx: +document.getElementById('mper-periode').value || 0,
     type: document.getElementById('mper-type').value === 'miperiode' ? 'miperiode' : 'conseil',
     forme: document.getElementById('mper-forme').value === 'fiches' ? 'fiches' : 'tableau',
+    format: document.getElementById('mper-format').value === 'A3' ? 'A3' : 'A4',
     blocs: [...document.querySelectorAll('#mper-blocs input[data-ck]')].filter(c => c.checked).map(c => c.dataset.ck),
   };
 }
@@ -10945,19 +11047,35 @@ function _periodePrintRefresh() {
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
     o.blocs.includes('moy') ? (syn.moyennes ? `moyennes « ${syn.moyennes.periode} » du ${_fmtDateFr(syn.moyennes.date)}` : '⚠️ aucune moyenne importée pour cette période') : '',
     o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — 🎓 dans la liste pour les compléter` : '✓ un bilan pour chacun') : '',
-    o.forme === 'fiches' ? 'portrait, un bloc par élève' : 'paysage, une ligne par élève'];
+    o.forme === 'fiches' ? `${o.format} portrait, un bloc par élève` : _periodeFitTexte(_periodeFit(cls, o), o.format)];
   h.textContent = bits.filter(Boolean).join(' · ');
+}
+// Le tableau se MESURE avant d'imprimer : la plus grande taille de texte qui tient sur une
+// page du format choisi (_printFitMeasure). Annoncé dans le résumé de la modale, pour
+// qu'on sache avant d'imprimer si l'A3 s'impose.
+function _periodeFit(cls, o) {
+  if (o.forme === 'fiches' || !o.blocs.length) return null;
+  const out = _periodePrintHTML(cls, o.idx, o);
+  return out ? _printFitMeasure(out.html, out.kind, o.format) : null;
+}
+function _periodeFitTexte(fit, format) {
+  if (!fit) return '';
+  const pt = String(fit.size).replace('.', ',');
+  return fit.fits ? `tient sur une page ${format} paysage, texte en ${pt} pt${format === 'A4' && fit.size < 7 ? ' — petit : l\'A3 le rendra plus lisible' : ''}`
+    : `⚠️ trop long pour une page ${format}, même en ${pt} pt (≈ ${fit.pages} pages) — ${format === 'A4' ? 'passe en A3, ou ' : ''}décoche un bloc`;
 }
 function periodePrintOk() {
   const cls = getCls();
   const o = _periodePrintLire();
   if (!cls) return;
   if (!o.blocs.length) return toast('⚠️ Choisis au moins un bloc.', 'warn');
-  _periodePrintOpts = { blocs: o.blocs, type: o.type, forme: o.forme };
+  _periodePrintOpts = { blocs: o.blocs, type: o.type, forme: o.forme, format: o.format };
   const out = _periodePrintHTML(cls, o.idx, o);
   if (!out) return toast('⚠️ Période inconnue.', 'warn');
+  const fit = out.kind === 'landscape' ? _printFitMeasure(out.html, out.kind, o.format) : null;
   closeMod2('mperiode');
-  _printHTML(out.html, out.kind);
+  if (fit && !fit.fits) toast(`⚠️ La feuille déborde sur ≈ ${fit.pages} pages ${o.format}, même en ${String(fit.size).replace('.', ',')} pt.`, 'warn');
+  _printHTML(out.html, out.kind, { format: o.format, fontPt: fit ? fit.size : null });
 }
 
 // Le tableau des retours sur papier. Les colonnes viennent de la modale, l'ordre du tri
