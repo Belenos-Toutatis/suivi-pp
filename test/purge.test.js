@@ -66,6 +66,16 @@ const MAXIMAL = `S = {
                                                    nomTitulaire: 'Léa Durand', nomSuppleant: 'Noé Martin' } ],
                               bulletins: [ { n: 1, voix: ['c1'], statut: 'valide' } ] } ] } },
   },
+  // Moyennes : deux imports de la 5C (notes ET moyenne générale indexées par sid), un de la 5D.
+  matieres: { m_1: { id: 'm_1', nom: 'MATHEMATIQUES', norm: 'MATHEMATIQUES', ord: 0 } },
+  moyennes: {
+    '5C': { moy_1: { id: 'moy_1', date: '2025-10-01', periode: 'S1', ts: 1, matieres: ['m_1'], profs: {},
+                     notes: { s1: { m_1: 12 }, s2: { m_1: 'Abs' } }, generale: { s1: 12, s2: 9.5 } },
+            moy_2: { id: 'moy_2', date: '2025-11-01', periode: 'S1', ts: 2, matieres: ['m_1'], profs: {},
+                     notes: { s1: { m_1: 13 } }, generale: { s1: 13 } } },
+    '5D': { moy_3: { id: 'moy_3', date: '2025-10-01', periode: 'S1', ts: 1, matieres: ['m_1'], profs: {},
+                     notes: { s3: { m_1: 8 } }, generale: { s3: 8 } } },
+  },
   prefs: { periodMode: 'semestre', codeAbsent: 'A' },
   instances: { fiche_incident: { id: 'fiche_incident', label: 'Fiche incident', description: '', actif: true, ord: 0, builtin: true } },
   cur: '5C',

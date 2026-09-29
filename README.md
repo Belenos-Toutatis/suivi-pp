@@ -36,21 +36,28 @@ sauvegarde dans un dossier Nextcloud (onglet 💾 Données et réglages).
    Pronote ; l'app calcule l'**évolution depuis le relevé précédent** — c'est-à-dire la
    seule chose qui dit qui est à voir en priorité. Un cumul de 38 ne veut rien dire sans
    savoir qu'il était à 27 il y a trois semaines.
-2. **📄 Documents administratifs** — qui a rendu quoi, et quand. La feuille imprimée d'un
+2. **📈 Moyennes** — le tableau des moyennes exporté du bureau numérique, importé tel
+   quel et **réimporté au fil de la période** : chaque import est gardé, l'évolution se
+   calcule d'un import au suivant, et une matière qui apparaît (un collègue a enfin saisi
+   ses notes) prend simplement sa colonne. Moyenne, médiane, écart type, minimum,
+   maximum, nombre de moyennes sous 10 et à 10 ou plus, par matière et pour la moyenne
+   générale ; une vue « évolution » de ces statistiques import après import.
+3. **📄 Documents administratifs** — qui a rendu quoi, et quand. La feuille imprimée d'un
    document — comme la grille élèves × documents — se termine par un **bilan** : combien ont
    rendu, et combien ont coché chaque choix.
-3. **Réponses portées sur ces documents** — le choix de la famille (participation à
+4. **Réponses portées sur ces documents** — le choix de la famille (participation à
    Devoirs Faits, options d'orientation…), avec un **avis du PP** quand il y en a un.
-4. **🗳 Élection des délégués** — candidatures en binôme, dépouillement bulletin par
+5. **🗳 Élection des délégués** — candidatures en binôme, dépouillement bulletin par
    bulletin **projeté en direct devant la classe**, procès-verbal imprimable.
 
 La liste des **👥 Élèves** porte, sur la même ligne que l'identité, tout ce qui est connu de
-chacun — observations, Δ, période, non rendus, incidents, dernier contact : c'est l'écran de
+chacun — observations, Δ, période, moyenne générale, non rendus, incidents, dernier contact : c'est l'écran de
 préparation du conseil de classe et des appels aux familles, imprimable en paysage.
 
 ## Ce que l'app ne fait pas, volontairement
 
-Notes et moyennes, plans de salle, appel et absences, bulletins, mentions de conseil de
+Saisie de notes et calcul de moyennes (les moyennes sont LUES dans l'export du bureau
+numérique, jamais recalculées), plans de salle, appel et absences, bulletins, mentions de conseil de
 classe, élections autres que celle des délégués de la division. Pour le placement et
 l'évaluation, voir le projet frère
 [Plan de classe](https://github.com/Belenos-Toutatis/plan-de-classe), dont Suivi PP

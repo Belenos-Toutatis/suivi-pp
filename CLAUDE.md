@@ -10,6 +10,9 @@ Quatre besoins, dans cet ordre d'importance :
 3. **Réponses portées sur ces documents** — le choix de la famille (participation à Devoirs Faits, options d'orientation…), avec un **avis du PP** quand il y en a un.
 4. **Élection des délégués de classe** — candidatures, dépouillement, procès-verbal.
 
+Plus, depuis le 2026-09-29 : **5. Moyennes par matière** — l'export du bureau numérique,
+réimporté au fil de la période pour en suivre l'évolution (cf. *Moyennes par matière*).
+
 L'utilisateur est enseignant de physique-chimie au collège, PP d'une classe de cycle 4. Il est l'auteur et l'unique utilisateur de l'app.
 
 ### Ce que l'app remplace — à lire AVANT de concevoir quoi que ce soit
@@ -46,6 +49,7 @@ Quatre enseignements tirés de ces fichiers, tous structurants :
 | Branches et versions (2026-09-10) | **Un seul projet, une seule version.** Le travail atterrit sur `main`, qui est la version — pas de branche de fonctionnalité qui vit à côté, pas de PR à fusionner plus tard. `APP_VERSION` avance à chaque livraison. ⚠️ Corollaire : la barre de qualité est à tenir **avant** de pousser (tests verts, audit de contraste rejoué), puisqu'il n'y a pas de sas de relecture. ⚠️ **Et « tests verts » se VÉRIFIE, il ne se lit pas dans un tuyau** : le 2026-09-11, `npm test 2>&1 \| grep -E "pass\|fail" && git commit … && git push` a poussé un fichier de test cassé (`cf69ee7`) — `grep` trouvait la ligne « fail 1 », donc réussissait, et le commit s'enchaînait. Le commit se fait dans une commande SÉPARÉE, après avoir lu le résultat. |
 | Postes de travail (2026-09-10) | **Plusieurs machines, jamais en même temps** — elles ne sont pas au même endroit, donc travailler sur l'une signifie ne pas travailler sur l'autre. Le risque d'écriture concurrente est donc écarté par l'usage, pas par un verrou. ⚠️ Reste le cas asynchrone : refermer un portable avant la fin d'un téléversement, puis reprendre ailleurs. C'est pourquoi le dépôt sort de la sync (ci-dessous). |
 | Sessions distantes (2026-09-10) | **Écartées.** Une session dans le nuage ferait très bien le code, les tests et la documentation — mais pas les audits qui demandent de REGARDER l'écran (contraste sur 20 états × 2 thèmes, responsive 320→1920). Or ce sont eux qui ont trouvé les défauts 4 et 6, invisibles à tout test. Arbitré par l'utilisateur : *« si tu ne peux plus faire les vérifications qui demandent de regarder l'écran, ça ne m'intéresse pas »*. |
+| Moyennes (2026-09-29) | **Demandé par l'utilisateur**, qui lève ainsi « notes et moyennes » du hors-périmètre — mais seulement pour les **LIRE** : l'app importe l'export du bureau numérique, elle ne saisit aucune note et ne recalcule aucune moyenne d'élève. Un import = une photographie datée, gardée ; l'évolution se calcule d'un import au suivant ; les colonnes qui apparaissent s'alignent seules. Statistiques demandées : moyenne, médiane, écart type, nombre sous 10, nombre au-dessus de 10. |
 | Import Plan de classe (2026-09-09) | **On ne reprend PAS toutes les classes du fichier** — on est PP d'une seule. L'app liste les divisions (classes virtuelles exclues) et l'utilisateur coche la sienne. |
 | Une seule classe (2026-09-11) | **On est professeur principal d'UNE classe.** Le modèle reste multi-classes (une par année, le sélecteur en tête), mais tout ce qui met des élèves en lignes — ramassage, grille imprimée — ne connaît que la classe courante : un document partagé avec une autre division n'y fait pas entrer ses élèves. La garde est dans `_ramRows`, une seule fois. |
 
@@ -113,6 +117,8 @@ S = {
   releves:    { [classId]: { [ymd]: releve } },  // relevés de carnet
   documents:  { [docId]: doc },
   elections:  { [classId]: { [electionId]: election } },
+  moyennes:   { [classId]: { [importId]: releveMoy } },   // un import = une photographie
+  matieres:   { [mid]: { id, nom, norm, ord } },          // catalogue qui réaligne les colonnes
   prefs:      { periodMode: 'semestre'|'trimestre', … },
   instances:  { [instanceId]: instance },          // catalogue des instances (incidents)
   cur:        classId,
@@ -227,6 +233,102 @@ Le cas orientation est le plus riche : plusieurs champs sur le même document, d
 - ⚠️ `docReorder` **renumérote tous les `ord` avant de repositionner** : ils sont posés à la création avec la taille du catalogue et finissent dupliqués (import, duplication, données de démo), et réordonner des valeurs identiques ne changerait rien — la poignée paraîtrait cassée. Puis il **redistribue les mêmes places** entre les seuls documents affichés : les archivés masqués et ceux des autres classes gardent la leur. Sémantique **retirer-puis-réinsérer**, pas échanger : un glisser traverse plusieurs lignes d'un coup.
 - **Dupliquer un document** est le geste central de la rentrée suivante : mêmes champs, mêmes options, retours vides. Prévoir le bouton dès la v1 (miroir de `_evalDuplicate`).
 - Les **modèles** livrés dans les données de démo doivent couvrir les trois formes réelles : Devoirs Faits (choix à 3), fiche de renseignement (retour seul, aucun champ), fiche d'orientation (choix multiple d'options + avis PP).
+
+## Moyennes par matière
+
+L'utilisateur exporte les moyennes depuis le bureau numérique et obtient un CSV de cette
+forme (vérifiée sur un export réel, `moyennes_5e_premier_semestre_6eme_5eme_4eme_20260929.csv`) :
+
+```
+Nom et prénom de l'élève;Périodes;ANGLAIS LV2(Mme X);…;MATHEMATIQUES(M. Y, Mme Z);…;Moy.
+MARTIN Noé;Premier semestre 6ème 5ème 4ème;11;12;15;9;14;12,2
+```
+
+Point-virgule, virgule décimale, UTF-8 (repli Windows-1252 gardé), une matière par colonne
+avec ses professeurs entre parenthèses, la moyenne générale en dernier, des cases VIDES
+quand un collègue n'a pas encore noté. Il **réimporte au fil de la période** pour voir
+l'évolution, et **des colonnes apparaissent** d'un fichier à l'autre.
+
+```js
+releveMoy = {
+  id, date: 'YYYY-MM-DD',   // date d'extraction — lue dans le nom du fichier (…_20260929.csv)
+  periode,                  // la colonne « Périodes » telle quelle ; sinon S1/T1 déduit de la date
+  label, ts, fichier,
+  matieres: [ mid, … ],     // colonnes PRÉSENTES dans ce fichier
+  profs:    { [mid]: 'M. Y, Mme Z' },   // par import : un remplaçant change le nom, pas la matière
+  notes:    { [sid]: { [mid]: nombre | 'code' } },
+  generale: { [sid]: nombre | 'code' }, // la colonne « Moy. » du fichier, jamais recalculée
+}
+```
+
+- **Un import est une PHOTOGRAPHIE, jamais réécrite.** L'évolution se calcule entre deux
+  imports ; rien n'est stocké en delta. Même raisonnement qu'au carnet : ce qu'on stocke est
+  ce qu'on a lu.
+- ⚠️ **Une matière est reconnue par son NOM normalisé** (`_moyNorm` : sans accents, casse ni
+  ponctuation), via le catalogue `S.matieres` — **jamais par sa position** dans le fichier.
+  C'est ce qui permet à une colonne nouvelle de s'insérer n'importe où sans décaler les
+  autres : l'ordre des colonnes à l'écran est celui du catalogue (première apparition), pas
+  celui du fichier du jour.
+- ⚠️ **Une colonne ENTIÈREMENT vide ne crée pas la matière** dans cet import : c'est
+  « aucune note saisie », pas une matière. Sans cette règle, chaque export ferait naître
+  des colonnes mortes. Elle apparaîtra au premier import où un collègue aura noté — signalée
+  `nouvelle` (`_moyColNouvelle`) par rapport à l'import précédent de la période.
+- **Trois états d'une case, comme au carnet** : un nombre (⚠️ **0 compris — c'est une
+  note**, l'export réel en porte un), un **code** du bureau numérique (`Abs`, `Disp`, `NN`…)
+  conservé tel quel, et l'**absence de clé** = pas de note. Seuls les nombres entrent dans
+  les statistiques ; un code s'affiche en italique, un vide en tiret.
+- ⚠️ **L'évolution ne traverse pas les périodes.** Les moyennes repartent de zéro à chaque
+  période : comparer le S2 au S1 donnerait un Δ sans aucun sens. `_moyPrev` ne cherche que
+  dans les imports de la **même** `periode`, et remonte au dernier import où la case était
+  un NOMBRE (un code ou un vide ne se soustrait pas).
+- **Même date + même période = REMPLACEMENT**, pas empilement : on a réexporté après une
+  saisie. L'aperçu le dit avant l'import ; changer la date garde les deux.
+- **Plusieurs périodes dans un même fichier** (un export annuel) → un import par période.
+- **Rapprochement des élèves** (`_moyMatch`) : clé = mots du nom complet sans accents ni
+  casse, **triés** (l'export écrit « NOM Prénom », la classe connaît nom et prénom à part ;
+  les prénoms composés perdent leur trait d'union d'un côté ou de l'autre). ⚠️ Deux
+  homonymes parfaits dans la classe → **rien n'est deviné**, la ligne passe au rattachement
+  manuel. Une ligne non reconnue n'est jamais importée d'office : l'aperçu propose un
+  sélecteur, par défaut « ignorer ». Les élèves de la classe **absents du fichier** sont
+  nommés dans l'aperçu.
+- L'import ne crée **aucun élève** : le roster vient de l'onglet Élèves.
+
+### Statistiques — deux choix à ne pas « corriger »
+
+- ⚠️ **Écart type de POPULATION (σ, divisé par n)** : la classe n'est pas un échantillon,
+  c'est la population entière. C'est `ÉCARTYPE.P` du tableur, pas `ÉCARTYPE` (n − 1). Si
+  l'utilisateur compare à un tableur et trouve un écart, c'est là.
+- ⚠️ **« Sous 10 » = strictement moins de 10 ; 10 pile compte dans « 10 et plus »** : la
+  moyenne est atteinte. Les deux compteurs somment toujours à `n` (testé).
+- Les statistiques du tableau portent sur les **lignes affichées** (élèves présents, plus
+  les partis qui figurent dans l'import) ; celles de la vue Évolution, sur tout l'import.
+- La ligne « Moyenne » porte l'évolution de la **moyenne de classe** depuis l'import
+  précédent ; la vue 📈 Évolution déroule n'importe laquelle des huit statistiques, import
+  après import.
+
+### Affichage
+
+- **Intitulés abrégés** (`_moyAbbr` : SVT, EPS, Maths, Hist.-géo.…), nom complet et
+  professeurs en infobulle. Les intitulés du bureau numérique coupés en plein mot sur onze
+  colonnes rendaient la grille illisible (vu à l'écran, pas en test). Seul ce qu'on sait
+  abréger l'est ; une matière inconnue garde son intitulé.
+- Cases **sous 10 sur fond d'alerte** (`--alert-bg` / `--alert-fg`), Δ en `--ok-fg` /
+  `--danger-fg`, et dans une case d'alerte le Δ reprend l'encre de la case.
+- Tri par moyenne générale, par évolution, par nombre de matières sous 10, ou par une
+  matière (clic sur l'en-tête) — **toujours la plus basse d'abord** : on trie pour voir
+  qui décroche.
+- **Fiche élève** : une section 📈 en lecture seule (la source est l'import), une table par
+  période, **transposée** (matières en lignes, imports en colonnes) — on lit l'histoire
+  d'un seul élève, et il y a bien plus de matières que d'imports. **Liste des élèves** :
+  colonne « Moy. » (dernière moyenne générale, Δ, nombre de matières sous 10), triable par
+  l'en-tête — la plus basse d'abord au premier clic, les élèves sans moyenne au bout dans
+  les deux sens — et reprise à l'impression de la liste.
+- **Cadre figé** (`.rel-wrap.frozen`, cf. *Grilles*) : les deux vues rendent `[tableau,
+  légende]` et c'est `renderMoyennes` qui pose le cadre entre `_wrapScrollKeep` et `keep()`
+  — changer d'import ou de tri ne renvoie pas la grille en haut à gauche.
+- **Impression** (`printMoyennes`, bouton 🖨 et Ctrl+P sur l'onglet) : la vue affichée, en
+  paysage, statistiques en pied. ⚠️ Sur le papier, « sous 10 » se marque en **gras**, pas
+  en couleur : la feuille sort souvent en noir et blanc.
 
 ## Élection des délégués de classe
 
@@ -603,7 +705,7 @@ officielles, l'utilisateur les règle ou les décoche, et il note la décision p
 
 ## Écrans
 
-Navigation à un seul niveau, **5 onglets** depuis la v1.23.0 (6 avant : la Synthèse a été fusionnée dans Élèves — cf. 5.) ; l'app reste petite, pas de `.tab-group` à deux étages ici.
+Navigation à un seul niveau, **6 onglets** depuis la v1.32.0 (**📈 Moyennes** ajouté entre Observations et Retours — c'est un suivi scolaire, comme le carnet) ; 5 de la v1.23.0 à la v1.31 (la Synthèse a été fusionnée dans Élèves — cf. 5.) ; l'app reste petite, pas de `.tab-group` à deux étages ici.
 
 ⚠️ **Les libellés nomment ce qu'on FAIT, pas l'objet qu'on manipule** (arbitré le 2026-09-11 :
 *« dans l'onglet carnet, en fait on fait le suivi des observations ; dans Documents, on
@@ -647,6 +749,7 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
    - ⚠️ **Entrée passe à l'élève suivant — même quand la valeur a changé** (v1.23.2, remontée de l'utilisateur). `relCellKey` capturait l'élément suivant PUIS appelait `blur()`, qui déclenche le `onchange`, qui re-rend toute la grille : l'élément capturé était détaché, `focus()` ne faisait rien, et plus aucune cellule n'était sélectionnée après Entrée — précisément dans le cas normal, une valeur tapée. La cellule suivante se retrouve maintenant **par ses données** (`data-ymd` + `data-sid`) dans la grille telle qu'elle est après le re-rendu. Le bug ne se voyait pas quand on relisait sans rien changer (pas de re-rendu). ⚠️ Règle : après tout `blur()` ou mutation qui peut re-rendre, ne jamais réutiliser une référence d'élément prise avant.
    - ⚠️ **Au doigt, les touches SONT le clavier — le clavier virtuel ne doit pas surgir** (v1.23.1, remontée de l'utilisateur : chaque touche passait le focus à la cellule suivante, le clavier virtuel s'ouvrait et décalait la page, « extrêmement pénible »). Les cellules portent `inputmode="none"` quand `_relKbdOff` est vrai — d'office si le pointeur principal est le doigt (`matchMedia('(pointer: coarse)')`), jamais à la souris — ce qui garde le focus (donc le bandeau, qui suit la cellule) sans appeler le clavier. Une neuvième touche **⌨** bascule le réglage pour taper une valeur que les touches ne proposent pas ; ⚠️ changer `inputmode` sur un champ déjà focalisé ne fait rien, il faut `blur()` puis `focus()`. Sans effet sur un clavier physique. ⚠️ **Non vérifié sur une vraie tablette** — le navigateur de test n'a pas de clavier virtuel ; seuls les attributs et le focus ont été vérifiés.
  Une colonne par date, saisie du cumul au clavier (`Tab`/`Entrée` comme le tableur d'éval), colonne **Δ depuis le relevé précédent**, colonne **total de la période**, en-tête `+ Nouveau relevé`. Tri par Δ décroissant = la liste des élèves à voir en priorité.
+2 bis. **📈 Moyennes** (v1.32.0) — le tableau élèves × matières d'un import, ses statistiques en pied, l'évolution depuis l'import précédent de la même période dans chaque case ; une vue **📈 Évolution** (une ligne par import, une statistique au choix) ; import par fichier ou copier-coller avec aperçu ; impression paysage. Détail et pièges : *Moyennes par matière*.
 3. **📄 Documents** — liste des documents (avec compteurs `rendus / attendus` et `réponses manquantes`), puis un tableau par document : élèves × (`Rendu` · `Date` · un groupe de colonnes par champ). Bouton « liste des manquants » (à copier ou imprimer pour la vie scolaire).
    ⚠️ **Un document ne se « ramasse » pas toujours** : très souvent on VÉRIFIE qu'une signature est là, carnet par carnet, en passant dans les rangs. Le tableau d'un document porte donc le même sélecteur de tri que les autres grilles — place et ordre de ramassage compris.
    **🧺 Ramassage** — le geste réel n'est pas « un document à la fois » : on passe dans les rangs avec trois papiers différents à récupérer. D'où une troisième vue de l'onglet, une grille **élèves × documents** où l'on coche les retours de plusieurs documents en une seule passe. Colonnes choisies à la volée, date du ramassage réglable (on saisit souvent le soir), compteurs vivants par colonne et par élève, « tout cocher » par colonne, flèches pour descendre une colonne.
@@ -925,7 +1028,8 @@ nouveau champ date se branche là**.
 ### Invariants de fiabilité
 
 - **Suppression d'un élève = `_purgeStudentRefs(sid)`, source unique de vérité.** Ici : le roster de sa classe, `releve.counts[sid]` de tous les relevés, `doc.retours[sid]` de tous les documents. Les incidents (`stu.incidents`) partent avec l'élève ; leurs PDF restent dans le dossier des pièces jointes — l'app n'efface jamais un fichier d'elle-même, 🧹 Orphelins… dans Données les liste. ⚠️ **Les élections sont une EXCEPTION assumée**, comme les appels de Plan de classe : un procès-verbal signé est un document historique, on n'en retire pas un candidat parce qu'il a changé d'établissement en mars. `election.candidats[].sidTitulaire` et `assesseurs` survivent donc — à déclarer dans les exceptions du test de balayage, avec cette justification. Corollaire : l'élection doit porter l'**identité minimale** (nom, prénom) de ses candidats et assesseurs, sinon le PV devient illisible après suppression (même raisonnement que `attRecord.eleves` là-bas). ⚠️ **Tout nouveau champ indexé par sid se purge LÀ**, ou s'ajoute aux exceptions du test de balayage avec sa justification écrite.
-- **Suppression d'une classe = `_purgeClassRefs(classId)`** : `S.releves[classId]`, `S.elections[classId]`, retrait de `doc.classIds` (et suppression du document s'il ne concerne plus aucune classe vivante), suppression de ses élèves.
+  Depuis la v1.32.0, la purge retire aussi `notes[sid]` et `generale[sid]` de **chaque import de moyennes** — ce qui change les statistiques des imports passés, et c'est voulu : on SUPPRIME un élève qui n'aurait jamais dû être là (doublon, erreur d'import) ; un élève PARTI n'est pas supprimé et garde ses moyennes.
+- **Suppression d'une classe = `_purgeClassRefs(classId)`** : `S.releves[classId]`, `S.elections[classId]`, `S.moyennes[classId]`, retrait de `doc.classIds` (et suppression du document s'il ne concerne plus aucune classe vivante), suppression de ses élèves.
 - **`_validateImport`** : liste blanche des sections de `S`, rejet explicite de `__proto__` / `constructor` / `prototype` par un scan récursif des clés. ⚠️ Ajouter une section à `S` impose de l'ajouter à cette liste.
 - **`_sanitizeCoreSections()` en tête de `postLoadHook`** : une section absente ou du mauvais type est recréée, une entrée non-objet est supprimée avec un `console.warn`. ⚠️ Une exception dans `postLoadHook` interrompt le chargement et laisse un état à moitié migré, **sans message** : toute migration doit supposer que sa section peut manquer.
 - **Gestionnaire d'erreurs global** (`window.onerror` + `unhandledrejection`) → toast discret + journal `window.__suiviPPErrors`. Rend visibles les pannes que les `catch {}` avalent.
@@ -960,6 +1064,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 49 | **Onglet 📈 Moyennes** : lecture de l'export du bureau numérique (`_moyParse`, `_moyMatch`, `moyImport`), catalogue de matières qui réaligne les colonnes, statistiques (`_moyStats`, σ de population), évolution par période (`_moyDelta`, `_moyEvolution`), aperçu d'import avec rattachement manuel, vue Évolution, impression ; section de la fiche, colonne *Moy.* de la liste des élèves ; démo à 4 imports ; 38 tests de plus | ✅ **fait** (2026-09-29, v1.32.0) |
 | 48 | **Le même bilan sur la grille élèves × documents imprimée**, une section par document, champs des familles seulement (`_gridPrintBilan`) ; 1 test | ✅ **fait** (2026-09-16, v1.31.1) |
 | 47 | **Bilan au pied du document imprimé** : rendus et compte de chaque option, sur les lignes et colonnes imprimées (`_docPrintBilan`) ; 3 tests | ✅ **fait** (2026-09-16, v1.31.0) |
 | 46 | **Modale d'élection** : les défauts des textes écrits en clair + bouton ↺, suppléants réglables même en binôme (le binôme se défait, ne refuse pas) ; 1 test | ✅ **fait** (2026-09-12, v1.30.1) |
@@ -1241,6 +1346,25 @@ seconde définition gagnait, la première restait comme un piège), `_stubHTML`,
 (💾 Données → *↩ Dernier fichier chargé*) — la copie IndexedDB avait un écrivain et
 aucun lecteur.
 
+**2026-09-29, v1.32.0 (Moyennes) : 0 écart**, clair et sombre, par `scripts/audit_browser.js`
+(contraste, débordement, texte tronqué, erreurs JS) — 8 états × 2 thèmes, 4 276 nœuds : le
+tableau au 1er et au 3e import du S1 (onze colonnes, codes, Δ, colonnes nouvelles), le S2,
+la vue Évolution, la liste des élèves avec sa colonne *Moy.*, la fiche, l'aperçu d'import
+peuplé (ligne à rattacher, valeur hors barème, matière nouvelle), la modale d'édition ; plus
+5 états à 320 px (2 834 nœuds), aucun débordement. Cadre figé vérifié à 1024 × 768 (en-tête
+et noms en place après défilement, pied de statistiques compris). Impression : paysage posé
+puis retiré, rendu papier noir sur blanc depuis le thème sombre. Le vrai fichier de
+l'utilisateur relu hors de l'app — 27 élèves, 5 matières, période et moyenne générale
+reconnues — sans qu'il entre dans le dépôt.
+
+⚠️ **Leçon de méthode, payée ce jour-là** : l'onglet a d'abord été construit sur une copie
+restée à la **v1.10.0**, alors que `main` était à la v1.31.1 — **quarante commits** de
+l'autre poste jamais tirés. Le push a été refusé, rien n'a été écrasé, mais tout a dû être
+reporté à la main (la Synthèse n'existait plus, le cadre figé et la correction de la
+colonne collante avaient été faits entre-temps — la même panne trouvée deux fois). **Premier
+geste d'une session : `git pull`.** Avec deux postes et pas de verrou, c'est la seule
+chose qui garantit qu'on travaille sur la version.
+
 **Impression — orientation.** Les pages NOMMÉES (`@page landscape` + `page: landscape` sur
 la zone `#pa`) sont conservées, mais elles ne suffisent pas : Firefox les ignore, et la
 synthèse serait sortie en portrait sans que rien ne le signale. Depuis l'étape 10, un
@@ -1355,6 +1479,10 @@ depuis les étapes 2 et 5. **Une donnée de démo exhaustive est un instrument d
 seulement une commodité d'accueil.
 
 ## Deux machines, un seul transport
+
+⚠️ **Premier geste de toute session : `git pull`** (constaté le 2026-09-29 : un onglet
+entier construit sur une copie en retard de quarante commits, cf. scores v1.32.0). Le
+dépôt ne passe plus par Nextcloud : rien d'autre que git ne met ce poste à jour.
 
 ⚠️ **Ce dossier vit dans une arborescence Nextcloud, mais il ne doit PAS être synchronisé
 par Nextcloud.** Il est un dépôt git, et git assure déjà le transport entre les postes via
@@ -1531,7 +1659,7 @@ périmètre reste étroit : **une grille, pas un plan** — ni îlots, ni tablet
 vides dessinées, ni emplois du temps. Et l'écran rappelle qu'un import depuis Plan de
 classe réécrit tout cela.
 
-Notes et moyennes (c'est Plan de classe et Pronote), les plans de salle DESSINÉS (îlots, tablettes, cases vides), appel/absences, bulletins et remarques de bulletin, mentions de conseil de classe, élections autres que celle des délégués de la division (CVC, conseil d'administration, éco-délégués — le PP ne les organise pas), export XLSX/ODS (le CSV suffit à ce volume ; le module `_NotesExport` de la référence reste disponible si le besoin apparaît).
+La **saisie** de notes et le **calcul** de moyennes d'élèves (c'est Plan de classe et Pronote — l'onglet 📈 Moyennes ne fait que LIRE l'export du bureau numérique), les plans de salle DESSINÉS (îlots, tablettes, cases vides), appel/absences, bulletins et remarques de bulletin, mentions de conseil de classe, élections autres que celle des délégués de la division (CVC, conseil d'administration, éco-délégués — le PP ne les organise pas), export XLSX/ODS (le CSV suffit à ce volume ; le module `_NotesExport` de la référence reste disponible si le besoin apparaît).
 
 ## Questions à poser à l'utilisateur avant de les décider seul
 

@@ -878,6 +878,41 @@ td.rel-delta.hot  { background: var(--alert-bg);   color: var(--alert-fg); }
 .rel-wrap.frozen input, .rel-wrap.frozen button, .rel-wrap.frozen select { scroll-margin: 72px 8px 8px 200px; }
 
 /* ═══════════════════════════════════════════════════════════════════
+   ONGLET MOYENNES — un import = une photographie datée
+   ═══════════════════════════════════════════════════════════════════ */
+/* Les intitulés du bureau numérique sont LONGS (« SCIENCES DE LA VIE ET DE LA TERRE ») :
+   ils passent à la ligne dans une colonne bornée, au lieu d'élargir la grille. */
+.moy-table th.moy-mat, .moy-table th.moy-gen, .moy-table th.moy-s10 {
+  white-space: normal; text-align: center; vertical-align: bottom;
+  min-width: 64px; max-width: 118px; padding: 5px 4px; line-height: 1.15;
+}
+.moy-th-btn {
+  background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
+  font: 600 11px var(--font-sans); color: var(--ink-blue); cursor: pointer; padding: 2px 3px;
+  text-transform: none; letter-spacing: 0; white-space: normal;
+}
+.moy-th-btn:hover { border-color: var(--rule-line); background: var(--paper); }
+.moy-profs { display: block; font: italic 10px var(--font-serif); color: var(--pencil); text-transform: none; letter-spacing: 0; margin-top: 2px; font-weight: 400; }
+.moy-new { display: inline-block; font: 700 9px var(--font-sans); background: var(--caution-bg); color: var(--caution-fg); border: 1px solid var(--caution-bd); border-radius: 6px; padding: 0 4px; margin-top: 2px; text-transform: none; letter-spacing: 0; }
+.moy-table td.moy-c { text-align: center; font-family: var(--font-mono); font-variant-numeric: tabular-nums; padding: 3px 5px; }
+.moy-v { display: block; font-weight: 600; }
+.moy-d { display: block; font-size: 10px; color: var(--pencil); line-height: 1.1; min-height: 11px; }
+.moy-d.up   { color: var(--ok-fg); font-weight: 700; }
+.moy-d.down { color: var(--danger-fg); font-weight: 700; }
+/* Sous 10 : surface d'alerte thémée, encre associée — et le Δ reprend l'encre de la case. */
+.moy-table td.moy-c.low { background: var(--alert-bg); color: var(--alert-fg); }
+.moy-table td.moy-c.low .moy-d { color: var(--alert-fg); }
+.moy-table td.moy-c.code { color: var(--pencil); font-style: italic; }
+.moy-table td.moy-gen, .moy-table th.moy-gen { border-left: 2px solid var(--rule-line); }
+.moy-table td.moy-gen .moy-v { font-weight: 800; }
+.moy-table td.moy-s10 { text-align: center; font-family: var(--font-mono); font-weight: 700; }
+.moy-table td.moy-s10.warn { background: var(--caution-bg); color: var(--caution-fg); }
+.moy-table tfoot tr.moy-stat th, .moy-table tfoot tr.moy-stat td { background: var(--paper-warm); font-size: .9em; }
+.moy-table tfoot tr.moy-stat.first th, .moy-table tfoot tr.moy-stat.first td { border-top: 2px solid var(--rule-line); }
+.moy-table tfoot th.rel-name { text-align: left; font-weight: 700; }
+.moy-vues { display: inline-flex; gap: 4px; }
+
+/* ═══════════════════════════════════════════════════════════════════
    ONGLET DOCUMENTS
    ═══════════════════════════════════════════════════════════════════ */
 /* Badges de compteur : trois états, chacun avec sa surface ET son encre themées. */
@@ -1284,8 +1319,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <span style="font-size:1.4em">🔒</span>
   <span style="flex:1;min-width:240px">
     <strong>Données personnelles d'élèves</strong> — cette app stocke localement noms, prénoms,
-    dates de naissance, aménagements pédagogiques, relevés de carnet, retours de documents
-    administratifs, réponses des familles, un journal des contacts avec elles, et les
+    dates de naissance, aménagements pédagogiques, relevés de carnet, moyennes par matière,
+    retours de documents administratifs, réponses des familles, un journal des contacts avec elles, et les
     incidents et instances (commission éducative…) avec, si tu les joins, les PDF des fiches —
     ceux-ci dans le dossier que tu choisis, pas dans le navigateur.
     En cadre professionnel, déclare-la à ton DPO d'établissement (souvent <code>dpo@ac-&lt;ton-académie&gt;.fr</code>).
@@ -1320,6 +1355,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <nav id="nav">
   <button class="nb on" onclick="showTab('eleves',this)"    title="Liste des élèves, import, aménagements, remarque libre">👥 Élèves</button>
   <button class="nb"    onclick="showTab('carnets',this)"   title="Suivre les observations portées au carnet : le total relevé à chaque date, et l'évolution depuis le relevé précédent">📓 Observations</button>
+  <button class="nb"    onclick="showTab('moyennes',this)"  title="Moyennes par matière importées du bureau numérique : statistiques et évolution d'un import à l'autre">📈 Moyennes</button>
   <button class="nb"    onclick="showTab('documents',this)" title="Les papiers distribués aux familles : qui a rendu quoi, signé quoi, coché quoi — ramassage et vérification">📄 Retours</button>
   <button class="nb"    onclick="showTab('delegues',this)"  title="Heures de vie de classe (ce qu'on y a traité, les décisions, les thèmes à venir) et élections des délégués et des éco-délégués">🏫 Vie de classe</button>
   <button class="nb"    onclick="showTab('donnees',this)"   title="Réglages, options, salles et placements, sauvegarde, export/import, vie privée">💾 Données et réglages</button>
@@ -1340,6 +1376,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div id="eleves-body"></div>
   </div>
   <div id="tab-carnets"   class="tab"><div class="sh"><h2>📓 Observations du carnet</h2></div><div id="carnets-body"></div></div>
+  <div id="tab-moyennes"  class="tab"><div class="sh"><h2>📈 Moyennes par matière</h2></div><div id="moyennes-body"></div></div>
   <div id="tab-documents" class="tab"><div class="sh"><h2>📄 Retours de documents</h2></div><div id="documents-body"></div></div>
   <div id="tab-delegues"  class="tab"><div class="sh"><h2>🏫 Vie de classe</h2></div><div id="delegues-body"></div></div>
   <div id="tab-donnees"   class="tab">
@@ -1414,8 +1451,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <h2>ⓘ À propos de Suivi PP</h2>
     <div class="about-section">
       <h3>L'application</h3>
-      Suivi des élèves dont on est professeur principal : relevés de carnet, documents
-      administratifs et réponses des familles, élection des délégués.
+      Suivi des élèves dont on est professeur principal : relevés de carnet, moyennes par
+      matière, documents administratifs et réponses des familles, élection des délégués.
       Version <code id="about-version"></code> · build <code id="about-build"></code>.
       <div style="margin-top:8px"><button class="btn btn-p btn-sm" onclick="checkForUpdate()">🔄 Vérifier les mises à jour</button></div>
     </div>
@@ -1743,6 +1780,53 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
+<!-- ═══════════════ MOYENNES — import d'un tableau ═══════════════ -->
+<div id="mmoyimp" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:820px;width:100%;max-height:92vh">
+    <h2>📥 Importer les moyennes — <span id="mmoyimp-cls"></span></h2>
+    <div class="tb-hint" style="margin-bottom:8px">L'export des moyennes du bureau numérique : une ligne par élève, une colonne par matière. Les élèves sont reconnus par leur nom, les matières par leur intitulé — une matière nouvelle s'ajoute simplement aux autres.</div>
+    <div class="fg" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-g btn-sm" onclick="document.getElementById('mmoyimp-file').click()">📂 Choisir le fichier CSV</button>
+      <input type="file" id="mmoyimp-file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" style="display:none" onchange="_moyFileSelected(this)">
+      <span id="mmoyimp-fname" class="tb-hint"></span>
+    </div>
+    <div class="fg"><label for="mmoyimp-txt">… ou collez le tableau</label>
+      <textarea id="mmoyimp-txt" rows="4" data-autofocus spellcheck="false" style="font-family:var(--font-mono);font-size:12px" oninput="_moyImpTextChanged()" placeholder="Nom et prénom de l'élève;Périodes;MATHEMATIQUES(M. X);…;Moy."></textarea>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:150px"><label for="mmoyimp-date">Date de l'extraction</label>
+        <input type="date" id="mmoyimp-date" onblur="this.value=_ymdCompleteAnnee(this.value);_moyImpRefresh()"></div>
+      <div class="fg" style="flex:2;min-width:180px"><label for="mmoyimp-label">Libellé <span style="font-weight:400;font-size:.85em">(optionnel)</span></label>
+        <input id="mmoyimp-label" maxlength="60" placeholder="ex. avant le conseil"></div>
+    </div>
+    <div id="mmoyimp-prev"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mmoyimp')">Annuler</button>
+      <button class="btn btn-p" id="mmoyimp-ok" onclick="moyImportOk()" disabled>✓ Importer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MOYENNES — modifier un import ═══════════════ -->
+<div id="mmoyed" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:460px;width:100%">
+    <h2>✏️ Import de moyennes</h2>
+    <div class="tb-hint" id="mmoyed-info" style="margin-bottom:8px"></div>
+    <div class="fg"><label for="mmoyed-date">Date de l'extraction</label>
+      <input type="date" id="mmoyed-date" data-autofocus onblur="this.value=_ymdCompleteAnnee(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();moyEditOk()}"></div>
+    <div class="fg"><label for="mmoyed-per">Période</label>
+      <input id="mmoyed-per" maxlength="80" onkeydown="if(event.key==='Enter'){event.preventDefault();moyEditOk()}">
+      <div class="tb-hint" style="margin-top:4px">L'évolution se calcule entre imports de la MÊME période : les moyennes repartent de zéro à chaque période.</div></div>
+    <div class="fg"><label for="mmoyed-label">Libellé <span style="font-weight:400;font-size:.85em">(optionnel)</span></label>
+      <input id="mmoyed-label" maxlength="60" onkeydown="if(event.key==='Enter'){event.preventDefault();moyEditOk()}"></div>
+    <div class="ma">
+      <button class="btn btn-d btn-sm" onclick="moyEditDelete()" style="margin-right:auto">🗑 Supprimer</button>
+      <button class="btn btn-g" onclick="closeMod2('mmoyed')">Annuler</button>
+      <button class="btn btn-p" onclick="moyEditOk()">✓ Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ DOCUMENT — nouveau / réglages ═══════════════ -->
 <div id="mdoc" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:760px;width:100%;max-height:92vh">
@@ -1998,8 +2082,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.31.1';
-const APP_BUILD_DATE = '2026-09-16T07:59:04Z';
+const APP_VERSION    = '1.32.0';
+const APP_BUILD_DATE = '2026-09-29T21:40:47Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2036,6 +2120,14 @@ function _emptyState() {
     releves:   {},   // { [classId]: { 'YYYY-MM-DD': releve } }
     documents: {},   // { [docId]: doc }
     elections: {},   // { [classId]: { [electionId]: election } }
+    // Moyennes par matière importées du bureau numérique — une PHOTOGRAPHIE par import.
+    // { [classId]: { [importId]: { id, date, periode, label, ts, fichier,
+    //     matieres: [mid…] (colonnes de CE fichier), profs: { mid: 'Mme X' },
+    //     notes: { sid: { mid: nombre | 'code' } }, generale: { sid: nombre | 'code' } } } }
+    moyennes:  {},
+    // Catalogue des matières, partagé par tous les imports : c'est lui qui réaligne les
+    // colonnes quand un fichier en gagne une. { [mid]: { id, nom, norm, ord } }
+    matieres:  {},
     tags:      {},   // { [tagId]: { id, abbr, name, color } } — codes Pronote : LATIN, BIL, DNL…
     // Catalogue des instances (fiche incident, commission éducative…) : pré-rempli des
     // instances officielles, renommables, désactivables, complétables. Les ENTRÉES, elles,
@@ -2681,16 +2773,16 @@ function _isPlainObj(o) { return !!o && typeof o === 'object' && !Array.isArray(
 // manquer — c'est le rôle de cette fonction, appelée EN TÊTE de postLoadHook.
 // ⚠️ Toute section ajoutée à S s'ajoute ici.
 function _sanitizeCoreSections() {
-  for (const k of ['classes', 'eleves', 'releves', 'documents', 'elections', 'tags', 'salles', 'prefs', 'instances']) {
+  for (const k of ['classes', 'eleves', 'releves', 'documents', 'elections', 'moyennes', 'matieres', 'tags', 'salles', 'prefs', 'instances']) {
     if (!_isPlainObj(S[k])) { console.warn(`Section ${k} absente ou invalide — recréée vide`); S[k] = {}; }
   }
-  for (const k of ['classes', 'eleves', 'documents', 'tags', 'salles', 'instances']) {
+  for (const k of ['classes', 'eleves', 'documents', 'matieres', 'tags', 'salles', 'instances']) {
     for (const [id, v] of Object.entries(S[k])) {
       if (!_isPlainObj(v)) { console.warn(`Entrée ${k}.${id} invalide — supprimée`); delete S[k][id]; }
     }
   }
-  // releves / elections sont à DEUX niveaux : { classId: { clé: objet } }
-  for (const k of ['releves', 'elections']) {
+  // releves / elections / moyennes sont à DEUX niveaux : { classId: { clé: objet } }
+  for (const k of ['releves', 'elections', 'moyennes']) {
     for (const [cid, sub] of Object.entries(S[k])) {
       if (!_isPlainObj(sub)) { console.warn(`${k}.${cid} invalide — supprimé`); delete S[k][cid]; continue; }
       for (const [id, v] of Object.entries(sub)) {
@@ -2723,6 +2815,16 @@ function _sanitizeCoreSections() {
     e.incidents = e.incidents.filter(_isPlainObj);
     if (!Array.isArray(e.bilans)) e.bilans = [];
     e.bilans = e.bilans.filter(_isPlainObj);
+  }
+  for (const byId of Object.values(S.moyennes)) {
+    for (const r of Object.values(byId)) {
+      if (!Array.isArray(r.matieres)) r.matieres = [];
+      for (const k of ['notes', 'generale', 'profs']) if (!_isPlainObj(r[k])) r[k] = {};
+      for (const [sid, o] of Object.entries(r.notes)) if (!_isPlainObj(o)) delete r.notes[sid];
+    }
+  }
+  for (const m of Object.values(S.matieres)) {
+    if (typeof m.norm !== 'string' || !m.norm) m.norm = _moyNorm(m.nom);
   }
   for (const d of Object.values(S.documents)) {
     if (!Array.isArray(d.classIds)) d.classIds = [];
@@ -2795,13 +2897,13 @@ function _validateImport(d) {
   // vérifiées compatibles ID_RE, sinon des imports légitimes seraient rejetés.
   // Clés vérifiées : ids de classe/élève/document, dates 'YYYY-MM-DD' (releves),
   // ids d'élection, ids de tag ('tag_3'), noms fixes (prefs), ids d'appareil (clock).
-  const sections = ['classes', 'eleves', 'releves', 'documents', 'elections', 'tags', 'salles', 'prefs', 'clock', 'instances'];
+  const sections = ['classes', 'eleves', 'releves', 'documents', 'elections', 'moyennes', 'matieres', 'tags', 'salles', 'prefs', 'clock', 'instances'];
   for (const sec of sections) {
     const err = checkKeys(d[sec], sec);
     if (err) return err;
   }
-  // releves / elections : les sous-clés aussi (dates de relevé, ids d'élection).
-  for (const sec of ['releves', 'elections']) {
+  // releves / elections / moyennes : les sous-clés aussi (dates de relevé, ids d'élection, ids d'import).
+  for (const sec of ['releves', 'elections', 'moyennes']) {
     if (d[sec] && typeof d[sec] === 'object') {
       for (const [cid, sub] of Object.entries(d[sec])) {
         const err = checkKeys(sub, `${sec}[${cid}]`);
@@ -2848,6 +2950,16 @@ function _purgeStudentRefs(sid) {
   for (const doc of Object.values(S.documents)) {
     if (doc && doc.retours) delete doc.retours[sid];
   }
+  // Moyennes : ses notes et sa moyenne générale, dans chaque import. ⚠️ Les statistiques
+  // de classe des imports passés changent alors — c'est voulu : un élève supprimé l'est
+  // parce qu'il n'aurait jamais dû être là (doublon, erreur d'import). Un élève PARTI,
+  // lui, n'est pas supprimé et garde ses moyennes.
+  for (const byId of Object.values(_isPlainObj(S.moyennes) ? S.moyennes : {})) {
+    for (const rel of Object.values(byId || {})) {
+      if (rel?.notes) delete rel.notes[sid];
+      if (rel?.generale) delete rel.generale[sid];
+    }
+  }
   delete S.eleves[sid];
 }
 
@@ -2859,6 +2971,7 @@ function _purgeClassRefs(classId) {
   }
   delete S.releves[classId];
   delete S.elections[classId];
+  if (_isPlainObj(S.moyennes)) delete S.moyennes[classId];
   for (const [did, doc] of Object.entries(S.documents)) {
     if (!Array.isArray(doc.classIds)) continue;
     doc.classIds = doc.classIds.filter(c => c !== classId);
@@ -2901,6 +3014,17 @@ function _auditState() {
       if (!S.salles[salleId]) pb.push(`classe ${cid} : placement dans une salle inconnue ${salleId}`);
       for (const occ of Object.values(_isPlainObj(room.seating) ? room.seating : {})) {
         if (!known.has(occ)) pb.push(`classe ${cid} / salle ${salleId} : élève fantôme assis ${occ}`);
+      }
+    }
+  }
+  for (const [cid, byId] of Object.entries(_isPlainObj(S.moyennes) ? S.moyennes : {})) {
+    if (!S.classes[cid]) pb.push(`moyennes : classe inconnue ${cid}`);
+    for (const [rid, rel] of Object.entries(byId || {})) {
+      for (const sid of [...Object.keys(rel.notes || {}), ...Object.keys(rel.generale || {})]) {
+        if (!known.has(sid)) pb.push(`moyennes ${cid}/${rid} : élève fantôme ${sid}`);
+      }
+      for (const mid of (rel.matieres || [])) {
+        if (!S.matieres[mid]) pb.push(`moyennes ${cid}/${rid} : matière inconnue ${mid}`);
       }
     }
   }
@@ -2960,6 +3084,7 @@ function renderTab(name) {
   switch (name) {
     case 'eleves':    renderStudents();  break;
     case 'carnets':   renderCarnets();   break;
+    case 'moyennes':  renderMoyennes();  break;
     case 'documents': renderDocuments(); break;
     case 'delegues':  renderDelegues();  break;
     case 'donnees':   renderDonnees();   break;
@@ -4090,6 +4215,13 @@ function _elevesRows(cls) {
       return (va < vb ? -1 : va > vb ? 1 : 0) * dir || byName(a, b);
     }
     if (col === 'grp')  return (((a.s.groupe || 9) - (b.s.groupe || 9)) * dir) || byName(a, b);
+    // Moyenne : la plus BASSE d'abord au premier clic — on trie pour voir qui décroche.
+    // Sans moyenne importée : au bout dans les deux sens, comme les naissances inconnues.
+    if (col === 'moy') {
+      const va = a.r.moyenne?.generale ?? null, vb = b.r.moyenne?.generale ?? null;
+      if ((va === null) !== (vb === null)) return va === null ? 1 : -1;
+      return ((va ?? 0) - (vb ?? 0)) * dir || byName(a, b);
+    }
     if (col === 'amen') return ((_amenLabel(b.s) ? 1 : 0) - (_amenLabel(a.s) ? 1 : 0)) * dir || byName(a, b);
     if (['cumul', 'delta', 'periode', 'docs', 'incidents', 'bilan'].includes(col)) {
       const va = num(a), vb = num(b);
@@ -4246,6 +4378,7 @@ function renderStudents() {
     const dCls = r.delta === null ? '' : r.delta >= 5 ? ' hot' : r.delta >= 2 ? ' warm' : '';
     const delta = r.delta === null ? '<span class="tb-hint">—</span>' : `<span class="rel-delta${dCls}" style="padding:1px 6px;border-radius:6px">${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}</span>`;
     const per = r.periodeTotal === null ? '<span class="tb-hint">—</span>' : `<span style="font-family:var(--font-mono);font-weight:700">${r.periodeTotal}</span>`;
+    const moy = _moyCelluleHTML(r.moyenne);
     // Non rendus : le NOMBRE seul, en pastille — la liste des titres en clair élargissait la
     // colonne à la moitié de l'écran. Le détail vient au survol (infobulle) ou au clic
     // (déplié sous la pastille, mémorisé par élève le temps de la session).
@@ -4279,6 +4412,7 @@ function renderStudents() {
       <td style="white-space:nowrap">${grpBadge}${tagsHtml ? '<br><span style="display:inline-block;margin-top:3px">' + tagsHtml + '</span>' : ''}</td>
       <td class="amen-td" onclick="openEdit('${_escJsAttr(s.id)}')" title="${_escAttr(_amenLabel(s) || 'Aucun aménagement')} — clic pour modifier">${_amenBadgesHTML(s)}</td>
       <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
+      <td style="text-align:center;white-space:nowrap">${moy}</td>
       <td>${nr}</td><td class="synth-inc-td">${inc}</td>
       <td class="synth-rem-td">${remBtn}</td>
       <td class="synth-rem-td">${bilBtn}</td>
@@ -4296,7 +4430,8 @@ function renderStudents() {
   const tri = `<div class="tb">${_sortPickerHTML(eleveSort.col, 'setEleveSort(this.value)', cls,
     [{ key: 'grp', label: 'par groupe' }, { key: 'amen', label: 'par aménagements' },
      { key: 'delta', label: 'par Δ du dernier relevé' }, { key: 'cumul', label: 'par total d\'observations' },
-     { key: 'periode', label: `par total ${per}` }, { key: 'docs', label: 'par documents non rendus' }, { key: 'incidents', label: 'par incidents' },
+     { key: 'periode', label: `par total ${per}` }, { key: 'moy', label: 'par moyenne générale — la plus basse d\'abord' },
+     { key: 'docs', label: 'par documents non rendus' }, { key: 'incidents', label: 'par incidents' },
      { key: 'bilan', label: `par bilan ${per} (rédigé d'abord)` }])}
     <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Afficher la colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée"><input type="checkbox"${_elevesNais ? ' checked' : ''} onchange="_elevesNais=this.checked;renderStudents()"> 📅 naissances</label>
     <span class="tb-hint">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span>
@@ -4313,6 +4448,7 @@ function renderStudents() {
         <th onclick="sortEleves('cumul')" style="cursor:pointer" title="Dernier total d'observations relevé dans le carnet">Observations${arrow('cumul')}</th>
         <th onclick="sortEleves('delta')" style="cursor:pointer" title="Évolution au dernier relevé">Δ${arrow('delta')}</th>
         <th onclick="sortEleves('periode')" style="cursor:pointer" title="Total de la période courante">${_escName(per)}${arrow('periode')}</th>
+        <th onclick="sortEleves('moy')" style="cursor:pointer" title="Dernière moyenne générale importée (onglet 📈 Moyennes), son évolution, et le nombre de matières sous 10 — la plus basse d'abord">Moy.${arrow('moy')}</th>
         <th onclick="sortEleves('docs')" style="cursor:pointer" title="Documents non rendus — survol ou clic pour la liste">Non rendus${arrow('docs')}</th>
         <th onclick="sortEleves('incidents')" style="cursor:pointer" title="Incidents et instances — le nombre, et le dernier">Incidents${arrow('incidents')}</th>
         <th title="Dernier contact avec la famille, puis la remarque libre">Remarque · contacts</th>
@@ -4657,6 +4793,30 @@ function _ficheRender() {
       }).join('')
     : vide('Aucun document dans cette classe.');
 
+  // ── Moyennes ── une table par période : les matières en lignes, les imports en
+  // colonnes. Transposée par rapport à l'onglet : on lit l'histoire d'UN élève, et il y a
+  // bien plus de matières que d'imports — la fiche reste étroite.
+  const moys = cls ? _moyEleve(cls.id, stu.id).filter(p => p.releves.some(r => r.generale !== null || Object.values(r.notes).some(v => v !== null))) : [];
+  const moyHTML = moys.length ? moys.map(p => {
+    const rels = p.releves;
+    const mats = _moyColsOf(rels.map(r => ({ matieres: r.matieres })));
+    const cell = (r, k, mid) => {
+      const v = mid === null ? r.generale : (r.matieres.includes(mid) ? r.notes[mid] : undefined);
+      if (v === undefined) return '<td></td>';
+      if (v === null) return `<td style="text-align:center">${vide('—')}</td>`;
+      if (typeof v === 'string') return `<td style="text-align:center">${vide(_escName(v))}</td>`;
+      const d = _moyDelta(cls.id, r.rid, stu.id, mid);
+      return `<td class="moy-c${v < 10 ? ' low' : ''}"><span class="moy-v">${_escName(_fmtNote(v))}</span>${
+        d ? `<span class="moy-d${d.delta > 0 ? ' up' : d.delta < 0 ? ' down' : ''}">${_escName(_fmtDelta(d.delta))}</span>` : ''}</td>`;
+    };
+    return `<div class="tb-hint" style="margin:4px 0 2px"><strong>${_escName(p.periode)}</strong></div>
+      <div class="rel-wrap"><table class="dt moy-table"><thead><tr><th>Matière</th>${rels.map(r => `<th style="text-align:center;white-space:nowrap">${_escName(_fmtDateFr(r.date))}</th>`).join('')}</tr></thead><tbody>${
+        mats.map(m => `<tr><td title="${_escAttr(m.nom)}">${_escName(_moyAbbr(m.nom))}</td>${rels.map((r, k) => cell(r, k, m.id)).join('')}</tr>`).join('')}${
+        rels.some(r => r.generale !== null) ? `<tr><td><strong>Moyenne générale</strong></td>${rels.map((r, k) => cell(r, k, null)).join('')}</tr>` : ''}
+        <tr><td class="tb-hint">Matières sous 10</td>${rels.map(r => `<td style="text-align:center;font-family:var(--font-mono)">${r.sous10}</td>`).join('')}</tr>
+      </tbody></table></div>`;
+  }).join('') : vide('Aucune moyenne importée pour cet élève — onglet 📈 Moyennes.');
+
   // ── Élections ──
   const els = _ficheElections(cls, stu.id);
   const elsHTML = els.length
@@ -4727,6 +4887,7 @@ function _ficheRender() {
   box.innerHTML =
       sec('🪪 Identité', identite)
     + sec('📓 Observations', relevesHTML)
+    + sec('📈 Moyennes', moyHTML)
     + docsSection
     + sec('🗳 Élections', elsHTML)
     + sec('📋 Remarque', remHTML, { onclick: "ficheEdit('remarque')", title: stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', icone: stu.remarque ? '✎' : '+' })
@@ -9689,6 +9850,789 @@ function electionPrintPV() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// MOYENNES — un import = une PHOTOGRAPHIE datée des moyennes par matière.
+//
+// L'export du bureau numérique (« Nom et prénom de l'élève ; Périodes ; ANGLAIS
+// LV2(Mme X) ; … ; Moy. ») est réimporté au fil de la période. Chaque import est
+// CONSERVÉ tel quel : l'évolution se calcule entre deux imports de la même période,
+// jamais en réécrivant l'ancien.
+//
+// ⚠️ Des COLONNES APPARAISSENT d'un import à l'autre (un collègue saisit enfin ses
+// notes). Une matière est donc reconnue par son NOM normalisé (S.matieres, catalogue
+// global), pas par sa position dans le fichier : les colonnes se réalignent seules, et
+// une matière absente d'un import ancien y vaut « pas de colonne », jamais zéro.
+// ⚠️ Trois états d'une case, comme au carnet : un nombre (0 compris — un 0 est une
+// note), un CODE du bureau numérique (« Abs », « Disp », « NN »…) conservé tel quel,
+// et l'ABSENCE de clé = pas de note. Seuls les nombres entrent dans les statistiques.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Normalisation d'un nom de matière : casse, accents et ponctuation ne comptent pas.
+// « Histoire-Géographie » et « HISTOIRE-GEOGRAPHIE » sont la même colonne.
+function _moyNorm(nom) {
+  return String(nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toUpperCase().replace(/[^A-Z0-9+]+/g, ' ').trim();
+}
+// Clé de rapprochement d'un élève : mots sans accents ni casse, TRIÉS. L'export écrit
+// « DURAND Léa », la classe connaît nom = DURAND, prénom = Léa : l'ordre
+// des mots ne doit pas compter, ni les traits d'union des prénoms composés.
+function _moyNameKey(txt) {
+  return String(txt || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).sort().join(' ');
+}
+// « ANGLAIS LV2(Mme ALPHA) » → { nom: 'ANGLAIS LV2', profs: 'Mme ALPHA' }.
+function _moySplitHeader(h) {
+  const t = String(h || '').trim();
+  const m = /^(.*?)\s*\(([^()]*)\)\s*$/.exec(t);
+  return m && m[1].trim() ? { nom: m[1].trim(), profs: m[2].trim() } : { nom: t, profs: '' };
+}
+// Une case : nombre (virgule décimale acceptée), code conservé, ou null (pas de note).
+function _moyParseCell(raw) {
+  const t = String(raw ?? '').trim();
+  if (!t) return null;
+  const n = t.replace(',', '.');
+  if (/^-?\d+(\.\d+)?$/.test(n)) { const v = Number(n); if (Number.isFinite(v)) return v; }
+  return t.slice(0, 12);
+}
+// Date d'extraction lue dans le nom du fichier (« …_20260929.csv »), sinon null.
+function _moyDateFromFilename(name) {
+  const m = /(20\d{2})(\d{2})(\d{2})(?!\d)/.exec(String(name || ''));
+  if (!m) return null;
+  const ymd = `${m[1]}-${m[2]}-${m[3]}`;
+  return _ymdValid(ymd) ? ymd : null;
+}
+
+// Rôle d'une colonne d'après son titre. Tout ce qui n'est pas reconnu est une MATIÈRE —
+// sauf les colonnes d'identité usuelles, écartées pour ne pas devenir des matières
+// peuplées de codes.
+const _MOY_IGNORE = /^(classe|div|division|groupe|groupes|rang|sexe|civilite|ne e le|nee le|ne le|date de naissance|naissance|ine|id|identifiant|absences?|retards?|appreciation.*)$/;
+function _moyColRole(header) {
+  const h = _impNormHeader(header);
+  if (!h) return 'ignore';
+  if (/eleve/.test(h) || (/\bnom\b/.test(h) && /prenom/.test(h))) return 'nomComplet';
+  if (h === 'nom' || h === 'nom de famille') return 'nom';
+  if (h === 'prenom' || h === 'prenoms') return 'prenom';
+  if (/^periodes?$/.test(h)) return 'periode';
+  if (/^(moy|moyenne|moy generale|moyenne generale|moy gen|moyenne g)$/.test(h)) return 'generale';
+  if (_MOY_IGNORE.test(h)) return 'ignore';
+  return 'matiere';
+}
+
+// Lecture PURE du tableau. Ne touche pas à S.
+// → { error } | { sep, cols: [{ idx, role, nom, profs, norm }], rows: [{ ligne, nomAffiche, key, periode, notes: { norm: v }, generale }] }
+function _moyParse(text) {
+  const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
+  const first = lines.findIndex(l => l.trim());
+  if (first < 0) return { error: 'Le tableau est vide.' };
+  const hl = lines[first];
+  // Séparateur : celui qui découpe le plus l'en-tête. ⚠️ Les titres portent des virgules
+  // (« MATHEMATIQUES(M. X, Mme Y) ») : on compte, on ne prend pas le premier trouvé.
+  const sep = ['\t', ';', ','].map(s => [s, hl.split(s).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const head = _impSplitLine(hl, sep);
+  if (head.length < 2) return { error: 'Une seule colonne lue : le séparateur n\'a pas été reconnu (point-virgule, tabulation ou virgule attendus).' };
+  const cols = head.map((h, idx) => {
+    const role = _moyColRole(h);
+    if (role !== 'matiere') return { idx, role };
+    const { nom, profs } = _moySplitHeader(h);
+    return { idx, role, nom, profs, norm: _moyNorm(nom) };
+  });
+  const iNom = cols.find(c => c.role === 'nomComplet');
+  const iN = cols.find(c => c.role === 'nom'), iP = cols.find(c => c.role === 'prenom');
+  if (!iNom && !iN) return { error: 'Colonne des noms introuvable : l\'en-tête doit contenir « Nom et prénom de l\'élève » (ou « Nom » et « Prénom »).' };
+  // Deux colonnes du même nom de matière : la seconde serait illisible — on la refuse.
+  const seen = new Set();
+  for (const c of cols) {
+    if (c.role !== 'matiere') continue;
+    if (!c.norm || seen.has(c.norm)) c.role = 'ignore';
+    else seen.add(c.norm);
+  }
+  const iPer = cols.find(c => c.role === 'periode');
+  const iGen = cols.find(c => c.role === 'generale');
+  const mats = cols.filter(c => c.role === 'matiere');
+  const rows = [];
+  for (let li = first + 1; li < lines.length; li++) {
+    if (!lines[li].trim()) continue;
+    const cells = _impSplitLine(lines[li], sep);
+    if (!cells.some(Boolean)) continue;
+    const nomAffiche = iNom ? (cells[iNom.idx] || '') : `${cells[iN.idx] || ''} ${iP ? cells[iP.idx] || '' : ''}`.trim();
+    if (!nomAffiche.trim()) continue;
+    const notes = {};
+    for (const c of mats) { const v = _moyParseCell(cells[c.idx]); if (v !== null) notes[c.norm] = v; }
+    rows.push({ ligne: li + 1, nomAffiche: nomAffiche.trim(), key: _moyNameKey(nomAffiche),
+                periode: iPer ? String(cells[iPer.idx] || '').trim() : '',
+                notes, generale: iGen ? _moyParseCell(cells[iGen.idx]) : null });
+  }
+  if (!rows.length) return { error: 'Aucune ligne d\'élève sous l\'en-tête.' };
+  return { sep, cols, rows, hasGenerale: !!iGen };
+}
+
+// Rapprochement du tableau avec la classe. PUR.
+// manual = { [numéro de ligne]: sid | '' } — choix faits à la main dans l'aperçu
+// ('' = ignorer la ligne).
+// → { rows: [{ …row, sid, raison }], absents: [sid], periodes: [..], matieres: [{ norm, nom, profs, mid|null }] }
+function _moyMatch(parse, classId, manual) {
+  const cls = S.classes[classId];
+  const roster = (cls?.eleves || []).map(id => S.eleves[id]).filter(Boolean);
+  const byKey = new Map();
+  for (const s of roster) {
+    const k = _moyNameKey(`${s.nom} ${s.prenom}`);
+    byKey.set(k, byKey.has(k) ? null : s.id);   // homonymes parfaits : ambigu → à la main
+  }
+  const pris = new Map();                        // `${periode}|${sid}` → déjà attribué
+  const man = manual || {};
+  const rows = parse.rows.map(r => {
+    let sid = null, raison = '';
+    if (Object.prototype.hasOwnProperty.call(man, r.ligne)) {
+      sid = man[r.ligne] && roster.some(s => s.id === man[r.ligne]) ? man[r.ligne] : null;
+      raison = sid ? 'manuel' : 'ignoré';
+    } else if (byKey.has(r.key)) {
+      sid = byKey.get(r.key);
+      raison = sid ? 'nom' : 'homonymes';
+    } else raison = 'inconnu';
+    if (sid) {
+      const k = `${r.periode}|${sid}`;
+      if (pris.has(k)) { sid = null; raison = 'doublon'; } else pris.set(k, true);
+    }
+    return { ...r, sid, raison };
+  });
+  const vus = new Set(rows.filter(r => r.sid).map(r => r.sid));
+  const absents = roster.filter(s => !vus.has(s.id) && _isStudentActive(s)).map(s => s.id);
+  const periodes = [...new Set(rows.map(r => r.periode))];
+  const matieres = parse.cols.filter(c => c.role === 'matiere').map(c => ({
+    norm: c.norm, nom: c.nom, profs: c.profs, mid: _moyMatiereByNorm(c.norm)?.id || null }));
+  return { rows, absents, periodes, matieres };
+}
+
+// Intitulé COURT d'une matière, pour l'en-tête de colonne. Le bureau numérique écrit
+// « SCIENCES DE LA VIE ET DE LA TERRE » : sur onze colonnes, ces intitulés coupés en
+// plein mot rendaient la grille illisible. Le nom complet reste en infobulle et sur la
+// fiche. Le suffixe est gardé (« ANGLAIS LV1 » → « Anglais LV1 ») ; une matière
+// inconnue garde son intitulé tel quel — on n'abrège que ce qu'on sait abréger.
+const _MOY_ABBR = [
+  ['SCIENCES DE LA VIE ET DE LA TERRE', 'SVT'], ['EDUCATION PHYSIQUE ET SPORTIVE', 'EPS'],
+  ['ENSEIGNEMENT MORAL ET CIVIQUE', 'EMC'], ['LANGUES ET CULTURES DE L ANTIQUITE', 'LCA'],
+  ['HISTOIRE GEOGRAPHIE', 'Hist.-géo.'], ['PHYSIQUE CHIMIE', 'Phys.-chimie'], ['MATHEMATIQUES', 'Maths'],
+  ['FRANCAIS', 'Français'], ['TECHNOLOGIE', 'Techno.'], ['ARTS PLASTIQUES', 'Arts plast.'],
+  ['EDUCATION MUSICALE', 'Musique'], ['ANGLAIS', 'Anglais'], ['ESPAGNOL', 'Espagnol'], ['ALLEMAND', 'Allemand'],
+  ['ITALIEN', 'Italien'], ['LATIN', 'Latin'], ['GREC', 'Grec'],
+];
+function _moyAbbr(nom) {
+  const n = _moyNorm(nom);
+  for (const [long, court] of _MOY_ABBR) {
+    if (n === long || n.startsWith(long + ' ')) return (court + ' ' + n.slice(long.length).trim()).trim();
+  }
+  return String(nom || '');
+}
+function _moyMatiereByNorm(norm) {
+  return Object.values(S.matieres).find(m => m.norm === norm) || null;
+}
+// Matières du catalogue, dans l'ordre d'apparition (ord), puis alphabétique.
+function _moyMatieresSorted() {
+  return Object.values(S.matieres).sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0) || String(a.nom).localeCompare(String(b.nom), 'fr'));
+}
+
+// ── Accès ──
+function _moyMap(classId) { return _isPlainObj(S.moyennes[classId]) ? S.moyennes[classId] : null; }
+// Imports d'une classe, chronologiques (date, puis heure d'import). Filtrés par période si donnée.
+function _moyReleves(classId, periode) {
+  const m = _moyMap(classId);
+  if (!m) return [];
+  return Object.values(m)
+    .filter(r => periode === undefined || r.periode === periode)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || (a.ts || 0) - (b.ts || 0));
+}
+// Périodes rencontrées, dans l'ordre chronologique de leur premier import.
+function _moyPeriodes(classId) {
+  return [...new Set(_moyReleves(classId).map(r => r.periode))];
+}
+// Valeur d'une case : nombre, code (chaîne), ou null (pas de note / pas de colonne).
+function _moyVal(rel, sid, mid) {
+  const v = rel?.notes?.[sid]?.[mid];
+  return (typeof v === 'number' && Number.isFinite(v)) || (typeof v === 'string' && v) ? v : null;
+}
+function _moyGen(rel, sid) {
+  const v = rel?.generale?.[sid];
+  return (typeof v === 'number' && Number.isFinite(v)) || (typeof v === 'string' && v) ? v : null;
+}
+const _round2 = x => Math.round(x * 100) / 100;
+
+// Import précédent de la MÊME période où l'élève avait une note chiffrée dans cette
+// matière (mid = null → moyenne générale). Les moyennes repartent de zéro à chaque
+// période : comparer le S2 au S1 n'aurait aucun sens.
+function _moyPrev(classId, rid, sid, mid) {
+  const m = _moyMap(classId);
+  const cur = m?.[rid];
+  if (!cur) return null;
+  const list = _moyReleves(classId, cur.periode);
+  const i = list.indexOf(cur);
+  for (let j = i - 1; j >= 0; j--) {
+    const v = mid === null ? _moyGen(list[j], sid) : _moyVal(list[j], sid, mid);
+    if (typeof v === 'number') return { rel: list[j], v };
+  }
+  return null;
+}
+// Évolution d'une case depuis l'import précédent. null si l'une des deux valeurs
+// n'est pas un nombre — un code ou un vide ne se soustrait pas.
+function _moyDelta(classId, rid, sid, mid) {
+  const rel = _moyMap(classId)?.[rid];
+  const v = mid === null ? _moyGen(rel, sid) : _moyVal(rel, sid, mid);
+  if (typeof v !== 'number') return null;
+  const p = _moyPrev(classId, rid, sid, mid);
+  return p ? { delta: _round2(v - p.v), prev: p.v, prevDate: p.rel.date } : null;
+}
+// La matière n'existait pas encore à l'import précédent de la période : colonne NOUVELLE.
+function _moyColNouvelle(classId, rid, mid) {
+  const m = _moyMap(classId), cur = m?.[rid];
+  if (!cur) return false;
+  const list = _moyReleves(classId, cur.periode);
+  const i = list.indexOf(cur);
+  return i > 0 && !(list[i - 1].matieres || []).includes(mid);
+}
+
+// ── Statistiques ──
+// ⚠️ Écart type de POPULATION (σ, divisé par n) : la classe n'est pas un échantillon,
+// c'est la population entière. C'est ÉCARTYPE.P du tableur, pas ÉCARTYPE.
+// ⚠️ « Sous 10 » = strictement moins de 10 ; 10 pile est « au moins 10 » : la moyenne
+// est atteinte.
+function _moyStats(values) {
+  const xs = values.filter(v => typeof v === 'number' && Number.isFinite(v)).sort((a, b) => a - b);
+  const n = xs.length;
+  if (!n) return { n: 0, moyenne: null, mediane: null, ecartType: null, min: null, max: null, sous10: 0, auMoins10: 0 };
+  const moyenne = xs.reduce((s, x) => s + x, 0) / n;
+  const mediane = n % 2 ? xs[(n - 1) / 2] : (xs[n / 2 - 1] + xs[n / 2]) / 2;
+  const ecartType = Math.sqrt(xs.reduce((s, x) => s + (x - moyenne) ** 2, 0) / n);
+  const sous10 = xs.filter(x => x < 10).length;
+  return { n, moyenne, mediane, ecartType, min: xs[0], max: xs[n - 1], sous10, auMoins10: n - sous10 };
+}
+// Statistiques d'une colonne d'un import (mid = null → moyenne générale). `sids`
+// restreint aux élèves affichés ; par défaut, tous ceux de l'import.
+function _moyColStats(rel, mid, sids) {
+  if (!rel) return _moyStats([]);
+  const src = mid === null ? (rel.generale || {}) : null;
+  const ids = sids || Object.keys(mid === null ? src : (rel.notes || {}));
+  return _moyStats(ids.map(sid => mid === null ? _moyGen(rel, sid) : _moyVal(rel, sid, mid)));
+}
+// Nombre de matières sous 10 pour un élève dans un import.
+function _moySous10(rel, sid) {
+  return (rel?.matieres || []).filter(mid => { const v = _moyVal(rel, sid, mid); return typeof v === 'number' && v < 10; }).length;
+}
+// Évolution de la classe au fil d'une période : une ligne par import.
+function _moyEvolution(classId, periode) {
+  return _moyReleves(classId, periode).map(rel => ({
+    rid: rel.id, date: rel.date, label: rel.label || '',
+    parMatiere: Object.fromEntries((rel.matieres || []).map(mid => [mid, _moyColStats(rel, mid)])),
+    generale: _moyColStats(rel, null),
+  }));
+}
+// Toute l'histoire d'un élève (pour sa fiche) : imports groupés par période.
+function _moyEleve(classId, sid) {
+  return _moyPeriodes(classId).map(periode => ({
+    periode,
+    releves: _moyReleves(classId, periode).map(rel => ({
+      rid: rel.id, date: rel.date, label: rel.label || '', matieres: (rel.matieres || []).slice(),
+      notes: Object.fromEntries((rel.matieres || []).map(mid => [mid, _moyVal(rel, sid, mid)])),
+      generale: _moyGen(rel, sid), sous10: _moySous10(rel, sid),
+    })),
+  }));
+}
+// Dernière moyenne générale connue d'un élève (dernier import de la dernière période
+// où il figure) — pour la Synthèse.
+function _moyDerniere(classId, sid) {
+  const list = _moyReleves(classId);
+  for (let i = list.length - 1; i >= 0; i--) {
+    const rel = list[i];
+    if (!rel.notes?.[sid] && _moyGen(rel, sid) === null) continue;
+    const g = _moyGen(rel, sid);
+    const d = _moyDelta(classId, rel.id, sid, null);
+    return { rid: rel.id, date: rel.date, periode: rel.periode, generale: g,
+             delta: d ? d.delta : null, sous10: _moySous10(rel, sid), nbMatieres: (rel.matieres || []).length };
+  }
+  return null;
+}
+
+// Nombre au format français : « 12,25 », « 12,2 », « 12 ». Jamais d'arrondi caché au-delà
+// de deux décimales — c'est la précision du bureau numérique.
+function _fmtNote(x, dec) {
+  if (typeof x !== 'number' || !Number.isFinite(x)) return '';
+  const p = 10 ** (dec ?? 2);
+  return String(Math.round(x * p) / p).replace('.', ',');
+}
+function _fmtDelta(d) {
+  if (typeof d !== 'number' || !Number.isFinite(d)) return '';
+  return d === 0 ? '=' : (d > 0 ? '+' : '−') + _fmtNote(Math.abs(d));
+}
+
+// ── Mutations (sans pushUndo ni save : l'appelant s'en charge) ──
+function _moyMatiereEnsure(nom, norm) {
+  const ex = _moyMatiereByNorm(norm);
+  if (ex) return ex;
+  const id = uid('m');
+  S.matieres[id] = { id, nom: String(nom).slice(0, 80), norm, ord: Object.keys(S.matieres).length };
+  return S.matieres[id];
+}
+// Imports déjà présents à cette date pour cette période — un second import le même jour
+// REMPLACE le premier (on a réexporté après une saisie), il ne s'empile pas.
+function _moySameDay(classId, date, periode) {
+  return _moyReleves(classId, periode).filter(r => r.date === date);
+}
+// Crée un import par période présente dans le tableau. Retourne les ids créés, ou null.
+// opts = { date, label, fichier, periodeParDefaut, replace }
+function moyImport(classId, parse, match, opts) {
+  if (!S.classes[classId] || !parse || parse.error || !match) return null;
+  const date = opts?.date;
+  if (!_ymdValid(date)) return null;
+  if (!_isPlainObj(S.moyennes[classId])) S.moyennes[classId] = {};
+  const mats = parse.cols.filter(c => c.role === 'matiere');
+  const created = [];
+  for (const periode0 of match.periodes) {
+    const rows = match.rows.filter(r => r.sid && r.periode === periode0);
+    if (!rows.length) continue;
+    const periode = periode0 || String(opts?.periodeParDefaut || '').trim() || '—';
+    if (opts?.replace) for (const old of _moySameDay(classId, date, periode)) delete S.moyennes[classId][old.id];
+    const colIds = {};
+    const profs = {};
+    for (const c of mats) {
+      // Une colonne entièrement vide n'est pas encore une matière de cet import : c'est
+      // « aucune note saisie », et elle ne doit pas faire apparaître une colonne morte.
+      if (!rows.some(r => r.notes[c.norm] !== undefined)) continue;
+      const mat = _moyMatiereEnsure(c.nom, c.norm);
+      colIds[c.norm] = mat.id;
+      if (c.profs) profs[mat.id] = c.profs.slice(0, 120);
+    }
+    const notes = {}, generale = {};
+    for (const r of rows) {
+      const o = {};
+      for (const [norm, v] of Object.entries(r.notes)) if (colIds[norm]) o[colIds[norm]] = v;
+      notes[r.sid] = o;
+      if (r.generale !== null) generale[r.sid] = r.generale;
+    }
+    const id = uid('moy');
+    S.moyennes[classId][id] = {
+      id, date, periode, label: String(opts?.label || '').trim().slice(0, 60), ts: Date.now(),
+      fichier: String(opts?.fichier || '').slice(0, 160),
+      matieres: Object.values(colIds), profs, notes, generale,
+    };
+    created.push(id);
+  }
+  return created.length ? created : null;
+}
+function moyReleveEdit(classId, rid, patch) {
+  const rel = _moyMap(classId)?.[rid];
+  if (!rel) return false;
+  if (patch.date !== undefined) { if (!_ymdValid(patch.date)) return false; rel.date = patch.date; }
+  if (patch.label !== undefined) rel.label = String(patch.label || '').trim().slice(0, 60);
+  if (patch.periode !== undefined) { const p = String(patch.periode || '').trim(); if (!p) return false; rel.periode = p.slice(0, 80); }
+  return true;
+}
+function moyReleveDelete(classId, rid) {
+  const m = _moyMap(classId);
+  if (!m || !m[rid]) return false;
+  delete m[rid];
+  return true;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ONGLET MOYENNES — le tableau d'un import, et l'évolution de la classe
+// ═══════════════════════════════════════════════════════════════════════════
+let moySort = 'nom';            // + 'gen' | 'dgen' | 'sous10' | 'mat:<mid>'
+let _moyVue = 'tableau';        // 'tableau' | 'evolution'
+let _moyPeriodeSel = null;      // période affichée (null = la plus récente)
+let _moyRidSel = null;          // import affiché (null = le plus récent de la période)
+let _moyEvoStat = 'moyenne';
+
+const _MOY_STATS = [
+  { key: 'moyenne',   label: 'Moyenne',    fmt: s => _fmtNote(s.moyenne, 2) },
+  { key: 'mediane',   label: 'Médiane',    fmt: s => _fmtNote(s.mediane, 2) },
+  { key: 'ecartType', label: 'Écart type', fmt: s => _fmtNote(s.ecartType, 2),
+    tip: 'Écart type de la classe (σ, divisé par le nombre de notes) : plus il est grand, plus les résultats sont dispersés.' },
+  { key: 'min',       label: 'Min',        fmt: s => _fmtNote(s.min, 2) },
+  { key: 'max',       label: 'Max',        fmt: s => _fmtNote(s.max, 2) },
+  { key: 'sous10',    label: 'Sous 10',    fmt: s => s.n ? String(s.sous10) : '', tip: 'Moyennes strictement inférieures à 10' },
+  { key: 'auMoins10', label: '10 et plus', fmt: s => s.n ? String(s.auMoins10) : '', tip: 'Moyennes de 10 ou plus — 10 pile a la moyenne' },
+  { key: 'n',         label: 'Notes',      fmt: s => String(s.n), tip: 'Nombre d\'élèves ayant une moyenne chiffrée (les codes Abs, Disp… et les cases vides n\'y entrent pas)' },
+];
+
+function setMoySort(v) { moySort = v; renderMoyennes(); }
+function setMoyVue(v) { _moyVue = v === 'evolution' ? 'evolution' : 'tableau'; renderMoyennes(); }
+function setMoyPeriode(v) { _moyPeriodeSel = v; _moyRidSel = null; renderMoyennes(); }
+function setMoyRid(v) { _moyRidSel = v; renderMoyennes(); }
+function setMoyEvoStat(v) { _moyEvoStat = _MOY_STATS.some(s => s.key === v) ? v : 'moyenne'; renderMoyennes(); }
+
+// Période et import affichés : le choix de l'utilisateur s'il existe encore, sinon le
+// plus récent — un import supprimé ou une classe changée ne laisse pas l'écran vide.
+function _moyCourant(cls) {
+  const periodes = _moyPeriodes(cls.id);
+  if (!periodes.length) return { periodes, periode: null, list: [], rel: null };
+  const periode = periodes.includes(_moyPeriodeSel) ? _moyPeriodeSel
+    : _moyReleves(cls.id).slice(-1)[0].periode;
+  const list = _moyReleves(cls.id, periode);
+  const rel = list.find(r => r.id === _moyRidSel) || list[list.length - 1];
+  return { periodes, periode, list, rel };
+}
+// Matières d'un ou plusieurs imports, dans l'ordre du catalogue (celui de leur première
+// apparition) : une colonne garde sa place d'un import à l'autre.
+function _moyColsOf(rels) {
+  const ids = new Set(rels.flatMap(r => r.matieres || []));
+  return _moyMatieresSorted().filter(m => ids.has(m.id));
+}
+function _moyRelLabel(rel) {
+  return `${_fmtDateFr(rel.date)}${rel.label ? ' — ' + rel.label : ''}`;
+}
+
+function _moyCellHTML(cls, rel, sid, mid, extraCls) {
+  const xc = extraCls ? ' ' + extraCls : '';
+  const v = mid === null ? _moyGen(rel, sid) : _moyVal(rel, sid, mid);
+  if (v === null) return `<td class="moy-c empty${xc}" title="Pas de moyenne"><span class="tb-hint">—</span></td>`;
+  if (typeof v === 'string') return `<td class="moy-c code${xc}" title="Code du bureau numérique : pas une note, hors statistiques">${_escName(v)}</td>`;
+  const d = _moyDelta(cls.id, rel.id, sid, mid);
+  const tip = `${_fmtNote(v)}${d ? ` · ${_fmtDelta(d.delta)} depuis le ${_fmtDateFr(d.prevDate)} (${_fmtNote(d.prev)})` : ''}`;
+  const dCls = !d ? '' : d.delta > 0 ? ' up' : d.delta < 0 ? ' down' : '';
+  return `<td class="moy-c${v < 10 ? ' low' : ''}${xc}" title="${_escAttr(tip)}"><span class="moy-v">${_escName(_fmtNote(v))}</span><span class="moy-d${dCls}">${d ? _escName(_fmtDelta(d.delta)) : ''}</span></td>`;
+}
+
+function _moySortRows(cls, rel, rows) {
+  const byName = (a, b) => (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr', { sensitivity: 'base' });
+  // Croissant, les « pas de nombre » en fin : on trie pour voir d'abord qui décroche.
+  const asc = f => (a, b) => { const x = f(a), y = f(b);
+    return (typeof x === 'number' ? x : Infinity) - (typeof y === 'number' ? y : Infinity) || byName(a, b); };
+  if (moySort === 'gen') return rows.sort(asc(s => _moyGen(rel, s.id)));
+  if (moySort === 'dgen') return rows.sort(asc(s => _moyDelta(cls.id, rel.id, s.id, null)?.delta));
+  if (moySort === 'sous10') return rows.sort((a, b) => _moySous10(rel, b.id) - _moySous10(rel, a.id) || byName(a, b));
+  if (moySort.startsWith('mat:')) { const mid = moySort.slice(4); return rows.sort(asc(s => _moyVal(rel, s.id, mid))); }
+  const ordre = _sortStudents(rows.map(s => s.id), moySort, cls);
+  return rows.sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
+}
+
+function renderMoyennes() {
+  const el = document.getElementById('moyennes-body');
+  if (!el) return;
+  const cls = getCls();
+  if (!cls) { el.innerHTML = _needClassHTML('suivre les moyennes'); return; }
+  const roster = cls.eleves.map(id => S.eleves[id]).filter(Boolean);
+  if (!roster.length) {
+    el.innerHTML = _emptyStateHTML('👥', `Aucun élève dans ${_escName(cls.nom)}`,
+      'Importez la classe depuis l\'onglet <strong>👥 Élèves</strong> : les moyennes se rattachent aux élèves par leur nom.');
+    return;
+  }
+  const { periodes, periode, list, rel } = _moyCourant(cls);
+  const btnImp = `<button class="btn btn-p btn-sm" onclick="openMoyImport()" title="L'export des moyennes du bureau numérique, en CSV ou collé depuis le tableur">📥 Importer un tableau</button>`;
+  if (!rel) {
+    el.innerHTML = `<div class="tb">${btnImp}</div>` + _emptyStateHTML('📈', 'Aucune moyenne importée',
+      'Exportez les moyennes depuis le bureau numérique (un tableau « Nom et prénom de l\'élève ; Périodes ; une colonne par matière ; Moy. »), puis cliquez sur <strong>📥 Importer un tableau</strong>. Réimportez-le au fil de la période : chaque import est gardé, et l\'évolution se calcule d\'un import au suivant — même quand de nouvelles matières apparaissent.');
+    return;
+  }
+
+  const cols = _moyVue === 'evolution' ? _moyColsOf(list) : _moyColsOf([rel]);
+  const hasGen = _moyVue === 'evolution' ? list.some(r => Object.keys(r.generale || {}).length) : Object.keys(rel.generale || {}).length > 0;
+
+  const selPer = periodes.length > 1 ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Période
+      <select onchange="setMoyPeriode(this.value)" style="font-size:.95em;padding:2px 6px">${
+        periodes.map(p => `<option value="${_escAttr(p)}"${p === periode ? ' selected' : ''}>${_escName(p)}</option>`).join('')}</select></label>` : '';
+  const selRel = _moyVue === 'tableau' ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Import du
+      <select onchange="setMoyRid(this.value)" style="font-size:.95em;padding:2px 6px">${
+        list.map(r => `<option value="${_escAttr(r.id)}"${r.id === rel.id ? ' selected' : ''}>${_escName(_moyRelLabel(r))}</option>`).join('')}</select></label>
+      <button class="btn btn-g btn-sm" onclick="openMoyEdit('${_escJsAttr(rel.id)}')" title="Corriger la date, le libellé ou la période de cet import — ou le supprimer">✏️</button>` : '';
+  const vues = `<span class="moy-vues" role="group" aria-label="Vue">
+      <button class="btn btn-sm ${_moyVue === 'tableau' ? 'btn-p' : 'btn-g'}" aria-pressed="${_moyVue === 'tableau'}" onclick="setMoyVue('tableau')" title="Les moyennes de chaque élève à un import donné">▦ Élèves</button>
+      <button class="btn btn-sm ${_moyVue === 'evolution' ? 'btn-p' : 'btn-g'}" aria-pressed="${_moyVue === 'evolution'}" onclick="setMoyVue('evolution')" title="Les statistiques de la classe, import après import">📈 Évolution</button></span>`;
+  const extra = [
+    { key: 'gen', label: 'par moyenne générale — la plus basse d\'abord' },
+    { key: 'dgen', label: 'par évolution de la moyenne — la plus forte baisse d\'abord' },
+    { key: 'sous10', label: 'par nombre de matières sous 10' },
+    ...cols.map(m => ({ key: 'mat:' + m.id, label: `par ${_moyAbbr(m.nom)} — la plus basse d'abord` })),
+  ];
+  const sortSel = _moyVue === 'tableau' ? _sortPickerHTML(moySort, 'setMoySort(this.value)', cls, extra) : '';
+  const statSel = _moyVue === 'evolution' ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Afficher
+      <select onchange="setMoyEvoStat(this.value)" style="font-size:.95em;padding:2px 6px">${
+        _MOY_STATS.map(s => `<option value="${s.key}"${s.key === _moyEvoStat ? ' selected' : ''}>${_escName(s.label.toLowerCase())}</option>`).join('')}</select></label>` : '';
+  const i = list.indexOf(rel);
+  const prevTxt = _moyVue === 'evolution' ? `${list.length} import${list.length > 1 ? 's' : ''} sur la période`
+    : (i > 0 ? `Δ = évolution depuis l'import du ${_escName(_fmtDateFr(list[i - 1].date))}` : 'premier import de la période : pas encore d\'évolution');
+  const toolbar = `<div class="tb">${btnImp}${vues}${selPer}${selRel}${sortSel}${statSel}
+      <span class="tb-hint" style="margin-left:auto">${prevTxt}</span>
+      <button class="btn btn-g btn-sm" onclick="printMoyennes()" title="Le tableau affiché, en paysage, statistiques comprises — ou en PDF par la fenêtre d'impression (Ctrl+P fait pareil)">🖨 Imprimer</button></div>`;
+
+  // Les deux vues rendent [tableau, légende] : le cadre figé (en-tête et colonne des noms
+  // collants) se pose ICI, entre _wrapScrollKeep et keep — un re-rendu (tri, import
+  // choisi) ne doit pas renvoyer la grille en haut à gauche.
+  const [table, legende] = _moyVue === 'evolution'
+    ? _moyEvolutionHTML(cls, periode, list, cols, hasGen)
+    : _moyTableauHTML(cls, rel, list, roster, cols, hasGen);
+  const keep = _wrapScrollKeep(el);
+  el.innerHTML = toolbar + `<div class="rel-wrap frozen">${table}</div>${legende}`;
+  keep();
+}
+
+function _moyTableauHTML(cls, rel, list, roster, cols, hasGen) {
+  // Élèves affichés : ceux de la classe encore présents, plus ceux (partis depuis) qui
+  // figurent dans cet import. Les statistiques portent sur ces mêmes lignes.
+  const rows = _moySortRows(cls, rel, roster.filter(s => _isStudentActive(s) || rel.notes?.[s.id] || _moyGen(rel, s.id) !== null));
+  const sids = rows.map(s => s.id);
+  const i = list.indexOf(rel);
+  const prev = i > 0 ? list[i - 1] : null;
+  const matTh = m => {
+    const nouv = _moyColNouvelle(cls.id, rel.id, m.id);
+    const profs = rel.profs?.[m.id] || '';
+    return `<th class="moy-mat" title="${_escAttr(m.nom + (profs ? ' — ' + profs : '') + (nouv ? '\nNouvelle colonne : absente de l\'import précédent' : ''))}">
+      <button class="moy-th-btn" onclick="setMoySort('mat:${_escJsAttr(m.id)}')" title="Trier par ${_escAttr(m.nom)}, la plus basse d'abord">${_escName(_moyAbbr(m.nom))}</button>${
+      nouv ? '<span class="moy-new">nouvelle</span>' : ''}${profs ? `<span class="moy-profs">${_escName(profs)}</span>` : ''}</th>`;
+  };
+  const head = `<tr><th class="rel-name">Élève</th>${cols.map(matTh).join('')}${
+    hasGen ? `<th class="moy-gen" title="Moyenne générale telle que calculée par le bureau numérique (coefficients compris)"><button class="moy-th-btn" onclick="setMoySort('gen')">Moy.</button></th>` : ''}
+    <th class="moy-s10" title="Nombre de matières où l'élève est sous 10"><button class="moy-th-btn" onclick="setMoySort('sous10')">&lt; 10</button></th></tr>`;
+  const body = rows.map(s => {
+    const n10 = _moySous10(rel, s.id);
+    const inactive = !_isStudentActive(s);
+    return `<tr${inactive ? ' class="inactive"' : ''}>
+      <td class="rel-name"><a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche : l'évolution de ses moyennes y est retracée"><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}</a>${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${
+        !rel.notes?.[s.id] && _moyGen(rel, s.id) === null ? ' <span class="tb-hint" title="Absent du fichier importé">(absent du fichier)</span>' : ''}</td>
+      ${cols.map(m => _moyCellHTML(cls, rel, s.id, m.id)).join('')}
+      ${hasGen ? _moyCellHTML(cls, rel, s.id, null, 'moy-gen') : ''}
+      <td class="moy-s10${n10 ? ' warn' : ''}">${n10 || '<span class="tb-hint">0</span>'}</td></tr>`;
+  }).join('');
+  // Statistiques de colonne, avec l'évolution de la MOYENNE de classe en regard.
+  const statsOf = mid => _moyColStats(rel, mid, sids);
+  const prevMean = mid => {
+    if (!prev || (mid !== null && !(prev.matieres || []).includes(mid))) return null;
+    const p = _moyColStats(prev, mid).moyenne, c = statsOf(mid).moyenne;
+    return p === null || c === null ? null : _round2(c - p);
+  };
+  const colIds = [...cols.map(m => m.id), ...(hasGen ? [null] : [])];
+  const foot = _MOY_STATS.map(st => `<tr class="moy-stat${st.key === 'moyenne' ? ' first' : ''}">
+      <th class="rel-name" scope="row"${st.tip ? ` title="${_escAttr(st.tip)}"` : ''}>${_escName(st.label)}</th>
+      ${colIds.map(mid => {
+        const s = statsOf(mid);
+        const d = st.key === 'moyenne' ? prevMean(mid) : null;
+        return `<td class="moy-c${mid === null ? ' moy-gen' : ''}">${_escName(st.fmt(s)) || '<span class="tb-hint">—</span>'}${
+          d !== null ? `<span class="moy-d${d > 0 ? ' up' : d < 0 ? ' down' : ''}" title="Évolution de la moyenne de classe depuis l'import précédent">${_escName(_fmtDelta(d))}</span>` : ''}</td>`;
+      }).join('')}<td></td></tr>`).join('');
+  // Posé dans le .rel-wrap frozen de renderMoyennes (cadre figé + _wrapScrollKeep).
+  return [`<table class="dt rel-table moy-table"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table>`,
+    `<div class="tb-hint" style="margin-top:6px">Cases rouges : moyenne sous 10 · <em>Abs</em>, <em>Disp</em>… : codes du bureau numérique, hors statistiques · — : pas de moyenne · Écart type de la classe (σ).${
+      rel.fichier ? ` · Fichier : ${_escName(rel.fichier)}` : ''}</div>`];
+}
+
+function _moyEvolutionHTML(cls, periode, list, cols, hasGen) {
+  const st = _MOY_STATS.find(s => s.key === _moyEvoStat) || _MOY_STATS[0];
+  const evo = _moyEvolution(cls.id, periode);
+  const colIds = [...cols.map(m => m.id), ...(hasGen ? [null] : [])];
+  const val = (e, mid) => mid === null ? e.generale : e.parMatiere[mid];
+  const head = `<tr><th class="rel-name">Import</th>${cols.map(m => `<th class="moy-mat" title="${_escAttr(m.nom)}">${_escName(_moyAbbr(m.nom))}</th>`).join('')}${
+    hasGen ? '<th class="moy-gen">Moy.</th>' : ''}</tr>`;
+  const body = evo.map((e, k) => `<tr>
+      <td class="rel-name"><a href="#" onclick="_moyRidSel='${_escJsAttr(e.rid)}';setMoyVue('tableau');return false" title="Voir le détail par élève de cet import">${_escName(_fmtDateFr(e.date))}</a>${
+        e.label ? ` <span class="tb-hint">${_escName(e.label)}</span>` : ''}</td>
+      ${colIds.map(mid => {
+        const s = val(e, mid);
+        if (!s) return '<td class="moy-c empty" title="Matière absente de cet import"><span class="tb-hint">—</span></td>';
+        const p = k > 0 ? val(evo[k - 1], mid) : null;
+        const a = s[st.key === 'n' ? 'n' : st.key], b = p ? p[st.key === 'n' ? 'n' : st.key] : null;
+        const d = (typeof a === 'number' && typeof b === 'number' && s.n && p.n) ? _round2(a - b) : null;
+        return `<td class="moy-c${mid === null ? ' moy-gen' : ''}" title="${_escAttr(`${s.n} note${s.n > 1 ? 's' : ''}`)}">${_escName(st.fmt(s)) || '<span class="tb-hint">—</span>'}${
+          d !== null ? `<span class="moy-d">${_escName(_fmtDelta(d))}</span>` : ''}</td>`;
+      }).join('')}</tr>`).join('');
+  // Posé dans le .rel-wrap frozen de renderMoyennes (cadre figé + _wrapScrollKeep).
+  return [`<table class="dt rel-table moy-table moy-evo"><thead>${head}</thead><tbody>${body}</tbody></table>`,
+    `<div class="tb-hint" style="margin-top:6px">${_escName(st.label)} de la classe à chaque import de la période « ${_escName(periode)} », et son évolution depuis l'import précédent. — : la matière n'avait pas encore de colonne.</div>`];
+}
+
+// ── Impression ── le tableau affiché (même import, même tri), en paysage. ⚠️ Sur le
+// papier, « sous 10 » se marque en GRAS, pas en couleur : la feuille sort souvent en noir
+// et blanc, et un fond rose y devient un gris qu'on ne distingue plus.
+function printMoyennes() {
+  const cls = getCls();
+  const cur = cls ? _moyCourant(cls) : null;
+  if (!cur?.rel) return toast('⚠️ Aucune moyenne importée à imprimer.', 'warn');
+  const { periode, list, rel } = cur;
+  const roster = cls.eleves.map(id => S.eleves[id]).filter(Boolean);
+  let head, body, foot = '', sous;
+  if (_moyVue === 'evolution') {
+    const cols = _moyColsOf(list);
+    const hasGen = list.some(r => Object.keys(r.generale || {}).length);
+    const st = _MOY_STATS.find(x => x.key === _moyEvoStat) || _MOY_STATS[0];
+    const evo = _moyEvolution(cls.id, periode);
+    head = `<tr><th>Import</th>${cols.map(m => `<th>${_escName(_moyAbbr(m.nom))}</th>`).join('')}${hasGen ? '<th>Moy.</th>' : ''}</tr>`;
+    body = evo.map(e => `<tr><td>${_escName(_moyRelLabel({ date: e.date, label: e.label }))}</td>${
+      [...cols.map(m => m.id), ...(hasGen ? [null] : [])].map(mid => { const x = mid === null ? e.generale : e.parMatiere[mid];
+        return `<td>${x ? _escName(st.fmt(x)) : '—'}</td>`; }).join('')}</tr>`).join('');
+    sous = `${st.label} de la classe à chaque import`;
+  } else {
+    const cols = _moyColsOf([rel]);
+    const hasGen = Object.keys(rel.generale || {}).length > 0;
+    const rows = _moySortRows(cls, rel, roster.filter(x => _isStudentActive(x) || rel.notes?.[x.id] || _moyGen(rel, x.id) !== null));
+    const sids = rows.map(x => x.id);
+    const ids = [...cols.map(m => m.id), ...(hasGen ? [null] : [])];
+    const cell = (sid, mid) => {
+      const v = mid === null ? _moyGen(rel, sid) : _moyVal(rel, sid, mid);
+      if (v === null) return '<td></td>';
+      if (typeof v === 'string') return `<td><em>${_escName(v)}</em></td>`;
+      const d = _moyDelta(cls.id, rel.id, sid, mid);
+      const txt = _escName(_fmtNote(v));
+      return `<td>${v < 10 ? `<strong>${txt}</strong>` : txt}${d ? ` <small>${_escName(_fmtDelta(d.delta))}</small>` : ''}</td>`;
+    };
+    head = `<tr><th>Élève</th>${cols.map(m => `<th>${_escName(_moyAbbr(m.nom))}</th>`).join('')}${hasGen ? '<th>Moy.</th>' : ''}<th>&lt; 10</th></tr>`;
+    body = rows.map(x => `<tr><td><strong>${_escName(x.nom)}</strong> ${_escName(x.prenom)}</td>${ids.map(mid => cell(x.id, mid)).join('')}<td>${_moySous10(rel, x.id) || ''}</td></tr>`).join('');
+    foot = `<tfoot>${_MOY_STATS.map(st => `<tr><th>${_escName(st.label)}</th>${ids.map(mid => `<th>${_escName(st.fmt(_moyColStats(rel, mid, sids)))}</th>`).join('')}<th></th></tr>`).join('')}</tfoot>`;
+    const i = list.indexOf(rel);
+    sous = `import du ${_fmtDateFr(rel.date)}${rel.label ? ' — ' + rel.label : ''}${i > 0 ? ` · évolution depuis le ${_fmtDateFr(list[i - 1].date)}` : ''} · en gras : sous 10`;
+  }
+  const html = `<h1>Moyennes — ${_escName(cls.nom)} — ${_escName(periode)}</h1>
+    <p class="print-sub">${_escName(sous)} · écart type de la classe (σ) · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}</p>
+    <table class="print-t"><thead>${head}</thead><tbody>${body}</tbody>${foot}</table>`;
+  _printHTML(html, 'landscape');
+}
+
+// ── Import ──
+let _moyImp = { fichier: '', manual: {} };
+function openMoyImport() {
+  const cls = getCls();
+  if (!cls) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
+  _moyImp = { fichier: '', manual: {} };
+  document.getElementById('mmoyimp-txt').value = '';
+  document.getElementById('mmoyimp-date').value = _todayYmd();
+  document.getElementById('mmoyimp-label').value = '';
+  document.getElementById('mmoyimp-fname').textContent = '';
+  document.getElementById('mmoyimp-cls').textContent = cls.nom;
+  _moyImpRefresh();
+  openMod('mmoyimp');
+}
+// Même décodage que l'import des élèves : UTF-8 strict, puis repli Windows-1252 — un
+// export du bureau numérique peut arriver dans l'un comme dans l'autre.
+function _moyFileSelected(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const buf = e.target.result;
+    let text;
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+    catch (_) { text = new TextDecoder('windows-1252').decode(buf); }
+    document.getElementById('mmoyimp-txt').value = text.replace(/^﻿/, '');
+    _moyImp = { fichier: file.name, manual: {} };
+    document.getElementById('mmoyimp-fname').textContent = file.name;
+    const d = _moyDateFromFilename(file.name);
+    if (d) document.getElementById('mmoyimp-date').value = d;
+    _moyImpRefresh();
+    input.value = '';
+  };
+  reader.onerror = () => toast('⚠️ Lecture du fichier impossible', 'warn');
+  reader.readAsArrayBuffer(file);
+}
+function _moyImpSetManual(ligne, sid) { _moyImp.manual[ligne] = sid; _moyImpRefresh(); }
+function _moyImpTextChanged() { _moyImp.manual = {}; _moyImpRefresh(); }
+
+function _moyImpAnalyse() {
+  const cls = getCls();
+  const txt = document.getElementById('mmoyimp-txt')?.value || '';
+  if (!cls || !txt.trim()) return null;
+  const parse = _moyParse(txt);
+  if (parse.error) return { parse };
+  return { parse, match: _moyMatch(parse, cls.id, _moyImp.manual) };
+}
+function _moyImpRefresh() {
+  const box = document.getElementById('mmoyimp-prev');
+  const ok = document.getElementById('mmoyimp-ok');
+  if (!box) return;
+  const cls = getCls();
+  const a = _moyImpAnalyse();
+  if (!a) { box.innerHTML = ''; ok.disabled = true; return; }
+  if (a.parse.error) { box.innerHTML = `<div class="al al-w">⚠️ ${_escName(a.parse.error)}</div>`; ok.disabled = true; return; }
+  const { parse, match } = a;
+  const recon = match.rows.filter(r => r.sid);
+  const nonRecon = match.rows.filter(r => !r.sid);
+  const nouv = match.matieres.filter(m => !m.mid);
+  const date = _ymdCompleteAnnee(document.getElementById('mmoyimp-date').value);
+  const remplace = _ymdValid(date) ? match.periodes.flatMap(p => _moySameDay(cls.id, date, p || '—')) : [];
+  const horsBareme = recon.flatMap(r => Object.entries(r.notes).filter(([, v]) => typeof v === 'number' && (v < 0 || v > 20)).map(([n, v]) => `${r.nomAffiche} : ${_fmtNote(v)}`));
+  const pris = new Set(recon.map(r => r.sid));
+  const roster = cls.eleves.map(id => S.eleves[id]).filter(Boolean)
+    .sort((x, y) => (x.nom + ' ' + x.prenom).localeCompare(y.nom + ' ' + y.prenom, 'fr', { sensitivity: 'base' }));
+  const raisonTxt = { inconnu: 'nom inconnu dans la classe', homonymes: 'deux élèves de la classe portent ce nom', doublon: 'élève déjà rattaché à une autre ligne', ignoré: 'ignorée' };
+  const ligneNR = r => `<tr><td>${_escName(r.nomAffiche)} <span class="tb-hint">ligne ${r.ligne} · ${_escName(raisonTxt[r.raison] || r.raison)}</span></td>
+      <td><select onchange="_moyImpSetManual(${r.ligne}, this.value)" aria-label="Rattacher ${_escAttr(r.nomAffiche)} à un élève">
+        <option value="">— ignorer cette ligne —</option>${roster.filter(s => !pris.has(s.id)).map(s =>
+          `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select></td></tr>`;
+  const manuels = recon.filter(r => r.raison === 'manuel');
+  box.innerHTML = `
+    <div class="al al-i" style="margin-top:8px">
+      <strong>${recon.length}</strong> élève${recon.length > 1 ? 's' : ''} reconnu${recon.length > 1 ? 's' : ''} sur ${match.rows.length} ligne${match.rows.length > 1 ? 's' : ''}
+      · <strong>${match.matieres.length}</strong> matière${match.matieres.length > 1 ? 's' : ''}${parse.hasGenerale ? ' + moyenne générale' : ''}
+      · période${match.periodes.length > 1 ? 's' : ''} : ${match.periodes.map(p => `« ${_escName(p || 'non précisée')} »`).join(', ')}
+      ${nouv.length ? `<br>🆕 Nouvelle${nouv.length > 1 ? 's' : ''} matière${nouv.length > 1 ? 's' : ''} : ${nouv.map(m => _escName(m.nom)).join(', ')}` : ''}
+    </div>
+    ${remplace.length ? `<div class="al al-w">⚠️ Un import existe déjà le ${_escName(_fmtDateFr(date))} pour cette période : il sera <strong>remplacé</strong> (on a réexporté après une saisie). Changez la date pour garder les deux.</div>` : ''}
+    ${horsBareme.length ? `<div class="al al-w">⚠️ Valeurs hors de 0–20 : ${_escName(horsBareme.slice(0, 6).join(' · '))}${horsBareme.length > 6 ? '…' : ''}</div>` : ''}
+    ${nonRecon.length || manuels.length ? `<div class="fg" style="margin-top:8px"><label>Lignes à rattacher à la main</label>
+      <div class="rel-wrap"><table class="dt"><tbody>${nonRecon.map(ligneNR).join('')}${manuels.map(r => `<tr><td>${_escName(r.nomAffiche)} <span class="tb-hint">ligne ${r.ligne}</span></td>
+        <td>→ ${_escName(S.eleves[r.sid].nom)} ${_escName(S.eleves[r.sid].prenom)} <button class="btn btn-g btn-sm" onclick="_moyImpSetManual(${r.ligne}, '')">annuler</button></td></tr>`).join('')}</tbody></table></div></div>` : ''}
+    ${match.absents.length ? `<div class="tb-hint" style="margin-top:6px">Absent${match.absents.length > 1 ? 's' : ''} du fichier : ${
+      match.absents.map(sid => `${_escName(S.eleves[sid].nom)} ${_escName(S.eleves[sid].prenom)}`).join(', ')}</div>` : ''}`;
+  ok.disabled = !recon.length;
+  ok.textContent = remplace.length ? '✓ Remplacer l\'import' : `✓ Importer ${recon.length} élève${recon.length > 1 ? 's' : ''}`;
+}
+function moyImportOk() {
+  const cls = getCls();
+  if (!cls) return closeMod2('mmoyimp');
+  const dEl = document.getElementById('mmoyimp-date');
+  const date = _ymdCompleteAnnee(dEl.value);
+  if (!_ymdValid(date)) { toast('⚠️ Date invalide.', 'warn'); dEl.focus(); return; }
+  const a = _moyImpAnalyse();
+  if (!a || a.parse.error || !a.match.rows.some(r => r.sid)) return toast('⚠️ Aucun élève reconnu à importer.', 'warn');
+  const label = document.getElementById('mmoyimp-label').value.trim();
+  const defPer = _periodOf(cls, date)?.label || '';
+  pushUndo();
+  const ids = moyImport(cls.id, a.parse, a.match, { date, label, fichier: _moyImp.fichier, periodeParDefaut: defPer, replace: true });
+  if (!ids) { toast('⚠️ Import impossible.', 'warn'); return; }
+  save();
+  closeMod2('mmoyimp');
+  const rel = S.moyennes[cls.id][ids[ids.length - 1]];
+  _moyPeriodeSel = rel.periode; _moyRidSel = rel.id; _moyVue = 'tableau';
+  renderMoyennes();
+  toast(`📈 Moyennes du ${_fmtDateFr(date)} importées — ${Object.keys(rel.notes).length} élèves.`);
+}
+
+// ── Modifier / supprimer un import ──
+let _moyEditRid = null;
+function openMoyEdit(rid) {
+  const cls = getCls();
+  const rel = cls && _moyMap(cls.id)?.[rid];
+  if (!rel) return;
+  _moyEditRid = rid;
+  document.getElementById('mmoyed-date').value = rel.date;
+  document.getElementById('mmoyed-label').value = rel.label || '';
+  document.getElementById('mmoyed-per').value = rel.periode;
+  document.getElementById('mmoyed-info').textContent =
+    `${(rel.matieres || []).length} matières · ${Object.keys(rel.notes || {}).length} élèves${rel.fichier ? ' · ' + rel.fichier : ''}`;
+  openMod('mmoyed');
+}
+function moyEditOk() {
+  const cls = getCls();
+  if (!cls || !_moyEditRid) return closeMod2('mmoyed');
+  const date = _ymdCompleteAnnee(document.getElementById('mmoyed-date').value);
+  if (!_ymdValid(date)) { toast('⚠️ Date invalide.', 'warn'); return; }
+  const periode = document.getElementById('mmoyed-per').value.trim();
+  if (!periode) { toast('⚠️ La période ne peut pas être vide : c\'est elle qui regroupe les imports comparables.', 'warn'); return; }
+  pushUndo();
+  moyReleveEdit(cls.id, _moyEditRid, { date, periode, label: document.getElementById('mmoyed-label').value });
+  save(); closeMod2('mmoyed');
+  _moyPeriodeSel = periode; _moyRidSel = _moyEditRid;
+  renderMoyennes();
+  toast('Import modifié.');
+}
+function moyEditDelete() {
+  const cls = getCls();
+  const rel = cls && _moyMap(cls.id)?.[_moyEditRid];
+  if (!rel) return;
+  const rid = _moyEditRid;
+  _uiConfirm({
+    title: '🗑 Supprimer cet import ?',
+    message: `Les moyennes importées le ${_fmtDateFr(rel.date)} seront retirées (Ctrl+Z pour revenir en arrière). Les autres imports ne changent pas, mais l'évolution se calculera depuis l'import d'avant.`,
+    okLabel: 'Supprimer', okClass: 'btn-d', closeFirst: 'mmoyed',
+    onOk: () => { pushUndo(); moyReleveDelete(cls.id, rid); save(); _moyRidSel = null; renderMoyennes(); toast('Import supprimé.'); },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // SYNTHÈSE — une ligne par élève, tout ce qui est connu. L'écran de préparation
 // du conseil de classe et des appels aux familles : la raison d'être de l'app.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -9723,6 +10667,10 @@ function _syntheseRow(cls, stu) {
     cumul: last ? last.n : null, cumulDate: last ? last.ymd : null,
     delta: delta ? delta.delta : null, deltaDecroissant: !!delta?.decreasing,
     periodeLabel: periode ? periode.label : '', periodeTotal: _relPeriodTotal(cid, stu.id, pIdx),
+    // Dernière moyenne générale importée (onglet 📈 Moyennes), son évolution depuis
+    // l'import précédent de la période, et le nombre de matières sous 10.
+    moyenne: (() => { const m = _moyDerniere(cid, stu.id); return m ? { generale: typeof m.generale === 'number' ? m.generale : null,
+      delta: m.delta, sous10: m.sous10, date: m.date } : null; })(),
     nonRendus, reponses, remarque: String(stu.remarque || ''),
     // ⚠️ La Synthèse est l'écran de préparation des conseils et des APPELS aux familles :
     // savoir quand on a joint celle-ci pour la dernière fois y vaut autant qu'un cumul.
@@ -9737,6 +10685,21 @@ function _syntheseRow(cls, stu) {
     bilan: (() => { const e = _bilanPeriode(cls, stu.id, pIdx); return e ? { id: e.id, date: e.date, type: e.type, texte: e.texte } : null; })(),
     nbBilans: Array.isArray(stu.bilans) ? stu.bilans.length : 0,
   };
+}
+// La case « Moy. » de la liste des élèves, et sa version papier (sans couleur : le Δ
+// entre parenthèses, les matières sous 10 en toutes lettres).
+function _moyCelluleHTML(m) {
+  if (!m) return '<span class="tb-hint">—</span>';
+  const tip = `Moyenne générale importée le ${_fmtDateFr(m.date)}${m.delta !== null ? ` — ${_fmtDelta(m.delta)} depuis l'import précédent` : ''}`;
+  const v = m.generale === null ? '<span class="tb-hint">—</span>' : `<strong style="font-family:var(--font-mono)">${_escName(_fmtNote(m.generale))}</strong>`;
+  const d = m.delta !== null ? ` <span class="moy-d${m.delta > 0 ? ' up' : m.delta < 0 ? ' down' : ''}" style="display:inline">${_escName(_fmtDelta(m.delta))}</span>` : '';
+  const s10 = m.sous10 ? `<br><span class="badge warn" title="Matières où la moyenne est sous 10">${m.sous10} &lt; 10</span>` : '';
+  return `<span title="${_escAttr(tip)}">${v}${d}</span>${s10}`;
+}
+function _moyPrintHTML(m) {
+  if (!m || m.generale === null) return '';
+  return `${_escName(_fmtNote(m.generale))}${m.delta !== null ? ` <small>(${_escName(_fmtDelta(m.delta))})</small>` : ''}${
+    m.sous10 ? `<br><small>${m.sous10} matière${m.sous10 > 1 ? 's' : ''} &lt; 10</small>` : ''}`;
 }
 function _syntheseRows(cls) {
   return cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => _syntheseRow(cls, s));
@@ -9787,11 +10750,12 @@ function printEleves() {
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
   const html = `<h1>${_escName(cls.nom)} — ${_escName(cls.annee || '')}</h1>
     <p class="print-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}</p>
-    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Non rendus</th><th>Incidents</th><th>Remarque · contacts</th><th>Conseil ${_escName(per)}</th></tr></thead>
+    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Moy.</th><th>Non rendus</th><th>Incidents</th><th>Remarque · contacts</th><th>Conseil ${_escName(per)}</th></tr></thead>
     <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}</td>
       <td>${r.groupe ? 'G' + r.groupe + ' ' : ''}${_escName(r.options.join(' '))}</td><td>${_escName(r.amenagements)}</td>
       <td>${r.cumul === null ? '' : `${r.cumul} <small>(${_escName(_fmtDateFr(r.cumulDate))})</small>`}</td>
       <td>${r.delta === null ? '' : (r.deltaDecroissant ? '▼' : '') + (r.delta > 0 ? '+' : '') + r.delta}</td><td>${r.periodeTotal ?? ''}</td>
+      <td>${_moyPrintHTML(r.moyenne)}</td>
       <td>${_escName(r.nonRendus.join(', '))}</td>
       <td>${r.nbIncidents ? `${r.nbIncidents} — <small>${_escName(_fmtDateFr(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}</small>` : ''}</td>
       <td class="print-rem">${_printContactHTML(r)}${_escName(r.remarque)}</td>
@@ -11090,7 +12054,7 @@ function _remeasureStorage() {
 // Les clés du modèle sont en anglais et le restent (compatibilité des anciens fichiers),
 // mais elles n'ont rien à faire sous les yeux de l'utilisateur.
 const S_SECTION_LABELS = { classes: 'classes', eleves: 'élèves', releves: 'relevés de carnet',
-  documents: 'documents', elections: 'élections', tags: 'options', prefs: 'réglages', clock: 'horloge de synchronisation' };
+  documents: 'documents', elections: 'élections', moyennes: 'moyennes', matieres: 'matières', tags: 'options', prefs: 'réglages', clock: 'horloge de synchronisation' };
 function _sectionLabel(k) { return S_SECTION_LABELS[k] || k; }
 
 // Anciennes clés de stockage : le nom peut changer au fil des versions du modèle, et rien
@@ -11441,6 +12405,7 @@ document.addEventListener('keydown', e => {
   if (ctrl && k === 'p') {
     const tab = document.querySelector('.tab.on')?.id.replace('tab-', '');
     if (tab === 'eleves') { e.preventDefault(); printEleves(); return; }
+    if (tab === 'moyennes' && getCls() && _moyReleves(getCls().id).length) { e.preventDefault(); printMoyennes(); return; }
     if (tab === 'delegues' && _elCurrent()?.clos) { e.preventDefault(); electionPrintPV(); return; }
     // ⚠️ Sur un document ouvert, Ctrl+P ouvre le choix des COLONNES plutôt que d'imprimer
     // droit : le tableau est large, et une feuille de huit colonnes partie sans avoir été
@@ -11859,6 +12824,53 @@ function createDemo(opts) {
   });
 
   expOf(dPhoto).forEach(sid => { docSetRendu(dPhoto, sid, true); docSetDateRetour(dPhoto, sid, D('09-08')); });
+
+  // ── Moyennes : quatre exports du bureau numérique ──
+  // Passés par le VRAI chemin d'import (texte → _moyParse → _moyMatch → moyImport) : la
+  // démo exerce ainsi la lecture du tableau autant que l'affichage. Trois imports au S1,
+  // dont chacun gagne des colonnes (des collègues saisissent enfin), un au S2. Un « Abs »,
+  // un « Disp », une case vide, un élève arrivé en novembre (absent du 1er fichier), un
+  // parti en mars (absent du dernier), une élève qui décroche, un élève qui remonte.
+  {
+    const MAT = [
+      ['ANGLAIS LV1', 'Mme ORME'], ['HISTOIRE-GEOGRAPHIE', 'M. SAULE'], ['MATHEMATIQUES', 'M. TILLEUL, Mme FRÊNE'],
+      ['PHYSIQUE-CHIMIE', 'M. CHÊNE'], ['SCIENCES DE LA VIE ET DE LA TERRE', 'Mme ÉRABLE'],
+      ['FRANCAIS', 'Mme BOULEAU'], ['EDUCATION PHYSIQUE ET SPORTIVE', 'M. PIN'], ['TECHNOLOGIE', 'M. CÈDRE'],
+      ['ESPAGNOL LV2', 'Mme OLIVIER'], ['ARTS PLASTIQUES', 'Mme HÊTRE'], ['EDUCATION MUSICALE', 'M. CHARME'],
+    ];
+    const rng = _demoRng(2929);
+    const niveau = sids.map(() => 7 + rng() * 11);
+    const biais = sids.map(() => MAT.map(() => (rng() - 0.5) * 6));
+    const tendance = sids.map((_, i) => i === 12 ? -1.6 : i === 6 ? 1.3 : (rng() - 0.5) * 0.8);
+    const imports = [
+      { date: D('09-29'), per: 'Premier semestre', nbMat: 5, t: 0 },
+      { date: D('10-20'), per: 'Premier semestre', nbMat: 8, t: 1 },
+      { date: D('12-08'), per: 'Premier semestre', nbMat: 11, t: 2, label: 'avant le conseil' },
+      { date: D('03-23'), per: 'Second semestre', nbMat: 6, t: 3 },
+    ];
+    for (const im of imports) {
+      const mats = MAT.slice(0, im.nbMat);
+      const lignes = [`Nom et prénom de l'élève;Périodes;${mats.map(([n, p]) => `${n}(${p})`).join(';')};Moy.`];
+      sids.forEach((sid, i) => {
+        const s = S.eleves[sid];
+        if (!_isStudentActive(s, im.date)) return;
+        const notes = mats.map((_, k) => {
+          if (i === 10 && k === 1 && im.t === 0) return 'Abs';
+          if (i === 3 && k === 6) return 'Disp';
+          if (i === 5 && k === 3 && im.t === 0) return '';
+          const v = niveau[i] + biais[i][k] + tendance[i] * im.t + (rng() - 0.5) * 2;
+          return Math.round(Math.max(0, Math.min(20, v)) * 2) / 2;
+        });
+        const chiffres = notes.filter(v => typeof v === 'number');
+        const moy = chiffres.length ? Math.round(chiffres.reduce((a, b) => a + b, 0) / chiffres.length * 10) / 10 : '';
+        const fr = v => String(v).replace('.', ',');
+        lignes.push(`${s.nom.toUpperCase()} ${s.prenom};${im.per};${notes.map(fr).join(';')};${fr(moy)}`);
+      });
+      const parse = _moyParse(lignes.join('\n'));
+      moyImport(cls.id, parse, _moyMatch(parse, cls.id), { date: im.date, label: im.label || '',
+        fichier: `moyennes_5e_${im.date.replace(/-/g, '')}.csv` });
+    }
+  }
 
   // ── Élections ──
   // Des délégués PROVISOIRES désignés le jour de la rentrée (en attendant le scrutin) :

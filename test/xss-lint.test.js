@@ -21,7 +21,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const CHAMPS = ['nom', 'prenom', 'titre', 'label', 'remarque', 'note', 'description',
-                'motifNul', 'nomTitulaire', 'nomSuppleant', 'annee'];
+                'motifNul', 'nomTitulaire', 'nomSuppleant', 'annee',
+                'periode', 'fichier', 'profs', 'nomAffiche'];
 
 test('XSS-lint : aucune donnée utilisateur interpolée en clair dans un fragment HTML', () => {
   const file = path.join(__dirname, '..', 'suivi pp.html');

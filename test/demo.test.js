@@ -86,9 +86,15 @@ test('createDemo monte une classe de 25 élèves et refuse de la poser deux fois
 test('createDemo est REPRODUCTIBLE — deux poses donnent le même état', () => {
   ev(DEMO);
   const a = JSON.stringify(evObj(`({ e:S.eleves, r:S.releves, d:S.documents })`));
+  // Les moyennes ont leurs PROPRES ids (uid('moy'), horodatés) : comparer S.moyennes tel
+  // quel échouerait à tort. On projette sur ce qui doit rester identique — date, période
+  // et VALEURS des notes, dans l'ordre des colonnes — indépendamment des ids.
+  const moyA = evObj(`_moyReleves('5C').map(r => [r.date, r.periode, Object.values(r.notes).map(o => Object.values(o))])`);
   ev(DEMO);
   const b = JSON.stringify(evObj(`({ e:S.eleves, r:S.releves, d:S.documents })`));
+  const moyB = evObj(`_moyReleves('5C').map(r => [r.date, r.periode, Object.values(r.notes).map(o => Object.values(o))])`);
   assert.strictEqual(a, b);
+  assert.deepStrictEqual(moyA, moyB, 'les valeurs des moyennes doivent être identiques d\'une pose à l\'autre');
 });
 
 test('createDemo laisse un état SAIN — aucune référence fantôme, import valide', () => {
@@ -149,6 +155,53 @@ test('aucune période n\'est vide, ni en semestres ni en trimestres', () => {
     for (const n of totaux) assert.ok(n >= 20, `${mode} : une période ne porte que ${n} élèves relevés`);
   }
   ev(`S.prefs.periodMode = 'semestre'`);
+});
+
+// ─────────────────────────────── Moyennes de démo ───────────────────────────────
+// Même logique que le reste de l'inventaire : ce que la démo ne montre pas n'est jamais
+// exercé avant le jour où un vrai fichier du bureau numérique le présente.
+
+test('quatre imports de moyennes pour la 5C, deux périodes distinctes', () => {
+  ev(DEMO);
+  const rels = evObj(`_moyReleves('5C')`);
+  assert.strictEqual(rels.length, 4);
+  assert.deepStrictEqual(evObj(`_moyPeriodes('5C')`), ['Premier semestre', 'Second semestre']);
+  assert.strictEqual(rels.filter(r => r.periode === 'Premier semestre').length, 3);
+  assert.strictEqual(rels.filter(r => r.periode === 'Second semestre').length, 1);
+});
+
+test('⚠️ Le nombre de matières CROÎT au fil des trois imports du premier semestre', () => {
+  ev(DEMO);
+  const rels = evObj(`_moyReleves('5C', 'Premier semestre')`);
+  assert.deepStrictEqual(rels.map(r => r.matieres.length), [5, 8, 11]);
+});
+
+test('un code « Abs » et un « Disp » sont présents dans les notes de démo', () => {
+  ev(DEMO);
+  const codes = evObj(`(() => { const out = new Set();
+    for (const r of Object.values(S.moyennes['5C'])) for (const o of Object.values(r.notes)) for (const v of Object.values(o)) if (typeof v === 'string') out.add(v);
+    return [...out]; })()`);
+  assert.ok(codes.includes('Abs'), 'aucun code « Abs » dans la démo');
+  assert.ok(codes.includes('Disp'), 'aucun code « Disp » dans la démo');
+});
+
+test('au moins une colonne est signalée NOUVELLE par _moyColNouvelle', () => {
+  ev(DEMO);
+  const nouvelles = evObj(`_moyReleves('5C').flatMap(r => r.matieres.filter(mid => _moyColNouvelle('5C', r.id, mid)))`);
+  assert.ok(nouvelles.length >= 1, 'aucune colonne « nouvelle » rencontrable dans la démo');
+});
+
+test('au moins un élève est sous 10 de moyenne générale au dernier import', () => {
+  ev(DEMO);
+  const rels = evObj(`_moyReleves('5C')`);
+  const last = rels[rels.length - 1];
+  const stats = evObj(`_moyColStats(S.moyennes['5C']['${last.id}'], null)`);
+  assert.ok(stats.sous10 >= 1, 'aucun élève sous 10 au dernier import : le cas n\'est pas rencontrable');
+});
+
+test('les moyennes de démo laissent un état SAIN', () => {
+  ev(DEMO);
+  assert.deepStrictEqual(evObj(`_auditState()`), []);
 });
 
 test('les six documents couvrent les six formes du modèle', () => {

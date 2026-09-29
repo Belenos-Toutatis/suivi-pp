@@ -59,6 +59,48 @@ test('_syntheseRow : documents archivés ignorés, élève parti non attendu', (
   assert.strictEqual(s3.cumul, null);
 });
 
+// _syntheseRow.moyenne : assemblage de ce que l'onglet Moyennes calcule déjà — testé
+// ici seulement pour l'ASSEMBLAGE (dernier import, delta, sous10), pas pour
+// l'arithmétique elle-même (voir test/moyennes.test.js).
+const CSV_M1 = "Nom et prénom de l'élève;Périodes;MATHEMATIQUES;Moy.\nDURAND Léa;Premier semestre;12;12\nMARTIN Noé;Premier semestre;8;8";
+const CSV_M2 = "Nom et prénom de l'élève;Périodes;MATHEMATIQUES;PHYSIQUE-CHIMIE;Moy.\nDURAND Léa;Premier semestre;15;9;12\nMARTIN Noé;Premier semestre;5;4;4,5";
+const impMoy = (csv, date) => ev(`(() => { const p = _moyParse(${JSON.stringify(csv)});
+  const m = _moyMatch(p, '5C', {});
+  return moyImport('5C', p, m, { date: ${JSON.stringify(date)} }); })()`);
+
+test('_syntheseRow.moyenne : dernier import, delta depuis le précédent de la période, sous10', () => {
+  ev(FIXTURE);
+  impMoy(CSV_M1, '2025-10-01');
+  impMoy(CSV_M2, '2025-11-05');
+  const r1 = evObj(`_syntheseRow(S.classes['5C'], S.eleves.s1)`);
+  assert.strictEqual(r1.moyenne.generale, 12, 'moyenne générale du DERNIER import');
+  assert.strictEqual(r1.moyenne.delta, 0, 'inchangée depuis le premier import (12 → 12)');
+  assert.strictEqual(r1.moyenne.sous10, 1, 'PHYSIQUE-CHIMIE à 9 est sous 10, MATHEMATIQUES à 15 non');
+  const r2 = evObj(`_syntheseRow(S.classes['5C'], S.eleves.s2)`);
+  assert.strictEqual(r2.moyenne.generale, 4.5);
+  assert.strictEqual(r2.moyenne.delta, -3.5);
+  assert.strictEqual(r2.moyenne.sous10, 2, 'les deux matières sont sous 10');
+});
+
+test('_syntheseRow.moyenne : null pour un élève absent de tous les imports', () => {
+  ev(FIXTURE);
+  impMoy(CSV_M1, '2025-10-01');
+  impMoy(CSV_M2, '2025-11-05');
+  const r3 = evObj(`_syntheseRow(S.classes['5C'], S.eleves.s3)`);
+  assert.strictEqual(r3.moyenne, null);
+});
+
+test('_elevesRows : par moyenne, la plus BASSE d\'abord au premier clic, les sans-moyenne en fin', () => {
+  ev(FIXTURE);
+  impMoy(CSV_M1, '2025-10-01');
+  impMoy(CSV_M2, '2025-11-05');
+  ev(`_eleveFilter = ''; eleveSort = { col: 'moy', dir: 1 }`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s2', 's1', 's3']);
+  ev(`eleveSort = { col: 'moy', dir: -1 }`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s1', 's2', 's3'], 'inversé, s3 sans moyenne reste en fin');
+  ev(`eleveSort = { col: 'nom', dir: 1 }`);
+});
+
 test('_elevesRows : par Δ décroissant au premier clic, les inconnus en fin ; le tri des non-rendus ; par nom', () => {
   // Depuis la fusion de la Synthèse dans la liste des élèves (v1.23.0), c'est _elevesRows
   // qui trie — pour l'écran et pour l'impression.
