@@ -72,3 +72,54 @@ test('_periodePrintHTML : tableau paysage ou fiches portrait, blocs choisis, tou
   assert.strictEqual((f.html.match(/class="print-fiche"/g) || []).length, 3, 'un bloc par élève présent');
   assert.ok(f.html.includes('Retenue S1') && !f.html.includes('Retenue S2'));
 });
+
+// ─────────────────────────────────────────────── Moyennes sur la feuille de période
+
+const MOY = (per, lignes) => `Nom et prénom de l'élève;Périodes;MATHEMATIQUES(M. X);PHYSIQUE-CHIMIE(M. Y);Moy.\n` + lignes.map(l => `${l[0]};${per};${l[1]};${l[2]};${l[3]}`).join('\n');
+const impMoy = (csv, date) => ev(`(() => { const p = _moyParse(${JSON.stringify(csv)});
+  return moyImport('5C', p, _moyMatch(p, '5C', {}), { date: ${JSON.stringify(date)} }); })()`);
+
+test('⚠️ Feuille du S1 : le DERNIER import du S1, même exporté en février, après la fin de la période', () => {
+  ev(FIXTURE);
+  impMoy(MOY('Premier semestre', [['DURAND Léa', 12, 9, 11], ['MARTIN Noé', 8, 7, '7,5']]), '2025-10-01');
+  impMoy(MOY('Premier semestre', [['DURAND Léa', 13, 8, '11,8'], ['MARTIN Noé', 9, 'Abs', 9]]), '2026-02-03');
+  const syn = evObj(`_periodeSynthese(S.classes['5C'], 0)`);
+  assert.deepStrictEqual(syn.moyennes, { periode: 'Premier semestre', date: '2026-02-03', premier: '2025-10-01', nbImports: 2 });
+  const l = syn.rows.find(r => r.sid === 's1').moyennes;
+  assert.strictEqual(l.generale, 11.8, 'la générale du dernier import (03/02), pas celle d\'octobre');
+  assert.deepStrictEqual(l.delta, { delta: 0.8, depuis: '2025-10-01' }, 'évolution depuis le PREMIER import de la période');
+  assert.deepStrictEqual(l.sous10.map(x => [x.nom, x.v]), [['Phys.-chimie', 8]]);
+  const n = syn.rows.find(r => r.sid === 's2').moyennes;
+  assert.deepStrictEqual(n.notes.map(x => x.v), [9, 'Abs'], 'un code reste un code, et n\'est pas « sous 10 »');
+  assert.deepStrictEqual(n.sous10.map(x => x.v), [9]);
+  assert.strictEqual(syn.rows.find(r => r.sid === 's3').moyennes, null, 'absent de l\'import : rien');
+});
+
+test('⚠️ Feuille du S2 : les moyennes du S1 exportées en février n\'y apparaissent PAS', () => {
+  ev(FIXTURE);
+  impMoy(MOY('Premier semestre', [['DURAND Léa', 12, 9, 11]]), '2025-12-01');
+  impMoy(MOY('Premier semestre', [['DURAND Léa', 13, 8, 12]]), '2026-02-03');
+  assert.strictEqual(evObj(`_periodeSynthese(S.classes['5C'], 1)`).moyennes, null, 'le S2 n\'a pas encore d\'import à lui');
+  assert.strictEqual(evObj(`_periodeSynthese(S.classes['5C'], 1)`).rows.find(r => r.sid === 's1').moyennes, null);
+  impMoy(MOY('Second semestre', [['DURAND Léa', 15, 14, '14,5'], ['ARRIVE Tard', 10, 10, 10]]), '2026-03-20');
+  const s2 = evObj(`_periodeSynthese(S.classes['5C'], 1)`);
+  assert.strictEqual(s2.moyennes.periode, 'Second semestre');
+  const l = s2.rows.find(r => r.sid === 's1').moyennes;
+  assert.strictEqual(l.generale, 14.5);
+  assert.strictEqual(l.delta, null, 'un seul import dans la période : pas d\'évolution, et surtout pas depuis le S1');
+});
+
+test('_periodePrintHTML : le bloc Moyennes, sous 10 en gras, échappé, et dit quand rien n\'est importé', () => {
+  ev(FIXTURE);
+  const vide = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['moy'], type:'conseil', forme:'tableau' })`);
+  assert.ok(vide.html.includes('<th>Moyenne</th>') && vide.html.includes('aucune moyenne importée pour cette période'));
+  impMoy(MOY('Premier <img src=x>', [['DURAND Léa', 13, 8, '11,8']]), '2025-11-01');
+  const t = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['moy'], type:'conseil', forme:'tableau' })`);
+  assert.ok(t.html.includes('<strong>11,8</strong>'));
+  assert.ok(t.html.includes('sous 10 : <strong>Phys.-chimie 8</strong>'), 'la matière sous 10 en gras, jamais en couleur');
+  assert.ok(!t.html.includes('<img'), 'le nom de période venu du fichier est échappé');
+  const f = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['moy'], type:'conseil', forme:'fiches' })`);
+  assert.ok(f.html.includes('générale <strong>11,8</strong> — Maths 13 · <strong>Phys.-chimie 8</strong>'), 'en fiche : toutes les matières');
+  const sans = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs'], type:'conseil', forme:'tableau' })`);
+  assert.ok(!sans.html.includes('<th>Moyenne</th>') && !sans.html.includes('moyennes'), 'bloc décoché : ni colonne ni mention');
+});

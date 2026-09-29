@@ -1871,7 +1871,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <div id="mperiode" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();periodePrintOk()}">
     <h2>🎓 Synthèse de période</h2>
-    <div class="tb-hint" style="margin-bottom:8px">La feuille qu'on emporte au conseil de classe, ou qu'on relit à mi-période : tout y est borné à la période choisie — observations, papiers, incidents, contacts, et le bilan rédigé pour elle. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF »).</div>
+    <div class="tb-hint" style="margin-bottom:8px">La feuille qu'on emporte au conseil de classe, ou qu'on relit à mi-période : tout y est borné à la période choisie — observations, moyennes, papiers, incidents, contacts, et le bilan rédigé pour elle. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF »).</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div class="fg" style="flex:1;min-width:200px"><label for="mper-periode">Période</label>
         <select id="mper-periode" data-autofocus onchange="_periodePrintRefresh()" style="max-width:100%"></select></div>
@@ -2082,8 +2082,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.32.0';
-const APP_BUILD_DATE = '2026-09-29T21:40:47Z';
+const APP_VERSION    = '1.33.0';
+const APP_BUILD_DATE = '2026-09-29T21:44:28Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -10770,6 +10770,33 @@ function printEleves() {
 // le bilan rédigé pour elle. La liste des élèves, elle, dit « où en est-on aujourd'hui » ;
 // cette feuille dit « que s'est-il passé pendant CE trimestre ».
 // ═══════════════════════════════════════════════════════════════════════════
+// Les imports de moyennes qui PARLENT de cette période. ⚠️ On ne borne PAS par la date
+// d'import seule : le conseil du S1 se tient souvent APRÈS la fin du S1, et c'est l'export
+// fait la veille — daté de février — qui porte les moyennes définitives du S1 ; un filtre
+// sur la date l'écarterait, et la feuille du conseil montrerait des moyennes de novembre.
+// On retient donc la PÉRIODE DU BUREAU NUMÉRIQUE (la colonne « Périodes ») dont le premier
+// import tombe dans la période de l'app, et on en prend le DERNIER import, où qu'il tombe.
+// ⚠️ PAS de repli sur « une période du bureau numérique importée pendant celle-ci » : l'export
+// définitif du S1, daté de février, ferait alors apparaître les moyennes du S1 sur la feuille
+// du S2 tant que le S2 n'a pas son premier import. Une période du bureau numérique appartient
+// à UNE période de l'app — celle de son premier import. Plusieurs candidates : la plus récente.
+function _moyPourPeriode(classId, p) {
+  const cand = _moyPeriodes(classId).map(per => ({ periode: per, list: _moyReleves(classId, per) }))
+    .filter(c => c.list[0].date >= p.start && c.list[0].date <= p.end);
+  if (!cand.length) return null;
+  const c = cand.sort((a, b) => String(b.list[b.list.length - 1].date).localeCompare(String(a.list[a.list.length - 1].date)))[0];
+  return { periode: c.periode, list: c.list, premier: c.list[0], dernier: c.list[c.list.length - 1] };
+}
+function _moyPeriodeEleve(mp, sid) {
+  if (!mp) return null;
+  const rel = mp.dernier;
+  if (!rel.notes?.[sid] && _moyGen(rel, sid) === null) return null;
+  const g = _moyGen(rel, sid);
+  const depart = mp.list.find(r => typeof _moyGen(r, sid) === 'number');
+  const delta = typeof g === 'number' && depart && depart !== rel ? { delta: _round2(g - _moyGen(depart, sid)), depuis: depart.date } : null;
+  const notes = _moyColsOf([rel]).map(m => ({ mid: m.id, nom: _moyAbbr(m.nom), v: _moyVal(rel, sid, m.id) })).filter(x => x.v !== null);
+  return { generale: g, delta, notes, sous10: notes.filter(x => typeof x.v === 'number' && x.v < 10) };
+}
 function _periodeSynthese(cls, periodIdx, opts) {
   const o = opts || {};
   const p = _periods(cls)[periodIdx];
@@ -10782,6 +10809,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
   // Les élèves présents PENDANT la période : arrivé avant sa fin, pas parti avant son début.
   const presents = cls.eleves.map(id => S.eleves[id]).filter(Boolean)
     .filter(s => !(s.arrivalDate && s.arrivalDate > p.end) && !(s.departureDate && s.departureDate <= p.start));
+  const mp = _moyPourPeriode(cid, p);
   const rows = presents.map(stu => {
     let cumulFin = null, cumulFinDate = null, absents = 0;
     for (const d of dates) {
@@ -10802,14 +10830,17 @@ function _periodeSynthese(cls, periodIdx, opts) {
       parti: stu.departureDate && stu.departureDate <= p.end ? stu.departureDate : null,
       cumulFin, cumulFinDate, totalPeriode: _relPeriodTotal(cid, stu.id, periodIdx), absents,
       nonRendus, incidents, contacts,
+      moyennes: _moyPeriodeEleve(mp, stu.id),
       bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
     };
   });
-  return { periode: p, nbReleves: dates.length, rows };
+  return { periode: p, nbReleves: dates.length, rows,
+           moyennes: mp ? { periode: mp.periode, date: mp.dernier.date, premier: mp.premier.date, nbImports: mp.list.length } : null };
 }
 // Les blocs qu'on peut mettre ou non sur la feuille — dans cet ordre.
 const _PERIODE_BLOCS = [
   { key: 'obs',       label: 'Observations',        hint: 'Cumul en fin de période, total de la période, relevés où l\'élève était absent' },
+  { key: 'moy',       label: 'Moyennes',            hint: 'Moyenne générale du dernier import de la période, son évolution depuis le premier, et les matières — sous 10 en gras' },
   { key: 'docs',      label: 'Documents non rendus', hint: 'Papiers distribués jusqu\'à la fin de la période et toujours pas rendus' },
   { key: 'incidents', label: 'Incidents',           hint: 'Incidents, punitions, sanctions, instances DE la période' },
   { key: 'contacts',  label: 'Contacts',            hint: 'Contacts avec la famille DE la période' },
@@ -10839,12 +10870,22 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const hvc = on('hvc') ? _hvcPeriode(cls, periodIdx) : [];
   const hvcHTML = on('hvc') ? `<div class="print-hvc"><strong>Heures de vie de classe ${_escName(p.label)}</strong>${
     hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_escName(e.texte)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
-  const sub = `du ${_fmtDateFr(p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet · imprimé le ${_fmtDateFr(_todayYmd())}`;
+  const sub = `du ${_fmtDateFr(p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet${
+    on('moy') ? (syn.moyennes ? ` · moyennes « ${syn.moyennes.periode} » importées le ${_fmtDateFr(syn.moyennes.date)}` : ' · aucune moyenne importée pour cette période') : ''} · imprimé le ${_fmtDateFr(_todayYmd())}`;
   const nomCell = r => `<strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}${
     r.arrive ? `<br><small>arrivé le ${_escName(_fmtDateFr(r.arrive))}</small>` : ''}${r.parti ? `<br><small>parti le ${_escName(_fmtDateFr(r.parti))}</small>` : ''}`;
   const identCell = r => [r.groupe ? 'G' + r.groupe : '', r.options.join(' '), r.amenagements].filter(Boolean).map(_escName).join(' · ');
   const obsCell = r => r.cumulFin === null ? (r.absents ? `<small>absent à ${r.absents} relevé${r.absents > 1 ? 's' : ''}</small>` : '')
     : `<strong>${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</strong> <small>(cumul ${r.cumulFin} au ${_escName(_fmtDateFr(r.cumulFinDate))}${r.absents ? `, absent ×${r.absents}` : ''})</small>`;
+  // Moyennes : sur le papier, « sous 10 » en GRAS, jamais en couleur (feuille en noir et blanc).
+  const moyGenHTML = m => m.generale === null ? '' : typeof m.generale === 'string' ? `<em>${_escName(m.generale)}</em>`
+    : `<strong>${_escName(_fmtNote(m.generale))}</strong>${m.delta ? ` <small>(${_escName(_fmtDelta(m.delta.delta))} depuis le ${_escName(_fmtDateFr(m.delta.depuis))})</small>` : ''}`;
+  const noteHTML = x => { const t = `${_escName(x.nom)} ${typeof x.v === 'number' ? _escName(_fmtNote(x.v)) : `<em>${_escName(x.v)}</em>`}`;
+    return typeof x.v === 'number' && x.v < 10 ? `<strong>${t}</strong>` : t; };
+  const moyCell = r => { const m = r.moyennes; if (!m) return '';
+    return `${moyGenHTML(m)}${m.sous10.length ? `<br><small>sous 10 : ${m.sous10.map(noteHTML).join(' · ')}</small>` : ''}`; };
+  const moyFiche = r => { const m = r.moyennes; if (!m) return '';
+    return `${m.generale !== null ? `générale ${moyGenHTML(m)} — ` : ''}${m.notes.map(noteHTML).join(' · ')}`; };
   const incCell = r => r.incidents.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_instanceOf(e.type).label)} : ${_escName(e.objet)}</div>`).join('');
   const conCell = r => r.contacts.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_journalType(e.type).label)}${o.forme === 'fiches' ? ' : ' + _escName(e.texte) : ''}</div>`).join('');
   const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanType(r.bilan.type).label)} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
@@ -10853,6 +10894,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>${hvcHTML}` + rows.map(r => `<div class="print-fiche">
       <div class="print-fiche-h"><span>${nomCell(r)}</span><span class="print-fiche-id">${identCell(r)}</span></div>
       ${on('obs') ? bloc('Observations', obsCell(r)) : ''}
+      ${on('moy') ? bloc('Moyennes', moyFiche(r)) : ''}
       ${on('docs') ? bloc('Non rendus', _escName(r.nonRendus.join(', '))) : ''}
       ${on('incidents') ? bloc('Incidents', incCell(r)) : ''}
       ${on('contacts') ? bloc('Contacts', conCell(r)) : ''}
@@ -10860,12 +10902,12 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     </div>`).join('') };
   }
   const th = ['<th>Élève</th><th>Groupe · options · aménag.</th>',
-    on('obs') ? `<th>Observations ${_escName(p.label)}</th>` : '', on('docs') ? '<th>Non rendus</th>' : '',
+    on('obs') ? `<th>Observations ${_escName(p.label)}</th>` : '', on('moy') ? '<th>Moyenne</th>' : '', on('docs') ? '<th>Non rendus</th>' : '',
     on('incidents') ? '<th>Incidents</th>' : '', on('contacts') ? '<th>Contacts</th>' : '',
     on('bilan') ? `<th>${o.type === 'miperiode' ? 'Bilan' : 'Conseil'}</th>` : ''].join('');
   return { kind: 'landscape', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>${hvcHTML}
     <table class="print-t"><thead><tr>${th}</tr></thead><tbody>${rows.map(r => `<tr><td>${nomCell(r)}</td><td>${identCell(r)}</td>${
-      on('obs') ? `<td>${obsCell(r)}</td>` : ''}${on('docs') ? `<td>${_escName(r.nonRendus.join(', '))}</td>` : ''}${
+      on('obs') ? `<td>${obsCell(r)}</td>` : ''}${on('moy') ? `<td>${moyCell(r)}</td>` : ''}${on('docs') ? `<td>${_escName(r.nonRendus.join(', '))}</td>` : ''}${
       on('incidents') ? `<td>${incCell(r)}</td>` : ''}${on('contacts') ? `<td>${conCell(r)}</td>` : ''}${
       on('bilan') ? `<td class="print-rem">${bilCell(r)}</td>` : ''}</tr>`).join('')}</tbody></table>` };
 }
@@ -10901,6 +10943,7 @@ function _periodePrintRefresh() {
   const bits = [`${syn.rows.length} élève${syn.rows.length > 1 ? 's' : ''} présents pendant ${syn.periode.label}`,
     o.blocs.includes('hvc') ? `${_hvcPeriode(cls, o.idx).length} heure${_hvcPeriode(cls, o.idx).length > 1 ? 's' : ''} de vie de classe` : '',
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
+    o.blocs.includes('moy') ? (syn.moyennes ? `moyennes « ${syn.moyennes.periode} » du ${_fmtDateFr(syn.moyennes.date)}` : '⚠️ aucune moyenne importée pour cette période') : '',
     o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — 🎓 dans la liste pour les compléter` : '✓ un bilan pour chacun') : '',
     o.forme === 'fiches' ? 'portrait, un bloc par élève' : 'paysage, une ligne par élève'];
   h.textContent = bits.filter(Boolean).join(' · ');

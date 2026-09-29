@@ -594,8 +594,8 @@ rien. Sans note ni moyenne : elles sont dans Pronote, ceci est le brouillon du P
 
 **La feuille qu'on emporte au conseil** — bouton *🎓 Synthèse de période…* dans la barre de
 la liste, modale `mperiode` : période (défaut : la courante), moment (conseil / mi-période —
-titre et type de bilan), blocs (`_PERIODE_BLOCS` : observations · non rendus · incidents ·
-contacts · bilan), forme (**tableau** paysage, une ligne par élève / **fiches** portrait, un
+titre et type de bilan), blocs (`_PERIODE_BLOCS` : observations · moyennes · non rendus ·
+incidents · contacts · bilan), forme (**tableau** paysage, une ligne par élève / **fiches** portrait, un
 bloc par élève jamais coupé — ce qu'on lit pendant que le conseil parle de lui). Le résumé
 dit combien d'élèves sont **sans bilan rédigé**. Les choix se retiennent pour la session
 (`_periodePrintOpts`).
@@ -607,6 +607,18 @@ dit combien d'élèves sont **sans bilan rédigé**. Les choix se retiennent pou
   au 31/01 et au 01/02), papiers distribués **jusqu'à sa fin** et pas rendus (un papier de
   février n'est pas un manquant du S1 ; `suiviRetour: false` n'y entre jamais), bilan de
   la période (type demandé d'abord, l'autre à défaut).
+- **Moyennes** (v1.33.0, demande de l'utilisateur) : générale du dernier import, son
+  évolution depuis le premier import de la période (ou depuis le premier où l'élève avait
+  une générale chiffrée, s'il est arrivé en route), et les matières — toutes sur les
+  fiches, seulement celles **sous 10** dans le tableau. Sur le papier, sous 10 = **gras**.
+  ⚠️ **Ici, on ne borne PAS par la date d'import** — c'est l'unique exception à la règle
+  ci-dessus, et elle est voulue : le conseil du S1 se tient souvent **après** la fin du S1,
+  et c'est l'export de la veille, daté de février, qui porte les moyennes définitives.
+  `_moyPourPeriode` retient la période du bureau numérique (colonne « Périodes ») dont le
+  **premier** import tombe dans la période de l'app, et en prend le **dernier** import, où
+  qu'il tombe. ⚠️ **Aucun repli** sur « importée pendant la période » : l'export de février
+  du S1 aurait alors garni la feuille du S2 tant que le S2 n'a pas son premier import
+  (testé dans les deux sens). Sans import pour la période, la feuille le **dit** au sous-titre.
 - ⚠️ **Les élèves PRÉSENTS pendant la période**, pas ceux d'aujourd'hui : parti en
   septembre → sur la feuille du S1 (avec « parti le … »), pas sur celle du S2 ; arrivé en
   mars → l'inverse. Ordre : celui de la liste à l'écran (tri courant), mais **sans le filtre
@@ -1064,6 +1076,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 50 | **Moyennes sur la synthèse de période** : bloc *Moyennes* (`_moyPourPeriode`, `_moyPeriodeEleve`) — dernier import de la période du bureau numérique, évolution depuis le premier, sous 10 en gras ; 3 tests | ✅ **fait** (2026-09-29, v1.33.0) |
 | 49 | **Onglet 📈 Moyennes** : lecture de l'export du bureau numérique (`_moyParse`, `_moyMatch`, `moyImport`), catalogue de matières qui réaligne les colonnes, statistiques (`_moyStats`, σ de population), évolution par période (`_moyDelta`, `_moyEvolution`), aperçu d'import avec rattachement manuel, vue Évolution, impression ; section de la fiche, colonne *Moy.* de la liste des élèves ; démo à 4 imports ; 38 tests de plus | ✅ **fait** (2026-09-29, v1.32.0) |
 | 48 | **Le même bilan sur la grille élèves × documents imprimée**, une section par document, champs des familles seulement (`_gridPrintBilan`) ; 1 test | ✅ **fait** (2026-09-16, v1.31.1) |
 | 47 | **Bilan au pied du document imprimé** : rendus et compte de chaque option, sur les lignes et colonnes imprimées (`_docPrintBilan`) ; 3 tests | ✅ **fait** (2026-09-16, v1.31.0) |
