@@ -226,7 +226,9 @@ retour = {
   une impression en noir et blanc, encre blanche aux deux derniers crans. La couleur est
   posée sur le **champ** (`.ob-N .rel-inp`), pas sur la case : le Δ en dessous garde son
   encre. Partout où un cumul s'affiche : grille (avec légende `_obsLegendeHTML` sous la
-  barre), feuille imprimée, colonne *Observations* de la liste (`.ob-chip`), fiche.
+  barre), feuille imprimée, colonne *Observations* de la liste (`.ob-chip`), fiche, et
+  (v1.38.1) le cumul de fin de période de la **synthèse de période**, tableau et fiches,
+  légende au sous-titre quand le bloc Observations est coché.
 - **Impression** (v1.38.0 — l'onglet n'en avait AUCUNE) : bouton 🖨 et Ctrl+P → modale
   `mcarprint` (jamais l'impression directe) : relevés de toute l'année ou d'une période,
   couleurs des paliers, évolution à côté de chaque cumul, colonne Δ dernier, totaux de
@@ -653,7 +655,9 @@ dit combien d'élèves sont **sans bilan rédigé**. Les choix se retiennent pou
   A4, 13 en A3 ; plancher **6 pt** — en dessous, on ne triche pas : le résumé et un toast
   disent « ≈ N pages, passe en A3 ou décoche un bloc ». Le résumé de la modale annonce la
   taille AVANT d'imprimer (« tient sur une page A4, texte en 6 pt — petit : l'A3 le rendra
-  plus lisible »). Démo complète : 6 pt en A4, 9 pt en A3.
+  plus lisible »). Démo complète : 6 pt en A4, 9 pt en A3. ⚠️ Remesuré le 2026-09-30 en
+  Latin Modern, plus large que la police d'avant : avec les six blocs, la démo ne tient
+  plus en A4 (≈ 2 pages à 6 pt) — l'A3 passe à 8,5 pt ; avec trois blocs, 8,25 pt en A4.
   - ⚠️ **Les règles `.pp-*` sont HORS `@media print`, et tout y est en `em`.** La mesure se
     fait à l'écran : des règles cantonnées au papier ne s'appliqueraient pas à la boîte de
     mesure, et la taille calculée serait fausse. Elles ne touchent que ce qui vit dans une
@@ -1177,6 +1181,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 56 | **Couleurs de palier sur la synthèse de période** (cumul de fin de période, tableau et fiches, légende) · **démo sans cumul qui baisse** (rappel de l'utilisateur) ; 2 tests | ✅ **fait** (2026-09-30, v1.38.1) |
 | 55 | **Observations du carnet : couleurs par palier** (`S.prefs.obsPalier`, 5 par défaut, réglable, `_obsBande`, 8 tokens × 2 aux trois endroits) dans la grille, la liste, la fiche et le papier · **impression de la grille** (modale `mcarprint`, période, colonnes, orientation, A4 / A3, une page) ; 6 tests. Audit : 14 états, 2 thèmes, 1 916 et 320 px, **0 défaut** | ✅ **fait** (2026-09-30, v1.38.0) |
 | 54 | **Polices au choix** : Andika à l'écran par défaut, Latin Modern au papier par défaut, les deux réglables dans 💾 Données (`_applyPolices`, `scripts/gen_fonts.py`) ; Fraunces et IBM Plex retirées (−430 Ko) · **visuel commun à tous les tableaux imprimés** (`.print-t`, PV) ; 5 tests | ✅ **fait** (2026-09-30, v1.37.0) |
 | 53 | **Liste des élèves imprimée plus lisible** : feuille `.pp-t.pp-el` (colonnes fixes pondérées vers le texte libre, rangées alternées, chiffres centrés, en-tête répété à chaque page, rangées jamais coupées, élève parti en italique), taille FIXE 8,5 pt en Latin Modern. ⚠️ **Pas d'ajustement à une page — arbitré par l'utilisateur** (*« j'y mets beaucoup d'informations »*) : elle court sur autant de pages qu'il faut (2 pour la démo), et un test vérifie que `printEleves` ne mesure pas ; 1 test | ✅ **fait** (2026-09-30, v1.36.0) |
@@ -1757,7 +1762,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 6. **Onglet Délégués**, dans cet ordre : le calcul et ses tests → la grille de dépouillement → le graphique en deux volets → le PV → (optionnel) la fenêtre projetable. Indépendant du reste — il ne lit que le roster, donc il peut se faire dès l'étape 3 s'il y a urgence de rentrée (l'élection tombe **avant la fin de la septième semaine**, soit mi-octobre). ⚠️ **À répéter en conditions réelles avant le jour J** : brancher un second écran, vérifier la lisibilité depuis le fond, et faire un dépouillement blanc avec correction d'un bulletin. Cet écran ne pardonne pas — il sert une fois par an, en public.
 7. **Onglet Synthèse** + impressions.
 8. **Sauvegarde/sync complète** : sync auto, horloge vectorielle, conflits, backups, checkpoints, jauge de mémoire, modale ⓘ.
-9. **Données de démo** (`createDemo`) couvrant tout ce qui existe : une classe de 25 élèves fictifs, 8 relevés avec cumuls croissants, un `'A'`, un cumul décroissant à signaler, les trois documents modèles, des retours partiels, et une élection close à deux tours dont le premier n'a pourvu qu'un siège, plus une élection **en cours de dépouillement** (pour pouvoir régler la projection sans avoir à ressaisir des bulletins à chaque essai). **Intention documentaire : chaque fonctionnalité doit être rencontrable sans avoir à la créer.** ⚠️ Corollaire tenu à chaque livraison (rappelé par l'utilisateur le 2026-09-11, v1.28.3) : **une fonctionnalité nouvelle entre dans la démo dans la même version**, sinon elle n'est ni auditée ni découverte. Ce que la démo ne PEUT pas porter : les PDF joints (ce sont des fichiers) et un handle de dossier.
+9. **Données de démo** (`createDemo`) couvrant tout ce qui existe : une classe de 25 élèves fictifs, 8 relevés avec cumuls croissants, un `'A'`, ~~un cumul décroissant à signaler~~ (retiré le 2026-09-30, cf. ci-dessous), les trois documents modèles, des retours partiels, et une élection close à deux tours dont le premier n'a pourvu qu'un siège, plus une élection **en cours de dépouillement** (pour pouvoir régler la projection sans avoir à ressaisir des bulletins à chaque essai). ⚠️ **Révisé le 2026-09-30 (rappel de l'utilisateur : *« le nombre d'observations ne peut pas baisser au cours du temps »*) : la démo ne porte PLUS de cumul décroissant** — le repère ▼ reste dans l'app pour la faute de frappe (testé dans `carnets.test.js`), mais une donnée d'exemple qui descend montre une situation qui n'existe pas. `demo.test.js` vérifie qu'aucun cumul de la démo ne baisse. **Intention documentaire : chaque fonctionnalité doit être rencontrable sans avoir à la créer.** ⚠️ Corollaire tenu à chaque livraison (rappelé par l'utilisateur le 2026-09-11, v1.28.3) : **une fonctionnalité nouvelle entre dans la démo dans la même version**, sinon elle n'est ni auditée ni découverte. Ce que la démo ne PEUT pas porter : les PDF joints (ce sont des fichiers) et un handle de dossier.
 10. **Audits** : contraste (les 4 conditions), impression, responsive téléphone/tablette, clavier des modales. Consigner les scores de référence dans ce fichier.
 
 💡 Étapes 1 à 4 = l'app est déjà utile. Ne pas repousser l'utilisable derrière l'exhaustif.

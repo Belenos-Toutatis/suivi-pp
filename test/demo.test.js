@@ -129,7 +129,10 @@ test('les relevés portent les trois valeurs distinctes : un nombre, un 0, un «
     'au moins 15 élèves sur 25 finissent l\'année avec des observations au carnet');
 });
 
-test('un cumul DÉCROISSANT est présent et signalé, jamais corrigé', () => {
+// ⚠️ Rappel de l'utilisateur (2026-09-30) : « le nombre d'observations ne peut pas baisser
+// au cours du temps ». Le repère ▼ existe pour la faute de frappe — c'est le test de
+// carnets.test.js qui le vérifie ; une DÉMO qui descend montrerait un cas qui n'existe pas.
+test('aucun cumul de la démo ne BAISSE d\'un relevé à l\'autre', () => {
   ev(DEMO);
   const flags = evObj(`(() => {
     const out = [];
@@ -139,10 +142,7 @@ test('un cumul DÉCROISSANT est présent et signalé, jamais corrigé', () => {
     }
     return out;
   })()`);
-  assert.strictEqual(flags.length, 1);
-  assert.ok(flags[0].n < flags[0].prev);
-  // Rien n'a été réécrit : la valeur basse est bien celle qui est stockée.
-  assert.strictEqual(ev(`S.releves['5C']['${flags[0].ymd}'].counts['${flags[0].sid}']`), flags[0].n);
+  assert.deepStrictEqual(flags, []);
 });
 
 test('aucune période n\'est vide, ni en semestres ni en trimestres', () => {

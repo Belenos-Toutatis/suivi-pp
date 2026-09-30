@@ -1392,7 +1392,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 .pp-car thead th small { display: block; font-weight: 400; }
 .pp-car .g { border-left: 1.2pt solid #000 !important; }
 .pp-car td.dern { font-weight: 700; }
-.pp-sub .ob-chip { font-size: .9em; padding: 0 .35em; border-color: #9a9a9a; }
+.pp-sub .ob-chip, .print-sub .ob-chip, .pp-t small .ob-chip, .print-fiche .ob-chip { font-size: .9em; padding: 0 .35em; border-color: #9a9a9a; }
 .pp-t.pp-car tbody td.ob-1 { background: var(--obs-1); color: var(--obs-1-fg); }
 .pp-t.pp-car tbody td.ob-2 { background: var(--obs-2); color: var(--obs-2-fg); }
 .pp-t.pp-car tbody td.ob-3 { background: var(--obs-3); color: var(--obs-3-fg); }
@@ -2332,8 +2332,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.38.0';
-const APP_BUILD_DATE = '2026-09-30T04:33:24Z';
+const APP_VERSION    = '1.38.1';
+const APP_BUILD_DATE = '2026-09-30T04:38:33Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -11484,11 +11484,17 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_escName(e.texte)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
   const sub = `du ${_fmtDateFr(p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet${
     on('moy') ? (syn.moyennes ? ` · moyennes « ${syn.moyennes.periode} » importées le ${_fmtDateFr(syn.moyennes.date)}` : ' · aucune moyenne importée pour cette période') : ''} · imprimé le ${_fmtDateFr(_todayYmd())}`;
+  // Paliers du carnet (v1.38.1, demande de l'utilisateur) : le cumul de fin de période sur le
+  // fond de son cran, comme dans la grille — et la légende au sous-titre. Suit le réglage
+  // `obsPalier` ; à 0, ni couleur ni légende.
+  const cumulHTML = n => _obsBande(n) ? `<span class="ob-chip${_obsBandeCls(n)}">${n}</span>` : String(n);
+  const legHTML = on('obs') && _obsPalier() && rows.some(r => _obsBande(r.cumulFin))
+    ? `<br>Cumuls du carnet : une couleur par tranche de ${_obsPalier()} observation${_obsPalier() > 1 ? 's' : ''} ${_obsLegendeHTML(Math.max(0, ...rows.map(r => typeof r.cumulFin === 'number' ? r.cumulFin : 0)))}` : '';
   const nomCell = r => `<strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}${
     r.arrive ? `<br><small>arrivé le ${_escName(_fmtDateFr(r.arrive))}</small>` : ''}${r.parti ? `<br><small>parti le ${_escName(_fmtDateFr(r.parti))}</small>` : ''}`;
   const identCell = r => [r.groupe ? 'G' + r.groupe : '', r.options.join(' '), r.amenagements].filter(Boolean).map(_escName).join(' · ');
   const obsCell = r => r.cumulFin === null ? (r.absents ? `<small>absent à ${r.absents} relevé${r.absents > 1 ? 's' : ''}</small>` : '')
-    : `<strong>${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</strong> <small>(cumul ${r.cumulFin} au ${_escName(_fmtDateFr(r.cumulFinDate))}${r.absents ? `, absent ×${r.absents}` : ''})</small>`;
+    : `<strong>${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</strong> <small>(cumul ${cumulHTML(r.cumulFin)} au ${_escName(_fmtDateFr(r.cumulFinDate))}${r.absents ? `, absent ×${r.absents}` : ''})</small>`;
   // Moyennes : sur le papier, « sous 10 » en GRAS, jamais en couleur (feuille en noir et blanc).
   const moyGenHTML = m => m.generale === null ? '' : typeof m.generale === 'string' ? `<em>${_escName(m.generale)}</em>`
     : `<strong>${_escName(_fmtNote(m.generale))}</strong>${m.delta ? ` <small>(${_escName(_fmtDelta(m.delta.delta))} depuis le ${_escName(_fmtDateFr(m.delta.depuis))})</small>` : ''}`;
@@ -11503,7 +11509,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanType(r.bilan.type).label)} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
   if (o.forme === 'fiches') {
     const bloc = (t, c) => c ? `<div class="print-fb"><span class="print-fb-t">${t}</span> ${c}</div>` : '';
-    return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p>${hvcHTML}` + rows.map(r => `<div class="print-fiche">
+    return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}${legHTML}</p>${hvcHTML}` + rows.map(r => `<div class="print-fiche">
       <div class="print-fiche-h"><span>${nomCell(r)}</span><span class="print-fiche-id">${identCell(r)}</span></div>
       ${on('obs') ? bloc('Observations', obsCell(r)) : ''}
       ${on('moy') ? bloc('Moyennes', moyFiche(r)) : ''}
@@ -11535,7 +11541,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
       r.arrive ? ` <small>arrivé le ${_escName(jm(r.arrive))}</small>` : ''}${r.parti ? ` <small>parti le ${_escName(jm(r.parti))}</small>` : ''}`,
     ident: r => `<small>${identCell(r)}</small>`,
     obs: r => r.cumulFin === null ? (r.absents ? `<small>abs. ×${r.absents}</small>` : '')
-      : `<span class="pp-big">${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</span> <small>(${r.cumulFin}${r.absents ? `, abs.×${r.absents}` : ''})</small>`,
+      : `<span class="pp-big">${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</span> <small>(${cumulHTML(r.cumulFin)}${r.absents ? `, abs.×${r.absents}` : ''})</small>`,
     moy: r => { const m = r.moyennes; if (!m) return '';
       const g = m.generale === null ? '' : typeof m.generale === 'string' ? `<em>${_escName(m.generale)}</em>`
         : `<span class="pp-big">${_escName(_fmtNote(m.generale))}</span>${m.delta ? ` <small>${_escName(_fmtDelta(m.delta.delta))}${m.delta.depuis !== premier ? ` depuis le ${_escName(jm(m.delta.depuis))}` : ''}</small>` : ''}`;
@@ -11546,7 +11552,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     bilan: r => `<div class="pp-rem">${bilCell(r)}</div>`,
   };
   const subT = sub + (on('moy') && premier ? ` · évolution des moyennes depuis le ${_fmtDateFr(premier)}` : '');
-  return { kind: 'landscape', html: `<div class="pp-titre">${_escName(titre)}</div><p class="pp-sub">${_escName(subT)}</p>${hvcHTML}
+  return { kind: 'landscape', html: `<div class="pp-titre">${_escName(titre)}</div><p class="pp-sub">${_escName(subT)}${legHTML}</p>${hvcHTML}
     <table class="pp-t">${colgroup}<thead><tr>${cols.map(c => `<th>${titres[c[0]]}</th>`).join('')}</tr></thead><tbody>${
       rows.map(r => `<tr>${cols.map(c => `<td>${cell[c[0]](r)}</td>`).join('')}</tr>`).join('')}</tbody></table>` };
 }
@@ -13354,14 +13360,14 @@ function createDemo(opts) {
     // Et le S2, pour que la colonne « Conseil » de la liste ne soit pas vide en fin d'année.
     [0, '05-20', 'conseil',   'Le contrat a tenu jusqu\'en avril, puis relâchement (+11 au S2). Rencontre prévue avec la mère avant le conseil. Ne pas parler d\'orientation sans elle.'],
     [16, '05-20', 'conseil',  'Année exemplaire. Proposer les félicitations.'],
-    [9, '04-10', 'miperiode', 'Carnet remplacé en février : le cumul repart de zéro, ne pas s\'y tromper. Comportement stabilisé depuis le changement de place.'],
+    [9, '04-10', 'miperiode', 'Une seule observation depuis février : comportement stabilisé depuis le changement de place. Le dire au conseil.'],
   ];
   bilans.forEach(([i, md, type, texte], k) => {
     const e = bilanAdd(sids[i], { date: D(md), type, texte });
     if (e) { e.id = `demo_b${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
   });
   E(5).remarque = 'Tiers-temps : prévoir une salle à part pour les évaluations longues.';
-  E(9).remarque = 'Carnet perdu, remplacé en février — le cumul repart plus bas.\nCe n\'est pas une faute de frappe : ne pas « corriger », le relevé dit vrai.';
+  E(9).remarque = 'Changé de place en février (devant, côté fenêtre) : ça a tout changé.\nÀ garder l\'an prochain.';
   E(19).remarque = `Arrivée le ${_fmtDateFr(D('11-03'))}, venant d'un autre collège.`;
 
   // ── Salles, places et ordres de ramassage ──
@@ -13425,8 +13431,11 @@ function createDemo(opts) {
   // c'est cette forme-là — un cumul qui monte par paliers — que l'app doit rendre lisible.
   cum[0] = [7, 8, 8, 10, 11, 14, 16, 18];
   cum[1] = [10, 13, 14, 14, 15, 20, 27, 38];
-  // Carnet remplacé en février : le cumul DIMINUE puis repart. Signalé, jamais corrigé.
-  cum[9] = [3, 5, 6, 8, 9, 2, 4, 6];
+  // ⚠️ Un cumul ne BAISSE jamais dans la démo (rappel de l'utilisateur, 2026-09-30 : « le
+  // nombre d'observations ne peut pas baisser au cours du temps »). Le repère ▼ de l'app
+  // reste là pour la faute de frappe, mais une donnée d'exemple qui descend montre une
+  // situation qui n'existe pas. Celui-ci se calme au S2 : il monte, puis presque plus.
+  cum[9] = [3, 5, 6, 8, 9, 10, 10, 11];
   // Carnet vu à chaque fois, rien dedans : des 0 partout — ni des vides, ni des 'A'.
   cum[16] = [0, 0, 0, 0, 0, 0, 0, 0];
 

@@ -153,3 +153,21 @@ test('Tableau de période : colonnes de largeur fixe, qui somment à 100 %, une 
   assert.ok(w[3] > w[2], 'le texte libre du conseil a plus de place qu\'une colonne de chiffres');
   assert.strictEqual((t.html.match(/<th>/g) || []).length, 4);
 });
+
+// Paliers du carnet (v1.38.1) : S1 → s1 finit à 12 (2e cran), s2 à 15 (3e cran).
+test('Synthèse de période : le cumul de fin de période porte la couleur de son palier', () => {
+  ev(FIXTURE);
+  const t = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs'], type:'conseil', forme:'tableau' })`);
+  assert.match(t.html, /<span class="ob-chip ob-2">12<\/span>/);
+  assert.match(t.html, /<span class="ob-chip ob-3">15<\/span>/);
+  assert.match(t.html, /ob-leg/, 'la légende est au sous-titre');
+  const f = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs'], type:'conseil', forme:'fiches' })`);
+  assert.match(f.html, /cumul <span class="ob-chip ob-3">15<\/span>/);
+  // Palier à 0 : ni couleur ni légende. Bloc des observations décoché : pas de légende.
+  ev(`S.prefs.obsPalier = 0`);
+  const nu = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs'], type:'conseil', forme:'tableau' })`);
+  assert.ok(!/ob-chip|ob-leg/.test(nu.html));
+  ev(`S.prefs.obsPalier = 5`);
+  const sans = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['bilan'], type:'conseil', forme:'tableau' })`);
+  assert.ok(!/ob-leg/.test(sans.html));
+});
