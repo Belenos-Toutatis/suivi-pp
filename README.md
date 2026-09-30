@@ -342,14 +342,12 @@ Les conventions du projet — et surtout les pièges déjà payés — sont dans
 Design system, moteur de sauvegarde, résolution de conflits et harnais de tests repris de
 [Plan de classe](https://github.com/Belenos-Toutatis/plan-de-classe) (MIT, même auteur).
 
-Polices embarquées, toutes sous SIL Open Font License 1.1 :
-[Fraunces](https://github.com/undercasetype/Fraunces),
-[IBM Plex Sans](https://github.com/IBM/plex),
-[JetBrains Mono](https://github.com/JetBrains/JetBrainsMono).
-
-Pour les impressions : [Latin Modern Roman](https://www.gust.org.pl/projects/e-foundry/latin-modern)
-(GUST e-foundry), sous GUST Font License — sous-ensemble latin, régénérable par
-`scripts/gen_print_font.py`.
+Polices embarquées (sous-ensembles latins, régénérables par `scripts/gen_fonts.py`) :
+[Andika](https://software.sil.org/andika/) (SIL, SIL Open Font License 1.1) — police de
+l'écran par défaut ; [Latin Modern Roman](https://www.gust.org.pl/projects/e-foundry/latin-modern)
+(GUST e-foundry, GUST Font License) — police de l'impression par défaut ; les deux se
+choisissent dans 💾 Données → Réglages. [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono)
+(SIL OFL 1.1) pour les chiffres des grilles.
 
 ## Licence
 

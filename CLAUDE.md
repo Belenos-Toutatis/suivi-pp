@@ -1019,16 +1019,42 @@ Reprendre l'architecture de Plan de classe **sans la simplifier** — chaque pi�
 
 ## Design system
 
-**Police des impressions : Latin Modern Roman** (v1.35.0, demande de l'utilisateur : *« j'aime
-bien que les documents soient imprimés avec la police Latin Modern »* — celle de ses
-documents LuaLaTeX). Quatre variantes embarquées en base64, sous-ensemble latin (≈ 85 Ko),
-GUST Font License, **régénérées par `scripts/gen_print_font.py`** (entre les marqueurs
-`/* LM-DEBUT */` et `/* LM-FIN */`). Token `--font-print`, **papier seulement** : `.print-area *`
-et le PV la prennent en `!important` (les cellules portent des styles en ligne à l'écran).
-⚠️ Elle doit être **chargée avant toute mesure** (`_printFontLoad`, appelé au démarrage, à
-l'ouverture des modales d'impression et avant `window.print`) : une police `swap` ne se
-charge qu'au premier usage, et une mesure faite avec la police de repli choisirait une
-taille fausse.
+**Polices : Andika à l'écran, Latin Modern Roman au papier — chacune au choix** (v1.35.0
+pour le papier, v1.37.0 pour l'écran et les réglages ; demandes de l'utilisateur : *« j'aime
+bien que les documents soient imprimés avec la police Latin Modern »*, puis *« la police
+d'affichage du site sera Andika, avec possibilité de choisir Latin Modern dans les réglages
+— et le même choix pour l'impression, Latin Modern par défaut »*).
+- Deux familles embarquées en base64, quatre variantes chacune, sous-ensemble latin
+  (Andika 72 Ko, Latin Modern 84 Ko), **régénérées par `scripts/gen_fonts.py`** (entre les
+  marqueurs `/* ANDIKA-DEBUT */…` et `/* LM-DEBUT */…`). Andika : SIL OFL 1.1 ; Latin
+  Modern : GUST Font License.
+- Tokens : `--font-andika`, `--font-lm` ; `--font-ui` (écran, Andika) et `--font-print`
+  (papier, Latin Modern). `--font-sans` et `--font-serif` — les noms que tout le CSS emploie
+  — **suivent `--font-ui`**, titres compris. Le choix est posé sur `<html>` par
+  `_applyPolices()` (`data-police="lm"`, `data-police-papier="andika"`) depuis
+  `S.prefs.policeEcran` / `policePapier` ; appelée en fin de `postLoadHook` (donc après
+  chargement, undo, sync) et par `setPref`. Une valeur inconnue retombe sur le défaut.
+- ⚠️ **Fraunces et IBM Plex Sans ont été RETIRÉES** (v1.37.0) : les polices du design repris
+  de Plan de classe, que plus rien n'utilisait, pesaient 430 Ko. **JetBrains Mono reste** pour
+  les chiffres des grilles (chasse fixe : les colonnes de nombres s'alignent).
+- `.print-area *` et le PV prennent `--font-print` en `!important` (les cellules portent des
+  styles en ligne à l'écran).
+- ⚠️ Les polices doivent être **chargées avant toute mesure** (`_printFontLoad`, qui charge
+  les DEUX familles : au démarrage, à l'ouverture des modales d'impression, avant
+  `window.print`) : une police `swap` ne se charge qu'au premier usage, et une mesure faite
+  avec la police de repli choisirait une taille fausse. Changer la police du papier change
+  la taille calculée des feuilles « une page ».
+- Audit v1.37.0 : 44 états (6 onglets + 5 modales, 2 polices × 2 thèmes) à 1 400 px et 22 à
+  320 px, **0 défaut** (contraste, débordement, texte tronqué, erreurs JS) — Andika est plus
+  large qu'IBM Plex, et c'est le débordement qu'il fallait surveiller.
+
+**Tous les tableaux imprimés ont le même visuel** (v1.37.0, *« fais pareil pour tous les
+tableaux imprimés »*) : `.print-t` (retours d'un document, grille élèves × documents, bilans
+en pied, ancienne feuille) reprend celui de `.pp-t` — en-tête grisé souligné de noir et
+**répété à chaque page**, filets horizontaux, une rangée sur deux grisée
+(`print-color-adjust: exact`, sans quoi le navigateur retire les fonds), aucune rangée
+coupée. Le **PV** garde son quadrillage complet (pièce signée) et prend en-tête gris et
+rangées alternées. Test statique `test/polices.test.js`, avec son méta-test.
 
 Reprendre le design « carnet du prof » **à l'identique** : tokens, polices embarquées, filet rouge de marge, lignes Seyès, thème sombre, bloc de neutralisation à l'impression.
 
@@ -1129,8 +1155,9 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 54 | **Polices au choix** : Andika à l'écran par défaut, Latin Modern au papier par défaut, les deux réglables dans 💾 Données (`_applyPolices`, `scripts/gen_fonts.py`) ; Fraunces et IBM Plex retirées (−430 Ko) · **visuel commun à tous les tableaux imprimés** (`.print-t`, PV) ; 5 tests | ✅ **fait** (2026-09-30, v1.37.0) |
 | 53 | **Liste des élèves imprimée plus lisible** : feuille `.pp-t.pp-el` (colonnes fixes pondérées vers le texte libre, rangées alternées, chiffres centrés, en-tête répété à chaque page, rangées jamais coupées, élève parti en italique), taille FIXE 8,5 pt en Latin Modern. ⚠️ **Pas d'ajustement à une page — arbitré par l'utilisateur** (*« j'y mets beaucoup d'informations »*) : elle court sur autant de pages qu'il faut (2 pour la démo), et un test vérifie que `printEleves` ne mesure pas ; 1 test | ✅ **fait** (2026-09-30, v1.36.0) |
-| 52 | **Feuille des moyennes** : sur une page A4 / A3 (modale `mmoyprint`, taille calculée), statistiques en pied **au choix** (`S.prefs.moyStats`, écran et papier) · **Latin Modern** pour toutes les impressions (`--font-print`, `scripts/gen_print_font.py`) ; 2 tests | ✅ **fait** (2026-09-30, v1.35.0) |
+| 52 | **Feuille des moyennes** : sur une page A4 / A3 (modale `mmoyprint`, taille calculée), statistiques en pied **au choix** (`S.prefs.moyStats`, écran et papier) · **Latin Modern** pour toutes les impressions (`--font-print`, `scripts/gen_print_font.py`, devenu `scripts/gen_fonts.py` en v1.37.0) ; 2 tests | ✅ **fait** (2026-09-30, v1.35.0) |
 | 51 | **Synthèse de période en une page** : tableau refait (`.pp-t`, colonnes fixes, rangées grisées, contenu condensé), taille de texte calculée pour tenir sur une page (`_printFitSize`, `_printFitMeasure`), papier A4 / A3 ; 3 tests | ✅ **fait** (2026-09-29, v1.34.0) |
 | 50 | **Moyennes sur la synthèse de période** : bloc *Moyennes* (`_moyPourPeriode`, `_moyPeriodeEleve`) — dernier import de la période du bureau numérique, évolution depuis le premier, sous 10 en gras ; 3 tests | ✅ **fait** (2026-09-29, v1.33.0) |
 | 49 | **Onglet 📈 Moyennes** : lecture de l'export du bureau numérique (`_moyParse`, `_moyMatch`, `moyImport`), catalogue de matières qui réaligne les colonnes, statistiques (`_moyStats`, σ de population), évolution par période (`_moyDelta`, `_moyEvolution`), aperçu d'import avec rattachement manuel, vue Évolution, impression ; section de la fiche, colonne *Moy.* de la liste des élèves ; démo à 4 imports ; 38 tests de plus | ✅ **fait** (2026-09-29, v1.32.0) |
