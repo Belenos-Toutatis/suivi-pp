@@ -144,3 +144,18 @@ test('liste des élèves : la case Incidents ouvre la saisie d\'une entrée, com
   assert.ok(html.includes(`openIncident('s1','${id}')`), 'la dernière entrée s\'ouvre en modification');
   assert.ok(html.includes('15/01/2026 · Commission éducative'), 'date et instance de la dernière entrée');
 });
+
+test('Liste des élèves imprimée : feuille .pp-t, colonnes fixes à 100 %, en-tête répétable, taille fixe', () => {
+  ev(FIXTURE);
+  ev(`_eleveFilter = ''; eleveSort = { col: 'nom', dir: 1 }; S.eleves.s1.nom = 'DUR<b>AND';`);
+  const html = ev(`_elevesPrintHTML(S.classes['5C'])`);
+  assert.ok(html.includes('class="pp-t pp-el"'));
+  assert.ok(html.includes('<thead>'), 'l\'en-tête en thead : il se répète en haut de chaque page');
+  const w = [...html.matchAll(/<col style="width:([\d.]+)%">/g)].map(m => +m[1]);
+  assert.strictEqual(w.length, 11);
+  assert.ok(Math.abs(w.reduce((a, b) => a + b, 0) - 100) < 0.05);
+  assert.ok(html.includes('DUR&lt;b&gt;AND') && !html.includes('DUR<b>AND'), 'échappé');
+  // ⚠️ Pas d'ajustement à une page : la taille est fixe (arbitré par l'utilisateur).
+  assert.strictEqual(ev(`_ELEVES_PRINT_PT`), 8.5);
+  assert.ok(!/function printEleves[\s\S]{0,300}_printFitMeasure/.test(ev(`printEleves.toString()`)), 'printEleves ne mesure pas');
+});

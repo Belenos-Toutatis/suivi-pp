@@ -1292,6 +1292,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 /* La feuille des moyennes : chiffres centrés et alignés, moyenne générale séparée d'un
    filet, statistiques en pied sur fond gris et en gras — on les lit comme un bloc à part. */
 .pp-moy td.c, .pp-moy th.c { text-align: center; font-variant-numeric: tabular-nums; }
+/* La liste des élèves : chiffres centrés, élève parti en italique (sans opacité : le papier
+   n'a pas d'« atténué », seulement un gris qu'on lit mal). */
+.pp-el td.c, .pp-el th.c { text-align: center; font-variant-numeric: tabular-nums; }
+.pp-el tr.pp-parti td { font-style: italic; }
 /* En-têtes en casse normale, coupés aux espaces seulement : en capitales, « FRANÇAIS » ne
    tenait pas dans une colonne de matière et se cassait en « FRANÇAI / S » (vu sur la
    feuille à 27 élèves et onze matières). */
@@ -2189,8 +2193,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.35.0';
-const APP_BUILD_DATE = '2026-09-29T22:08:23Z';
+const APP_VERSION    = '1.36.0';
+const APP_BUILD_DATE = '2026-09-30T03:31:33Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -10975,27 +10979,50 @@ function _printContactHTML(r) {
   return `<em>${_escName(corps)}</em>` + (aRemarque ? '<br>' : '');
 }
 
-// La liste des élèves sur le papier — une page paysage pour le conseil de classe. Mêmes
-// lignes, même tri, même filtre que l'écran. Sans la colonne Réponses (arbitré le
-// 2026-09-11 : les choix portés sur les documents se lisent dans la fiche complète).
+// La liste des élèves sur le papier — paysage, pour le conseil de classe. Mêmes lignes,
+// même tri, même filtre que l'écran. Sans la colonne Réponses (arbitré le 2026-09-11 : les
+// choix portés sur les documents se lisent dans la fiche complète).
+// ⚠️ PAS d'ajustement à une page (arbitré par l'utilisateur, 2026-09-30 : « j'y mets
+// beaucoup d'informations ») : taille FIXE, et la feuille court sur autant de pages qu'il
+// faut. La lisibilité vient de la mise en page : feuille `.pp-t` (celle de la synthèse de
+// période), colonnes de largeur fixe, une rangée sur deux grisée, en-tête RÉPÉTÉ en haut
+// de chaque page (thead) et aucune rangée coupée entre deux pages.
+const _ELEVES_PRINT_PT = 8.5;
+function _elevesPrintHTML(cls) {
+  const rows = _elevesRows(cls).map(x => x.r);
+  const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
+  const jm = ymd => { const x = String(ymd || '').split('-'); return x.length === 3 ? `${x[2]}/${x[1]}` : ''; };
+  // Le texte libre (remarque, conseil) a la place ; les colonnes de chiffres le minimum.
+  const cols = [['Élève', 13], ['Groupe · options', 8], ['Aménag.', 6.5], ['Observ.', 5.5, 'c'], ['Δ', 3.5, 'c'], [_escName(per), 4, 'c'],
+    ['Moy.', 6.5, 'c'], ['Non rendus', 9], ['Incidents', 11.5], ['Remarque · contacts', 17], [`Conseil ${_escName(per)}`, 15.5]];
+  // Moyenne en deux lignes courtes au plus (« 11,1 +0,2 » puis « 1 < 10 ») : la version
+  // longue de la liste à l'écran (« 1 matière < 10 ») s'étalait sur trois lignes dans
+  // une colonne de chiffres et doublait la hauteur de la rangée.
+  const moy = m => !m || m.generale === null ? '' : `<span class="pp-big">${_escName(_fmtNote(m.generale))}</span>${
+    m.delta !== null ? ` <small>${_escName(_fmtDelta(m.delta))}</small>` : ''}${m.sous10 ? `<small class="pp-l">${m.sous10} &lt; 10</small>` : ''}`;
+  const tot = cols.reduce((n, c) => n + c[1], 0);
+  const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c[1] / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
+  const role = r => [r.delegue ? (r.delegue === 'titulaire' ? 'délégué' : 'délégué suppléant') : '', r.eco ? (r.eco === 'suppleant' ? 'éco-délégué suppléant' : 'éco-délégué') : ''].filter(Boolean).join(' · ');
+  const body = rows.map(r => `<tr${r.actif ? '' : ' class="pp-parti"'}>
+      <td><span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${role(r) ? `<small class="pp-l"><em>${_escName(role(r))}</em></small>` : ''}${r.actif ? '' : '<small class="pp-l"><em>parti</em></small>'}</td>
+      <td><small>${_escName([r.groupe ? 'G' + r.groupe : '', ...r.options].filter(Boolean).join(' · '))}</small></td>
+      <td><small>${_escName(r.amenagements)}</small></td>
+      <td class="c">${r.cumul === null ? '' : `<span class="pp-big">${r.cumul}</span> <small>${_escName(jm(r.cumulDate))}</small>`}</td>
+      <td class="c">${r.delta === null ? '' : `${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}`}</td>
+      <td class="c">${r.periodeTotal ?? ''}</td>
+      <td class="c">${moy(r.moyenne)}</td>
+      <td><small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small></td>
+      <td><small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small></td>
+      <td class="pp-rem"><small>${_printContactHTML(r)}${_escName(r.remarque)}</small></td>
+      <td class="pp-rem"><small>${r.bilan ? _escName(r.bilan.texte) : ''}</small></td></tr>`).join('');
+  return `<div class="pp-titre">${_escName(cls.nom)} — ${_escName(cls.annee || '')}</div>
+    <p class="pp-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}</p>
+    <table class="pp-t pp-el">${colgroup}<thead><tr>${cols.map(c => `<th${c[2] ? ' class="c"' : ''}>${c[0]}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+}
 function printEleves() {
   const cls = getCls();
   if (!cls || !cls.eleves.length) return toast('⚠️ Rien à imprimer.', 'warn');
-  const rows = _elevesRows(cls).map(x => x.r);
-  const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
-  const html = `<h1>${_escName(cls.nom)} — ${_escName(cls.annee || '')}</h1>
-    <p class="print-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}</p>
-    <table class="print-t"><thead><tr><th>Élève</th><th>Groupe · options</th><th>Aménag.</th><th>Observations</th><th>Δ</th><th>${_escName(per)}</th><th>Moy.</th><th>Non rendus</th><th>Incidents</th><th>Remarque · contacts</th><th>Conseil ${_escName(per)}</th></tr></thead>
-    <tbody>${rows.map(r => `<tr><td><strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}</td>
-      <td>${r.groupe ? 'G' + r.groupe + ' ' : ''}${_escName(r.options.join(' '))}</td><td>${_escName(r.amenagements)}</td>
-      <td>${r.cumul === null ? '' : `${r.cumul} <small>(${_escName(_fmtDateFr(r.cumulDate))})</small>`}</td>
-      <td>${r.delta === null ? '' : (r.deltaDecroissant ? '▼' : '') + (r.delta > 0 ? '+' : '') + r.delta}</td><td>${r.periodeTotal ?? ''}</td>
-      <td>${_moyPrintHTML(r.moyenne)}</td>
-      <td>${_escName(r.nonRendus.join(', '))}</td>
-      <td>${r.nbIncidents ? `${r.nbIncidents} — <small>${_escName(_fmtDateFr(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}</small>` : ''}</td>
-      <td class="print-rem">${_printContactHTML(r)}${_escName(r.remarque)}</td>
-      <td class="print-rem">${r.bilan ? _escName(r.bilan.texte) : ''}</td></tr>`).join('')}</tbody></table>`;
-  _printHTML(html, 'landscape');
+  _printHTML(_elevesPrintHTML(cls), 'landscape', { fontPt: _ELEVES_PRINT_PT });
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // SYNTHÈSE DE PÉRIODE — la feuille qu'on emporte au conseil de classe (ou qu'on relit à
