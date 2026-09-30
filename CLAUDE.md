@@ -216,6 +216,28 @@ retour = {
 - ⚠️ **Un cumul qui DIMINUE est signalé, jamais corrigé.** C'est presque toujours une faute de frappe, mais ce peut aussi être un carnet remplacé en cours d'année. La cellule porte un repère, l'infobulle dit ce qui est attendu, et **rien n'est réécrit** — le même arbitrage que la note hors barème de Plan de classe.
 - **`'A'` n'est ni `0` ni le vide.** `0` = carnet vu, aucune observation (une information). `''` = pas relevé (une absence d'information). `'A'` = élève absent, le relevé ne le concerne pas. Les trois s'affichent différemment et se traitent différemment dans le calcul du delta. Réutiliser la convention `codeAbsent` de Plan de classe : le code est **paramétrable**, donc aucun texte visible ne l'écrit en dur (cf. `_codeA()` là-bas).
 - La clé est **la date**, pas un id : on ne relève pas les carnets deux fois le même jour, et la clé date rend le tri chronologique gratuit et les doublons impossibles. Corollaire : corriger une date = déplacer l'entrée, à faire dans une seule fonction (`releveSetDate`) qui refuse d'écraser une date existante.
+- **Paliers de couleur** (v1.38.0, demande de l'utilisateur : *« un changement de couleur de
+  fond à chaque fois que ça franchit un multiple de 5 observations — et dans les réglages,
+  une autre valeur que 5 »*) : `S.prefs.obsPalier` (5 par défaut, entier de 0 à 100, **0 =
+  sans couleurs**, réglé dans 💾 Données). `_obsBande(n)` = `floor(n / palier)`, plafonné à
+  `OBS_BANDES` = 8 (au-delà, « 40 et + ») ; 0 sous le premier palier = pas de couleur ; seul un
+  NOMBRE a un cran (l'absent et le vide n'en ont pas). Tokens `--obs-1…8` / `--obs-N-fg` aux
+  trois endroits : jaune pâle → prune, **luminance décroissante** pour que l'ordre survive à
+  une impression en noir et blanc, encre blanche aux deux derniers crans. La couleur est
+  posée sur le **champ** (`.ob-N .rel-inp`), pas sur la case : le Δ en dessous garde son
+  encre. Partout où un cumul s'affiche : grille (avec légende `_obsLegendeHTML` sous la
+  barre), feuille imprimée, colonne *Observations* de la liste (`.ob-chip`), fiche.
+- **Impression** (v1.38.0 — l'onglet n'en avait AUCUNE) : bouton 🖨 et Ctrl+P → modale
+  `mcarprint` (jamais l'impression directe) : relevés de toute l'année ou d'une période,
+  couleurs des paliers, évolution à côté de chaque cumul, colonne Δ dernier, totaux de
+  période, paysage / portrait, A4 / A3. Feuille `.pp-t.pp-car` (`_carnetFeuilleHTML`) aux
+  mêmes lignes et au même tri que l'écran (`_carnetRows`, extrait de `renderCarnets`),
+  taille calculée pour UNE page (`_printFitMeasure`) — 10 pt en A4 paysage pour la démo.
+  Réglages de session (`_carPrintOpts`), rien dans `S`. Le Δ dernier d'une feuille d'une
+  seule période est borné à ses dates (`_carnetLastDelta(classId, sid, dates)`).
+  ⚠️ **Un Δ nul ne s'imprime pas** : « 3 0 » se lit « 30 » sur le papier (vu en simulation).
+  ⚠️ La couleur de palier doit battre la rangée grisée : `.pp-t.pp-car tbody td.ob-N`
+  (0,3,2) contre `.pp-t tbody tr:nth-child(even) td` (0,2,3).
 - **Total de période** : somme des deltas des relevés dont la date tombe dans la période — c'est-à-dire `cumul(dernier relevé de la période) − cumul(dernier relevé d'avant la période)`. ⚠️ Ne PAS additionner les cumuls, faute classique qui compte chaque observation autant de fois qu'il y a eu de relevés depuis.
 
 ### Documents — un même papier porte plusieurs réponses
@@ -1155,6 +1177,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 55 | **Observations du carnet : couleurs par palier** (`S.prefs.obsPalier`, 5 par défaut, réglable, `_obsBande`, 8 tokens × 2 aux trois endroits) dans la grille, la liste, la fiche et le papier · **impression de la grille** (modale `mcarprint`, période, colonnes, orientation, A4 / A3, une page) ; 6 tests. Audit : 14 états, 2 thèmes, 1 916 et 320 px, **0 défaut** | ✅ **fait** (2026-09-30, v1.38.0) |
 | 54 | **Polices au choix** : Andika à l'écran par défaut, Latin Modern au papier par défaut, les deux réglables dans 💾 Données (`_applyPolices`, `scripts/gen_fonts.py`) ; Fraunces et IBM Plex retirées (−430 Ko) · **visuel commun à tous les tableaux imprimés** (`.print-t`, PV) ; 5 tests | ✅ **fait** (2026-09-30, v1.37.0) |
 | 53 | **Liste des élèves imprimée plus lisible** : feuille `.pp-t.pp-el` (colonnes fixes pondérées vers le texte libre, rangées alternées, chiffres centrés, en-tête répété à chaque page, rangées jamais coupées, élève parti en italique), taille FIXE 8,5 pt en Latin Modern. ⚠️ **Pas d'ajustement à une page — arbitré par l'utilisateur** (*« j'y mets beaucoup d'informations »*) : elle court sur autant de pages qu'il faut (2 pour la démo), et un test vérifie que `printEleves` ne mesure pas ; 1 test | ✅ **fait** (2026-09-30, v1.36.0) |
 | 52 | **Feuille des moyennes** : sur une page A4 / A3 (modale `mmoyprint`, taille calculée), statistiques en pied **au choix** (`S.prefs.moyStats`, écran et papier) · **Latin Modern** pour toutes les impressions (`--font-print`, `scripts/gen_print_font.py`, devenu `scripts/gen_fonts.py` en v1.37.0) ; 2 tests | ✅ **fait** (2026-09-30, v1.35.0) |

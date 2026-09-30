@@ -35,7 +35,9 @@ sauvegarde dans un dossier Nextcloud (onglet 💾 Données et réglages).
    différentes dates de l'année. On saisit le **cumul** qu'on lit dans le carnet ou dans
    Pronote ; l'app calcule l'**évolution depuis le relevé précédent** — c'est-à-dire la
    seule chose qui dit qui est à voir en priorité. Un cumul de 38 ne veut rien dire sans
-   savoir qu'il était à 27 il y a trois semaines.
+   savoir qu'il était à 27 il y a trois semaines. Le fond d'un cumul **change de couleur
+   à chaque multiple de 5** (palier réglable) : on repère d'un coup d'œil qui a franchi
+   10, 15, 20. La grille s'imprime sur une page A4 ou A3, période au choix.
 2. **📈 Moyennes** — le tableau des moyennes exporté du bureau numérique, importé tel
    quel et **réimporté au fil de la période** : chaque import est gardé, l'évolution se
    calcule d'un import au suivant, et une matière qui apparaît (un collègue a enfin saisi

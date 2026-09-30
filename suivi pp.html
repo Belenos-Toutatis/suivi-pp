@@ -213,6 +213,17 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
   --caution-bg: #ffeeba;  --caution-bd: #f0c040;  --caution-fg: #4a3400;
   --notice-bg:  #fef9e7;  --notice-bd:  #f4d03f;  --notice-fg:  #6b3400;
   --aesh-bg:    #fde2f3;  --aesh-bd:    #c2185b;  --aesh-fg:    #7d0c47;
+  /* Paliers d'observations du carnet (fond d'un cumul, un cran par multiple du palier réglé).
+     Luminance DÉCROISSANTE du jaune au prune : l'ordre reste lisible sur une feuille en
+     noir et blanc. Encre foncée jusqu'au 6e cran, blanche au-delà (mesuré ≥ 5,5:1). */
+  --obs-1: #fdf2c0;  --obs-1-fg: #3d3000;
+  --obs-2: #fbe28a;  --obs-2-fg: #3d3000;
+  --obs-3: #f8c86a;  --obs-3-fg: #3a2400;
+  --obs-4: #f4a860;  --obs-4-fg: #361800;
+  --obs-5: #ec8656;  --obs-5-fg: #2e0e00;
+  --obs-6: #dc6452;  --obs-6-fg: #240600;
+  --obs-7: #b23a48;  --obs-7-fg: #ffffff;
+  --obs-8: #7c2352;  --obs-8-fg: #ffffff;
   /* Encre des méta-informations POSÉES SUR UNE CELLULE colorée (n° de place, pastille
      tablette, croix de retrait) : --pencil y descend à 3,9:1 sur les pastels de tag et de
      genre. Séparé de --pencil, qui reste calibré sur le fond papier. */
@@ -325,6 +336,15 @@ html[data-theme="dark"] {
   --caution-bg: #3a3117;  --caution-bd: #7d6524;  --caution-fg: #f1e0ad;
   --notice-bg:  #2b2413;  --notice-bd:  #7d6524;  --notice-fg:  #f0d7a4;
   --aesh-bg:    #46243a;  --aesh-bd:    #d4477f;  --aesh-fg:    #f8c8dd;
+  /* Paliers du carnet : teintes profondes qui se réchauffent d'un cran à l'autre, encre claire. */
+  --obs-1: #3b3514;  --obs-1-fg: #efe3b0;
+  --obs-2: #54471a;  --obs-2-fg: #f5e2a0;
+  --obs-3: #6c4b14;  --obs-3-fg: #f8d6a0;
+  --obs-4: #7c3e12;  --obs-4-fg: #fbcfae;
+  --obs-5: #86311a;  --obs-5-fg: #fdcdbd;
+  --obs-6: #8e2626;  --obs-6-fg: #ffd0cb;
+  --obs-7: #801f47;  --obs-7-fg: #ffd3de;
+  --obs-8: #5f2375;  --obs-8-fg: #f7d4f0;
   --cell-meta:  #c3ccd8;
   --g1-fg: #7cb8e0;  --g2-fg: #f0a35c;  --g3-fg: #c79ad8;
   --st-ppre-fg: #f0a35c;  --st-pap-fg: #9fabe8;   --st-pps-fg: #7cb8e0;
@@ -375,6 +395,15 @@ html[data-theme="dark"] {
     --caution-bg: #ffeeba;  --caution-bd: #f0c040;  --caution-fg: #4a3400;
     --notice-bg:  #fef9e7;  --notice-bd:  #f4d03f;  --notice-fg:  #6b3400;
     --aesh-bg:    #fde2f3;  --aesh-bd:    #c2185b;  --aesh-fg:    #7d0c47;
+    /* Paliers du carnet — les valeurs de jour, sur papier. */
+    --obs-1: #fdf2c0;  --obs-1-fg: #3d3000;
+    --obs-2: #fbe28a;  --obs-2-fg: #3d3000;
+    --obs-3: #f8c86a;  --obs-3-fg: #3a2400;
+    --obs-4: #f4a860;  --obs-4-fg: #361800;
+    --obs-5: #ec8656;  --obs-5-fg: #2e0e00;
+    --obs-6: #dc6452;  --obs-6-fg: #240600;
+    --obs-7: #b23a48;  --obs-7-fg: #ffffff;
+    --obs-8: #7c2352;  --obs-8-fg: #ffffff;
     --cell-meta:  #4a5b6f;
     --g1-fg: #1b527b;  --g2-fg: #9c3f00;  --g3-fg: #6f3488;
     --st-ppre-fg: #9c4a00;  --st-pap-fg: #33409c;   --st-pps-fg: #1f6091;
@@ -902,6 +931,22 @@ td.rel-cell.abs .rel-inp { color: var(--pencil); font-style: italic; background:
 /* Cumul inférieur au précédent : repère rouge, valeur INTACTE. */
 td.rel-cell.dec .rel-inp { border-color: var(--margin-red); box-shadow: inset 0 0 0 1px var(--margin-red); }
 td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
+/* Paliers d'observations (v1.38.0) : le FOND du cumul change à chaque multiple du palier
+   réglé (`S.prefs.obsPalier`, 5 par défaut) — 0–4 sans couleur, 5–9, 10–14… Posé sur le
+   champ, pas sur la case : le Δ en dessous garde son encre sur le papier du tableau.
+   `.ob-chip` : la même couleur en pastille (liste des élèves, légende). */
+.ob-chip { display: inline-block; padding: 1px 6px; border-radius: 6px; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  border: 1px solid var(--rule-line); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ob-leg { display: inline-flex; flex-wrap: wrap; gap: 3px; vertical-align: middle; }
+.ob-leg .ob-chip { font-size: 11px; padding: 0 5px; }
+.ob-1 .rel-inp, .ob-chip.ob-1 { background: var(--obs-1); color: var(--obs-1-fg); border-color: transparent; }
+.ob-2 .rel-inp, .ob-chip.ob-2 { background: var(--obs-2); color: var(--obs-2-fg); border-color: transparent; }
+.ob-3 .rel-inp, .ob-chip.ob-3 { background: var(--obs-3); color: var(--obs-3-fg); border-color: transparent; }
+.ob-4 .rel-inp, .ob-chip.ob-4 { background: var(--obs-4); color: var(--obs-4-fg); border-color: transparent; }
+.ob-5 .rel-inp, .ob-chip.ob-5 { background: var(--obs-5); color: var(--obs-5-fg); border-color: transparent; }
+.ob-6 .rel-inp, .ob-chip.ob-6 { background: var(--obs-6); color: var(--obs-6-fg); border-color: transparent; }
+.ob-7 .rel-inp, .ob-chip.ob-7 { background: var(--obs-7); color: var(--obs-7-fg); border-color: transparent; }
+.ob-8 .rel-inp, .ob-chip.ob-8 { background: var(--obs-8); color: var(--obs-8-fg); border-color: transparent; }
 
 .rel-table td.rel-delta, .rel-table th.rel-delta { text-align: center; font-family: var(--font-mono); font-weight: 700; border-left: 2px solid var(--rule-line); }
 /* Paliers « à voir » : surfaces d'alerte themées, encre associée — jamais un pastel nu. */
@@ -1339,6 +1384,23 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 .pp-moy td.g { font-weight: 700; }
 .pp-moy tfoot th, .pp-moy tfoot td { background: #e4e4e4 !important; font-weight: 700; font-size: .92em; }
 .pp-moy tfoot tr:first-child th, .pp-moy tfoot tr:first-child td { border-top: 1.2pt solid #000; }
+/* La feuille des observations du carnet : chiffres centrés, Δ et totaux séparés d'un filet,
+   cumuls sur le fond de leur palier quand on le demande — plus spécifique que la rangée
+   grisée, sinon une ligne sur deux perdrait sa couleur. Absent en italique, en baisse ▼. */
+.pp-car td.c, .pp-car th.c { text-align: center; font-variant-numeric: tabular-nums; }
+.pp-car thead th { text-transform: none; letter-spacing: 0; overflow-wrap: normal; }
+.pp-car thead th small { display: block; font-weight: 400; }
+.pp-car .g { border-left: 1.2pt solid #000 !important; }
+.pp-car td.dern { font-weight: 700; }
+.pp-sub .ob-chip { font-size: .9em; padding: 0 .35em; border-color: #9a9a9a; }
+.pp-t.pp-car tbody td.ob-1 { background: var(--obs-1); color: var(--obs-1-fg); }
+.pp-t.pp-car tbody td.ob-2 { background: var(--obs-2); color: var(--obs-2-fg); }
+.pp-t.pp-car tbody td.ob-3 { background: var(--obs-3); color: var(--obs-3-fg); }
+.pp-t.pp-car tbody td.ob-4 { background: var(--obs-4); color: var(--obs-4-fg); }
+.pp-t.pp-car tbody td.ob-5 { background: var(--obs-5); color: var(--obs-5-fg); }
+.pp-t.pp-car tbody td.ob-6 { background: var(--obs-6); color: var(--obs-6-fg); }
+.pp-t.pp-car tbody td.ob-7 { background: var(--obs-7); color: var(--obs-7-fg); }
+.pp-t.pp-car tbody td.ob-8 { background: var(--obs-8); color: var(--obs-8-fg); }
 @page landscape { size: A4 landscape; margin: 12mm; }
 @page portrait  { size: A4 portrait;  margin: 15mm; }
 @media print {
@@ -1936,6 +1998,37 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
+<!-- ═══════════════ OBSERVATIONS DU CARNET — impression ═══════════════ -->
+<div id="mcarprint" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();carPrintOk()}">
+    <h2>🖨 Imprimer les observations du carnet</h2>
+    <div class="tb-hint" style="margin-bottom:8px">La grille affichée — même tri, mêmes élèves — sur une page. La taille du texte est calculée pour tenir sur une page du papier choisi. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF ») ; garde l'échelle « par défaut ».</div>
+    <div class="fg"><label for="mcarp-periode">Relevés</label>
+      <select id="mcarp-periode" data-autofocus onchange="_carPrintRefresh()" style="max-width:100%"></select></div>
+    <div class="fg" style="display:flex;flex-direction:column;gap:5px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mcarp-coul" style="width:16px;height:16px" onchange="_carPrintRefresh()"> Couleurs des paliers <span class="tb-hint" id="mcarp-coul-hint"></span></label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mcarp-delta" style="width:16px;height:16px" onchange="_carPrintRefresh()"> Évolution à côté de chaque cumul <span class="tb-hint">— « 14 +2 »</span></label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mcarp-dern" style="width:16px;height:16px" onchange="_carPrintRefresh()"> Colonne « Δ dernier »</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mcarp-tot" style="width:16px;height:16px" onchange="_carPrintRefresh()"> Totaux de période</label>
+    </div>
+    <div class="fg"><label for="mcarp-kind">Orientation</label>
+      <select id="mcarp-kind" onchange="_carPrintRefresh()" style="max-width:100%">
+        <option value="landscape">Paysage</option>
+        <option value="portrait">Portrait</option>
+      </select></div>
+    <div class="fg"><label for="mcarp-format">Papier</label>
+      <select id="mcarp-format" onchange="_carPrintRefresh()" style="max-width:100%">
+        <option value="A4">A4</option>
+        <option value="A3">A3 — texte plus grand</option>
+      </select></div>
+    <div class="al al-i" id="mcarp-hint"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mcarprint')">Annuler</button>
+      <button class="btn btn-p" onclick="carPrintOk()">🖨 Imprimer…</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ MOYENNES — impression ═══════════════ -->
 <div id="mmoyprint" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();moyPrintOk()}">
@@ -2239,8 +2332,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.37.0';
-const APP_BUILD_DATE = '2026-09-30T03:50:22Z';
+const APP_VERSION    = '1.38.0';
+const APP_BUILD_DATE = '2026-09-30T04:33:24Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2319,9 +2412,50 @@ const DEFAULT_PREFS = {
   policePapier: 'lm',      // 'lm' | 'andika'
   // Statistiques en pied du tableau des moyennes (écran ET papier) — toutes par défaut.
   moyStats: ['moyenne', 'mediane', 'ecartType', 'min', 'max', 'sous10', 'auMoins10', 'n'],
+  // Paliers de couleur du carnet (2026-09-30) : le fond d'un cumul change à chaque multiple
+  // de cette valeur — 0–4, 5–9, 10–14… 0 = sans couleur.
+  obsPalier: 5,
 };
 function _prefs() { return (S.prefs && typeof S.prefs === 'object') ? S.prefs : (S.prefs = {}); }
 function _codeA() { const c = _prefs().codeAbsent; return (typeof c === 'string' && c.trim()) ? c.trim() : DEFAULT_PREFS.codeAbsent; }
+// ── Paliers d'observations — repérer d'un coup d'œil qui a franchi 5, 10, 15… ──
+// Le cran d'un cumul = nombre de multiples du palier franchis, plafonné à OBS_BANDES (la
+// palette a huit teintes : au-delà, « 40 et plus » pour un palier de 5 — on ne distingue
+// plus huit ou neuf nuances d'un même dégradé). 0 = sous le premier palier, sans couleur.
+// ⚠️ Seul un NOMBRE a un cran : l'absent (« A ») et le vide n'en ont pas.
+const OBS_BANDES = 8;
+function _obsPalier() {
+  const n = Number(_prefs().obsPalier);
+  return Number.isInteger(n) && n >= 0 && n <= 100 ? n : DEFAULT_PREFS.obsPalier;
+}
+function _obsBande(n, palier) {
+  const p = palier === undefined ? _obsPalier() : palier;
+  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || !p) return 0;
+  return Math.min(OBS_BANDES, Math.floor(n / p));
+}
+function _obsBandeCls(n, palier) { const b = _obsBande(n, palier); return b ? ' ob-' + b : ''; }
+// L'intervalle d'un cran, en clair : « 0–4 », « 5–9 »… et « 40 et + » pour le dernier.
+function _obsBandeLabel(b, palier) {
+  const p = palier === undefined ? _obsPalier() : palier;
+  if (!p) return '';
+  if (b >= OBS_BANDES) return `${OBS_BANDES * p} et +`;
+  return p === 1 ? String(b) : `${b * p}–${(b + 1) * p - 1}`;
+}
+// Légende : les crans de 0 jusqu'à celui du plus grand cumul (au moins le premier palier).
+function _obsLegendeHTML(maxCumul, palier) {
+  const p = palier === undefined ? _obsPalier() : palier;
+  if (!p) return '';
+  const top = Math.max(1, _obsBande(Number(maxCumul) || 0, p));
+  return `<span class="ob-leg">${Array.from({ length: top + 1 }, (_, b) =>
+    `<span class="ob-chip${b ? ' ob-' + b : ''}">${_escName(_obsBandeLabel(b, p))}</span>`).join('')}</span>`;
+}
+// Le plus grand cumul chiffré d'une classe (sur des dates données, sinon toutes).
+function _obsMaxCumul(classId, dates) {
+  const m = _relMap(classId);
+  let max = 0;
+  for (const d of (dates || _relDates(classId))) for (const v of Object.values(m?.[d]?.counts || {})) if (typeof v === 'number' && v > max) max = v;
+  return max;
+}
 
 // Indique si la dernière sauvegarde locale a échoué (quota saturé)
 let _saveFailed = false;
@@ -3279,6 +3413,9 @@ function _renderDonneesInner(el) {
       <label for="pref-codea">Code « absent »</label>
       <input id="pref-codea" value="${_escAttr(_codeA())}" maxlength="3" style="max-width:80px;font-family:var(--font-mono);text-transform:uppercase" onchange="setPref('codeAbsent', this.value.toUpperCase())">
       <div class="pref-help">Ce qu'on tape dans un relevé quand l'élève était absent : rien à relever ce jour-là, ce n'est ni un zéro ni un vide.</div>
+      <label for="pref-obs-palier">Couleurs du carnet</label>
+      <div class="prefs-row"><span>tous les</span> <input id="pref-obs-palier" type="number" min="0" max="100" step="1" value="${_obsPalier()}" style="max-width:80px;font-family:var(--font-mono)" onchange="setPref('obsPalier', this.value)"> <span>observations</span></div>
+      <div class="pref-help">Le fond d'un cumul change de couleur à chaque multiple de cette valeur — dans la grille des observations, sa feuille imprimée, la liste des élèves et la fiche. ${_obsPalier() ? _obsLegendeHTML(_obsPalier() * OBS_BANDES) : '<strong>0 : sans couleurs.</strong>'} ${_obsPalier() ? '· 0 = sans couleurs.' : ''}</div>
       <label for="pref-police-ecran">Police de l'écran</label>
       <select id="pref-police-ecran" onchange="setPref('policeEcran', this.value)" style="max-width:220px">
         ${Object.entries(_POLICES).map(([k, v]) => `<option value="${k}"${_applyPolices().ecran === k ? ' selected' : ''}>${_escName(v.label)}${k === 'andika' ? ' (par défaut)' : ''}</option>`).join('')}
@@ -4547,7 +4684,7 @@ function renderStudents() {
 
     // ── Le suivi (ex-Synthèse, fusionnée le 2026-09-11) ──
     const carnet = r.cumul === null ? '<span class="tb-hint">—</span>'
-      : `<strong style="font-family:var(--font-mono)">${r.cumul}</strong> <span class="tb-hint">le ${_escName(_fmtDateFr(r.cumulDate))}</span>`;
+      : `<strong class="${_obsBande(r.cumul) ? 'ob-chip' + _obsBandeCls(r.cumul) : ''}" style="font-family:var(--font-mono)">${r.cumul}</strong> <span class="tb-hint">le ${_escName(_fmtDateFr(r.cumulDate))}</span>`;
     const dCls = r.delta === null ? '' : r.delta >= 5 ? ' hot' : r.delta >= 2 ? ' warm' : '';
     const delta = r.delta === null ? '<span class="tb-hint">—</span>' : `<span class="rel-delta${dCls}" style="padding:1px 6px;border-radius:6px">${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}</span>`;
     const per = r.periodeTotal === null ? '<span class="tb-hint">—</span>' : `<span style="font-family:var(--font-mono);font-weight:700">${r.periodeTotal}</span>`;
@@ -4928,7 +5065,7 @@ function _ficheRender() {
         carnet.releves.map(r => `<tr>
           <td style="white-space:nowrap;font-family:var(--font-mono);font-size:.85em">${_escName(_fmtDateFr(r.ymd))}${
             r.label ? ` <span class="fi-vide">${_escName(r.label)}</span>` : ''}</td>
-          <td style="text-align:right"><input class="rel-inp" value="${_escAttr(r.valeur === null ? '' : String(r.valeur))}" inputmode="numeric" autocomplete="off" title="Cumul relevé ce jour — se corrige ici (nombre, « ${_escAttr(_codeA())} » pour absent, ou rien)" onchange="ficheSetCumul('${_escJsAttr(r.ymd)}',this)"></td>
+          <td class="${_obsBandeCls(r.valeur).trim()}" style="text-align:right"><input class="rel-inp" value="${_escAttr(r.valeur === null ? '' : String(r.valeur))}" inputmode="numeric" autocomplete="off" title="Cumul relevé ce jour — se corrige ici (nombre, « ${_escAttr(_codeA())} » pour absent, ou rien)" onchange="ficheSetCumul('${_escJsAttr(r.ymd)}',this)"></td>
           <td style="text-align:right;font-family:var(--font-mono)">${r.delta === null ? '' : (r.delta > 0 ? '+' : '') + r.delta}</td>
           <td>${r.decroissant ? '<span class="badge warn" title="Cumul inférieur au relevé précédent — signalé, jamais corrigé">▼ en baisse</span>'
                               : (r.valeur === _codeA() ? vide('absent ce jour-là') : '')}</td></tr>`).join('')}</tbody></table></div>
@@ -7030,13 +7167,18 @@ function _applyPolices() {
 }
 function setPref(key, value) {
   if (!(key in DEFAULT_PREFS)) return;
-  const v = key === 'codeAbsent' ? String(value || '').trim().slice(0, 3) : value;
+  let v = key === 'codeAbsent' ? String(value || '').trim().slice(0, 3) : value;
   if (key === 'codeAbsent' && !v) { toast('⚠️ Le code « absent » ne peut pas être vide.', 'warn'); renderDonnees(); return; }
+  if (key === 'obsPalier') {
+    v = String(value ?? '').trim() === '' ? NaN : Number(value);
+    if (!Number.isInteger(v) || v < 0 || v > 100) { toast('⚠️ Palier du carnet : un nombre entier de 0 à 100 (0 = sans couleurs).', 'warn'); renderDonnees(); return; }
+  }
   if (_prefs()[key] === v) return;
   pushUndo();
   _prefs()[key] = v;
   save();
   renderDonnees();
+  if (key === 'obsPalier') { toast(v ? `Carnet : une couleur tous les ${v} observation${v > 1 ? 's' : ''}.` : 'Carnet : sans couleurs de palier.'); return; }
   if (key === 'policeEcran' || key === 'policePapier') { _applyPolices(); toast(`Police ${key === 'policeEcran' ? 'de l\'écran' : 'de l\'impression'} : ${_POLICES[v]?.label || v}.`); return; }
   toast(key === 'periodMode' ? `Périodes : ${v === 'trimestre' ? 'trimestres' : 'semestres'}.` : `Code « absent » : ${v}.`);
 }
@@ -7263,6 +7405,38 @@ function _carnetCurrentPeriodIdx(cls) {
   return p ? p.n - 1 : 0;
 }
 
+// Lignes de la grille : roster filtré (partis selon la case) et trié. Le tri par Δ / total
+// met en tête les élèves à voir. Partagé par l'écran et la feuille imprimée : même ordre.
+function _carnetRows(cls) {
+  const today = _todayYmd();
+  const curIdx = _carnetCurrentPeriodIdx(cls);
+  const rows = cls.eleves.map(id => S.eleves[id]).filter(Boolean)
+    .filter(s => _carnetShowGone || _isStudentActive(s, today) || _relLast(cls.id, s.id));
+  const byName = (a, b) => (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr', { sensitivity: 'base' });
+  const lastDelta = s => _carnetLastDelta(cls.id, s.id);
+  const curTotal = s => _relPeriodTotal(cls.id, s.id, curIdx);
+  const descNullLast = (fa, fb) => (fa === null ? -Infinity : fa) < (fb === null ? -Infinity : fb) ? 1 : (fa === fb ? 0 : -1);
+  if (carnetSort === 'delta' || carnetSort === 'total') {
+    rows.sort((a, b) => carnetSort === 'delta'
+      ? (descNullLast(lastDelta(a), lastDelta(b)) || byName(a, b))
+      : (descNullLast(curTotal(a), curTotal(b)) || byName(a, b)));
+  } else {
+    const ordre = _sortStudents(rows.map(s => s.id), carnetSort, cls);
+    rows.sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
+  }
+  return rows;
+}
+// Δ dernier = évolution au dernier relevé CHIFFRÉ de l'élève — pas de la dernière
+// colonne : sinon le signal s'éteint pour toute la classe dès qu'on ouvre une colonne
+// vide, précisément au moment où l'on s'en sert. `dates` borne la recherche (feuille
+// imprimée d'une seule période) ; absente, toutes les dates.
+function _carnetLastDelta(classId, sid, dates) {
+  let ymd = null;
+  if (dates) { const m = _relMap(classId); for (const d of dates) { const v = m ? _relValue(m[d], sid) : null; if (typeof v === 'number') ymd = d; } }
+  else ymd = _relLast(classId, sid)?.ymd || null;
+  const d = ymd ? _relDelta(classId, ymd, sid) : null;
+  return d ? d.delta : null;
+}
 function renderCarnets() {
   const el = document.getElementById('carnets-body');
   if (!el) return;
@@ -7288,8 +7462,9 @@ function renderCarnets() {
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer">
         <input type="checkbox"${_carnetShowGone ? ' checked' : ''} onchange="setCarnetShowGone(this.checked)"> élèves partis
       </label>
+      ${dates.length ? `<button class="btn btn-g btn-sm" onclick="openCarnetPrint()" title="La grille affichée — même tri — sur une page A4 ou A3, ou en PDF par la fenêtre d'impression (Ctrl+P fait pareil)">🖨 Imprimer…</button>` : ''}
       <span class="tb-hint" style="margin-left:auto">Cumul lu dans le carnet · <code>${_escName(codeA)}</code> = absent · vide = non relevé · ▼ = inférieur au relevé précédent</span>
-    </div>`;
+    </div>${dates.length && _obsPalier() ? `<div class="tb-hint" style="margin:-4px 0 8px">Couleurs : une par tranche de ${_obsPalier()} observation${_obsPalier() > 1 ? 's' : ''} ${_obsLegendeHTML(_obsMaxCumul(cls.id))} <span style="white-space:nowrap">— palier réglable dans 💾 Données</span></div>` : ''}`;
 
   if (!dates.length) {
     el.innerHTML = toolbar + _emptyStateHTML('📓', 'Aucun relevé pour l\'instant',
@@ -7297,24 +7472,8 @@ function renderCarnets() {
     return;
   }
 
-  // Lignes : roster filtré et trié. Le tri par Δ / total met en tête les élèves à voir.
-  const lastYmd = dates[dates.length - 1];
-  const rows = roster.filter(s => _carnetShowGone || _isStudentActive(s, today) || _relLast(cls.id, s.id));
-  const byName = (a, b) => (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr', { sensitivity: 'base' });
-  // Δ dernier = évolution au dernier relevé CHIFFRÉ de l'élève — pas de la dernière
-  // colonne : sinon le signal s'éteint pour toute la classe dès qu'on ouvre une colonne
-  // vide, précisément au moment où l'on s'en sert.
-  const lastDelta = s => { const l = _relLast(cls.id, s.id); const d = l ? _relDelta(cls.id, l.ymd, s.id) : null; return d ? d.delta : null; };
-  const curTotal = s => _relPeriodTotal(cls.id, s.id, curIdx);
-  const descNullLast = (fa, fb) => (fa === null ? -Infinity : fa) < (fb === null ? -Infinity : fb) ? 1 : (fa === fb ? 0 : -1);
-  if (carnetSort === 'delta' || carnetSort === 'total') {
-    rows.sort((a, b) => carnetSort === 'delta'
-      ? (descNullLast(lastDelta(a), lastDelta(b)) || byName(a, b))
-      : (descNullLast(curTotal(a), curTotal(b)) || byName(a, b)));
-  } else {
-    const ordre = _sortStudents(rows.map(s => s.id), carnetSort, cls);
-    rows.sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
-  }
+  const rows = _carnetRows(cls);
+  const lastDelta = s => _carnetLastDelta(cls.id, s.id);
 
   // Colonnes de période : seulement celles qui portent au moins un relevé.
   const periodsShown = periods.filter(p => dates.some(d => d >= p.start && d <= p.end));
@@ -7342,7 +7501,7 @@ function renderCarnets() {
       const v = _relValue(rel, s.id);
       const dl = _relDelta(cls.id, d, s.id);
       const shown = v === null ? '' : (v === REL_ABSENT ? codeA : String(v));
-      const cls2 = ['rel-cell', v === REL_ABSENT ? 'abs' : '', v === null ? 'empty' : '', dl?.decreasing ? 'dec' : ''].filter(Boolean).join(' ');
+      const cls2 = ['rel-cell', v === REL_ABSENT ? 'abs' : '', v === null ? 'empty' : '', dl?.decreasing ? 'dec' : ''].filter(Boolean).join(' ') + _obsBandeCls(v);
       const tip = dl?.decreasing
         ? `Cumul inférieur au relevé précédent (${dl.prev} le ${_fmtDateFr(_relPrev(cls.id, d, s.id).ymd)}). Faute de frappe ? Ou carnet remplacé ? La valeur n'est pas corrigée d'office.`
         : (dl ? `${dl.n} au total — ${dl.prev === null ? 'premier relevé' : `+${dl.delta} depuis le ${_fmtDateFr(_relPrev(cls.id, d, s.id).ymd)} (${dl.prev})`}` : (v === REL_ABSENT ? 'Absent au relevé : rien à relever' : 'Non relevé'));
@@ -7392,6 +7551,119 @@ function relCellChange(inp) {
     if (again) { try { again.focus({ preventScroll: true }); } catch (_) { again.focus(); } }
   }
 }
+// ── Impression ── la grille affichée (même tri, mêmes élèves), sur UNE page : la taille
+// de texte est calculée (_printFitMeasure) pour le papier et l'orientation choisis. Les
+// réglages valent pour la session (`_carPrintOpts`), rien dans S : ils décrivent le geste.
+// ⚠️ Les couleurs de palier s'impriment (print-color-adjust: exact) ; la palette descend en
+// luminance d'un cran à l'autre, donc une feuille en noir et blanc garde l'ordre des gris.
+let _carPrintOpts = { periode: 'all', couleurs: true, delta: true, dernier: true, totaux: true, kind: 'landscape', format: 'A4' };
+function _carnetPrintDates(cls, periode) {
+  const dates = _relDates(cls.id);
+  if (periode === 'all') return dates;
+  const p = _periods(cls)[+periode];
+  return p ? dates.filter(d => d >= p.start && d <= p.end) : dates;
+}
+function _carnetFeuilleHTML(cls, opts) {
+  const o = Object.assign({}, _carPrintOpts, opts || {});
+  const dates = _carnetPrintDates(cls, o.periode);
+  if (!dates.length) return null;
+  const m = _relMap(cls.id);
+  const codeA = _codeA();
+  const palier = o.couleurs ? _obsPalier() : 0;
+  const rows = _carnetRows(cls);
+  const periods = _periods(cls);
+  const perShown = o.totaux ? periods.filter(p => dates.some(d => d >= p.start && d <= p.end)) : [];
+  const jm = d => { const x = d.split('-'); return `${x[2]}/${x[1]}`; };
+  // Le nom a la place qu'il lui faut, chaque relevé une part égale, Δ et totaux un peu moins.
+  const cols = [['nom', 17], ...dates.map(() => ['d', 6]), ...(o.dernier ? [['dern', 5]] : []), ...perShown.map(() => ['p', 5.5])];
+  const tot = cols.reduce((n, c) => n + c[1], 0);
+  const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c[1] / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
+  const head = `<tr><th>Élève</th>${dates.map(d => `<th class="c">${_escName(jm(d))}${m[d]?.label ? `<small>${_escName(m[d].label)}</small>` : ''}</th>`).join('')}${
+    o.dernier ? '<th class="c g">Δ dernier</th>' : ''}${perShown.map((p, i) => `<th class="c${!o.dernier && i === 0 ? ' g' : ''}">${_escName(p.label)}</th>`).join('')}</tr>`;
+  const body = rows.map(s => {
+    const parti = !_isStudentActive(s);
+    const cells = dates.map(d => {
+      const v = _relValue(m[d], s.id);
+      if (v === null) return '<td class="c"></td>';
+      if (v === REL_ABSENT) return `<td class="c"><em>${_escName(codeA)}</em></td>`;
+      const dl = _relDelta(cls.id, d, s.id);
+      // ⚠️ Un Δ nul ne s'écrit pas : « 3 0 » se lit « 30 » sur le papier.
+      const dt = !o.delta || !dl || dl.prev === null || !dl.delta ? '' : ` <small>${dl.delta > 0 ? '+' : ''}${dl.delta}</small>`;
+      return `<td class="c${_obsBandeCls(v, palier)}">${dl?.decreasing ? '▼' : ''}${v}${dt}</td>`;
+    }).join('');
+    const ld = o.dernier ? _carnetLastDelta(cls.id, s.id, dates) : null;
+    return `<tr${parti ? ' class="pp-parti"' : ''}><td><span class="pp-nom">${_escName(s.nom)}</span> ${_escName(s.prenom)}${parti ? ' <small><em>parti</em></small>' : ''}</td>${cells}${
+      o.dernier ? `<td class="c g dern">${ld === null ? '' : (ld > 0 ? '+' : '') + ld}</td>` : ''}${
+      perShown.map((p, i) => { const t = _relPeriodTotal(cls.id, s.id, p.n - 1); return `<td class="c${!o.dernier && i === 0 ? ' g' : ''}">${t === null ? '' : t}</td>`; }).join('')}</tr>`;
+  }).join('');
+  const per = o.periode === 'all' ? '' : (periods[+o.periode]?.label || '');
+  const annee = dates[0].slice(0, 4) === dates[dates.length - 1].slice(0, 4) ? dates[0].slice(0, 4) : `${dates[0].slice(0, 4)}-${dates[dates.length - 1].slice(2, 4)}`;
+  const sous = [`${dates.length} relevé${dates.length > 1 ? 's' : ''} ${dates.length > 1 ? `du ${_fmtDateFr(dates[0])} au ${_fmtDateFr(dates[dates.length - 1])}` : `du ${_fmtDateFr(dates[0])}`}`,
+    `cumul lu dans le carnet${o.delta ? ', évolution depuis le relevé précédent en petit' : ''}`, `${codeA} = absent`, '▼ = en baisse'].join(' · ');
+  const leg = palier ? `<br>Couleurs : une par tranche de ${palier} observation${palier > 1 ? 's' : ''} ${_obsLegendeHTML(_obsMaxCumul(cls.id, dates), palier)}` : '';
+  return { kind: o.kind === 'portrait' ? 'portrait' : 'landscape',
+    html: `<div class="pp-titre">Observations du carnet — ${_escName(cls.nom)}${per ? ' — ' + _escName(per) : ''} — ${_escName(cls.annee || annee)}</div>
+    <p class="pp-sub">${_escName(sous)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${leg}</p>
+    <table class="pp-t pp-car">${colgroup}<thead>${head}</thead><tbody>${body}</tbody></table>` };
+}
+function printCarnets() { openCarnetPrint(); }
+function openCarnetPrint() {
+  const cls = getCls();
+  if (!cls || !_relDates(cls.id).length) return toast('⚠️ Aucun relevé à imprimer.', 'warn');
+  const o = _carPrintOpts;
+  const dates = _relDates(cls.id);
+  const pers = _periods(cls).map((p, i) => ({ p, i })).filter(({ p }) => dates.some(d => d >= p.start && d <= p.end));
+  if (o.periode !== 'all' && !pers.some(x => String(x.i) === String(o.periode))) o.periode = 'all';
+  document.getElementById('mcarp-periode').innerHTML = `<option value="all">Toute l'année (${dates.length} relevé${dates.length > 1 ? 's' : ''})</option>` +
+    pers.map(({ p, i }) => { const n = dates.filter(d => d >= p.start && d <= p.end).length; return `<option value="${i}">${_escName(p.label)} seulement (${n} relevé${n > 1 ? 's' : ''})</option>`; }).join('');
+  document.getElementById('mcarp-periode').value = String(o.periode);
+  document.getElementById('mcarp-coul').checked = o.couleurs;
+  document.getElementById('mcarp-delta').checked = o.delta;
+  document.getElementById('mcarp-dern').checked = o.dernier;
+  document.getElementById('mcarp-tot').checked = o.totaux;
+  document.getElementById('mcarp-kind').value = o.kind;
+  document.getElementById('mcarp-format').value = o.format;
+  openMod('mcarprint');
+  _carPrintRefresh();
+  _printFontLoad().then(() => { if (document.getElementById('mcarprint')?.classList.contains('on')) _carPrintRefresh(); });
+}
+function _carPrintRefresh() {
+  const cls = getCls();
+  const g = id => document.getElementById(id);
+  const o = _carPrintOpts;
+  o.periode = g('mcarp-periode').value || 'all';
+  o.couleurs = g('mcarp-coul').checked;
+  o.delta = g('mcarp-delta').checked;
+  o.dernier = g('mcarp-dern').checked;
+  o.totaux = g('mcarp-tot').checked;
+  o.kind = g('mcarp-kind').value === 'portrait' ? 'portrait' : 'landscape';
+  o.format = g('mcarp-format').value === 'A3' ? 'A3' : 'A4';
+  const pal = _obsPalier();
+  g('mcarp-coul').disabled = !pal;
+  g('mcarp-coul-hint').textContent = pal ? `— tous les ${pal}, réglable dans 💾 Données` : '— palier à 0 dans 💾 Données : aucune couleur';
+  const out = cls ? _carnetFeuilleHTML(cls) : null;
+  const fit = out ? _printFitMeasure(out.html, out.kind, o.format) : null;
+  const n = out ? _carnetPrintDates(cls, o.periode).length : 0;
+  g('mcarp-hint').textContent = out ? [`${n} relevé${n > 1 ? 's' : ''}, tri de l'écran`,
+    _carFitTexte(fit, o)].filter(Boolean).join(' · ') : 'Aucun relevé pour ce choix.';
+}
+function _carFitTexte(fit, o) {
+  if (!fit) return '';
+  const pt = String(fit.size).replace('.', ',');
+  const ori = o.kind === 'portrait' ? 'portrait' : 'paysage';
+  return fit.fits ? `tient sur une page ${o.format} ${ori}, texte en ${pt} pt${o.format === 'A4' && fit.size < 7 ? ' — petit : l\'A3 le rendra plus lisible' : ''}`
+    : `⚠️ trop long pour une page ${o.format} ${ori}, même en ${pt} pt (≈ ${fit.pages} pages) — ${o.format === 'A4' ? 'passe en A3, ' : ''}${o.kind === 'portrait' ? 'en paysage, ' : ''}ou ne garde qu'une période`;
+}
+function carPrintOk() {
+  const cls = getCls();
+  const out = cls ? _carnetFeuilleHTML(cls) : null;
+  if (!out) return closeMod2('mcarprint');
+  const fit = _printFitMeasure(out.html, out.kind, _carPrintOpts.format);
+  closeMod2('mcarprint');
+  if (!fit.fits) toast(`⚠️ La feuille déborde sur ≈ ${fit.pages} pages ${_carPrintOpts.format}, même en ${String(fit.size).replace('.', ',')} pt.`, 'warn');
+  _printHTML(out.html, out.kind, { format: _carPrintOpts.format, fontPt: fit.size });
+}
+
 // Entrée = élève suivant dans la MÊME colonne (on relève carnet après carnet, à date
 // fixe), Maj+Entrée = précédent ; flèches haut/bas idem. Tab reste natif.
 // ── Touches de saisie : les valeurs probables, à portée de doigt ──
@@ -12834,6 +13106,7 @@ document.addEventListener('keydown', e => {
   if (ctrl && k === 'p') {
     const tab = document.querySelector('.tab.on')?.id.replace('tab-', '');
     if (tab === 'eleves') { e.preventDefault(); printEleves(); return; }
+    if (tab === 'carnets' && getCls() && _relDates(getCls().id).length) { e.preventDefault(); printCarnets(); return; }
     if (tab === 'moyennes' && getCls() && _moyReleves(getCls().id).length) { e.preventDefault(); printMoyennes(); return; }
     if (tab === 'delegues' && _elCurrent()?.clos) { e.preventDefault(); electionPrintPV(); return; }
     // ⚠️ Sur un document ouvert, Ctrl+P ouvre le choix des COLONNES plutôt que d'imprimer
