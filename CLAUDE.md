@@ -717,6 +717,28 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   l'Éducation nationale.
 - ⚠️ **Réponses LIBRES**, trois par discipline (`AVIS_CRITERES`) — arbitré : *« une réponse
   libre, pas un commentaire fermé »*. Aucune échelle, aucun calcul.
+- **Les trois colonnes** (v1.40.0, arbitrées par l'utilisateur) : **Travail** (travail
+  personnel, devoirs, régularité, résultats) · **Participation** (oral, activité, groupe —
+  l'implication en classe) · **Comportement** (attitude, règles, relations). Les premières,
+  « investissement » et « implication », se recouvraient. Chaque colonne porte sa
+  **consigne** (`aide`), écrite sous l'en-tête dans la feuille et dans le message. ⚠️ **Pas de
+  colonne « à dire au conseil »** (refusée par l'utilisateur). Migration : `AVIS_CLES_ANCIENNES`
+  (au chargement) et `alias` (les anciens en-têtes restent lus dans une feuille déjà préparée).
+- **Élèves demandés en particulier** (`camp.cibles`, v1.40.0 — *« je compte en discuter avec
+  leurs parents prochainement »*) : leur nom est **surligné en jaune** (style `vif`) dans chaque
+  onglet, le mode d'emploi le dit, le message les cite. Choisis dans la modale (⭐), purgés
+  avec l'élève (`_purgeStudentRefs`). ⚠️ Changer la liste d'une feuille déjà préparée demande
+  *Mettre la feuille à jour* pour que le surlignage y arrive.
+- **Le message aux collègues, en PARTIES** (v1.40.0 — *« pour différents moments de l'année :
+  un mois, la fin du semestre ou du trimestre, les bilans intermédiaires ; des parties déjà
+  écrites, faciles à remplacer, ou ne garder que la partie nécessaire »*) : `AVIS_MSG_PARTIES`
+  (salutation · le moment · la demande · les colonnes · élèves en particulier · échéance ·
+  formule finale), `AVIS_MOMENTS` (conseil · mi-période · point du mois, avec le mois). Chaque
+  partie se coche ou non (`camp.msg.off`), une partie sans objet (pas d'élève choisi, pas
+  d'échéance) se retire d'elle-même. Les **textes** sont des modèles partagés par toutes les
+  feuilles : `S.prefs.avisMsg` ne garde que ce que l'utilisateur a RÉÉCRIT (↺ revient au texte
+  proposé) — remplacé, jamais modifié en place. Repères remplacés à l'assemblage
+  (`_avisMessage`, pur) : `{classe} {periode} {mois} {lien} {eleves} {echeance}`.
 - **Disciplines** (`S.disciplines`, `_disciplinesSeed`, comme les instances : d'office =
   décochables, pas supprimables) : la liste de l'utilisateur — **allemand** (ajouté en
   v1.39.2, oubli de la liste d'origine ; ALLEMAND et ALLEMAND BILINGUE s'y rangent, la LCE
@@ -752,7 +774,7 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   💾 Données ; vidé, ou égal à celui des moyennes, il redevient automatique.
 - **Campagne** (`S.avis[classId][campId]`) : `{ id, date, cible, label, fichier, lien, lu,
   disciplines: [{ id, nom, onglet, profs }] (les onglets de LA feuille, figés), avis: { sid:
-  { did: { investissement, comportement, implication } } } }`. ⚠️ **`cible` = la fin de la
+  { did: { travail, participation, comportement } } }, cibles: [sid], msg }`. ⚠️ **`cible` = la fin de la
   période visée**, choisie à la création : la période se déduit de la date comme partout,
   et le conseil du S1, préparé en février, reste « pour le S1 ». Les élèves de la feuille :
   **présents pendant la période**, par **ordre alphabétique** (c'est par le nom qu'un
@@ -1292,6 +1314,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 61 | **Colonnes Travail · Participation · Comportement** avec leur consigne (migration des anciennes) · **élèves demandés en particulier**, surlignés en jaune · **message en parties** (moment, mois, échéance, parties à garder, textes réécrits devenus modèles) ; 3 tests. Feuille vue dans LibreOffice ; audit 2 thèmes, 1 024 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.40.0) |
 | 60 | **Onglets colorés** : une couleur par domaine disciplinaire, une nuance par discipline (`DOMAINES`, `_discCouleur`, `tableooo:tab-color`), domaine réglable dans Données, catalogue et onglets rangés par domaine ; tests mis à jour | ✅ **fait** (2026-10-02, v1.39.3) |
 | 59 | **Allemand** parmi les disciplines d'office (en tête ; la LCE reste à rattacher) · bouton *Ouvrir les avis des collègues* dans 💾 Données ; tests mis à jour | ✅ **fait** (2026-10-02, v1.39.2) |
 | 58 | **Avis des collègues : revue avant / après** (rien repris d'office, effacements jamais cochés, nouvelle feuille sur un fichier déjà rempli = rien coché) · **professeur tapé à la main** (modale et Données) ; 2 tests. Audit : revue, nouvelle feuille, Données, 2 thèmes, 710 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.39.1) |

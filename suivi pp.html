@@ -969,6 +969,14 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .av-rv-modif { background: var(--caution-bg); color: var(--caution-fg); }
 .av-rv-suppr { background: var(--alert-bg); color: var(--alert-fg); }
 .av-det > summary { cursor: pointer; }
+.av-part { border-left: 3px solid var(--ink-blue); padding: 4px 0 6px 10px; margin: 6px 0; }
+.av-part.off { border-left-color: var(--rule-line); }
+.av-part-h { display: flex; gap: 8px; align-items: center; cursor: pointer; color: var(--ink-deep); font-weight: 400; margin-bottom: 3px; }
+.av-part-h input { width: 16px; height: 16px; flex: none; }
+.av-part textarea { width: 100%; font-size: .88em; }
+.av-cibles { display: flex; flex-wrap: wrap; gap: 4px; }
+.av-cibles .tagpick { background: var(--paper-warm); }
+.av-cibles .tagpick.av-cible-on { background: var(--caution-bg); color: var(--caution-fg); border-color: var(--caution-bd); font-weight: 700; }
 /* La pastille de couleur d'une discipline : celle de son onglet dans la feuille. Couleur
    de DONNÉE (le domaine), identique dans les deux thèmes — un liseré la détache du fond. */
 .av-sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; border: 1px solid var(--rule-line); }
@@ -2382,8 +2390,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.39.3';
-const APP_BUILD_DATE = '2026-10-02T09:50:04Z';
+const APP_VERSION    = '1.40.0';
+const APP_BUILD_DATE = '2026-10-02T09:55:15Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2430,8 +2438,8 @@ function _emptyState() {
     matieres:  {},
     // Avis des collègues (v1.39.0) : une CAMPAGNE = une feuille du Nuage envoyée pour une
     // période. { [classId]: { [campId]: { id, date, cible, label, fichier, lien, lu,
-    //   disciplines: [{ id, nom, onglet, profs }], avis: { sid: { did: { investissement,
-    //   comportement, implication } } } } } }
+    //   disciplines: [{ id, nom, onglet, profs }], cibles: [sid] (élèves surlignés),
+    //   avis: { sid: { did: { travail, participation, comportement } } } } } }
     avis:      {},
     // Catalogue des disciplines (un onglet de la feuille chacune) — pré-rempli, renommable,
     // désactivable, complétable. Les matières du bureau numérique s'y rattachent par m.disc.
@@ -2473,6 +2481,9 @@ const DEFAULT_PREFS = {
   // Paliers de couleur du carnet (2026-09-30) : le fond d'un cumul change à chaque multiple
   // de cette valeur — 0–4, 5–9, 10–14… 0 = sans couleur.
   obsPalier: 5,
+  // Les textes du message aux collègues RÉÉCRITS par l'utilisateur (les autres restent ceux
+  // proposés) — { [partie]: texte }. Remplacé, jamais modifié en place.
+  avisMsg: {},
 };
 function _prefs() { return (S.prefs && typeof S.prefs === 'object') ? S.prefs : (S.prefs = {}); }
 function _codeA() { const c = _prefs().codeAbsent; return (typeof c === 'string' && c.trim()) ? c.trim() : DEFAULT_PREFS.codeAbsent; }
@@ -3188,8 +3199,16 @@ function _sanitizeCoreSections() {
       if (!_isPlainObj(c.avis)) c.avis = {};
       for (const [sid, o] of Object.entries(c.avis)) {
         if (!_isPlainObj(o)) { delete c.avis[sid]; continue; }
-        for (const [did, a] of Object.entries(o)) if (!_isPlainObj(a)) delete o[did];
+        for (const [did, a] of Object.entries(o)) {
+          if (!_isPlainObj(a)) { delete o[did]; continue; }
+          for (const [ancienne, neuve] of Object.entries(AVIS_CLES_ANCIENNES)) {
+            if (a[ancienne] !== undefined) { if (a[neuve] === undefined) a[neuve] = a[ancienne]; delete a[ancienne]; }
+          }
+        }
       }
+      if (c.msg !== undefined && !_isPlainObj(c.msg)) delete c.msg;
+      if (!Array.isArray(c.cibles)) c.cibles = [];
+      c.cibles = c.cibles.filter(x => typeof x === 'string');
       if (typeof c.cible !== 'string') c.cible = typeof c.date === 'string' ? c.date : '';
     }
   }
@@ -3331,7 +3350,10 @@ function _purgeStudentRefs(sid) {
   }
   // Avis des collègues : ceux qui le concernent, dans chaque campagne.
   for (const byId of Object.values(_isPlainObj(S.avis) ? S.avis : {})) {
-    for (const camp of Object.values(byId || {})) if (_isPlainObj(camp?.avis)) delete camp.avis[sid];
+    for (const camp of Object.values(byId || {})) {
+      if (_isPlainObj(camp?.avis)) delete camp.avis[sid];
+      if (Array.isArray(camp?.cibles)) camp.cibles = camp.cibles.filter(x => x !== sid);
+    }
   }
   delete S.eleves[sid];
 }
@@ -11673,7 +11695,9 @@ var _ODS_STYLES = {
   aide:   { t: ' fo:font-style="italic" style:font-style-asian="italic" style:font-style-complex="italic" fo:color="#444444"', c: ' fo:wrap-option="wrap"' },
   entete: { t: ' fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"', c: ' fo:background-color="#e4e4e4"' + _ODS_BORD + ' fo:wrap-option="wrap"' },
   nom:    { t: ' fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"', c: _ODS_BORD + ' style:vertical-align="top"' },
-  saisie: { t: '', c: _ODS_BORD + ' fo:wrap-option="wrap" style:vertical-align="top"' }
+  saisie: { t: '', c: _ODS_BORD + ' fo:wrap-option="wrap" style:vertical-align="top"' },
+  // Surligné « voyant » : le nom d'un élève sur qui l'avis est demandé en particulier.
+  vif:    { t: ' fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"', c: ' fo:background-color="#ffe14d"' + _ODS_BORD + ' style:vertical-align="top"' }
 };
 
 function _odsCm(w) { return (isFinite(w) && w > 0 ? +w : 2.5).toFixed(3) + 'cm'; }
@@ -11922,11 +11946,17 @@ async function _odsRead(u8) {
 // ⚠️ Réponses LIBRES, trois par discipline (arbitré : « une réponse libre, pas un
 // commentaire fermé ») — aucune échelle, aucun calcul : on lit ce que les collègues écrivent.
 // ═══════════════════════════════════════════════════════════════════════════
+// Les trois colonnes, arbitrées le 2026-10-02 : elles ne se recouvrent pas (« investissement »
+// et « implication », les premières, disaient la même chose). Chacune porte sa CONSIGNE —
+// écrite dans la feuille sous l'en-tête et dans le message aux collègues. `alias` : les
+// anciens en-têtes, encore lus dans une feuille préparée avant le changement.
 const AVIS_CRITERES = [
-  { key: 'investissement', label: 'Investissement' },
-  { key: 'comportement',   label: 'Comportement' },
-  { key: 'implication',    label: 'Implication' },
+  { key: 'travail',       label: 'Travail',       aide: 'travail personnel, devoirs, régularité, résultats qui suivent ou non', alias: ['Investissement'] },
+  { key: 'participation', label: 'Participation', aide: 'à l\'oral, en activité, en groupe — l\'implication en classe', alias: ['Implication'] },
+  { key: 'comportement',  label: 'Comportement',  aide: 'attitude, respect des règles, relations', alias: [] },
 ];
+// Les avis rangés avant le changement de colonnes (v1.39.0 → v1.39.3) : migrés au chargement.
+const AVIS_CLES_ANCIENNES = { investissement: 'travail', implication: 'participation' };
 // Les disciplines d'office (liste donnée par l'utilisateur). [id, nom, onglet, motif] — le
 // motif reconnaît, sur le nom NORMALISÉ (_moyNorm), les matières de l'export du bureau
 // numérique : « ÉD.PHYSIQUE & SPORT. », « SCIENCES VIE & TERRE », « HISTOIRE-GEOGRAPHIE
@@ -12115,7 +12145,8 @@ function _discProfsAuto(classId, did) {
 // ── Campagnes ── une campagne = UNE feuille envoyée aux collègues, pour UNE période.
 // S.avis[classId][campId] = { id, date, ts, cible, label, fichier, lien, lu,
 //   disciplines: [{ id, nom, onglet, profs }],   ← les onglets de LA feuille, figés
-//   avis: { [sid]: { [did]: { investissement, comportement, implication } } } }
+//   cibles: [sid],   ← élèves sur qui l'avis est demandé EN PARTICULIER (surlignés)
+//   avis: { [sid]: { [did]: { travail, participation, comportement } } } }
 // `cible` est une date DANS la période visée (sa fin) : la période se déduit de la date,
 // comme partout — et le conseil du S1, tenu en février, se prépare quand même « pour le S1 ».
 function _avisMap(classId) { return _isPlainObj(S.avis) && _isPlainObj(S.avis[classId]) ? S.avis[classId] : null; }
@@ -12140,7 +12171,7 @@ function _avisOngletsUniques(list) {
   });
 }
 function _avisDidsOrdonnes(dids) { const ordre = _disciplinesAll().map(d => d.id); return [...dids].sort((a, b) => ordre.indexOf(a) - ordre.indexOf(b)); }
-function avisCampagneCreer(cls, { pIdx, disciplines, lien }) {
+function avisCampagneCreer(cls, { pIdx, disciplines, lien, cibles }) {
   const p = _periods(cls)[pIdx];
   const dids = (disciplines || []).filter(did => S.disciplines[did]);
   if (!p || !dids.length) return null;
@@ -12149,6 +12180,7 @@ function avisCampagneCreer(cls, { pIdx, disciplines, lien }) {
   const id = uid('av');
   const camp = { id, date: _ymdClampAnnee(cls, _todayYmd()), ts: Date.now(), cible: p.end,
     label: `Avis des collègues — ${p.label}`, fichier: '', lien: _avisLienSur(lien), lu: null,
+    cibles: [...new Set((cibles || []).filter(sid => cls.eleves.includes(sid)))],
     disciplines: _avisOngletsUniques(_avisDidsOrdonnes(dids).map(did => _avisDisc(cls, did))), avis: {} };
   S.avis[cls.id][id] = camp;
   return camp;
@@ -12191,21 +12223,38 @@ function _avisCompte(camp) {
 }
 
 // ── La feuille ── PUR : les onglets à écrire (pour _odsBuild), et la lecture de ce qu'on y trouve.
-const AVIS_LIGNE_ENTETE = 3;   // titre, mode d'emploi, en-têtes : les élèves commencent en 4e ligne
+// Titre, mode d'emploi, consignes des colonnes, en-têtes : les élèves commencent en 5e ligne.
+const AVIS_LIGNE_ENTETE = 4;
 function _avisFeuilles(cls, camp) {
   const p = _avisPeriode(cls, camp);
   const eleves = _avisEleves(cls, camp);
+  const cibles = new Set(_avisCibles(cls, camp));
   const pour = `${cls.nom}${cls.annee ? ' (' + cls.annee + ')' : ''} — avis pour ${p ? 'le conseil du ' + p.label : 'le conseil de classe'}`;
+  const surligne = cibles.size ? ` Les élèves SURLIGNÉS EN JAUNE : j'ai besoin de votre avis en particulier (je rencontre bientôt leur famille).` : '';
   return camp.disciplines.map(d => ({
     name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [4.6, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 },
     rows: [
       [{ text: `${d.nom}${d.profs ? ' — ' + d.profs : ''}`, style: 'titre', span: 4 }],
-      [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « rien à signaler ». Merci de ne modifier ni les noms ni les titres de colonnes.`, style: 'aide', span: 4 }],
+      [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « rien à signaler ». Merci de ne modifier ni les noms ni les titres de colonnes.${surligne}`, style: 'aide', span: 4 }],
+      [{ text: '', style: 'aide' }, ...AVIS_CRITERES.map(c => ({ text: c.aide, style: 'aide' }))],
       [{ text: 'Élève', style: 'entete' }, ...AVIS_CRITERES.map(c => ({ text: c.label, style: 'entete' }))],
-      ...eleves.map(s => [{ text: `${s.nom} ${s.prenom}`, style: 'nom' },
+      ...eleves.map(s => [{ text: `${s.nom} ${s.prenom}`, style: cibles.has(s.id) ? 'vif' : 'nom' },
         ...AVIS_CRITERES.map(c => ({ text: camp.avis?.[s.id]?.[d.id]?.[c.key] || '', style: 'saisie' }))]),
     ],
   }));
+}
+// Les élèves demandés EN PARTICULIER, encore dans la classe, par ordre alphabétique.
+function _avisCibles(cls, camp) {
+  const ok = new Set(cls.eleves);
+  return (camp.cibles || []).filter(sid => ok.has(sid) && S.eleves[sid])
+    .sort((a, b) => `${S.eleves[a].nom} ${S.eleves[a].prenom}`.localeCompare(`${S.eleves[b].nom} ${S.eleves[b].prenom}`, 'fr', { sensitivity: 'base' }));
+}
+function avisCiblesSet(classId, campId, sids) {
+  const camp = _avisMap(classId)?.[campId];
+  const cls = S.classes[classId];
+  if (!camp || !cls) return false;
+  camp.cibles = [...new Set((sids || []).filter(sid => cls.eleves.includes(sid)))];
+  return true;
 }
 // Ce que dit la feuille lue. `sheets` = [{ name, rows }] (de _odsRead). PUR.
 // L'onglet se reconnaît par son NOM (ou, renommé, par le nom de la discipline en titre) ;
@@ -12235,7 +12284,7 @@ function _avisLire(cls, camp, sheets) {
     const h = rows.findIndex(r => _moyNorm((r || [])[0]) === 'ELEVE');
     if (h < 0) { if (plein) inconnus.push(String(sh.name)); continue; }
     const col = {};
-    for (const c of AVIS_CRITERES) col[c.key] = rows[h].findIndex(x => _moyNorm(x) === _moyNorm(c.label));
+    for (const c of AVIS_CRITERES) col[c.key] = rows[h].findIndex(x => [c.label, ...(c.alias || [])].some(l => _moyNorm(x) === _moyNorm(l)));
     lus.push(d.id);
     for (const r of rows.slice(h + 1)) {
       const nom = String((r || [])[0] || '').trim();
@@ -12291,7 +12340,7 @@ function _avisFusion(camp, lecture) {
   return { avis: _avisAvecChoix(camp, ch, ch.map((_, i) => i)), change: ch.length > 0 };
 }
 // Les avis d'un élève pour une période : la DERNIÈRE campagne de cette période qui en
-// porte, dans l'ordre de ses onglets. [{ disc: { nom, profs }, investissement, … }]
+// porte, dans l'ordre de ses onglets. [{ disc: { nom, profs }, travail, … }]
 function _avisEleve(cls, sid, pIdx) {
   const p = _periods(cls)[pIdx];
   if (!p) return null;
@@ -12440,6 +12489,8 @@ function _avisNouvelleHTML(cls) {
       <select id="mavis-per" style="max-width:100%">${ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('')}</select></div>
     ${_avisRattacherHTML(cls)}
     <div class="fg"><label>Disciplines</label>${_avisDiscPickHTML(cls, _disciplinesActives().map(d => d.id))}</div>
+    ${_avisDetails('cibles-new', `<strong>⭐ Élèves sur qui je veux un avis en particulier</strong> <span class="tb-hint">— ${_avisCiblesDraft.size || 'aucun'} · surlignés en jaune dans la feuille</span>`,
+      `<div class="tb-hint" style="margin:6px 0">Par exemple avant une rencontre avec la famille : leur nom sera surligné en jaune dans chaque onglet.</div>${_avisCiblesPickHTML(cls, null)}`)}
     <div class="fg"><label for="mavis-lien">Lien de partage de la feuille <span class="tb-hint">(facultatif — il ira dans le message aux collègues)</span></label>
       <input id="mavis-lien" type="text" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%"></div>
     <div class="ma" style="flex-wrap:wrap">
@@ -12461,7 +12512,6 @@ function _avisCampHTML(cls, camp) {
     lec.inconnus.length ? `<div class="al al-w" style="margin-top:6px">⚠️ Onglet${lec.inconnus.length > 1 ? 's' : ''} ignoré${lec.inconnus.length > 1 ? 's' : ''} (pas une discipline de cette feuille, ou en-têtes modifiés) : ${lec.inconnus.map(_escName).join(', ')}</div>` : ''].join('');
   const fichier = camp.fichier ? `<strong>${_escName(camp.fichier)}</strong>` : '<em>aucune feuille choisie</em>';
   const choisirLbl = camp.fichier ? 'Autre fichier…' : 'Choisir la feuille…';
-  const msg = _avisMessage(cls, camp);
   return `<div class="tb-hint" style="margin-bottom:8px">Pour ${p ? `le <strong>${_escName(p.label)}</strong>` : 'la période'} · feuille ${fichier} · ${cpt.n} avis rangé${cpt.n > 1 ? 's' : ''}${rap ? ` · relue à ${_escName(new Date(rap.quand).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }))}` : ''}</div>
     <div class="rel-wrap" style="margin-bottom:8px"><table class="dt"><thead><tr><th>Discipline</th><th style="text-align:right" title="Élèves sur qui la discipline a écrit quelque chose, sur les élèves de la feuille">Élèves avec un avis</th></tr></thead><tbody>${lignes}</tbody></table></div>
     ${rapport}
@@ -12470,13 +12520,11 @@ function _avisCampHTML(cls, camp) {
         <button class="btn btn-g btn-sm" onclick="avisChoisirUI('${_escJsAttr(camp.id)}')" title="Désigner la copie locale de la feuille (à refaire une fois sur chaque ordinateur)">📂 ${choisirLbl}</button>`
       : `<label class="btn btn-p" style="cursor:pointer">📥 Lire la feuille… <input type="file" accept=".ods" style="display:none" onchange="avisLireFichierUI('${_escJsAttr(camp.id)}',this)"></label>`}
     </div>
-    <details class="av-det" style="margin-top:12px"><summary><strong>✉️ Le message aux collègues</strong></summary>
-      <div class="fg" style="margin-top:6px"><label for="mavis-lien">Lien de partage de la feuille</label>
-        <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${_escJsAttr(camp.id)}',this.value)"></div>
-      <textarea id="mavis-msg" rows="8" readonly style="width:100%;font-size:.9em">${_escName(msg)}</textarea>
-      <div style="margin-top:6px"><button class="btn btn-s btn-sm" onclick="avisCopierMessage()">📋 Copier le message</button></div>
-    </details>
-    <details class="av-det" style="margin-top:8px"><summary><strong>🗂 Disciplines de la feuille</strong> <span class="tb-hint">— en ajouter, en retirer, puis mettre la feuille à jour</span></summary>
+    ${_avisDetails('cibles', `<strong>⭐ Élèves sur qui je veux un avis en particulier</strong> <span class="tb-hint">— ${_avisCibles(cls, camp).length || 'aucun'}${_avisCibles(cls, camp).length ? ' · surlignés en jaune dans la feuille' : ''}</span>`,
+      `<div class="tb-hint" style="margin:6px 0">Par exemple avant une rencontre avec la famille. Leur nom est surligné en jaune dans chaque onglet, et le message aux collègues les cite. ⚠️ Pour que le surlignage arrive dans la feuille : <strong>📝 Mettre la feuille à jour</strong>, plus bas.</div>
+      ${_avisCiblesPickHTML(cls, camp)}`)}
+    ${_avisDetails('message', '<strong>✉️ Le message aux collègues</strong>', _avisMessageHTML(cls, camp))}
+    <details class="av-det" style="margin-top:8px" data-det="disc" ontoggle="_avisDetToggle(this)"${_avisOuverts.has('disc') ? ' open' : ''}><summary><strong>🗂 Disciplines de la feuille</strong> <span class="tb-hint">— en ajouter, en retirer, puis mettre la feuille à jour</span></summary>
       ${_avisRattacherHTML(cls)}
       ${_avisDiscPickHTML(cls, camp.disciplines.map(d => d.id))}
       <div class="tb-hint" style="margin-top:6px">⚠️ Mettre à jour réécrit la feuille (les avis déjà écrits sont gardés). Fais-le quand personne n'y écrit : une modification faite pendant la mise à jour peut créer un conflit dans le Nuage.</div>
@@ -12488,9 +12536,131 @@ function _avisCampHTML(cls, camp) {
     <div class="ma"><button class="btn btn-d btn-sm" onclick="avisSupprimerUI('${_escJsAttr(camp.id)}')" title="Oublier cette feuille et les avis rangés (la feuille du Nuage, elle, reste)">🗑</button>
       <button class="btn btn-g" onclick="closeMod2('mavis')">Fermer</button></div>`;
 }
+// ── Le message aux collègues : des PARTIES, chacune à garder ou non, au texte modifiable ──
+// Demandé le 2026-10-02 : « il peut être pour différents moments de l'année — un mois en
+// particulier, la fin du semestre ou du trimestre, les bilans intermédiaires ; des parties
+// déjà écrites, faciles à remplacer, ou ne garder que la partie nécessaire ».
+// Les TEXTES sont des modèles partagés par toutes les feuilles (S.prefs.avisMsg, seulement ce
+// que l'utilisateur a réécrit) ; une feuille ne retient que ses choix (camp.msg : moment,
+// mois, échéance, parties écartées). Les {repères} sont remplacés au moment d'assembler.
+const AVIS_MOMENTS = [
+  { key: 'conseil',   label: 'Fin de période — conseil de classe' },
+  { key: 'miperiode', label: 'Bilan intermédiaire (mi-période)' },
+  { key: 'mois',      label: 'Point du mois' },
+];
+const AVIS_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const AVIS_MSG_PARTIES = [
+  { key: 'bonjour',  label: 'Salutation',            texte: 'Bonjour,' },
+  { key: 'contexte', label: 'Le moment',             parMoment: {
+      conseil:   'Je prépare le conseil de classe du {periode} de la {classe}.',
+      miperiode: 'Je prépare le bilan intermédiaire du {periode} pour la {classe}.',
+      mois:      'Je fais le point sur les élèves de la {classe} pour le mois de {mois}.' } },
+  { key: 'demande',  label: 'La demande',            texte: 'Pourriez-vous me donner votre avis sur les élèves, dans l\'onglet de votre discipline de cette feuille :\n{lien}\n\nLe lien ouvre la feuille dans le navigateur, sans compte à créer. Écrivez seulement sur les élèves dont vous avez quelque chose à dire : une case vide veut dire « rien à signaler ».' },
+  { key: 'colonnes', label: 'Les colonnes',          texte: 'Trois colonnes :\n' + AVIS_CRITERES.map(c => `– ${c.label} : ${c.aide}`).join(' ;\n') + '.' },
+  { key: 'cibles',   label: 'Élèves en particulier', texte: 'J\'ai besoin de votre avis en particulier sur ces élèves, surlignés en jaune dans la feuille, car je rencontre bientôt leur famille :\n{eleves}' },
+  { key: 'echeance', label: 'Échéance',              texte: 'Merci de compléter la feuille avant le {echeance}.' },
+  { key: 'fin',      label: 'Formule finale',        texte: 'Merci beaucoup,' },
+];
+const AVIS_REPERES = '{classe} {periode} {mois} {lien} {eleves} {echeance}';
+function _avisMsgCle(key, moment) { return key === 'contexte' ? `contexte_${moment}` : key; }
+function _avisMsgDefaut(key, moment) {
+  const pa = AVIS_MSG_PARTIES.find(x => x.key === key);
+  return pa ? (pa.parMoment ? (pa.parMoment[moment] || pa.parMoment.conseil) : pa.texte) : '';
+}
+function _avisMsgModele(key, moment) {
+  const o = _prefs().avisMsg;
+  const t = _isPlainObj(o) ? o[_avisMsgCle(key, moment)] : undefined;
+  return typeof t === 'string' ? t : _avisMsgDefaut(key, moment);
+}
+function _avisMsgReglages(camp) {
+  const m = _isPlainObj(camp.msg) ? camp.msg : {};
+  const mois = Number.isInteger(m.mois) && m.mois >= 1 && m.mois <= 12 ? m.mois : (+_todayYmd().slice(5, 7));
+  return { moment: AVIS_MOMENTS.some(x => x.key === m.moment) ? m.moment : 'conseil', mois,
+    echeance: _ymdValid(m.echeance) ? m.echeance : '', off: Array.isArray(m.off) ? m.off.filter(k => typeof k === 'string') : [] };
+}
+// Une partie est-elle DANS le message ? Écartée par l'utilisateur, ou sans objet (aucun
+// élève en particulier, aucune échéance) : non.
+function _avisMsgDedans(cls, camp, key) {
+  const r = _avisMsgReglages(camp);
+  if (r.off.includes(key)) return false;
+  if (key === 'cibles') return _avisCibles(cls, camp).length > 0;
+  if (key === 'echeance') return !!r.echeance;
+  return true;
+}
+// Le message assemblé. PUR.
 function _avisMessage(cls, camp) {
+  const r = _avisMsgReglages(camp);
   const p = _avisPeriode(cls, camp);
-  return `Bonjour,\n\nJe prépare le conseil de classe de la ${cls.nom}${p ? ` (${p.label})` : ''}. Pourriez-vous me donner votre avis sur les élèves — investissement, comportement, implication — dans l'onglet de votre discipline :\n\n${camp.lien || '[colle ici le lien de partage de la feuille]'}\n\nLe lien ouvre la feuille dans le navigateur, sans compte à créer. Écrivez seulement sur les élèves dont vous avez quelque chose à dire : une case vide veut dire « rien à signaler ».\n\nMerci beaucoup,\n`;
+  const ech = r.echeance ? new Date(r.echeance + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+  const vals = {
+    classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], lien: camp.lien || '[lien de partage de la feuille]',
+    eleves: _avisCibles(cls, camp).map(sid => `– ${S.eleves[sid].nom} ${S.eleves[sid].prenom}`).join('\n'), echeance: ech,
+  };
+  return AVIS_MSG_PARTIES.filter(pa => _avisMsgDedans(cls, camp, pa.key))
+    .map(pa => _avisMsgModele(pa.key, r.moment).replace(/\{(classe|periode|mois|lien|eleves|echeance)\}/g, (_, k) => vals[k]))
+    .filter(t => t.trim()).join('\n\n') + '\n';
+}
+function _avisMessageHTML(cls, camp) {
+  const r = _avisMsgReglages(camp);
+  const id = _escJsAttr(camp.id);
+  const parties = AVIS_MSG_PARTIES.map(pa => {
+    const sansObjet = (pa.key === 'cibles' && !_avisCibles(cls, camp).length) ? 'aucun élève choisi (⭐ ci-dessus)'
+      : (pa.key === 'echeance' && !r.echeance) ? 'pas de date d\'échéance' : '';
+    const dedans = _avisMsgDedans(cls, camp, pa.key);
+    const modele = _avisMsgModele(pa.key, r.moment);
+    const change = modele !== _avisMsgDefaut(pa.key, r.moment);
+    return `<div class="av-part${dedans ? '' : ' off'}">
+      <label class="av-part-h"><input type="checkbox"${!r.off.includes(pa.key) ? ' checked' : ''}${sansObjet ? ' disabled' : ''} onchange="avisMsgPartieUI('${id}','${pa.key}',this.checked)">
+        <strong>${_escName(pa.label)}${pa.parMoment ? ` <span class="tb-hint">(${_escName(AVIS_MOMENTS.find(x => x.key === r.moment).label.toLowerCase())})</span>` : ''}</strong>${sansObjet ? ` <span class="tb-hint">— ${_escName(sansObjet)}</span>` : ''}</label>
+      <textarea rows="${Math.min(5, modele.split('\n').length + 1)}" onchange="avisMsgTexteUI('${id}','${pa.key}',this.value)">${_escName(modele)}</textarea>
+      ${change ? `<button class="btn btn-g btn-sm" onclick="avisMsgTexteUI('${id}','${pa.key}',null)" title="Revenir au texte proposé">↺ Texte proposé</button>` : ''}
+    </div>`;
+  }).join('');
+  return `<div class="fi-form" style="margin:6px 0">
+      <label>Moment <select onchange="avisMsgReglageUI('${id}','moment',this.value)">${AVIS_MOMENTS.map(m => `<option value="${m.key}"${m.key === r.moment ? ' selected' : ''}>${_escName(m.label)}</option>`).join('')}</select></label>
+      ${r.moment === 'mois' ? `<label>Mois <select onchange="avisMsgReglageUI('${id}','mois',+this.value)">${AVIS_MOIS.map((m, i) => `<option value="${i + 1}"${i + 1 === r.mois ? ' selected' : ''}>${m}</option>`).join('')}</select></label>` : ''}
+      <label>Avant le <input type="date" value="${_escAttr(r.echeance)}" style="min-width:140px" onchange="avisMsgReglageUI('${id}','echeance',this.value)"></label></div>
+    <div class="fg"><label for="mavis-lien">Lien de partage de la feuille</label>
+      <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${id}',this.value)"></div>
+    <div class="tb-hint" style="margin-bottom:6px">Coche les parties à garder, réécris celles que tu veux : ton texte devient le modèle des prochaines feuilles (↺ pour revenir au texte proposé). Remplacés tout seuls : <code>${_escName(AVIS_REPERES)}</code>.</div>
+    ${parties}
+    <div class="fg" style="margin-top:8px"><label for="mavis-msg">Le message</label>
+      <textarea id="mavis-msg" rows="10" readonly style="width:100%;font-size:.9em">${_escName(_avisMessage(cls, camp))}</textarea></div>
+    <div style="margin-top:6px"><button class="btn btn-s btn-sm" onclick="avisCopierMessage()">📋 Copier le message</button></div>`;
+}
+function _avisCampOf(campId) { return _avisMap(getCls()?.id)?.[campId] || null; }
+function avisMsgReglageUI(campId, champ, val) {
+  const camp = _avisCampOf(campId);
+  if (!camp) return;
+  const r = _avisMsgReglages(camp);
+  const v = champ === 'echeance' ? (val ? _ymdCompleteAnnee(val) : '') : val;
+  if (champ === 'echeance' && v && !_ymdValid(v)) return toast('⚠️ Date illisible.', 'warn');
+  if (r[champ] === v) return;
+  pushUndo();
+  camp.msg = { ...r, [champ]: v };
+  save(); _avisRender();
+}
+function avisMsgPartieUI(campId, key, on) {
+  const camp = _avisCampOf(campId);
+  if (!camp) return;
+  const r = _avisMsgReglages(camp);
+  pushUndo();
+  camp.msg = { ...r, off: on ? r.off.filter(k => k !== key) : [...new Set([...r.off, key])] };
+  save(); _avisRender();
+}
+// Un texte réécrit devient le MODÈLE (pour toutes les feuilles) ; null = retour au texte proposé.
+function avisMsgTexteUI(campId, key, texte) {
+  const camp = _avisCampOf(campId);
+  if (!camp) return;
+  const cle = _avisMsgCle(key, _avisMsgReglages(camp).moment);
+  const o = _isPlainObj(_prefs().avisMsg) ? { ..._prefs().avisMsg } : {};
+  const defaut = _avisMsgDefaut(key, _avisMsgReglages(camp).moment);
+  const t = texte === null ? null : String(texte).replace(/\r\n/g, '\n').slice(0, 2000);
+  if (t === null || t === defaut) delete o[cle]; else o[cle] = t;
+  if (JSON.stringify(o) === JSON.stringify(_prefs().avisMsg || {})) return;
+  pushUndo();
+  _prefs().avisMsg = o;     // ⚠️ remplacé, jamais modifié en place (la valeur par défaut est partagée)
+  save(); _avisRender();
 }
 function avisLienUI(campId, val) {
   const camp = _avisMap(getCls()?.id)?.[campId];
@@ -12499,8 +12669,34 @@ function avisLienUI(campId, val) {
   if (String(val || '').trim() && !l) { toast('⚠️ Le lien doit commencer par https:// — copie-le depuis « Partager » dans le Nuage.', 'warn'); return _avisRender(); }
   if (l === (camp.lien || '')) return;
   pushUndo(); camp.lien = l; save();
-  const ta = document.getElementById('mavis-msg');
-  if (ta) ta.value = _avisMessage(getCls(), camp);
+  _avisRender();
+}
+// ── Les élèves demandés en particulier ──
+function _avisCiblesPickHTML(cls, camp) {
+  const sel = new Set(camp ? _avisCibles(cls, camp) : [..._avisCiblesDraft]);
+  const eleves = camp ? _avisEleves(cls, camp) : cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s))
+    .sort((a, b) => `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`, 'fr', { sensitivity: 'base' }));
+  return `<div class="av-cibles">${eleves.map(s => `<label class="tagpick${sel.has(s.id) ? ' av-cible-on' : ''}"><input type="checkbox"${sel.has(s.id) ? ' checked' : ''}
+      onchange="avisCibleUI(${camp ? `'${_escJsAttr(camp.id)}'` : 'null'},'${_escJsAttr(s.id)}',this.checked)"> ${_escName(s.nom)} ${_escName(s.prenom)}</label>`).join('')}</div>`;
+}
+let _avisCiblesDraft = new Set();
+function avisCibleUI(campId, sid, on) {
+  if (!campId) { if (on) _avisCiblesDraft.add(sid); else _avisCiblesDraft.delete(sid); return _avisRender(); }
+  const cls = getCls();
+  const camp = _avisCampOf(campId);
+  if (!camp || !cls) return;
+  const cur = new Set(camp.cibles || []);
+  if (on) cur.add(sid); else cur.delete(sid);
+  pushUndo();
+  avisCiblesSet(cls.id, campId, [...cur]);
+  save(); _avisRender();
+}
+// Les volets repliables de la modale restent ouverts d'un rendu à l'autre (chaque case
+// cochée re-rend la modale).
+const _avisOuverts = new Set();
+function _avisDetToggle(el) { if (el.open) _avisOuverts.add(el.dataset.det); else _avisOuverts.delete(el.dataset.det); }
+function _avisDetails(k, resume, corps) {
+  return `<details class="av-det" style="margin-top:12px" data-det="${k}" ontoggle="_avisDetToggle(this)"${_avisOuverts.has(k) ? ' open' : ''}><summary>${resume}</summary>${corps}</details>`;
 }
 function avisCopierMessage() {
   const ta = document.getElementById('mavis-msg');
@@ -12526,8 +12722,9 @@ async function avisPreparerUI(telecharger) {
     catch (e) { if (e.name !== 'AbortError') toast('⚠️ ' + e.message, 'warn'); return; }
   }
   pushUndo();
-  const camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, lien });
+  const camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, lien, cibles: [..._avisCiblesDraft] });
   if (!camp) { undoLast(); return toast('⚠️ Période ou disciplines invalides.', 'warn'); }
+  _avisCiblesDraft = new Set();
   if (h) { camp.fichier = h.name; _avisHandles[camp.id] = h; await idbSaveHandleKey(h, 'avis_' + camp.id); }
   save();
   _avisCampId = camp.id;
@@ -12866,7 +13063,7 @@ const _PERIODE_BLOCS = [
   { key: 'incidents', label: 'Incidents',           hint: 'Incidents, punitions, sanctions, instances DE la période' },
   { key: 'contacts',  label: 'Contacts',            hint: 'Contacts avec la famille DE la période' },
   { key: 'bilan',     label: 'Bilan',               hint: 'Ce que j\'ai rédigé pour ce conseil (ou ce bilan de mi-période)' },
-  { key: 'avis',      label: 'Avis des collègues',  hint: 'Ce que les collègues ont écrit dans la feuille d\'avis de la période — investissement, comportement, implication' },
+  { key: 'avis',      label: 'Avis des collègues',  hint: 'Ce que les collègues ont écrit dans la feuille d\'avis de la période — travail, participation, comportement' },
   { key: 'hvc',       label: 'Heures de vie de classe', hint: 'Les heures de vie de classe tenues pendant la période, en tête de la feuille' },
 ];
 // Décochés par défaut : les heures de vie de classe et les avis des collègues — du texte
@@ -12918,7 +13115,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     return `${m.generale !== null ? `générale ${moyGenHTML(m)} — ` : ''}${m.notes.map(noteHTML).join(' · ')}`; };
   const incCell = r => r.incidents.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_instanceOf(e.type).label)} : ${_escName(e.objet)}</div>`).join('');
   const conCell = r => r.contacts.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_journalType(e.type).label)}${o.forme === 'fiches' ? ' : ' + _escName(e.texte) : ''}</div>`).join('');
-  const AV_ABR = { investissement: 'invest.', comportement: 'comport.', implication: 'implic.' };
+  const AV_ABR = { travail: 'trav.', participation: 'partic.', comportement: 'comport.' };
   const avisLigne = a => AVIS_CRITERES.filter(c => a[c.key]).map(c => `<em>${AV_ABR[c.key]}</em> ${_escName(a[c.key])}`).join(' · ');
   const avisFiche = r => r.avis.map(a => `<div><strong>${_escName(a.nom)}</strong> — ${avisLigne(a)}</div>`).join('');
   const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanType(r.bilan.type).label)} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
@@ -15012,13 +15209,17 @@ function createDemo(opts) {
       delete S.avis[cls.id][camp.id];
       camp.id = 'demo_av1'; camp.date = D('01-12'); camp.ts = Date.parse(D('01-12') + 'T18:00:00');
       camp.fichier = 'Avis des collègues 5e C.ods'; camp.lu = Date.parse(D('01-19') + 'T07:30:00');
+      // Deux élèves demandés EN PARTICULIER (rencontre avec la famille prévue) : surlignés
+      // dans la feuille, cités dans le message, qui fixe aussi une échéance.
+      camp.cibles = [sids[0], sids[12]].filter(Boolean);
+      camp.msg = { moment: 'conseil', mois: 1, echeance: D('01-16'), off: [] };
       S.avis[cls.id][camp.id] = camp;
-      const A = (i, did, investissement, comportement, implication) => {
+      const A = (i, did, travail, comportement, participation) => {
         if (!sids[i] || !camp.disciplines.some(d => d.id === did)) return;
         const o = {};
-        if (investissement) o.investissement = investissement;
+        if (travail) o.travail = travail;
         if (comportement) o.comportement = comportement;
-        if (implication) o.implication = implication;
+        if (participation) o.participation = participation;
         ((camp.avis[sids[i]] = camp.avis[sids[i]] || {})[did] = o);
       };
       A(0, 'maths', 'Travail personnel inexistant depuis novembre.', 'Insolent quand on le reprend ; deux rapports ce semestre.', '');

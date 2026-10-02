@@ -46,7 +46,7 @@ sauvegarde dans un dossier Nextcloud (onglet 💾 Données et réglages).
    générale ; une vue « évolution » de ces statistiques import après import.
 3. **🗣 Avis des collègues** — avant un conseil, une feuille de calcul du Nuage académique,
    un onglet par discipline, que les collègues remplissent par un lien de partage (sans
-   compte) : investissement, comportement, implication, en réponses libres. L'app prépare la
+   compte) : travail, participation, comportement, en réponses libres — et un surlignage pour les élèves sur qui l'on veut un avis en particulier. L'app prépare la
    feuille (élèves, professeurs repris des moyennes) et relit les réponses dans la copie que
    le client Nextcloud garde sur l'ordinateur ; on les retrouve en rédigeant le bilan, sur la
    fiche et sur la synthèse de période.

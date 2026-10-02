@@ -81,7 +81,7 @@ const MAXIMAL = `S = {
   disciplines: { maths: { id: 'maths', nom: 'Mathématiques', onglet: 'Maths', actif: true, ord: 7, builtin: true } },
   avis: {
     '5C': { av_1: { id: 'av_1', date: '2026-01-20', cible: '2026-01-31', label: 'S1', fichier: 'avis.ods', lien: '', lu: 1,
-                    disciplines: [{ id: 'maths', nom: 'Mathématiques', onglet: 'Maths', profs: 'M. Y' }],
+                    disciplines: [{ id: 'maths', nom: 'Mathématiques', onglet: 'Maths', profs: 'M. Y' }], cibles: ['s1', 's2'],
                     avis: { s1: { maths: { investissement: 'Sérieuse.' } }, s2: { maths: { comportement: 'Bavard.' } } } } },
   },
   prefs: { periodMode: 'semestre', codeAbsent: 'A' },

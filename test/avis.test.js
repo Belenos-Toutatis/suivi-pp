@@ -105,11 +105,13 @@ test('La feuille préparée : un onglet par discipline, les élèves PRÉSENTS d
   assert.match(f[0].tabColor, /^#[0-9a-f]{6}$/);
   assert.notStrictEqual(ev(`_discCouleur('anglais')`), ev(`_discCouleur('allemand')`));
   assert.strictEqual(ev(`_discCouleur('allemand')`), ev(`DOMAINES.langues.couleur`), 'la première du domaine a la teinte franche');
-  assert.deepStrictEqual(f[0].rows[2].map(x => x.text), ['Élève', 'Investissement', 'Comportement', 'Implication']);
+  assert.deepStrictEqual(f[0].rows[3].map(x => x.text), ['Élève', 'Travail', 'Participation', 'Comportement']);
+  // La consigne de chaque colonne, sous l'en-tête.
+  assert.deepStrictEqual(f[0].rows[2].map(x => x.text), ['', ...evObj(`AVIS_CRITERES.map(c => c.aide)`)]);
   // S1 : PETIT est parti le 15/09 (après le 1er août, donc présent au S1) ; ARRIVE arrive en mars → pas au S1.
-  assert.deepStrictEqual(f[0].rows.slice(3).map(r => r[0].text), ['<b>BOLD</b> Zoé', 'DURAND Léa', 'MARTIN Noé', 'PETIT Inès']);
+  assert.deepStrictEqual(f[0].rows.slice(4).map(r => r[0].text), ['<b>BOLD</b> Zoé', 'DURAND Léa', 'MARTIN Noé', 'PETIT Inès']);
   const s2 = evObj(`_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 1, disciplines: ['maths'] }))`);
-  assert.deepStrictEqual(s2[0].rows.slice(3).map(r => r[0].text), ['<b>BOLD</b> Zoé', 'ARRIVE Tard', 'DURAND Léa', 'MARTIN Noé']);
+  assert.deepStrictEqual(s2[0].rows.slice(4).map(r => r[0].text), ['<b>BOLD</b> Zoé', 'ARRIVE Tard', 'DURAND Léa', 'MARTIN Noé']);
   assert.strictEqual(ev(`avisCampagneCreer(getCls(), { pIdx: 0, disciplines: [] })`), null, 'sans discipline, pas de feuille');
 });
 
@@ -121,14 +123,14 @@ test('Lecture : par nom d\'onglet et d\'en-tête, élèves par leur nom — rien
   // « Prénom NOM » ; un onglet ajouté par erreur ; la SVT n'a rien écrit.
   const lec = evObj(`(() => {
     const f = _avisFeuilles(getCls(), window.__c).map(sh => ({ name: sh.name, rows: sh.rows.map(r => r.map(c => c.text)) }));
-    const m = f.find(x => x.name === 'Maths'); m.rows[2] = ['Élève', 'Implication', 'Investissement', 'Comportement'];
-    m.rows[4][1] = 'Très impliquée'; m.rows[4][2] = 'Sérieuse.\\nRégulière.';
+    const m = f.find(x => x.name === 'Maths'); m.rows[3] = ['Élève', 'Implication', 'Investissement', 'Comportement'];   // anciens en-têtes, déplacés
+    m.rows[5][1] = 'Très impliquée'; m.rows[5][2] = 'Sérieuse.\\nRégulière.';
     m.rows.push(['DURANT Léo', 'Bavard', '', '']);
-    const a = f.find(x => x.name === 'Anglais'); a.name = 'Feuille2'; a.rows[5] = ['Noé Martin', '', 'Agité', ''];
+    const a = f.find(x => x.name === 'Anglais'); a.name = 'Feuille2'; a.rows[6] = ['Noé Martin', '', '', 'Agité'];
     f.push({ name: 'Brouillon', rows: [['notes perso']] });
     return _avisLire(getCls(), window.__c, f);
   })()`);
-  assert.deepStrictEqual(lec.avis.s1, { maths: { implication: 'Très impliquée', investissement: 'Sérieuse.\nRégulière.' } });
+  assert.deepStrictEqual(lec.avis.s1, { maths: { participation: 'Très impliquée', travail: 'Sérieuse.\nRégulière.' } });
   assert.deepStrictEqual(lec.avis.s2, { anglais: { comportement: 'Agité' } });
   assert.deepStrictEqual(lec.lus.sort(), ['anglais', 'maths', 'svt']);
   assert.deepStrictEqual(lec.inconnus, ['Brouillon']);
@@ -143,9 +145,9 @@ test('Lecture : par nom d\'onglet et d\'en-tête, élèves par leur nom — rien
 test('Relecture : un onglet lu fait foi, un onglet ABSENT garde ses avis', () => {
   ev(FIXTURE);
   ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'] });
-      window.__c.avis = { s1: { maths: { investissement: 'Ancien' }, anglais: { comportement: 'Gardé' } }, s2: { maths: { implication: 'Effacé' } } };`);
-  const f = evObj(`_avisFusion(window.__c, { avis: { s1: { maths: { investissement: 'Nouveau' } } }, lus: ['maths'] })`);
-  assert.deepStrictEqual(f.avis, { s1: { maths: { investissement: 'Nouveau' }, anglais: { comportement: 'Gardé' } } });
+      window.__c.avis = { s1: { maths: { travail: 'Ancien' }, anglais: { comportement: 'Gardé' } }, s2: { maths: { participation: 'Effacé' } } };`);
+  const f = evObj(`_avisFusion(window.__c, { avis: { s1: { maths: { travail: 'Nouveau' } } }, lus: ['maths'] })`);
+  assert.deepStrictEqual(f.avis, { s1: { maths: { travail: 'Nouveau' }, anglais: { comportement: 'Gardé' } } });
   assert.strictEqual(f.change, true);
   assert.strictEqual(evObj(`_avisFusion(window.__c, { avis: {}, lus: [] })`).change, false, 'un fichier vide ne change rien');
 });
@@ -153,12 +155,12 @@ test('Relecture : un onglet lu fait foi, un onglet ABSENT garde ses avis', () =>
 test('.ods : aller-retour par le vrai format, et lecture d\'un fichier enregistré par LibreOffice', async () => {
   ev(FIXTURE);
   ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'eps'] });
-      window.__c.avis = { s1: { maths: { investissement: 'Sérieuse & « régulière »\\n<script>' } }, s5: { eps: { comportement: '  deux  espaces  ' } } };`);
+      window.__c.avis = { s1: { maths: { travail: 'Sérieuse & « régulière »\\n<script>' } }, s5: { eps: { comportement: '  deux  espaces  ' } } };`);
   const back = evObj(await ev(`(async () => {
     const sheets = await _odsRead(_odsBuild(_avisFeuilles(getCls(), window.__c)));
     return _avisLire(getCls(), window.__c, sheets);
   })()`));
-  assert.deepStrictEqual(back.avis, { s1: { maths: { investissement: 'Sérieuse & « régulière »\n<script>' } }, s5: { eps: { comportement: 'deux  espaces' } } });
+  assert.deepStrictEqual(back.avis, { s1: { maths: { travail: 'Sérieuse & « régulière »\n<script>' } }, s5: { eps: { comportement: 'deux  espaces' } } });
   assert.deepStrictEqual(back.lus, ['maths', 'eps']);
   // Un fichier passé par LibreOffice (deflate, répétitions de cases vides, ses propres styles).
   const u8 = [...fs.readFileSync(path.join(__dirname, 'fixtures', 'avis-libreoffice.ods'))];
@@ -175,7 +177,7 @@ test('.ods : aller-retour par le vrai format, et lecture d\'un fichier enregistr
 test('Les avis d\'un élève pour une période, et sur la synthèse de période (échappés)', () => {
   ev(FIXTURE);
   ev(`const c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'] });
-      c.avis = { s5: { anglais: { investissement: '<img src=x onerror=alert(1)>' }, maths: { comportement: 'Calme' } } };`);
+      c.avis = { s5: { anglais: { travail: '<img src=x onerror=alert(1)>' }, maths: { comportement: 'Calme' } } };`);
   const a = evObj(`_avisEleve(getCls(), 's5', 0)`);
   assert.deepStrictEqual(a.items.map(x => x.disc.id), ['anglais', 'maths'], 'dans l\'ordre des onglets');
   assert.strictEqual(ev(`_avisEleve(getCls(), 's5', 1)`), null, 'rien au S2');
@@ -209,26 +211,28 @@ test('Démo : une feuille du S1 déjà relue, et une matière que l\'app demande
   assert.ok(ev(`_avisCompte(_avisCampagnes(S.cur)[0]).n`) >= 10);
   assert.strictEqual(ev(`_avisPeriode(getCls(), _avisCampagnes(S.cur)[0]).label`), 'S1');
   assert.deepStrictEqual(evObj(`_avisMatieresARattacher(S.cur).map(m => m.nom)`), ['ESPAGNOL LV2']);
+  assert.strictEqual(evObj(`_avisCibles(getCls(), _avisCampagnes(S.cur)[0])`).length, 2, 'deux élèves demandés en particulier');
+  assert.match(ev(`_avisMessage(getCls(), _avisCampagnes(S.cur)[0])`), /avant le /);
   assert.ok(cid);
 });
 
 test('Revue avant / après : chaque case qui change, et rien n\'est repris sans être coché', () => {
   ev(FIXTURE);
   ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'] });
-      window.__c.avis = { s1: { maths: { investissement: 'Ancien', comportement: 'Calme' }, anglais: { implication: 'Gardé' } } };`);
+      window.__c.avis = { s1: { maths: { travail: 'Ancien', comportement: 'Calme' }, anglais: { participation: 'Gardé' } } };`);
   // La feuille : un avis modifié, un effacé (accident ?), un nouveau ; l'onglet Anglais ABSENT.
-  const lec = { avis: { s1: { maths: { investissement: 'Nouveau' } }, s2: { maths: { implication: 'Très bien' } } }, lus: ['maths'] };
+  const lec = { avis: { s1: { maths: { travail: 'Nouveau' } }, s2: { maths: { participation: 'Très bien' } } }, lus: ['maths'] };
   ev(`window.__lec = ${JSON.stringify(lec)}`);
   const ch = evObj(`_avisChangements(getCls(), window.__c, window.__lec)`);
   assert.deepStrictEqual(ch.map(c => [c.sid, c.did, c.key, c.type]), [
-    ['s1', 'maths', 'investissement', 'modif'], ['s1', 'maths', 'comportement', 'suppr'], ['s2', 'maths', 'implication', 'ajout']]);
+    ['s1', 'maths', 'travail', 'modif'], ['s1', 'maths', 'comportement', 'suppr'], ['s2', 'maths', 'participation', 'ajout']]);
   assert.ok(!ch.some(c => c.did === 'anglais'), 'un onglet absent du fichier ne propose aucun effacement');
   // Cochés d'office : modifications et ajouts, jamais un effacement ; rien pour une nouvelle feuille.
   assert.deepStrictEqual(evObj(`_avisCochesDefaut('relire', _avisChangements(getCls(), window.__c, window.__lec))`), [0, 2]);
   assert.deepStrictEqual(evObj(`_avisCochesDefaut('nouvelle', _avisChangements(getCls(), window.__c, window.__lec))`), []);
   // Appliquer seulement l'ajout : l'avis effacé par accident reste, la modification n'est pas prise.
   const av = evObj(`_avisAvecChoix(window.__c, _avisChangements(getCls(), window.__c, window.__lec), [2])`);
-  assert.deepStrictEqual(av, { s1: { maths: { investissement: 'Ancien', comportement: 'Calme' }, anglais: { implication: 'Gardé' } }, s2: { maths: { implication: 'Très bien' } } });
+  assert.deepStrictEqual(av, { s1: { maths: { travail: 'Ancien', comportement: 'Calme' }, anglais: { participation: 'Gardé' } }, s2: { maths: { participation: 'Très bien' } } });
   // La campagne elle-même n'est pas touchée par le calcul.
   assert.strictEqual(ev(`window.__c.avis.s2`), undefined);
 });
@@ -247,4 +251,58 @@ test('Professeur tapé à la main : passe avant les moyennes, vidé il redevient
   assert.strictEqual(ev(`'profs' in S.disciplines.maths`), false);
   ev(`S.disciplines.anglais.profs = 42; _disciplinesSeed()`);
   assert.strictEqual(ev(`'profs' in S.disciplines.anglais`), false, 'une valeur abîmée est écartée au chargement');
+});
+
+test('Colonnes : les anciens avis (investissement, implication) migrent vers travail et participation', () => {
+  ev(FIXTURE);
+  ev(`S.avis['5C'] = { av_1: { id: 'av_1', date: '2026-01-10', cible: '2026-01-31', disciplines: [{ id: 'maths', nom: 'Mathématiques', onglet: 'Maths', profs: '' }],
+        avis: { s1: { maths: { investissement: 'Sérieuse', implication: 'Participe', comportement: 'Calme' } } } } }; _sanitizeCoreSections()`);
+  assert.deepStrictEqual(evObj(`S.avis['5C'].av_1.avis.s1.maths`), { travail: 'Sérieuse', participation: 'Participe', comportement: 'Calme' });
+  assert.deepStrictEqual(evObj(`S.avis['5C'].av_1.cibles`), []);
+  assert.deepStrictEqual(evObj(`AVIS_CRITERES.map(c => c.label)`), ['Travail', 'Participation', 'Comportement']);
+});
+
+test('Élèves demandés en particulier : surlignés dans la feuille, cités dans le message', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'], cibles: ['s2', 's1', 'inconnu'], lien: 'https://nuage.example/s/abc' })`);
+  assert.deepStrictEqual(evObj(`window.__c.cibles`), ['s2', 's1'], 'un élève hors de la classe est écarté');
+  const f = evObj(`_avisFeuilles(getCls(), window.__c)`)[0];
+  const styles = Object.fromEntries(f.rows.slice(4).map(r => [r[0].text, r[0].style]));
+  assert.strictEqual(styles['DURAND Léa'], 'vif');
+  assert.strictEqual(styles['MARTIN Noé'], 'vif');
+  assert.strictEqual(styles['PETIT Inès'], 'nom');
+  assert.match(f.rows[1][0].text, /SURLIGNÉS EN JAUNE/);
+  const msg = ev(`_avisMessage(getCls(), window.__c)`);
+  assert.match(msg, /– DURAND Léa\n– MARTIN Noé/, 'par ordre alphabétique');
+  assert.match(msg, /https:\/\/nuage\.example\/s\/abc/);
+  assert.match(msg, /Je prépare le conseil de classe du S1 de la 5e C\./);
+  // Sans élève en particulier, la partie disparaît du message et du titre de la feuille.
+  ev(`avisCiblesSet('5C', window.__c.id, [])`);
+  assert.ok(!/surlignés en jaune/.test(ev(`_avisMessage(getCls(), window.__c)`)));
+  assert.ok(!/SURLIGNÉS/.test(evObj(`_avisFeuilles(getCls(), window.__c)`)[0].rows[1][0].text));
+});
+
+test('Message aux collègues : un moment au choix, des parties à garder ou non, des textes réécrits', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] })`);
+  const m = () => ev(`_avisMessage(getCls(), window.__c)`);
+  assert.match(m(), /^Bonjour,\n\nJe prépare le conseil de classe/);
+  assert.match(m(), /\[lien de partage de la feuille\]/, 'sans lien, un repère à remplacer');
+  assert.match(m(), /– Travail : travail personnel/, 'les colonnes expliquées');
+  assert.ok(!/avant le/.test(m()), 'pas d\'échéance, pas de phrase d\'échéance');
+  ev(`window.__c.msg = { moment: 'mois', mois: 11, echeance: '2025-11-14', off: ['colonnes'] }`);
+  assert.match(m(), /pour le mois de novembre\./);
+  assert.match(m(), /avant le vendredi 14 novembre\./);
+  assert.ok(!/Trois colonnes/.test(m()), 'une partie écartée n\'est plus dans le message');
+  ev(`window.__c.msg = { moment: 'miperiode', off: [] }`);
+  assert.match(m(), /Je prépare le bilan intermédiaire du S1 pour la 5e C\./);
+  // Un texte réécrit sert de modèle ; les repères y sont remplacés.
+  ev(`S.prefs.avisMsg = { contexte_miperiode: 'Point de mi-{periode} en {classe}.', fin: 'Bien à vous,' }`);
+  assert.match(m(), /Point de mi-S1 en 5e C\./);
+  assert.match(m(), /Bien à vous,\n$/);
+  assert.strictEqual(ev(`_avisMsgModele('fin', 'conseil')`), 'Bien à vous,');
+  assert.strictEqual(ev(`_avisMsgDefaut('fin', 'conseil')`), 'Merci beaucoup,');
+  // Un nom d'élève piégé reste du texte : le message n'est jamais du HTML (textarea).
+  ev(`avisCiblesSet('5C', window.__c.id, ['s5'])`);
+  assert.match(m(), /– <b>BOLD<\/b> Zoé/);
 });
