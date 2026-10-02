@@ -361,3 +361,23 @@ test('Objectif de la feuille : conseil, mi-période ou point du mois — dit dan
   ev(`window.__a.msg = { moment: 'mois', mois: 11 }`);
   assert.strictEqual(ev(`_avisObjectif(getCls(), window.__a).long`), 'le point de novembre');
 });
+
+test('.ods : Andika incluse dans le fichier, gardée au réenregistrement', async () => {
+  ev(FIXTURE);
+  const u8 = ev(`window.__u8 = _odsBuild(_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] })), { police: { nom: 'Andika', variantes: _ODS_ANDIKA } })`);
+  const files = await ev(`_zipRead(window.__u8)`);   // CRC et tailles des entrées déjà compressées vérifiés à la lecture
+  const noms = [...files.keys()];
+  assert.deepStrictEqual(noms.filter(n => n.startsWith('Fonts/')).sort(), ['Fonts/Andika-Bold.ttf', 'Fonts/Andika-BoldItalic.ttf', 'Fonts/Andika-Italic.ttf', 'Fonts/Andika-Regular.ttf']);
+  const txt = n => new TextDecoder().decode(files.get(n));
+  assert.match(txt('META-INF/manifest.xml'), /Fonts\/Andika-Regular\.ttf" manifest:media-type="application\/x-font-ttf"/);
+  assert.match(txt('styles.xml'), /style:font-name="Andika"/);
+  assert.match(txt('content.xml'), /xlink:href="Fonts\/Andika-Bold\.ttf"[^>]*loext:font-weight="bold"/);
+  assert.match(txt('settings.xml'), /config:name="EmbedFonts" config:type="boolean">true/, 'sinon Collabora la jette au premier enregistrement');
+  // Le TTF décompressé est bien une police TrueType (signature 0x00010000).
+  const ttf = files.get('Fonts/Andika-Regular.ttf');
+  assert.deepStrictEqual([...ttf.slice(0, 4)], [0, 1, 0, 0]);
+  assert.strictEqual((await ev(`_odsRead(window.__u8)`)).length, 1, 'la feuille se relit');
+  // Sans police demandée, rien d'inclus.
+  const nu = await ev(`_zipRead(_odsBuild([{ name: 'A', rows: [['x']] }]))`);
+  assert.ok(![...nu.keys()].some(n => n.startsWith('Fonts/')));
+});

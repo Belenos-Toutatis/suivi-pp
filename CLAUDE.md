@@ -835,7 +835,22 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   LibreOffice (vérifié) ; ⚠️ comportement dans Collabora Online à voir une fois en vrai. **Colonne
   des noms à la largeur du plus long** (`_avisLargeurNoms`, v1.40.5 — des noms dépassaient de
   la colonne fixe de 4,6 cm) : estimée caractère par caractère en gras 10 pt, entre 4,6 et
-  12 cm — un tableur ne recalcule pas une largeur « optimale » à l'ouverture. Validé par LibreOffice (réenregistrement,
+  12 cm — un tableur ne recalcule pas une largeur « optimale » à l'ouverture.
+  **Andika INCLUSE dans le fichier** (v1.40.7, demande de l'utilisateur) : `_ODS_ANDIKA` —
+  les quatre variantes en **TrueType** (pas woff2 : c'est ce que LibreOffice et Collabora
+  lisent dans un .ods), sous-ensemble latin, déjà compressées en deflate avec CRC et taille
+  (`scripts/gen_fonts.py --ods` ; `_zipStore` les pose telles quelles en méthode 8), ≈ 90 Ko.
+  Dans l'archive : `Fonts/*.ttf`, déclarées dans le manifeste, `office:font-face-decls`
+  (content et styles, `loext:font-style` / `font-weight` par fichier), style `Default` en
+  Andika, et `EmbedFonts` dans `settings.xml` — ⚠️ sans lui, le premier enregistrement par
+  Collabora (un collègue qui écrit) jetterait la police. Vérifié dans un LibreOffice
+  **sans Andika installée** (fontconfig restreint à DejaVu et Liberation) : la feuille
+  s'affiche en Andika. ⚠️ **Métriques verticales resserrées** dans les TTF inclus (ligne de
+  1,61 em → 1,24 em, `hhea`/`OS/2`) : à l'ouverture, la hauteur optimale des lignes est
+  calculée AVANT d'activer la police incluse, avec une police de repli ; avec les métriques
+  d'origine, les noms sortaient rognés. Retirer le `row-height` fixe ne suffisait pas.
+  ⚠️ `--ods` : la sortie woff2 varie d'une version de fontTools à l'autre, ne pas régénérer
+  les blocs CSS sans raison. Non vérifié dans Collabora Online même. Validé par LibreOffice (réenregistrement,
   export CSV, gel vérifié sous python-uno) ; une feuille réenregistrée par LibreOffice est
   gardée en fixture (`test/fixtures/avis-libreoffice.ods`, noms inventés). ⚠️ **Non vérifié
   dans Collabora Online** même : à regarder une fois dans le Nuage.
@@ -1341,6 +1356,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 68 | **Andika incluse dans la feuille .ods** (TTF déjà compressés, `EmbedFonts`, métriques resserrées) ; 1 test. Vu dans un LibreOffice sans Andika installée | ✅ **fait** (2026-10-02, v1.40.7) |
 | 67 | **Objectif de la feuille** (conseil · mi-période · point du mois) choisi à la création, dit dans la feuille, la liste, le message, le bilan et la fiche ; le bilan lit la feuille de son objectif ; démo à deux feuilles ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.6) |
 | 66 | **Colonne des noms à la largeur du plus long** (`_avisLargeurNoms`) ; 1 test. Vu dans LibreOffice avec un nom de 43 caractères | ✅ **fait** (2026-10-02, v1.40.5) |
 | 65 | **Mots clés en gras** dans le mode d'emploi (`gras`, span `T1`) · **onglets verrouillés** sauf les cases de saisie (`table:protected`, `cell-protect="none"`) ; test étendu. Vu dans LibreOffice | ✅ **fait** (2026-10-02, v1.40.4) |
