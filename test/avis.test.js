@@ -427,3 +427,18 @@ test('Message aux collègues en TEXTE RICHE : gras, lien cliquable, puces, tout 
   assert.match(h2, /&lt;img src=x onerror=alert\(1\)&gt; <b>Cordialement<\/b>/);
   assert.ok(!/<img/.test(h2));
 });
+
+test('Objet du courriel : proposé selon l\'objectif, réécrit = modèle, sur une ligne', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] })`);
+  const o = () => ev(`_avisObjetMail(getCls(), window.__c)`);
+  assert.strictEqual(o(), 'Votre avis sur les élèves de la 5e C pour le conseil de classe du S1');
+  ev(`window.__c.msg = { moment: 'mois', mois: 9 }`);
+  assert.strictEqual(o(), 'Votre avis sur les élèves de la 5e C pour le point de septembre');
+  ev(`window.__c.msg = { moment: 'miperiode', echeance: '2025-11-14' }`);
+  ev(`avisMsgTexteUI(window.__c.id, 'objet', '**{classe}** — {objectif}\\n{lien} avant le {echeance}')`);
+  assert.strictEqual(o(), '5e C — le conseil de mi-semestre (S1) avant le vendredi 14 novembre');
+  assert.ok(!ev(`_avisMessage(getCls(), window.__c)`).includes('5e C — le conseil'), 'l\'objet n\'entre pas dans le message');
+  ev(`avisMsgTexteUI(window.__c.id, 'objet', null)`);
+  assert.strictEqual(ev(`S.prefs.avisMsg.objet`), undefined, '↺ revient à l\'objet proposé');
+});

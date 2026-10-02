@@ -977,6 +977,7 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 /* L'aperçu du message mis en forme : ce qui sera collé dans le courriel. */
 .av-msg-riche { background: var(--paper); color: var(--ink-deep); border: 1px solid var(--rule-line); border-radius: var(--radius-sm, 4px); padding: 10px 12px; font-size: .92em; max-height: 340px; overflow: auto; overflow-wrap: anywhere; }
 .av-msg-riche a { color: var(--ink-blue); }
+.av-objet { margin-top: 4px; overflow-wrap: anywhere; }
 .av-cibles { display: flex; flex-wrap: wrap; gap: 4px; }
 .av-cibles .tagpick { background: var(--paper-warm); }
 .av-cibles .tagpick.av-cible-on { background: var(--caution-bg); color: var(--caution-fg); border-color: var(--caution-bd); font-weight: 700; }
@@ -2393,8 +2394,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.11';
-const APP_BUILD_DATE = '2026-10-02T12:00:02Z';
+const APP_VERSION    = '1.40.12';
+const APP_BUILD_DATE = '2026-10-02T12:01:15Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12794,8 +12795,12 @@ const AVIS_MSG_PARTIES = [
   { key: 'fin',      label: 'Formule finale',        texte: 'Merci beaucoup,' },
 ];
 const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {lien} {eleves} {echeance}';
+// L'OBJET du courriel (v1.40.12, demande de l'utilisateur) : un modèle comme les parties,
+// réécrit = gardé dans S.prefs.avisMsg.objet. Pas une partie du message : il se copie à part.
+const AVIS_MSG_OBJET = 'Votre avis sur les élèves de la {classe} pour {objectif}';
 function _avisMsgCle(key, moment) { return key === 'contexte' ? `contexte_${moment}` : key; }
 function _avisMsgDefaut(key, moment) {
+  if (key === 'objet') return AVIS_MSG_OBJET;
   const pa = AVIS_MSG_PARTIES.find(x => x.key === key);
   return pa ? (pa.parMoment ? (pa.parMoment[moment] || pa.parMoment.conseil) : pa.texte) : '';
 }
@@ -12823,11 +12828,22 @@ function _avisMsgDedans(cls, camp, key) {
 // du texte (où **…** marque le gras), le lien, la liste des élèves — pour que le texte brut
 // et le texte riche sortent du MÊME assemblage et ne divergent jamais.
 const _AVIS_REPERE_RE = /\{(objectif|classe|periode|mois|lien|eleves|echeance)\}/g;
-function _avisMsgParties(cls, camp) {
+function _avisMsgVals(cls, camp) {
   const r = _avisMsgReglages(camp);
   const p = _avisPeriode(cls, camp);
   const ech = r.echeance ? new Date(r.echeance + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
-  const vals = { objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], echeance: ech };
+  return { objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], echeance: ech };
+}
+// L'objet du courriel, sur une ligne, sans gras. PUR. {lien} et {eleves} n'y ont pas de sens.
+function _avisObjetMail(cls, camp) {
+  const vals = _avisMsgVals(cls, camp);
+  return _avisMsgModele('objet', _avisMsgReglages(camp).moment)
+    .replace(_AVIS_REPERE_RE, (x, c) => c === 'lien' || c === 'eleves' ? '' : vals[c])
+    .replace(/\*\*/g, '').replace(/\s+/g, ' ').trim().slice(0, 250);
+}
+function _avisMsgParties(cls, camp) {
+  const r = _avisMsgReglages(camp);
+  const vals = _avisMsgVals(cls, camp);
   const eleves = _avisCibles(cls, camp).map(sid => `${S.eleves[sid].nom} ${S.eleves[sid].prenom}`);
   return AVIS_MSG_PARTIES.filter(pa => _avisMsgDedans(cls, camp, pa.key)).map(pa => {
     // Les repères simples d'abord, DANS le texte : « **avant le {echeance}** » reste en gras
@@ -12909,6 +12925,12 @@ function _avisMessageHTML(cls, camp) {
       <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${id}',this.value)"></div>
     <div class="tb-hint" style="margin-bottom:6px">Coche les parties à garder, réécris celles que tu veux : ton texte devient le modèle des prochaines feuilles (↺ pour revenir au texte proposé). Remplacés tout seuls : <code>${_escName(AVIS_REPERES)}</code>. <code>**entre deux paires d'étoiles**</code> = en gras ; une ligne qui commence par « – » = une puce.</div>
     ${parties}
+    <div class="fg" style="margin-top:8px"><label for="mavis-objet">Objet du courriel</label>
+      <input id="mavis-objet" type="text" value="${_escAttr(_avisMsgModele('objet', r.moment))}" style="width:100%" onchange="avisMsgTexteUI('${id}','objet',this.value)">
+      <div class="av-objet"><span class="tb-hint">Donne :</span> <strong id="mavis-objet-rendu">${_escName(_avisObjetMail(cls, camp))}</strong></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+        <button class="btn btn-s btn-sm" onclick="avisCopierObjet('${id}')">📋 Copier l'objet</button>
+        ${_avisMsgModele('objet', r.moment) !== AVIS_MSG_OBJET ? `<button class="btn btn-g btn-sm" onclick="avisMsgTexteUI('${id}','objet',null)" title="Revenir à l'objet proposé">↺ Objet proposé</button>` : ''}</div></div>
     <div class="fg" style="margin-top:8px"><label>Le message, tel qu'il sera collé</label>
       <div id="mavis-msg" class="av-msg-riche">${_avisMessageRiche(cls, camp)}</div></div>
     <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
@@ -12989,6 +13011,16 @@ function _avisDetails(k, resume, corps) {
 // forme, un champ de texte simple prend le texte. Sans `ClipboardItem` (Firefox ancien,
 // page hors https), repli sur une sélection de l'aperçu + execCommand('copy'), qui copie
 // aussi la mise en forme.
+async function avisCopierObjet(campId) {
+  const cls = getCls(), camp = _avisCampOf(campId);
+  if (!cls || !camp) return;
+  try { await navigator.clipboard.writeText(_avisObjetMail(cls, camp)); toast('📋 Objet copié.'); }
+  catch (_) {
+    const el = document.getElementById('mavis-objet-rendu');
+    if (el) { const sel = window.getSelection(), rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg); }
+    toast('Objet sélectionné : Ctrl+C pour le copier.');
+  }
+}
 async function avisCopierMessage(campId, brut) {
   const cls = getCls(), camp = _avisCampOf(campId);
   if (!cls || !camp) return;
