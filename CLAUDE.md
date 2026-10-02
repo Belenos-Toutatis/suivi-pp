@@ -1067,7 +1067,9 @@ actif dit où l'on est. **Seule la grille défile** dans Élèves, Observations 
 (`.tab.fige`, même version — *« quand on fait coulisser la liste, que l'en-tête ne bouge
 pas »*) : `#main` prend exactement la hauteur sous le bandeau, en colonne flex ; barres
 d'outils et légendes gardent leur taille, le cadre figé prend le reste et défile seul — et
-**dans 📄 Retours** depuis la v1.45.2 (remontée de l'utilisateur : le tableau d'un document et
+**dans la grille des bulletins** d'une élection depuis la v1.45.3 (`.rel-wrap.frozen.bul-wrap`,
+un peu moins haute que l'écran ; la ligne des candidats partait au défilement — le reste de
+🏫 Vie de classe est une page qui défile normalement, bandeau en place), **dans 📄 Retours** depuis la v1.45.2 (remontée de l'utilisateur : le tableau d'un document et
 le ramassage avaient encore l'en-tête qui partait), même classe `.fige` (avant,
 il valait la hauteur de l'écran moins le bandeau, et les barres d'outils faisaient défiler la
 page d'autant). Écran ≥ 700 × 480 seulement, jamais sur le papier. ⚠️ Le bloc CSS est APRÈS
@@ -1112,6 +1114,13 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      en-tête « rédigé d'abord » ; l'ancien tri `bilan` désigne la colonne du conseil. Les
      colonnes de bilan se masquent comme les autres, et s'impriment une par une. Démo : un
      point de mars au S2 (trois colonnes de bilan au S2 : mars, mi-S2, conseil).
+     **Retirer un moment** (v1.45.3, l'utilisateur : *« on peut ajouter des moments mais on
+     ne peut pas en enlever »*) : menu *－ retirer un moment…* à côté de *＋* (chaque moment
+     avec le nombre de bilans écrits). Ajouté et encore vide : il disparaît (rien dans `S`).
+     Avec des bilans : MASQUÉ (`S.prefs.bilansMasques`, un cran d'undo), les bilans restent
+     dans les fiches, *＋* le remet (« (retiré) »). `_bilanColsVues` = la liste, la carte de
+     chaleur, le tri, le papier ; la fiche garde tous les moments. Au passage : « Point
+     d'avril » (`_deMois`), et le repère `{demois}` dans le message aux collègues.
      **Périodes précédentes aussi** (v1.41.1, demande de l'utilisateur) : `_bilanColonnesListe`
      (pur) — les colonnes de la période courante, précédées de celles des périodes passées
      **qui ont au moins un bilan** (le conseil du S1 vide n'a pas de colonne au S2) ; le volet
@@ -1677,6 +1686,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 86 | **Grille des bulletins figée** (ligne des candidats en place, position gardée) ; **retirer un moment de bilan** (vide : disparaît ; écrit : masqué, retenu) ; « Point d'avril » ; test du cadre figé étendu aux renderers qui délèguent la garde ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.3) |
 | 85 | **Régimes d'entrée ET de sortie** séparés (catalogues, migration), jours de ½ pension ; **import de l'export MBN** (.xlsx, avant / après, rattachement manuel) ; **lecture .xlsx** (`_xlsxRead`), import d'élèves en .xlsx / .ods ; **Retours** : seule la grille défile ; 3 tests. Vérifié sur le vrai export (hors dépôt). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.2) |
 | 84 | **Régime** (demi-pensionnaire, externe, interne) et **régime de sortie** (codes de l'établissement, réglables) : colonne Groupe · options, fiche, ✏️, saisie en série (🍽 Régimes), papier, import (qui complète aussi les élèves déjà présents) ; naissance enfin lue à l'import ; démo ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.1) |
 | 83 | **Onglet 🗣 Avis des collègues** (les récoltes à gauche, la feuille à droite, grille « qui a écrit sur qui ») à la place de la fenêtre · **liste des élèves** : plus de ligne de tri (Nom · Prénom en en-tête), puce *Naissances*, impression dans la barre du haut ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.0) |

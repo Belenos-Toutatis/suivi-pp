@@ -974,6 +974,9 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 /* Avis des collègues : la liste des disciplines à cocher, et les avis rendus en blocs. */
 .av-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 4px 12px; }
 /* Onglet 🗣 Avis des collègues (v1.44.4) : les récoltes à gauche, la feuille à droite. */
+/* Grille des bulletins (v1.45.3) : cadre figé, moins haut que l'écran — les candidatures et
+   le bouton « + Bulletin » restent atteignables sans faire défiler la page. */
+.rel-wrap.frozen.bul-wrap { max-height: max(220px, calc(100dvh - var(--topbar-h) - 140px)); }
 .av-tab { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 900px) { .av-tab { grid-template-columns: minmax(0, 1fr); } }
 .av-liste { display: grid; gap: 8px; }
@@ -2716,8 +2719,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.45.2';
-const APP_BUILD_DATE = '2026-10-02T21:40:44Z';
+const APP_VERSION    = '1.45.3';
+const APP_BUILD_DATE = '2026-10-02T21:55:36Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2822,6 +2825,9 @@ const DEFAULT_PREFS = {
   // l'utilisateur) : A1 A2 pour l'entrée, D1 D2 D3 pour la sortie. Leur signification
   // (`label`) se règle dans 💾 Données ; remplacés, jamais modifiés en place.
   regimesEntree: [{ code: 'A1', label: '' }, { code: 'A2', label: '' }],
+  // Les MOMENTS de bilan retirés de la liste des élèves (v1.45.3) — des clés de colonne
+  // (`bil:conseil:0`, `bil:mois:2025-11`…). Les bilans écrits restent dans les fiches.
+  bilansMasques: [],
   regimesSortie: [{ code: 'D1', label: '' }, { code: 'D2', label: '' }, { code: 'D3', label: '' }],
 };
 function _prefs() { return (S.prefs && typeof S.prefs === 'object') ? S.prefs : (S.prefs = {}); }
@@ -3533,6 +3539,7 @@ function _sanitizeCoreSections() {
     if (typeof m.norm !== 'string' || !m.norm) m.norm = _moyNorm(m.nom);
     if (m.disc !== undefined && typeof m.disc !== 'string') delete m.disc;
   }
+  if (_isPlainObj(S.prefs) && S.prefs.bilansMasques !== undefined && !Array.isArray(S.prefs.bilansMasques)) delete S.prefs.bilansMasques;
   // Régimes (v1.45.1 → v1.45.2). La v1.45.1 rangeait entrée ET sortie dans un seul catalogue
   // (A1 A2 D1 D2 D3) : resté à ce défaut, il se SÉPARE ; et un code d'élève qui est une
   // entrée (dans le catalogue d'entrée, pas dans celui de sortie) passe dans `entree`.
@@ -4742,10 +4749,12 @@ const _BILAN_TYPES = [
   { key: 'mois',      label: 'Point du mois',       icon: '🗓' },
 ];
 function _bilanType(k) { return _BILAN_TYPES.find(t => t.key === k) || _BILAN_TYPES[0]; }
+// « de mars », mais « d'avril », « d'août », « d'octobre » (élision devant une voyelle).
+const _deMois = m => /^[aeiouéèâ]/i.test(m) ? `d'${m}` : `de ${m}`;
 const _BILAN_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 // Le libellé d'UN bilan : « Point de septembre » dit le mois, les autres leur type.
 function _bilanLabel(e) {
-  if (e && e.type === 'mois' && /^\d{4}-\d{2}/.test(e.date || '')) return `Point de ${_BILAN_MOIS[+e.date.slice(5, 7) - 1]}`;
+  if (e && e.type === 'mois' && /^\d{4}-\d{2}/.test(e.date || '')) return `Point ${_deMois(_BILAN_MOIS[+e.date.slice(5, 7) - 1])}`;
   return _bilanType(e && e.type).label;
 }
 // Le bilan d'un élève pour un MOMENT { type, date } : même type, même période (même mois
@@ -5026,7 +5035,7 @@ function _elevesRows(cls) {
     return rows.sort((a, b) => ((a1.get(b.s.id) - a1.get(a.s.id)) * dir) || byName(a, b));
   }
   // Bilans : combien de moments écrits (les points de la colonne Bilans).
-  const bcolsT = col === 'bilans' ? _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout) : null;
+  const bcolsT = col === 'bilans' ? _bilanColsVues(cls, _carnetCurrentPeriodIdx(cls)) : null;
   const num = (x) => col === 'cumul' ? x.r.cumul : col === 'delta' ? x.r.delta : col === 'periode' ? x.r.periodeTotal
     : col === 'docs' ? x.r.nonRendus.length : col === 'incidents' ? x.r.nbIncidents : col === 'bilan' ? (x.r.bilan ? 1 : 0)
     : col === 'contacts' ? x.r.nbContacts : col === 'rem' ? (x.s.remarque ? 1 : 0)
@@ -5447,7 +5456,7 @@ function _bilanColonnes(cls, pIdx, ajout) {
     const ordre = c.type === 'mois' ? c.ym + '-01' : c.type === 'miperiode' ? (c.premiere || milieu) : '9999';
     return { key: c.key, type: c.type, ym: c.ym, date, ordre,
       court: c.type === 'mois' ? `Point ${_BILAN_MOIS_COURT[mo]}` : c.type === 'miperiode' ? `Mi-${p.label}` : `Conseil ${p.label}`,
-      long: c.type === 'mois' ? `Point de ${_BILAN_MOIS[mo]}` : c.type === 'miperiode' ? `Bilan de mi-période ${p.label}` : `Conseil de classe ${p.label}` };
+      long: c.type === 'mois' ? `Point ${_deMois(_BILAN_MOIS[mo])}` : c.type === 'miperiode' ? `Bilan de mi-période ${p.label}` : `Conseil de classe ${p.label}` };
   }).sort((a, b) => a.ordre.localeCompare(b.ordre));
 }
 // Les colonnes de la LISTE (v1.41.1, demande de l'utilisateur : « affiche aussi les bilans
@@ -5473,13 +5482,33 @@ function _bilanColsProposables(cls, pIdx, cols) {
   const d = new Date(p.start.slice(0, 7) + '-01T12:00:00');
   while (_todayYmd(d).slice(0, 7) <= p.end.slice(0, 7)) {
     const ym = _todayYmd(d).slice(0, 7), mo = d.getMonth();
-    if (mo !== 6 && mo !== 7 && !cols.some(c => c.key === `bil:mois:${ym}`)) out.push({ key: `bil:mois:${ym}`, label: `Point de ${_BILAN_MOIS[mo]} ${ym.slice(0, 4)}` });
+    if (mo !== 6 && mo !== 7 && !cols.some(c => c.key === `bil:mois:${ym}`)) out.push({ key: `bil:mois:${ym}`, label: `Point ${_deMois(_BILAN_MOIS[mo])} ${ym.slice(0, 4)}` });
     d.setMonth(d.getMonth() + 1);
   }
   return out;
 }
+// Les moments retirés de la liste (v1.45.3, l'utilisateur : « on peut ajouter des moments
+// mais on ne peut pas en enlever »). Un moment ajouté et encore VIDE disparaît simplement ;
+// un moment qui porte des bilans est seulement MASQUÉ (`prefs.bilansMasques`, retenu) — les
+// bilans restent dans les fiches, et ＋ le remet. La fiche, elle, garde tous les moments.
+function _bilansMasques() { const a = _prefs().bilansMasques; return Array.isArray(a) ? a.filter(k => typeof k === 'string') : []; }
+function _bilanColsVues(cls, pCour) { const m = new Set(_bilansMasques()); return _bilanColonnesListe(cls, pCour, _bilanColsAjout).filter(c => !m.has(c.key)); }
+function elevesBilanColRetirer(key) {
+  const cls = getCls();
+  if (!cls || !key) return;
+  const col = _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).find(c => c.key === key);
+  if (!col) return renderStudents();
+  const n = cls.eleves.filter(sid => _bilanDeColonne(cls, sid, col)).length;
+  if (!n && _bilanColsAjout.has(key)) { _bilanColsAjout.delete(key); renderStudents(); return toast(`${col.long} : retiré.`); }
+  pushUndo();
+  _prefs().bilansMasques = [..._bilansMasques().filter(k => k !== key), key];   // ⚠️ remplacé, jamais modifié en place
+  _bilanColsAjout.delete(key);
+  save(); renderStudents();
+  toast(n ? `${col.long} : retiré de la liste — ses ${n} bilan${n > 1 ? 's' : ''} rest${n > 1 ? 'ent' : 'e'} dans les fiches. « ＋ moment de bilan » le remet.` : `${col.long} : retiré.`);
+}
 function elevesBilanColAjout(key) {
   if (!key) return;
+  if (_bilansMasques().includes(key)) { pushUndo(); _prefs().bilansMasques = _bilansMasques().filter(k => k !== key); save(); }
   _bilanColsAjout.add(key);
   // Ajoutée, elle doit se voir : si elle avait été masquée, on la rend visible.
   if (_elevesColsOff().includes(key)) { pushUndo(); _prefs().elevesColsOff = _elevesColsOff().filter(k => k !== key); save(); }
@@ -5793,7 +5822,7 @@ function renderStudents() {
   const rowsData = _elevesRows(cls);
   const list = rowsData.map(x => x.s);
   const pCour = _carnetCurrentPeriodIdx(cls);
-  const bcols = _bilanColonnesListe(cls, pCour, _bilanColsAjout);
+  const bcols = _bilanColsVues(cls, pCour);
   const campCour = _avisDeLaPeriode(cls, pCour);
   const aff = _elevesAffichage();
   const vueCour = _elevesVueCourante();
@@ -5804,7 +5833,9 @@ function renderStudents() {
   const affHTML = `<div class="tb el-aff-tb"><span class="el-aff" role="group" aria-label="Affichage de la liste">${[['indic', '▦ Indicateurs', 'Une case par sujet : un repère court, le contenu au survol'], ['chaleur', '▥ Carte de chaleur', 'Une case par relevé, matière, discipline, papier, mois et bilan : ce qui est rempli, et quand']].map(([k, l, t]) =>
       `<button class="${aff === k ? 'on' : ''}" aria-pressed="${aff === k}" onclick="elevesAffichageSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     ${_elevesFiltresHTML(cls)}</div>`;
-  const prop = _bilanColsProposables(cls, pCour, bcols.filter(c => c.pIdx === pCour));
+  const masques = _bilanColonnesListe(cls, pCour, _bilanColsAjout).filter(c => _bilansMasques().includes(c.key));
+  const prop = [..._bilanColsProposables(cls, pCour, _bilanColonnesListe(cls, pCour, _bilanColsAjout).filter(c => c.pIdx === pCour)),
+    ...masques.map(c => ({ key: c.key, label: `${c.long} (retiré)` }))];
   const vuesHTML = aff !== 'indic' ? `<div class="tb el-vues-tb">${compte}</div>` : `<div class="tb el-vues-tb">
       <span class="el-sl">Vue</span><span class="el-aff" role="group" aria-label="Vue">${ELEVES_VUES.map(v => `<button class="${v.key === vueCour ? 'on' : ''}" aria-pressed="${v.key === vueCour}" onclick="elevesVueUI('${v.key}')">${_escName(v.label)}</button>`).join('')}</span>
       <span class="el-sl">Colonnes</span><span class="el-filtres">${ELEVES_COLS.map(c => { const on = _elevesColVue(c.key);
@@ -5813,6 +5844,8 @@ function renderStudents() {
       <button class="el-chip col${_elevesReg ? ' on' : ''}" aria-pressed="${_elevesReg}" onclick="_elevesReg=!_elevesReg;renderStudents()" title="Trois colonnes pour saisir en série le régime de demi-pension, le régime d'entrée et le régime de sortie">🍽 Régimes</button>
       ${_elevesReg ? `<button class="btn btn-g btn-sm" onclick="openMbnImport()" title="Reprendre les régimes depuis l'export « régimes de sortie » de Mon Bureau Numérique (.xlsx)">📥 Depuis MBN…</button>` : ''}
       ${prop.length && _elevesColVue('bilans') ? `<select class="el-bil-add" onchange="elevesBilanColAjout(this.value)" title="Un moment de bilan de plus (un point par élève dans la colonne Bilans)"><option value="">＋ moment de bilan…</option>${prop.map(o => `<option value="${_escAttr(o.key)}">${_escName(o.label)}</option>`).join('')}</select>` : ''}
+      ${bcols.length && _elevesColVue('bilans') ? `<select class="el-bil-add" onchange="elevesBilanColRetirer(this.value)" title="Retirer un moment de la colonne Bilans — les bilans déjà écrits restent dans les fiches"><option value="">－ retirer un moment…</option>${bcols.map(c => { const n = cls.eleves.filter(sid => _bilanDeColonne(cls, sid, c)).length;
+        return `<option value="${_escAttr(c.key)}">${_escName(c.long)}${n ? ` (${n} écrit${n > 1 ? 's' : ''})` : ''}</option>`; }).join('')}</select>` : ''}
       ${compte}</div>`;
   // ⚠️ Plus de ligne « Trier » (v1.44.4, l'utilisateur : « on clique maintenant sur le titre
   // de colonne pour trier ») ; les ordres de place et de ramassage servent aux SAISIES (carnet,
@@ -11605,7 +11638,11 @@ function _elRenderOne(box, el, cls) {
   const dep = _elRenderDepouillement(el, tourIdx, live);
   const chart = _elRenderChart(el, live);
   const res = _elRenderResultats(el);
+  // La grille des bulletins est un cadre figé (v1.45.3, remontée de l'utilisateur : la ligne
+  // des candidats partait au défilement) : chaque bulletin coché redessine tout, on garde sa place.
+  const keep = _wrapScrollKeep(box);
   box.innerHTML = head + (el.clos ? res + cand : `<div class="el-split${_elProject ? ' proj' : ''}">${_elProject ? '' : `<div class="el-left">${cand}${dep}</div>`}<div class="el-right${_elProject ? ' big' : ''}">${chart}</div></div>${res}`);
+  keep();
 }
 
 // ── Candidatures ──
@@ -11666,7 +11703,7 @@ function _elRenderDepouillement(el, tourIdx, live) {
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px;margin-left:auto">Bulletins dans l'urne
         <input type="number" min="0" max="99" value="${Number.isInteger(t.votantsAnnonces) ? t.votantsAnnonces : ''}" style="width:64px" onchange="_elMut(e=>{e.tours[${tourIdx}].votantsAnnonces=this.value===''?null:Math.max(0,parseInt(this.value,10)||0)})" title="Comptés par les assesseurs AVANT ouverture — c'est l'axe du graphique et le contrôle contre le bourrage"></label>
     </div>${rappel}
-    <div class="rel-wrap"><table class="dt bul-table"><thead><tr><th class="bul-n" title="Numéro d'ordre — pour l'audit, jamais projeté">#</th>${cands.map(c => `<th title="${_escAttr(_elCandNom(c) + (_elCandNomSup(c) ? ' / ' + _elCandNomSup(c) : ''))}"><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c).split(' ')[0])}</th>`).join('')}<th>Statut</th><th></th></tr></thead>
+    <div class="rel-wrap frozen bul-wrap"><table class="dt bul-table"><thead><tr><th class="bul-n" title="Numéro d'ordre — pour l'audit, jamais projeté">#</th>${cands.map(c => `<th title="${_escAttr(_elCandNom(c) + (_elCandNomSup(c) ? ' / ' + _elCandNomSup(c) : ''))}"><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c).split(' ')[0])}</th>`).join('')}<th>Statut</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     <div class="tb" style="margin-top:6px">
       <button class="btn btn-p btn-sm" id="el-bul-add" onclick="electionNewBulletinUI()" title="Un nouveau bulletin (Entrée depuis la dernière ligne fait pareil)">+ Bulletin</button>
@@ -13048,7 +13085,7 @@ function _elevesPrintHTML(cls) {
     { key: 'incidents', th: 'Incidents', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
     { key: 'avis', th: 'Avis coll.', w: 4.5, c: 1, td: (r, sid) => { const a = campP ? _avisResume(campP, sid) : null; return a && (a.n || a.cible) ? `${a.n}/${a.total}${a.cible ? ' ★' : ''}` : ''; } },
     { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(r.remarque)}</small>` },
-    ..._bilanColonnesListe(cls, pIdx, _bilanColsAjout).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
+    ..._bilanColsVues(cls, pIdx).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
       td: (r, sid) => { const b = _bilanDeColonne(cls, sid, c); return `<small>${b ? _escName(b.texte) : ''}</small>`; } })),
   ].filter(c => _elevesPrintVue(c.key) && (c.key !== 'avis' || campP));   // pas de feuille d'avis : pas de colonne vide sur le papier
   const tot = cols.reduce((n, c) => n + c.w, 0);
@@ -14517,7 +14554,7 @@ function _avisObjectif(cls, camp) {
     const mi = _periodMode() === 'trimestre' ? 'mi-trimestre' : 'mi-semestre';
     return { key: r.moment, court: `conseil de ${mi}`, long: `le conseil de ${mi}${lab ? ` (${lab})` : ''}` };
   }
-  if (r.moment === 'mois') { const m = AVIS_MOIS[r.mois - 1]; return { key: r.moment, court: `point de ${m}`, long: `le point de ${m}` }; }
+  if (r.moment === 'mois') { const m = AVIS_MOIS[r.mois - 1]; return { key: r.moment, court: `point ${_deMois(m)}`, long: `le point ${_deMois(m)}` }; }
   return { key: 'conseil', court: 'conseil de classe', long: `le conseil de classe${lab ? ` du ${lab}` : ''}` };
 }
 const AVIS_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -14526,7 +14563,7 @@ const AVIS_MSG_PARTIES = [
   { key: 'contexte', label: 'Le moment',             parMoment: {
       conseil:   'Je prépare {objectif} de la {classe}.',
       miperiode: 'Je prépare {objectif} de la {classe}.',
-      mois:      'Je fais le point sur les élèves de la {classe} pour le mois de {mois}.' } },
+      mois:      'Je fais le point sur les élèves de la {classe} pour le mois {demois}.' } },
   { key: 'demande',  label: 'La demande',            texte: 'Pourriez-vous me donner votre avis sur les élèves, dans l\'onglet de votre discipline de cette feuille :\n{lien}\n\nLe lien ouvre la feuille dans le navigateur, **sans compte à créer**.' },
   // Une partie À PART (demande de l'utilisateur, v1.40.10) : on la garde ou non selon le
   // moment — au point du mois, on ne veut que ceux qui posent question ; au conseil, parfois tous.
@@ -14540,7 +14577,7 @@ const AVIS_MSG_PARTIES = [
   // (pas d'établissement) disparaît, au lieu de laisser un trou.
   { key: 'signature', label: 'Signature',            texte: '{nom}\nProfesseur principal de la {classe}\n{etablissement}' },
 ];
-const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {colonnes} {lien} {eleves} {echeance} {nom} {etablissement}';
+const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {demois} {colonnes} {lien} {eleves} {echeance} {nom} {etablissement}';
 // L'OBJET du courriel (v1.40.12, demande de l'utilisateur) : un modèle comme les parties,
 // réécrit = gardé dans S.prefs.avisMsg.objet. Pas une partie du message : il se copie à part.
 const AVIS_MSG_OBJET = 'Votre avis sur les élèves de la {classe} pour {objectif}';
@@ -14636,14 +14673,15 @@ function _avisSignatureHtml() {
 // Les parties du message, repères remplacés. PUR. Chaque partie est une liste de morceaux :
 // du texte (où **…** marque le gras), le lien, la liste des élèves — pour que le texte brut
 // et le texte riche sortent du MÊME assemblage et ne divergent jamais.
-const _AVIS_REPERE_RE = /\{(objectif|classe|periode|mois|colonnes|lien|eleves|echeance|nom|etablissement)\}/g;
+const _AVIS_REPERE_RE = /\{(objectif|classe|periode|mois|demois|colonnes|lien|eleves|echeance|nom|etablissement)\}/g;
 function _avisMsgVals(cls, camp) {
   const r = _avisMsgReglages(camp);
   const p = _avisPeriode(cls, camp);
   const ech = r.echeance ? new Date(r.echeance + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   const nom = typeof _prefs().avisNom === 'string' ? _prefs().avisNom.trim() : '';
   const etab = typeof _prefs().etablissement === 'string' ? _prefs().etablissement.trim() : '';
-  return { objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], echeance: ech,
+  // {demois} : « de mars », « d'avril » — l'élision que {mois} seul ne peut pas faire.
+  return { objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], demois: _deMois(AVIS_MOIS[r.mois - 1]), echeance: ech,
     colonnes: _avisColsTexte(_avisCols(camp)),
     nom: nom || '[votre nom]', etablissement: etab };
 }

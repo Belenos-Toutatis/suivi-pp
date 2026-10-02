@@ -197,14 +197,24 @@ test('le cadre figé est borné en hauteur, et libéré à l\'impression', () =>
 
 // Chaque renderer qui émet un cadre figé mémorise et repose sa position de défilement :
 // un cadre neuf repart en haut à gauche, et la cellule qu'on vient de saisir sort de vue.
+// Un renderer qui RETOURNE un cadre figé (sans l'écrire lui-même) délègue la garde de la
+// position à celui qui pose le HTML : il est déclaré ici, et c'est l'appelant qu'on vérifie.
+const CADRE_DELEGUE = { _elRenderDepouillement: '_elRenderOne' };
 function cadresSansKeep(script) {
   const fautifs = [];
-  for (const m of script.matchAll(/class="rel-wrap frozen"/g)) {
+  const corpsDe = nom => { const i = script.indexOf('\nfunction ' + nom + '('); return i < 0 ? '' : script.slice(i, script.indexOf('\n}', i)); };
+  // Le cadre figé, avec ou sans classe de plus (« rel-wrap frozen bul-wrap »).
+  for (const m of script.matchAll(/class="rel-wrap frozen[" ]/g)) {
     // La fonction englobante : du dernier `\nfunction ` avant l'occurrence au prochain `\n}`.
     const debut = script.lastIndexOf('\nfunction ', m.index);
     const fin = script.indexOf('\n}', m.index);
     const corps = script.slice(debut, fin);
     const nom = (corps.match(/^\nfunction (\w+)/) || [])[1] || '?';
+    if (CADRE_DELEGUE[nom]) {
+      const app = corpsDe(CADRE_DELEGUE[nom]);
+      if (!app.includes(nom + '(') || !/const keep = _wrapScrollKeep\(\w+\);/.test(app) || !/\n\s+keep\(\);/.test(app)) fautifs.push(nom);
+      continue;
+    }
     if (!/const keep = _wrapScrollKeep\(el\);/.test(corps) || !/\n\s+keep\(\);/.test(script.slice(m.index, fin))) fautifs.push(nom);
   }
   return fautifs;
@@ -222,6 +232,10 @@ test('MÉTA-TEST : le détecteur voit un keep() retiré', () => {
   assert.ok(i > 0);
   const casse = script.slice(0, i) + script.slice(i + 'const keep = _wrapScrollKeep(el);'.length);
   assert.deepStrictEqual(cadresSansKeep(casse), ['renderCarnets']);
+  // Et la délégation : la grille des bulletins perd sa garde si l'appelant l'oublie.
+  const j = script.indexOf('const keep = _wrapScrollKeep(box);');
+  assert.ok(j > 0);
+  assert.deepStrictEqual(cadresSansKeep(script.slice(0, j) + script.slice(j + 'const keep = _wrapScrollKeep(box);'.length)), ['_elRenderDepouillement']);
 });
 
 // ─────────────────── Audit du 2026-09-11

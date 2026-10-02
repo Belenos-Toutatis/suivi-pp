@@ -270,3 +270,37 @@ test('Liste : tri par prénom depuis l\'en-tête, réversible ; un ordre de plac
   ev(`eleveSort = { col: 'place', dir: 1 }; (() => { const z = document.createElement('div'); const o = document.getElementById; document.getElementById = id => id === 'eleves-body' ? z : o.call(document, id); try { renderStudents(); } finally { document.getElementById = o; } })()`);
   assert.strictEqual(ev(`eleveSort.col`), 'nom');
 });
+
+test('Liste : retirer un moment de bilan — vide et ajouté : il disparaît ; avec des bilans : masqué (retenu), les bilans restent, ＋ le remet', () => {
+  ev(FIXTURE);
+  ev(`_bilanColsAjout = new Set(); _eleveFilter = ''; _elevesFiltres = new Set(); S.prefs.bilansMasques = []; undoStack.length = 0;
+      bilanAdd('s1', { date:'2025-11-20', type:'miperiode', texte:'Mi-S1 de Léa' });`);
+  const vues = () => evObj(`_bilanColsVues(S.classes['5C'], _carnetCurrentPeriodIdx(S.classes['5C'])).map(c => c.key)`);
+  const p = ev(`_carnetCurrentPeriodIdx(S.classes['5C'])`);
+  const mois = p === 0 ? '2025-12' : '2026-03';   // un mois DE la période courante
+  // Un point du mois ajouté pour la séance, encore vide : retiré sans trace (rien dans S).
+  ev(`elevesBilanColAjout('bil:mois:${mois}')`);
+  assert.ok(vues().includes(`bil:mois:${mois}`));
+  const u = ev(`undoStack.length`);
+  ev(`elevesBilanColRetirer('bil:mois:${mois}')`);
+  assert.ok(!vues().includes(`bil:mois:${mois}`));
+  assert.strictEqual(ev(`undoStack.length`), u, 'rien de durable : rien d\'empilé');
+  // La mi-période porte un bilan : masquée, retenue, un cran d'undo ; le bilan reste.
+  ev(`elevesBilanColRetirer('bil:miperiode:0')`);
+  assert.ok(!vues().includes('bil:miperiode:0'));
+  assert.deepStrictEqual(evObj(`S.prefs.bilansMasques`), ['bil:miperiode:0']);
+  assert.strictEqual(ev(`undoStack.length`), u + 1);
+  assert.strictEqual(ev(`_bilansOf('s1').length`), 1, 'le bilan est toujours là');
+  assert.ok(!ev(`_elevesPrintHTML(S.classes['5C'])`).includes('Mi-S1'), 'pas sur le papier non plus');
+  assert.ok(evObj(`_ficheMoments(S.classes['5C']).map(c => c.key)`).includes('bil:miperiode:0'), 'la fiche garde tous les moments');
+  // ＋ le remet.
+  ev(`elevesBilanColAjout('bil:miperiode:0')`);
+  assert.ok(vues().includes('bil:miperiode:0'));
+  assert.deepStrictEqual(evObj(`S.prefs.bilansMasques`), []);
+  assert.ok(p >= 0);
+});
+
+test('Point du mois : « de mars » mais « d\'avril », « d\'août », « d\'octobre »', () => {
+  assert.deepStrictEqual(evObj(`['mars', 'avril', 'août', 'octobre', 'septembre'].map(_deMois)`), ['de mars', 'd\'avril', 'd\'août', 'd\'octobre', 'de septembre']);
+  assert.strictEqual(ev(`_bilanLabel({ type: 'mois', date: '2026-04-10' })`), 'Point d\'avril');
+});
