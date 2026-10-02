@@ -125,6 +125,8 @@ test('Chronologie : les événements du moment, datés et triés, et la barre de
   assert.match(bar, /Tableau de bord/);
   assert.match(bar, /Chronologie/);
   assert.match(bar, /Faits et rédaction/);
-  assert.match(bar, /1 \/ 3/);
-  assert.match(bar, /<optgroup label="S1">/);
+  assert.match(bar, /1\/3/);
+  // Le prototype : les moments en boutons (« Synthèse pour »), pas un menu.
+  assert.match(bar, /Synthèse pour<\/span><span class="pf-seg">/);
+  assert.match(bar, /onclick="ficheMomentSet\('bil:conseil:0'\)"[^>]*>Conseil S1</);
 });

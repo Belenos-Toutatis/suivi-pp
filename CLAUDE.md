@@ -1215,6 +1215,25 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        change de fiche, la ligne ouverte est surlignée (`tr.el-cur`).
      - **◀ ▶** (et les flèches du clavier hors saisie) suivent la liste à l'écran, tri et
        filtres compris (`_ficheOrdre`).
+   - ⚠️ **Révisé en v1.44.3 — la fiche EST celle du prototype** (l'utilisateur : *« remets
+     aussi la fiche exactement comme dans le prototype »*). En-tête sur une rangée : nom,
+     âge · groupe · options · aménagements · délégué, **Synthèse pour** en BOUTONS (un par
+     moment), les vues *1 · Tableau de bord · 2 · Chronologie · 3 · Faits et rédaction*,
+     ◀ n/N ▶, le bouton d'ouverture (demandé en plus) et ✕ ; plus de pied de modale. Classes
+     `pf-*` copiées du prototype, tokens `--pf-card` (la carte blanche) et `--i-obs/moy/incid/
+     contact/avis/bilan` (une couleur par sujet), aux trois endroits.
+     - **Tableau de bord** (`_ficheTableauHTML`) : des CARTES en colonnes, bornées au moment —
+       Identité et repères (+ remarque ✎), Bilans (la rédaction et les autres moments),
+       Carnet (courbe, « n sur la période »), Moyennes (matières × imports, Δ), Avis des
+       collègues (un onglet par feuille de la période, `ficheFeuilleUI`), Incidents (+),
+       Contacts (+), Papiers (cochables d'un clic). Ce que le prototype n'avait pas et qu'il
+       ne faut pas perdre se RATTACHE sans changer l'allure : ✏️ et 🗑 dans l'en-tête de la
+       carte Identité (l'édition complète et la suppression), et le **dossier d'avant**
+       (réponses aux documents, places, élections, chaque relevé modifiable) dans un volet
+       *📁 Dossier complet* replié au pied (`_ficheDossierOpen`).
+     - ⚠️ La classe `.mo` du prototype (les mois de la frise) est celle des FENÊTRES de
+       l'app (`display: none`) : les mois ne s'affichaient pas. Renommée `pf-mois`. Toute
+       classe reprise d'un prototype se vérifie contre les classes de l'app.
    - ⚠️ La fiche est un **dossier**, pas une vue courante : elle montre les documents archivés et les relevés où l'élève n'a rien. Une case vide au 8 décembre est une information quand on prépare un rendez-vous.
    - ⚠️ Un document `suiviRetour: false` s'affiche « rien à rendre », **jamais « non rendu »** : sinon la fiche fait courir après un papier qui n'existe pas.
    - La section **Documents est repliable** (elle est la plus longue, et on ne l'ouvre pas à chaque consultation) — mais les **choix portés** sur les papiers restent visibles repliés : c'est souvent la seule chose qu'on vient y chercher, et la cacher derrière un clic reviendrait à cacher l'essentiel avec l'accessoire. Le pli se souvient d'une fiche à l'autre. Reprend la structure de l'onglet Élèves de Plan de classe, moins tout ce qui touche au placement.
@@ -1590,6 +1609,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 82 | **Fiche = celle du prototype** : en-tête sur une rangée (moments en boutons), tableau de bord en cartes bornées au moment, chronologie et faits au style du prototype ; ✏️ 🗑 dans la carte Identité, dossier complet replié au pied ; tokens `--pf-card`, `--i-*` ; test mis à jour. Audit 3 vues × 2 moments × 2 thèmes, 1 440 / 2 560 / 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.3) |
 | 81 | **Liste = le tableau du prototype** (cases courtes, carnet avec courbe, contacts à part, bilans en points, remarque sur une ligne, genre devant le nom), **vues en boutons, colonnes en puces**, carte de chaleur alignée (couleurs des paliers, trois niveaux d'avis), suppression depuis la fiche ; tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.2) |
 | 80 | **Bouton** plein écran / à côté dans la fiche (la largeur de l'écran décide par défaut, le choix vaut pour la session) · **titres d'onglet retirés** · **seule la grille défile** dans Élèves, Observations, Moyennes ; test mis à jour. Audit 6 onglets + fiche, 2 thèmes, 1 440 / 2 560 / 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.1) |
 | 79 | **Fiche élève refondue** : trois vues (tableau de bord en colonnes, chronologie avec frise et journal, faits et rédaction avec avis en tableau, mots qui reviennent et brouillon), synthèse bornée à un moment, bilan écrit en place, ouverture à côté de la liste sur écran large ou plein écran ; 6 tests (`test/fiche-synthese.test.js`). Audit 3 vues × 2 thèmes à 2 560, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.0) |

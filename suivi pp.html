@@ -175,6 +175,9 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
   --av-3-bg: #2f6b4f;  --av-3-fg: #ffffff;
   --av-2-bg: #8fbfa6;  --av-2-fg: #0e1a26;
   --av-1-bg: #dde7e1;  --av-1-fg: #0e1a26;
+  /* Fiche (prototype, v1.44.3) : la carte blanche sur le papier, une couleur par sujet. */
+  --pf-card: #ffffff;
+  --i-obs: #c27a00;  --i-moy: #9c4a00;  --i-incid: #b03d2e;  --i-contact: #1f6fad;  --i-avis: #2f6b4f;  --i-bilan: #6d28d9;
   /* Accents sémantiques utilisés en TEXTE — déclinés par thème, car les valeurs vives
      historiques (#3498db, #e91e63, #00838f, #92400e) descendaient sous 4,5:1 sur le
      papier clair et devenaient illisibles sur le fond nuit. */
@@ -304,6 +307,8 @@ html[data-theme="dark"] {
   --av-3-bg: #2f6b4f;  --av-3-fg: #ffffff;
   --av-2-bg: #2c5a45;  --av-2-fg: #e3f2ea;
   --av-1-bg: #26352d;  --av-1-fg: #d4e0ee;
+  --pf-card: #191f27;
+  --i-obs: #e6b450;  --i-moy: #f0a35c;  --i-incid: #e88576;  --i-contact: #7cb8e0;  --i-avis: #5fb08a;  --i-bilan: #b79cf0;
   /* Accent « discipline » : le violet clair #5b21b6 n'avait pas de variante sombre — ses
      12 usages en `color:` tombaient à ~1,6:1 sur le fond nuit. */
   --disc-accent:      #c4a5fa;
@@ -393,6 +398,7 @@ html[data-theme="dark"] {
     --margin-red:       #b03d2e;  --margin-red-soft: rgba(176, 61, 46, 0.14);
     --highlighter:      #f5d76e;  --chip-on-bg:   #263545;  --chip-on-fg: #f4f6fa;
     --av-3-bg: #2f6b4f;  --av-3-fg: #ffffff;  --av-2-bg: #8fbfa6;  --av-2-fg: #0e1a26;  --av-1-bg: #dde7e1;  --av-1-fg: #0e1a26;
+    --pf-card: #ffffff;  --i-obs: #c27a00;  --i-moy: #9c4a00;  --i-incid: #b03d2e;  --i-contact: #1f6fad;  --i-avis: #2f6b4f;  --i-bilan: #6d28d9;
     --civ-m:            #1c6ea4;  --civ-f:        #b3123f;
     --agr-fg:           #00707d;  --tt-fg:        #6d28d9;  --warn-fg:      #92400e;
     --disc-accent:      #5b21b6;  --disc-accent-soft: #ede9fe;  --disc-accent-mid: #c4b5fd;
@@ -1475,6 +1481,123 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .fi-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 4px; }
 .fi-sub { color: var(--pencil); font: italic 13px var(--font-serif); }
 .fi-sec { margin-top: 16px; }
+/* ═══ Fiche — le prototype à l'identique (v1.44.3) ═══ */
+#mfiche .fi-mb { background: var(--paper) !important; }
+/* Une seule rangée, comme le prototype : identité, moments, vues, puis ◀ ▶ et les boutons à droite. */
+.pf-fh { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.pf-fh #mfiche-bar { display: contents; }
+.pf-id { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.pf-id h2 { margin: 0 !important; font-size: 22px; color: var(--ink-deep); }
+.pf-meta { font-size: 13px; color: var(--pencil); }
+.fi-bar { gap: 8px 16px !important; }
+.pf-grp { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.pf-sl { font-size: 12px; color: var(--pencil); margin-right: 6px; text-transform: uppercase; letter-spacing: .05em; }
+.pf-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule-line); border-radius: 6px; overflow: hidden; background: var(--pf-card); }
+.pf-seg button { border: 0; background: none; padding: 6px 11px; border-right: 1px solid var(--rule-line); white-space: nowrap; font-size: 14px; }
+.pf-seg button:last-child { border-right: 0; }
+.pf-seg button.on { background: var(--g1); color: var(--g1-on); font-weight: 700; }
+.pf-sp { flex: 1; }
+.pf-nav { display: inline-flex; gap: 4px; align-items: center; }
+.pf-nav button, .pf-x { border: 1px solid var(--rule-line); background: var(--pf-card); border-radius: 6px; padding: 5px 10px; }
+.pf-n { font-family: var(--font-mono); color: var(--pencil); font-size: 13px; }
+.pf-grid { columns: 370px; column-gap: 12px; }
+.pf-grid > .pf-card { break-inside: avoid; margin-bottom: 12px; display: block; }
+.pf-card { background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; padding: 10px 12px; min-width: 0; font-size: 14px; }
+.pf-card h3 { margin: 0 0 8px; font-size: 14.5px; color: var(--ink-deep); display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.pf-card h3 .pf-k { margin-left: auto; font-weight: 400; font-size: 12.5px; color: var(--pencil); }
+.pf-h3b { margin-top: 10px !important; }
+.pf-add { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 50%; min-width: 24px; height: 24px; line-height: 20px; padding: 0 3px; font-weight: 700; color: var(--link-fg); }
+.pf-add.pf-del { color: var(--danger-fg); }
+.pf-sw { width: 16px; height: 12px; border-radius: 2px; display: inline-block; flex: none; }
+.pf-kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: 13.5px; margin: 0; }
+.pf-kv dt { color: var(--pencil); } .pf-kv dd { margin: 0; }
+.pf-p { margin: 0; }
+.pf-mini { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pf-mini th, .pf-mini td { padding: 3px 6px; border-bottom: 1px solid var(--rule-line-soft); text-align: left; }
+.pf-mini th { font-weight: 400; color: var(--pencil); font-size: 12px; }
+.pf-mini td.r, .pf-mini th.r { text-align: right; }
+.pf-mini tr.pf-gen td { font-weight: 700; }
+.pf-mv { font-family: var(--font-mono); font-size: 13px; padding: 1px 5px; border-radius: 4px; }
+.pf-mv.lo { background: var(--alert-bg); color: var(--alert-fg); font-weight: 700; }
+.pf-dm { font-family: var(--font-mono); font-size: 11.5px; color: var(--pencil); }
+.pf-dm.neg { color: var(--danger-fg); } .pf-dm.pos { color: var(--ok-fg); }
+.pf-ent { display: grid; grid-template-columns: 52px 1fr; gap: 2px 10px; padding-block: 5px; border-bottom: 1px dashed var(--rule-line-soft); font-size: 13.5px; }
+.pf-ent:last-child { border-bottom: 0; }
+.pf-clic { cursor: pointer; } .pf-clic:hover { background: var(--paper); }
+.pf-d { font-family: var(--font-mono); font-size: 12px; color: var(--pencil); padding-top: 2px; }
+.pf-ty { font-weight: 700; color: var(--ink-deep); }
+.pf-tog { border: 0; background: none; padding: 0; font: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
+.pf-tog.ok { color: var(--ok-fg); } .pf-tog.ko { color: var(--danger-fg); font-weight: 700; }
+.pf-empty { color: var(--pencil); font-style: italic; font-size: 13px; margin: 2px 0; }
+.pf-mu { color: var(--pencil); font-size: 12.5px; }
+.pf-sans { margin: 6px 0 0; }
+.pf-star { color: #9c6a00; }
+html[data-theme="dark"] .pf-star { color: #e6b450; }
+.pf-avd { padding-block: 6px; border-bottom: 1px solid var(--rule-line-soft); }
+.pf-avd:last-of-type { border-bottom: 0; }
+.pf-dnm { font-weight: 700; color: var(--ink-deep); font-size: 13px; }
+.pf-pr { color: var(--pencil); font-size: 12px; font-weight: 400; }
+.pf-cr { display: grid; grid-template-columns: 96px 1fr; gap: 1px 8px; font-size: 13px; }
+.pf-cr > span:nth-child(odd) { color: var(--pencil); font-size: 12px; padding-top: 1px; }
+.pf-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.pf-tabs button { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 5px; padding: 2px 9px; font-size: 12.5px; }
+.pf-tabs button.on { background: var(--chip-on-bg); color: var(--chip-on-fg); border-color: var(--chip-on-bg); }
+.pf-lab { font-size: 13px; color: var(--pencil); display: block; margin-bottom: 3px; }
+.pf-ta { width: 100%; font: inherit; font-size: 14px; min-height: 120px; resize: vertical; line-height: 1.45; padding: 8px 10px; }
+.pf-bil { border-left: 3px solid var(--i-bilan); padding: 4px 10px; margin-block: 6px; font-size: 13.5px; }
+.pf-bil.pf-rem { border-color: var(--pencil); }
+.pf-bil-l { font-size: 12px; color: var(--pencil); }
+.pf-chart { width: 100%; max-width: 520px; height: auto; display: block; }
+.pf-chart text { fill: var(--pencil); font: 10px var(--font-mono); }
+.pf-chart .ax { stroke: var(--rule-line); stroke-width: 1; }
+.pf-chart .ln { fill: none; stroke: var(--i-obs); stroke-width: 2; }
+.pf-chart .ar { fill: var(--obs-2); opacity: .45; }
+.pf-chart .pt { fill: var(--pf-card); stroke: var(--i-obs); stroke-width: 2; }
+.pf-chart .mid { stroke: var(--margin-red); stroke-dasharray: 3 3; }
+.pf-chart .lb { fill: var(--ink-deep); font-size: 10.5px; }
+.pf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0 12px; }
+.pf-kpi { background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; padding: 8px 10px; }
+.pf-kpi small { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--pencil); }
+.pf-kpi b { font-size: 20px; font-family: var(--font-mono); color: var(--ink-deep); }
+.pf-kpi span { font-size: 12.5px; color: var(--pencil); margin-left: 4px; }
+.pf-tl { background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; padding: 8px 10px 4px; margin-bottom: 12px; overflow-x: auto; }
+.pf-tl svg { display: block; min-width: 720px; width: 100%; height: auto; }
+.pf-tl text { font-family: var(--font-ui); font-size: 11px; fill: var(--ink-deep); }
+/* ⚠️ Pas « .mo » (le prototype) : c'est la classe des fenêtres de l'app, display: none. */
+.pf-tl .pf-mois { fill: var(--pencil); font-size: 10.5px; }
+.pf-tl .lane { stroke: var(--rule-line-soft); }
+.pf-tl .mid { stroke: var(--margin-red); stroke-dasharray: 3 3; }
+.pf-tl .mk { cursor: pointer; } .pf-tl .mk:hover { opacity: .75; }
+.pf-two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr); gap: 12px; align-items: start; }
+@media (max-width: 900px) { .pf-two { grid-template-columns: minmax(0, 1fr); } }
+.pf-jr { display: grid; grid-template-columns: 62px 22px 1fr; gap: 2px 8px; padding-block: 6px; border-bottom: 1px solid var(--rule-line-soft); font-size: 13.5px; }
+.pf-jr .pf-sw { width: 12px; height: 12px; border-radius: 3px; margin-top: 4px; }
+.pf-jr.pf-flash { animation: fiFlash 1.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .pf-jr.pf-flash { animation: none; } }
+.pf-sticky { position: sticky; top: 120px; }
+@media (max-width: 900px) { .pf-sticky { position: static; } }
+.pf-three { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.pf-three .pf-redac { grid-column: 1 / -1; }
+@media (min-width: 1900px) { .pf-three { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); } .pf-three .pf-redac { grid-column: auto; position: sticky; top: 120px; } }
+body.fiche-cote .pf-three { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
+@media (max-width: 900px) { .pf-three { grid-template-columns: minmax(0, 1fr); } }
+.pf-fact { display: grid; grid-template-columns: 20px 1fr auto; gap: 6px; padding-block: 6px; border-bottom: 1px solid var(--rule-line-soft); font-size: 13.5px; align-items: start; }
+.pf-fact .pf-sw { width: 12px; height: 12px; border-radius: 3px; margin-top: 4px; }
+.pf-ins { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 5px; font-size: 12px; padding: 1px 7px; color: var(--link-fg); white-space: nowrap; }
+.pf-mx { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.pf-mx th, .pf-mx td { border: 1px solid var(--rule-line-soft); padding: 4px 6px; vertical-align: top; text-align: left; }
+.pf-mx thead th { background: var(--paper-warm); font-size: 12px; color: var(--ink-deep); font-weight: 400; }
+.pf-mx th.pf-dn { width: 118px; font-weight: 700; color: var(--ink-deep); font-size: 12.5px; background: var(--paper); }
+.pf-mx td.pf-e { background: var(--paper); }
+.pf-mx mark { background: var(--highlighter); color: var(--ink-blue); padding: 0 1px; border-radius: 2px; }
+.pf-words { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 4px 8px; align-items: center; }
+.pf-words button { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 999px; padding: 2px 9px; font-size: 12.5px; }
+.pf-words button.on { background: var(--highlighter); border-color: var(--highlighter); color: var(--ink-blue); }
+.pf-btnp { border: 0; background: var(--g1); color: var(--g1-on); border-radius: 6px; padding: 6px 12px; font-weight: 700; }
+.pf-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-block: 8px; }
+.pf-dossier { margin-top: 4px; }
+.pf-dossier > summary { cursor: pointer; color: var(--pencil); font-size: 13px; padding: 6px 0; }
 /* Fiche refondue (v1.44.0) : plein écran, ou ancrée à droite de la liste. */
 #mfiche.plein { padding: 0; }
 #mfiche.plein .fi-mb { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; padding: 0 22px 14px; }
@@ -1484,65 +1607,16 @@ body.fiche-cote .tab.on { padding-right: var(--fiche-cote-w); }
 .fi-head { position: sticky; top: 0; z-index: 5; background: inherit; padding: 12px 0 8px; border-bottom: 2px solid var(--margin-red); margin-bottom: 4px; }
 #mfiche .fi-mb { background: var(--paper); }
 html[data-theme="dark"] #mfiche .fi-mb { background: var(--paper-warm); }
-.fi-head h2 { margin-bottom: 6px; }
 .fi-bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 @media (max-width: 520px) { .fi-head { position: static; } }
 .fi-bar-l { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .fi-bar-l select { max-width: 100%; }
-.fi-nav { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
 .fi-cols { columns: 400px; column-gap: 24px; }
 .fi-cols > .fi-sec { break-inside: avoid; margin: 0 0 16px; display: inline-block; width: 100%; }
 .fi-redac textarea { width: 100%; min-height: 8em; resize: vertical; }
 .fi-redac-b { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 4px; }
 .fi-bil-o { border-left: 3px solid var(--rule-line); padding: 3px 10px; margin-top: 6px; font-size: .92em; }
-.fi-trois { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; align-items: start; }
-.fi-trois > :last-child { grid-column: 1 / -1; }
-@media (min-width: 1900px) { .fi-trois { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); } .fi-trois > :last-child { grid-column: auto; position: sticky; top: 110px; } }
-body.fiche-cote .fi-trois { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-body.fiche-cote .fi-trois > :last-child { grid-column: 1 / -1; position: static; }
-@media (max-width: 860px) { .fi-trois { grid-template-columns: minmax(0, 1fr); } }
-.fi-fait { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; align-items: start; padding: 5px 0; border-bottom: 1px solid var(--rule-line-soft); }
-.fi-mots { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin: 4px 0 8px; }
-.fi-avt { font-size: .9em; }
-.fi-avt th[scope=row] { text-align: left; white-space: normal; min-width: 8em; }
-.fi-avt td { vertical-align: top; min-width: 10em; }
-.fi-avt mark, .fi-avt mark { background: var(--highlighter); color: var(--ink-blue); padding: 0 1px; border-radius: 2px; }
-.fi-courbe { width: 100%; max-width: 560px; height: auto; display: block; }
-.fi-courbe text { fill: var(--pencil); font: 10px var(--font-mono); }
-.fi-courbe .fc-zone { fill: var(--obs-2); opacity: .35; }
-.fi-courbe .fc-ax { stroke: var(--rule-line); }
-.fi-courbe .fc-mi { stroke: var(--margin-red); stroke-dasharray: 3 3; }
-.fi-courbe .fc-ln { fill: none; stroke: var(--obs-5); stroke-width: 2; }
-.fi-courbe .fc-pt { fill: var(--paper); stroke: var(--obs-5); stroke-width: 2; }
-.fi-courbe .fc-lb { fill: var(--ink-deep); }
-.fi-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 10px 0; }
-.fi-kpi { border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 6px 10px; background: var(--paper); }
-.fi-kpi small { display: block; font-size: .72em; text-transform: uppercase; letter-spacing: .05em; color: var(--pencil); }
-.fi-kpi strong { font: 700 1.35em var(--font-mono); color: var(--ink-deep); margin-right: 6px; }
-.fi-kpi span { font-size: .85em; color: var(--pencil); }
-.fi-frise-w { overflow-x: auto; border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 6px 8px 2px; background: var(--paper); }
-.fi-frise { display: block; width: 100%; min-width: 640px; height: auto; }
-.fi-frise .ff-l { fill: var(--ink-deep); font-size: 12px; }
-.fi-frise .ff-mt { fill: var(--pencil); font: 10px var(--font-mono); }
-.fi-frise .ff-m { stroke: var(--rule-line); }
-.fi-frise .ff-lane { stroke: var(--rule-line-soft); }
-.ff-mk { cursor: pointer; }
-.ff-obs { fill: var(--obs-5); background: var(--obs-5); }
-.ff-moy { fill: var(--g2); background: var(--g2); }
-.ff-avis { fill: var(--ok-fg); background: var(--ok-fg); }
-.ff-incid { fill: var(--danger-fg); background: var(--danger-fg); }
-.ff-contact { fill: var(--link-fg); background: var(--link-fg); }
-.ff-bilan { fill: var(--g3); background: var(--g3); }
-.ff-papier { fill: var(--pencil); background: var(--pencil); }
-.fi-deux { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 0 24px; align-items: start; }
-.fi-deux > div:last-child { position: sticky; top: 110px; }
-body.fiche-cote .fi-deux, .fi-deux { }
-@media (max-width: 900px) { .fi-deux { grid-template-columns: minmax(0, 1fr); } .fi-deux > div:last-child { position: static; } }
-.fi-jr { display: grid; grid-template-columns: 44px 14px minmax(0, 1fr); gap: 2px 8px; padding: 5px 0; border-bottom: 1px solid var(--rule-line-soft); }
-.ff-ic { width: 11px; height: 11px; border-radius: 3px; margin-top: 4px; display: inline-block; }
-.fi-jr.fi-flash { animation: fiFlash 1.2s ease-out; }
 @keyframes fiFlash { from { background: var(--highlighter); } to { background: transparent; } }
-@media (prefers-reduced-motion: reduce) { .fi-jr.fi-flash { animation: none; } }
 .eleves-table tr.el-cur td, .rel-wrap.frozen .eleves-table tbody tr.el-cur td:first-child { background: var(--info-bg); }
 .fi-sec > h3 { font-size: .98em; margin: 0 0 6px; border-bottom: 1px solid var(--rule-line); padding-bottom: 3px; }
 .fi-grid { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: .93em; }
@@ -2136,14 +2210,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <!-- ═══════════════ FICHE ÉLÈVE (lecture) ═══════════════ -->
 <div id="mfiche" class="mo plein" onclick="closeMod(this,event)" onkeydown="_ficheKey(event)">
   <div class="mb fi-mb">
-    <div class="fi-head"><h2 id="mfiche-title">👤 Fiche</h2><div id="mfiche-bar" class="fi-bar"></div></div>
+    <div class="fi-head pf-fh"><div class="pf-id"><h2 id="mfiche-title">👤 Fiche</h2><span class="pf-meta" id="mfiche-meta"></span></div><div id="mfiche-bar" class="fi-bar"></div></div>
     <div id="mfiche-body"></div>
-    <div class="ma">
-      <button class="btn btn-d" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)" style="margin-right:auto">🗑</button>
-      <button class="btn btn-g" onclick="closeMod2('mfiche')">Fermer</button>
-      <button class="btn btn-g" id="mfiche-rem" onclick="ficheVersRemarque()">📋 Remarque et contacts</button>
-      <button class="btn btn-p" id="mfiche-edit" onclick="ficheVersEdition()">✏️ Modifier</button>
-    </div>
   </div>
 </div>
 
@@ -2615,8 +2683,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.44.2';
-const APP_BUILD_DATE = '2026-10-02T20:44:14Z';
+const APP_VERSION    = '1.44.3';
+const APP_BUILD_DATE = '2026-10-02T20:59:33Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5690,7 +5758,6 @@ function _fichePdcHint(cls) {
 // Supprimer l'élève depuis la fiche : la liste n'a plus de colonne d'actions (v1.44.2).
 function ficheSupprimer() { const sid = _ficheSid; if (!sid) return; closeMod2('mfiche'); deleteStudent(sid); }
 function ficheVersEdition() { const sid = _ficheSid; closeMod2('mfiche'); openEdit(sid); _modalReturnTo['me'] = () => openFiche(sid); }
-function ficheVersRemarque() { const sid = _ficheSid; closeMod2('mfiche'); openRemarque(sid); _modalReturnTo['mrem'] = () => openFiche(sid); }
 // Même aller-retour pour un incident : la fiche est l'écran de LECTURE, la saisie a sa
 // modale — et l'on retombe sur la fiche, pour voir l'entrée à sa place dans l'histoire.
 function ficheVersIncident(id) { const sid = _ficheSid; closeMod2('mfiche'); openIncident(sid, id || null); _modalReturnTo['mincident'] = () => openFiche(sid); }
@@ -5708,7 +5775,10 @@ function _ficheRender() {
     ? `👤 <input type="text" id="fi-nom" data-fi-focus value="${_escAttr(stu.nom)}" placeholder="NOM" maxlength="60" style="width:180px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
        <input type="text" id="fi-prn" value="${_escAttr(stu.prenom)}" placeholder="Prénom" maxlength="60" style="width:150px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
        <button class="btn btn-p btn-sm" onclick="ficheSaveNom()">✓</button> <button class="btn btn-g btn-sm" onclick="ficheEdit('nom')">Annuler</button>`
-    : `👤 ${_escName(stu.prenom)} ${_escName(stu.nom)} <button class="fi-plus" onclick="ficheEdit('nom')" title="Corriger le nom ou le prénom">✎</button>`;
+    : `${_nomHTML(stu.id, stu.nom, stu.prenom)}${cls && _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls))?.cibles?.includes(stu.id) ? ' <span class="pf-star" title="Avis demandés en particulier">⭐</span>' : ''} <button class="fi-plus" onclick="ficheEdit('nom')" title="Corriger le nom ou le prénom">✎</button>`;
+  const meta = document.getElementById('mfiche-meta');
+  if (meta) { const age = _ficheAge(stu.naissance), dl = _delegueOf(stu.id);
+    meta.textContent = [age !== null ? age + ' ans' : '', stu.groupe ? 'G' + stu.groupe : '', _studentTags(stu).map(x => x.abbr).join(', '), _amenLabel(stu, false), dl ? 'délégué ' + (dl === 'titulaire' ? 'titulaire' : 'suppléant') : ''].filter(Boolean).join(' · '); }
 
   const vide = txt => `<span class="fi-vide">${txt}</span>`;
   // `plus` : { onclick, title, icone } — la pastille à côté du titre, pour ajouter sans quitter la fiche.
@@ -5942,9 +6012,12 @@ function _ficheRender() {
   const vue = _ficheVue();
   const bar = document.getElementById('mfiche-bar');
   if (bar) bar.innerHTML = _ficheBarHTML(cls, stu, col);
+  // Le TABLEAU DE BORD est celui du prototype (v1.44.3) ; le dossier d'avant (réponses aux
+  // documents, places, élections, cumuls modifiables…) reste au pied, replié.
+  const dossier = `<details class="pf-dossier"${_ficheDossierOpen ? ' open' : ''} ontoggle="_ficheDossierOpen=this.open"><summary>📁 Dossier complet — réponses aux documents, places, élections, chaque relevé du carnet (modifiables)</summary><div class="fi-cols">${secs}</div></details>`;
   box.innerHTML = vue === 'chrono' && col ? _ficheChronoHTML(cls, stu, col)
     : vue === 'faits' && col ? _ficheFaitsHTML(cls, stu, col)
-    : `<div class="fi-cols">${col ? _ficheRedacHTML(cls, stu, col) : ''}${secs}</div>`;
+    : col ? _ficheTableauHTML(cls, stu, col, { remHTML, contactForm }) + dossier : `<div class="fi-cols">${secs}</div>`;
   const f = box.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
 }
@@ -5962,7 +6035,12 @@ function _ficheRender() {
 // reste dans la barre, et se retient sur le poste.
 // ═══════════════════════════════════════════════════════════════════════════
 const _LS_FICHE_VUE = 'suiviPP_ficheVue';
-const FICHE_VUES = [['dossier', '▦ Tableau de bord', 'Tout le dossier, en colonnes'], ['chrono', '🕑 Chronologie', 'La période choisie : chiffres clés, frise, journal'], ['faits', '✍️ Faits et rédaction', 'Les faits en phrases, les avis en tableau, un brouillon de synthèse']];
+const FICHE_VUES = [['dossier', '1 · Tableau de bord', 'Une carte par sujet, sur le moment choisi'], ['chrono', '2 · Chronologie', 'Le moment choisi : chiffres clés, frise, journal'], ['faits', '3 · Faits et rédaction', 'Les faits en phrases, les avis en tableau, un brouillon de synthèse']];
+let _ficheDossierOpen = false;  // le « dossier complet » replié au pied du tableau de bord (session)
+let _ficheFeuille = null;       // l'onglet de feuille d'avis choisi dans la carte (session)
+// Les couleurs des sujets (prototype) : carrés de la liste des faits, frise, journal.
+const PF_ICO = { obs: 'var(--i-obs)', moy: 'var(--i-moy)', incid: 'var(--i-incid)', contact: 'var(--i-contact)', avis: 'var(--i-avis)', bilan: 'var(--i-bilan)', papier: 'var(--pencil)' };
+const _pfSw = k => `<i class="pf-sw" style="background:${PF_ICO[k] || 'var(--pencil)'}"></i>`;
 const FICHE_COTE_MIN = 1700;    // px CSS : au-delà, la fiche s'ouvre à côté de la liste
 let _ficheMoment = null;        // clé de la colonne de bilan choisie (session)
 let _ficheMot = null;           // mot surligné dans les avis (session)
@@ -6161,13 +6239,12 @@ function _ficheBarHTML(cls, stu, col) {
   const o = _ficheOrdre(cls), i = o.indexOf(stu.id);
   const vue = _ficheVue(), cote = _ficheOuverture() === 'cote';
   const ms = _ficheMoments(cls);
-  const per = _periods(cls);
-  const groupes = per.map((p, pi) => ({ p, cols: ms.filter(c => c.pIdx === pi) })).filter(g => g.cols.length);
-  return `<span class="el-aff" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
-    <label class="tb-hint fi-bar-l">Synthèse pour <select onchange="ficheMomentSet(this.value)">${groupes.map(g => `<optgroup label="${_escAttr(g.p.label)}">${g.cols.map(c => `<option value="${_escAttr(c.key)}"${col && c.key === col.key ? ' selected' : ''}>${_escName(c.long)}</option>`).join('')}</optgroup>`).join('')}</select></label>
-    <span class="fi-nav"><button class="btn btn-g btn-sm" onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="tb-hint">${i + 1} / ${o.length}</span><button class="btn btn-g btn-sm" onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>
-    <button class="btn btn-g btn-sm" onclick="ficheOuvertureBascule()" title="${cote ? 'Ouvrir la fiche en plein écran' : 'Ouvrir la fiche à côté de la liste : la liste reste visible, un clic sur un nom change de fiche'} — par défaut, la largeur de l'écran décide">${cote ? '⛶ Plein écran' : '◧ À côté de la liste'}</button>
-    <button class="btn btn-g btn-sm fi-x" onclick="closeMod2('mfiche')" title="Fermer (Échap)">✕</button>`;
+  return `<span class="pf-grp"><span class="pf-sl">Synthèse pour</span><span class="pf-seg">${ms.map((c, k) => `${k && ms[k - 1].pIdx !== c.pIdx ? '' : ''}<button class="${col && c.key === col.key ? 'on' : ''}" aria-pressed="${!!col && c.key === col.key}" onclick="ficheMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span></span>
+    <span class="pf-seg" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
+    <span class="pf-sp"></span>
+    <span class="pf-nav"><button onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="pf-n">${i + 1}/${o.length}</span><button onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>
+    <button class="pf-x" onclick="ficheOuvertureBascule()" title="${cote ? 'Ouvrir la fiche en plein écran' : 'Ouvrir la fiche à côté de la liste : la liste reste visible, un clic sur un nom change de fiche'} — par défaut, la largeur de l'écran décide">${cote ? '⛶ Plein écran' : '◧ À côté de la liste'}</button>
+    <button class="pf-x" onclick="closeMod2('mfiche')" title="Fermer (Échap)">✕</button>`;
 }
 // ── La rédaction : le bilan du moment choisi, écrit EN PLACE ──
 // Enregistré en quittant le champ (pas de re-rendu : un clic sur « insérer » ou ▶ ne doit
@@ -6175,11 +6252,17 @@ function _ficheBarHTML(cls, stu, col) {
 // moment (`_bilanCible`) plutôt que d'en créer un second.
 function _ficheRedacHTML(cls, stu, col, extra) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
-  const autres = _bilansOf(stu.id).filter(x => x !== b);
-  return `<div class="fi-sec fi-redac"><h3>✍️ ${_escName(col.long)} <span class="fi-vide">— ce que je dirai</span></h3>
-    <textarea id="fi-bil" rows="6" onchange="ficheBilanSave()" placeholder="Le bilan de ${_escAttr(stu.prenom)} pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
-    <div class="fi-redac-b">${extra || ''}<span class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</span></div>
-    ${autres.length ? `<details class="fi-det"><summary class="tb-hint">Les autres bilans (${autres.length})</summary>${autres.map(x => `<div class="fi-bil-o"><span class="fi-vide">${_escName(_bilanLabel(x))} · ${_escName(_fmtDateFr(x.date))}</span><div>${_escName(x.texte)}</div></div>`).join('')}</details>` : ''}</div>`;
+  return `<label for="fi-bil" class="pf-lab">${_escName(col.long)} · ce que je dirai</label>
+    <textarea id="fi-bil" class="pf-ta" onchange="ficheBilanSave()" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
+    ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>`;
+}
+// Les AUTRES bilans de l'élève, sous la rédaction (prototype : un liseré violet par bilan).
+function _ficheBilansAutresHTML(cls, stu, col) {
+  const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
+  return _ficheMoments(cls).filter(c => c.key !== col.key).map(c => { const x = _bilanCible(cls, stu.id, { type: c.type, date: c.date });
+    return `<div class="pf-bil"><div class="pf-bil-l">${_escName(c.long)}${x ? ' · ' + _escName(_fmtDateFr(x.date).slice(0, 5)) : ''}</div>${x ? _escName(x.texte) : '<span class="pf-mu">rien d\'écrit</span>'}</div>`; }).join('')
+    + _bilansOf(stu.id).filter(x => x !== b && !_ficheMoments(cls).some(c => _bilanCible(cls, stu.id, { type: c.type, date: c.date }) === x))
+      .map(x => `<div class="pf-bil"><div class="pf-bil-l">${_escName(_bilanLabel(x))} · ${_escName(_fmtDateFr(x.date))}</div>${_escName(x.texte)}</div>`).join('');
 }
 function ficheBilanSave() {
   const ta = document.getElementById('fi-bil');
@@ -6226,49 +6309,99 @@ function ficheBrouillonUI() {
 function ficheMotUI(m) { _ficheMot = _ficheMot === m ? null : m; _ficheRender(); }
 // Les avis en TABLEAU : une ligne par discipline, une colonne par colonne de la feuille.
 function _ficheAvisTableHTML(av) {
-  if (!av) return '<span class="fi-vide">Aucune feuille d\'avis pour ce moment.</span>';
+  if (!av) return '<p class="pf-empty">Pas de feuille d\'avis pour ce moment.</p>';
   const mots = _avisMotsFrequents(av.items, av.cols);
   const re = _ficheMot ? new RegExp(`(${_ficheMot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[sx]?)`, 'gi') : null;
   const cell = t => { const x = _escName(t); return re ? x.replace(re, '<mark>$1</mark>') : x; };
   const sans = av.camp.disciplines.filter(d => !av.items.some(it => it.disc.id === d.id));
-  return `${(av.camp.cibles || []).includes(_ficheSid) ? '<div class="tb-hint">⭐ demandé en particulier</div>' : ''}
-    ${mots.length ? `<div class="fi-mots"><span class="tb-hint">Revient :</span>${mots.map(x => `<button class="el-chip${_ficheMot === x.mot ? ' on' : ''}" aria-pressed="${_ficheMot === x.mot}" onclick="ficheMotUI('${_escJsAttr(x.mot)}')" title="Surligner dans les avis">${_escName(x.mot)} ×${x.n}</button>`).join('')}</div>` : ''}
-    ${av.items.length ? `<div class="rel-wrap"><table class="dt fi-avt"><thead><tr><th>Discipline</th>${av.cols.map(c => `<th>${_escName(c.label)}</th>`).join('')}</tr></thead><tbody>${
-      av.items.map(it => `<tr><th scope="row">${_escName(it.disc.nom)}${it.disc.profs ? `<div class="fi-vide">${_escName(it.disc.profs)}</div>` : ''}</th>${av.cols.map(c => `<td>${it[c.key] ? cell(it[c.key]) : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<span class="fi-vide">Aucun avis sur cet élève.</span>'}
-    ${sans.length ? `<div class="tb-hint" style="margin-top:4px">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</div>` : ''}`;
+  return `${mots.length ? `<div class="pf-words"><span class="pf-mu">Mots qui reviennent :</span>${mots.map(x => `<button class="${_ficheMot === x.mot ? 'on' : ''}" aria-pressed="${_ficheMot === x.mot}" onclick="ficheMotUI('${_escJsAttr(x.mot)}')">${_escName(x.mot)} ×${x.n}</button>`).join('')}</div>` : ''}
+    ${av.items.length ? `<div class="rel-wrap"><table class="pf-mx"><thead><tr><th class="pf-dn">Discipline</th>${av.cols.map(c => `<th>${_escName(c.label)}</th>`).join('')}</tr></thead><tbody>${
+      av.items.map(it => `<tr><th class="pf-dn">${_escName(it.disc.nom)}</th>${av.cols.map(c => it[c.key] ? `<td>${cell(it[c.key])}</td>` : '<td class="pf-e"></td>').join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="pf-empty">Aucune réponse.</p>'}
+    ${sans.length ? `<p class="pf-mu pf-sans">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : ''}`;
 }
+// Les avis en BLOCS (carte du tableau de bord) : une discipline, son professeur, ses colonnes.
+function _ficheAvisBlocsHTML(camp, sid) {
+  const cols = _avisCols(camp), a = camp.avis?.[sid] || {};
+  const ks = camp.disciplines.filter(d => a[d.id]), sans = camp.disciplines.filter(d => !a[d.id]);
+  return (ks.length ? ks.map(d => `<div class="pf-avd"><div class="pf-dnm">${_escName(d.nom)} <span class="pf-pr">${_escName(d.profs || '')}</span></div>${
+      cols.length > 1 ? `<div class="pf-cr">${cols.map(c => `<span>${_escName(c.label)}</span><span>${a[d.id][c.key] ? _escName(a[d.id][c.key]) : '<span class="pf-mu">–</span>'}</span>`).join('')}</div>`
+        : `<div>${_escName(a[d.id][cols[0].key] || '')}</div>`}</div>`).join('') : '<p class="pf-empty">Aucune réponse.</p>')
+    + (sans.length ? `<p class="pf-mu pf-sans">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : '');
+}
+function ficheFeuilleUI(id) { _ficheFeuille = id; _ficheRender(); }
 // La courbe du cumul sur la période, la zone du moment en clair, la mi-période marquée.
 function _ficheCourbeHTML(cls, stu, col) {
   const b = _ficheBornes(cls, col), p = b.p;
   const m = _relMap(cls.id) || {};
   const pts = _relDates(cls.id).filter(d => d >= p.start && d <= p.end).map(d => [d, _relValue(m[d], stu.id)]).filter(x => typeof x[1] === 'number');
-  if (pts.length < 1) return '<span class="fi-vide">Aucun relevé de carnet sur la période.</span>';
-  const W = 460, H = 150, x0 = 26, x1 = W - 10, y0 = H - 20, y1 = 12;
+  if (!pts.length) return '<p class="pf-empty">Aucun relevé de carnet sur la période.</p>';
+  const W = 420, H = 150, x0 = 26, x1 = W - 10, y0 = H - 22, y1 = 12;
   const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(p.start), tb = t(p.end);
   const X = d => (x0 + (t(d) - ta) / (tb - ta) * (x1 - x0)).toFixed(1);
-  const mx = Math.max(5, ...pts.map(q => q[1])), Y = v => (y0 - v / mx * (y0 - y1)).toFixed(1);
+  const mx = Math.max(10, ...pts.map(q => q[1])), Y = v => (y0 - v / mx * (y0 - y1)).toFixed(1);
   const mi = _ficheBornes(cls, { ...col, type: 'miperiode' }).end;
-  let g = `<svg class="fi-courbe" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumul des observations sur la période ${_escAttr(p.label)}">`;
-  g += `<rect class="fc-zone" x="${X(b.start)}" y="${y1}" width="${Math.max(2, X(b.end) - X(b.start))}" height="${y0 - y1}"/>`;
-  g += `<line class="fc-ax" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/><line class="fc-mi" x1="${X(mi)}" y1="${y1}" x2="${X(mi)}" y2="${y0}"/><text x="${+X(mi) + 3}" y="${y1 + 9}">mi-${_escName(p.label)}</text>`;
-  _moisDe(p).forEach(([ym, l], k) => { if (k % (p.end.slice(0, 7) > p.start.slice(0, 7) ? 1 : 1) === 0) g += `<text x="${X(ym + '-01' < p.start ? p.start : ym + '-01')}" y="${H - 5}">${_escName(l)}</text>`; });
-  for (let v = 0; v <= mx; v += Math.max(5, Math.ceil(mx / 4 / 5) * 5)) g += `<text x="2" y="${+Y(v) + 3}">${v}</text>`;
-  g += `<polyline class="fc-ln" points="${pts.map(q => X(q[0]) + ',' + Y(q[1])).join(' ')}"/>`;
-  pts.forEach((q, k) => { const d = k ? q[1] - pts[k - 1][1] : 0; g += `<circle class="fc-pt" cx="${X(q[0])}" cy="${Y(q[1])}" r="3.5"><title>${_escName(_fmtDateFr(q[0]))} : ${q[1]}</title></circle>${d > 0 ? `<text class="fc-lb" x="${+X(q[0]) - 6}" y="${+Y(q[1]) - 7}">+${d}</text>` : ''}`; });
+  let g = `<svg class="pf-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du cumul d'observations, période ${_escAttr(p.label)}">`;
+  g += `<rect class="ar" x="${X(b.start)}" y="${y1}" width="${Math.max(2, X(b.end) - X(b.start))}" height="${y0 - y1}"/>`;
+  g += `<line class="ax" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/><line class="mid" x1="${X(mi)}" y1="${y1}" x2="${X(mi)}" y2="${y0}"/><text x="${+X(mi) + 3}" y="${y1 + 9}">mi-${_escName(p.label)}</text>`;
+  _moisDe(p).forEach(([ym, l]) => { g += `<text x="${X(ym + '-01' < p.start ? p.start : ym + '-01')}" y="${H - 6}">${_escName(l)}</text>`; });
+  for (let v = 0; v <= mx; v += 5) g += `<text x="2" y="${+Y(v) + 3}">${v}</text>`;
+  g += `<polyline class="ln" points="${pts.map(q => X(q[0]) + ',' + Y(q[1])).join(' ')}"/>`;
+  pts.forEach((q, k) => { const d = k ? q[1] - pts[k - 1][1] : 0; g += `<circle class="pt" cx="${X(q[0])}" cy="${Y(q[1])}" r="3.5"><title>${_escName(_fmtDateFr(q[0]))} : ${q[1]}</title></circle>${d > 0 ? `<text class="lb" x="${+X(q[0]) - 6}" y="${+Y(q[1]) - 7}">+${d}</text>` : ''}`; });
   return g + '</svg>';
+}
+// ── Vue 1 : le TABLEAU DE BORD du prototype — une carte par sujet, sur le moment choisi ──
+function _ficheTableauHTML(cls, stu, col, ed) {
+  const b = _ficheBornes(cls, col), sid = stu.id;
+  const dans = d => d && d >= b.start && d <= b.end;
+  const o = _obsEntre(cls.id, sid, b.start, b.end);
+  const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
+  const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
+  const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
+  const manq = docs.filter(d => d.suiviRetour !== false && (r => !r.rendu || (r.dateRetour && r.dateRetour > b.end))(_retour(d, sid)));
+  // Moyennes : matières en lignes, imports en colonnes, Δ du premier au dernier.
+  const m = _ficheMoy(cls, sid, col, b);
+  let moyT = '<p class="pf-empty">Aucun import de moyennes pour ce moment.</p>';
+  if (m) {
+    const mats = _moyColsOf(m.list);
+    const ligne = (nom, vals, gras) => { const nums = vals.filter(v => typeof v === 'number'); const d = nums.length > 1 ? nums[nums.length - 1] - nums[0] : null;
+      return `<tr${gras ? ' class="pf-gen"' : ''}><td>${_escName(nom)}</td>${vals.map(v => `<td class="r">${v === null || v === undefined ? '–' : typeof v === 'number' ? `<span class="pf-mv${v < 10 ? ' lo' : ''}">${_escName(_fmtNote(v, 1))}</span>` : `<em>${_escName(v)}</em>`}</td>`).join('')}<td class="r">${d !== null && m.list.length > 1 ? `<span class="pf-dm${d <= -0.3 ? ' neg' : d >= 0.3 ? ' pos' : ''}">${_escName(_fmtDelta(_round2(d)))}</span>` : ''}</td></tr>`; };
+    moyT = `<table class="pf-mini"><thead><tr><th>Matière</th>${m.list.map(r => `<th class="r">${_escName(_fmtDateFr(r.date).slice(0, 5))}</th>`).join('')}<th class="r">Δ</th></tr></thead><tbody>${
+      mats.map(mt => ligne(_moyAbbr(mt.nom), m.list.map(r => _moyVal(r, sid, mt.id)), false)).join('')}${ligne('Générale', m.list.map(r => _moyGen(r, sid)), true)}</tbody></table>`;
+  }
+  // Avis : un onglet par feuille de la période ; d'office celle du moment.
+  const camps = _avisCampagnes(cls.id).filter(c => c.cible >= b.p.start && c.cible <= b.p.end);
+  const avM = _ficheAvis(cls, sid, col);
+  const camp = camps.find(c => c.id === _ficheFeuille) || avM?.camp || camps[0] || null;
+  const tabs = camps.length > 1 || camp ? `<div class="pf-tabs">${camps.map(c => { const r = _avisResume(c, sid);
+    return `<button class="${camp && c.id === camp.id ? 'on' : ''}" onclick="ficheFeuilleUI('${_escJsAttr(c.id)}')">${_escName(_avisObjectif(cls, c).court)} · ${r.n}/${r.total}${r.cible ? ' ★' : ''}</button>`; }).join('')}</div>` : '';
+  const card = (k, titre, k2, corps, plus) => `<section class="pf-card"><h3>${k ? _pfSw(k) : ''}${titre}${k2 !== '' && k2 !== null ? `<span class="pf-k">${k2}</span>` : ''}${plus || ''}</h3>${corps}</section>`;
+  const add = (onclick, title, ic) => `<button class="pf-add" onclick="${onclick}" title="${_escAttr(title)}">${ic || '+'}</button>`;
+  const dlg = _delegueOf(sid);
+  const ident = `<dl class="pf-kv"><dt>Né(e) le</dt><dd>${stu.naissance ? _escName(_fmtDateFr(stu.naissance)) : '–'}</dd><dt>Groupe</dt><dd>${stu.groupe ? 'G' + stu.groupe : '–'}</dd><dt>Options</dt><dd>${_escName(_studentTags(stu).map(x => x.abbr).join(', ')) || '–'}</dd><dt>Aménagements</dt><dd>${_escName(_amenLabel(stu, false)) || '–'}</dd><dt>Délégué</dt><dd>${dlg ? (dlg === 'titulaire' ? 'titulaire' : 'suppléant') : '–'}</dd></dl>
+    <h3 class="pf-h3b">Remarque ${add("ficheEdit('remarque')", stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', '✎')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<p class="pf-p">${_escName(stu.remarque)}</p>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
+  return `<div class="pf-grid">
+    ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="pf-add" onclick="ficheVersEdition()" title="Modifier l'élève : nom, civilité, groupe, options, aménagements, dates">✏️</button><button class="pf-add pf-del" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑</button>`)}
+    ${card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + _ficheBilansAutresHTML(cls, stu, col))}
+    ${card('obs', 'Carnet', o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col))}
+    ${card('moy', 'Moyennes', '', moyT)}
+    ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
+    ${card('incid', 'Incidents', inc.length, inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span><br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident'))}
+    ${card('contact', 'Contacts avec la famille', ct.length, (_ficheEdit === 'contact' ? ed.contactForm : '') + (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add("ficheEdit('contact')", 'Noter un contact'))}
+    ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false;
+      return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : `<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>')}
+  </div>`;
 }
 // ── Vue « Faits et rédaction » ──
 function _ficheFaitsHTML(cls, stu, col) {
   const b = _ficheBornes(cls, col);
   const F = _ficheFaits(cls, stu, col);
   const av = _ficheAvis(cls, stu.id, col);
-  const ICO = { obs: '📓', moy: '📈', avis: '🗣', incid: '⚖️', contact: '📇', papier: '📄', bilan: '🎓' };
-  const faits = F.map((f, i) => `<div class="fi-fait"><span aria-hidden="true">${ICO[f.k] || '•'}</span><span>${f.html}</span>${f.phrase ? `<button class="btn btn-g btn-sm" onclick="ficheInsererFait(${i})" title="Ajouter cette phrase à la fin du bilan">＋ insérer</button>` : '<span></span>'}</div>`).join('');
-  return `<div class="fi-trois">
-    <div class="fi-sec"><h3>Ce que disent les faits <span class="fi-vide">— du ${_escName(_fmtDateFr(b.start))} au ${_escName(_fmtDateFr(b.end))}</span></h3>${faits || '<span class="fi-vide">Rien sur ce moment.</span>'}
-      <div style="margin-top:10px">${_ficheCourbeHTML(cls, stu, col)}</div>${stu.remarque ? `<div class="fi-bil-o"><span class="fi-vide">Remarque</span><div>${_escName(stu.remarque)}</div></div>` : ''}</div>
-    <div class="fi-sec"><h3>🗣 Avis des collègues${av ? ` <span class="fi-vide">— ${_escName(_avisObjectif(cls, av.camp).long)}</span>` : ''}</h3>${_ficheAvisTableHTML(av)}</div>
-    ${_ficheRedacHTML(cls, stu, col, `<button class="btn btn-s btn-sm" onclick="ficheBrouillonUI()" title="Rassemble les faits en une phrase par sujet, à réécrire ensuite">Proposer un brouillon</button>`)}
+  const faits = F.map((f, i) => `<div class="pf-fact">${_pfSw(f.k)}<span>${f.html}</span>${f.phrase ? `<button class="pf-ins" onclick="ficheInsererFait(${i})" title="Ajouter à la fin du bilan">＋ insérer</button>` : '<span></span>'}</div>`).join('');
+  return `<div class="pf-three">
+    <section class="pf-card"><h3>Ce que disent les faits <span class="pf-k">${_escName(col.long.toLowerCase())} · du ${_escName(_fmtDateFr(b.start).slice(0, 5))} au ${_escName(_fmtDateFr(b.end).slice(0, 5))}</span></h3>${faits || '<p class="pf-empty">Rien sur ce moment.</p>'}
+      <div style="margin-top:10px">${_ficheCourbeHTML(cls, stu, col)}</div></section>
+    <section class="pf-card"><h3>${_pfSw('avis')}Avis des collègues ${av && (av.camp.cibles || []).includes(stu.id) ? '<span class="pf-star">★</span>' : ''}<span class="pf-k">${av ? _escName(_avisObjectif(cls, av.camp).long) : ''}</span></h3>${_ficheAvisTableHTML(av)}</section>
+    <section class="pf-card pf-redac"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col, `<div class="pf-row"><button class="pf-btnp" onclick="ficheBrouillonUI()">Proposer un brouillon à partir des faits</button><span class="pf-mu">Assemble les faits en phrases, à réécrire ensuite.</span></div>`)}${_ficheBilansAutresHTML(cls, stu, col)}${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_escName(stu.remarque)}</div>` : ''}</section>
   </div>`;
 }
 // ── Vue « Chronologie » ── tout ce qui s'est passé dans les bornes du moment, daté.
@@ -6295,37 +6428,38 @@ function _ficheChronoHTML(cls, stu, col) {
   const o = _obsEntre(cls.id, stu.id, b.start, b.end), m = _ficheMoy(cls, stu.id, col, b), av = _ficheAvis(cls, stu.id, col);
   const nb = k => E.filter(x => x.k === k).length;
   const nr = _ficheFaits(cls, stu, col).find(f => f.k === 'papier');
-  const kpi = (l, v, sub) => `<div class="fi-kpi"><small>${l}</small><strong>${v}</strong>${sub ? `<span>${sub}</span>` : ''}</div>`;
-  const kpis = `<div class="fi-kpis">${kpi('Carnet', o ?? '—', 'observations')}${kpi('Moyenne', m && m.g !== null ? _escName(_fmtNote(m.g, 1)) : '—', m ? `${m.delta !== null ? _escName(_fmtDelta(m.delta)) + ' · ' : ''}${m.mats.filter(x => typeof x.v === 'number' && x.v < 10).length} sous 10` : '')}${
-    kpi('Incidents', nb('incid'), '')}${kpi('Contacts', nb('contact'), 'avec la famille')}${kpi('Avis', av ? `${av.items.length}/${av.camp.disciplines.length}` : '—', av && (av.camp.cibles || []).includes(stu.id) ? '⭐ demandé' : 'disciplines')}${kpi('Papiers', nr ? nr.html.split(':')[1].split(',').length : 0, 'à rendre')}</div>`;
-  // La frise : une ligne par sujet, un repère par événement, cliquable vers le journal.
+  const kpi = (l, v, sub) => `<div class="pf-kpi"><small>${l}</small><b>${v}</b><span>${sub || ''}</span></div>`;
+  const kpis = `<div class="pf-kpis">${kpi('Carnet', o ?? '–', 'observations sur la période')}${kpi('Moyenne', m && m.g !== null ? _escName(_fmtNote(m.g, 1)) : '–', m ? `${m.delta !== null ? _escName(_fmtDelta(m.delta)) + ' · ' : ''}${m.mats.filter(x => typeof x.v === 'number' && x.v < 10).length} sous 10` : 'pas encore d\'import')}${
+    kpi('Incidents', nb('incid'), '')}${kpi('Contacts', nb('contact'), 'avec la famille')}${kpi('Avis', av ? `${av.items.length}/${av.camp.disciplines.length}` : '–', av && (av.camp.cibles || []).includes(stu.id) ? '★ demandé' : 'disciplines')}${kpi('Papiers', nr ? nr.html.split(':')[1].split(',').length : 0, 'à rendre')}</div>`;
   const LANES = [['obs', 'Carnet'], ['moy', 'Moyennes'], ['avis', 'Avis'], ['incid', 'Incidents'], ['contact', 'Contacts'], ['bilan', 'Bilans'], ['papier', 'Papiers']];
-  const W = 1000, L = 92, R = 12, LH = 24, H = 20 + LANES.length * LH;
+  const W = 1000, L = 100, R = 14, LH = 26, H = 22 + LANES.length * LH;
   const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(b.start), tb = t(b.end) + 1;
   const X = d => (L + (t(d) - ta) / (tb - ta) * (W - L - R)).toFixed(1);
-  let g = `<svg viewBox="0 0 ${W} ${H}" class="fi-frise" role="img" aria-label="Frise du ${_escAttr(_fmtDateFr(b.start))} au ${_escAttr(_fmtDateFr(b.end))}">`;
-  _moisDe({ start: b.start, end: b.end }).forEach(([ym, l]) => { const d = ym + '-01' < b.start ? b.start : ym + '-01'; g += `<line class="ff-m" x1="${X(d)}" y1="14" x2="${X(d)}" y2="${H}"/><text class="ff-mt" x="${+X(d) + 3}" y="11">${_escName(l)}</text>`; });
-  LANES.forEach(([k, l], j) => { const y = 20 + j * LH + LH / 2; g += `<text class="ff-l" x="0" y="${y + 4}">${l}</text><line class="ff-lane" x1="${L}" y1="${y}" x2="${W - R}" y2="${y}"/>`; });
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Frise du ${_escAttr(_fmtDateFr(b.start))} au ${_escAttr(_fmtDateFr(b.end))}">`;
+  _moisDe({ start: b.start, end: b.end }).forEach(([ym, l]) => { const d = ym + '-01' < b.start ? b.start : ym + '-01'; g += `<text class="pf-mois" x="${+X(d) + 2}" y="12">${_escName(l)}</text><line class="lane" x1="${X(d)}" y1="16" x2="${X(d)}" y2="${H}"/>`; });
+  const mi = _ficheBornes(cls, { ...col, type: 'miperiode' }).end;
+  if (mi > b.start && mi < b.end) g += `<line class="mid" x1="${X(mi)}" y1="16" x2="${X(mi)}" y2="${H}"/><text class="pf-mois" x="${+X(mi) + 3}" y="${H - 3}">mi-${_escName(b.p.label)}</text>`;
+  LANES.forEach(([k, l], j) => { const y = 22 + j * LH + LH / 2; g += `<text x="0" y="${y + 4}">${l}</text><line class="lane" x1="${L}" y1="${y}" x2="${W - R}" y2="${y}"/>`; });
   E.forEach(e => {
-    const j = LANES.findIndex(x => x[0] === e.k), y = 20 + j * LH + LH / 2, x = X(e.date);
-    const tip = `<title>${_escName(_fmtDateFr(e.date))} — ${_escName(e.html.replace(/<[^>]+>/g, ''))}</title>`;
-    const r = e.k === 'obs' ? 3 + Math.min(6, e.n || 0) : 6;
-    g += e.k === 'incid' ? `<rect class="ff-mk ff-${e.k}" onclick="ficheSaut(${e.i})" x="${x - 6}" y="${y - 6}" width="12" height="12">${tip}</rect>`
-      : e.k === 'moy' ? `<path class="ff-mk ff-${e.k}" onclick="ficheSaut(${e.i})" d="M${x} ${y - 7}L${+x + 7} ${y}L${x} ${y + 7}L${x - 7} ${y}Z">${tip}</path>`
-      : `<circle class="ff-mk ff-${e.k}" onclick="ficheSaut(${e.i})" cx="${x}" cy="${y}" r="${r}">${tip}</circle>`;
+    const j = LANES.findIndex(x => x[0] === e.k), y = 22 + j * LH + LH / 2, x = X(e.date);
+    const tip = `<title>${_escName(_fmtDateFr(e.date))} · ${_escName(e.html.replace(/<[^>]+>/g, ''))}</title>`;
+    const r = e.k === 'obs' ? 4 + Math.min(6, e.n || 0) : 6;
+    g += e.k === 'incid' ? `<rect class="mk" fill="${PF_ICO.incid}" onclick="ficheSaut(${e.i})" x="${x - 6}" y="${y - 6}" width="12" height="12">${tip}</rect>`
+      : e.k === 'moy' ? `<path class="mk" fill="${PF_ICO.moy}" onclick="ficheSaut(${e.i})" d="M${x} ${y - 7}L${+x + 7} ${y}L${x} ${y + 7}L${x - 7} ${y}Z">${tip}</path>`
+      : `<circle class="mk" fill="${PF_ICO[e.k]}" fill-opacity="${e.k === 'obs' ? .75 : 1}" onclick="ficheSaut(${e.i})" cx="${x}" cy="${y}" r="${r}">${tip}</circle>`;
   });
   g += '</svg>';
-  const journal = E.length ? E.map(e => `<div class="fi-jr" id="fi-ev-${e.i}"><span class="fi-vide">${_escName(_fmtDateFr(e.date).slice(0, 5))}</span><i class="ff-ic ff-${e.k}" aria-hidden="true"></i><div>${e.html}${e.detail ? `<details class="fi-det"><summary class="tb-hint">Lire les avis</summary>${e.detail}</details>` : ''}</div></div>`).join('')
-    : '<span class="fi-vide">Rien de daté sur ce moment.</span>';
-  return `${kpis}<div class="fi-frise-w">${g}</div>
-    <div class="fi-deux"><div class="fi-sec"><h3>Journal <span class="fi-vide">— du ${_escName(_fmtDateFr(b.start))} au ${_escName(_fmtDateFr(b.end))}, ${E.length} événement${E.length > 1 ? 's' : ''}</span></h3>${journal}</div>
-    <div>${_ficheRedacHTML(cls, stu, col)}${stu.remarque ? `<div class="fi-bil-o"><span class="fi-vide">Remarque</span><div>${_escName(stu.remarque)}</div></div>` : ''}</div></div>`;
+  const journal = E.length ? E.map(e => `<div class="pf-jr" id="fi-ev-${e.i}"><span class="pf-d">${_escName(_fmtDateFr(e.date).slice(0, 5))}</span>${_pfSw(e.k)}<span>${e.html}${e.detail ? `<details class="pf-lire"><summary class="pf-mu">Lire les avis</summary>${e.detail}</details>` : ''}</span></div>`).join('')
+    : '<p class="pf-empty">Rien sur la période.</p>';
+  return `${kpis}<div class="pf-tl">${g}</div>
+    <div class="pf-two"><section class="pf-card"><h3>Journal de la période <span class="pf-k">${E.length} événement${E.length > 1 ? 's' : ''}, du plus ancien au plus récent</span></h3>${journal}</section>
+    <section class="pf-card pf-sticky"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col)}<div style="margin-top:8px">${_ficheBilansAutresHTML(cls, stu, col)}</div>${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_escName(stu.remarque)}</div>` : ''}</section></div>`;
 }
 function ficheSaut(i) {
   const el = document.getElementById('fi-ev-' + i);
   if (!el) return;
   el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  el.classList.remove('fi-flash'); void el.offsetWidth; el.classList.add('fi-flash');
+  el.classList.remove('pf-flash'); void el.offsetWidth; el.classList.add('pf-flash');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
