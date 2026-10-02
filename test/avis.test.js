@@ -295,7 +295,7 @@ test('Message aux collègues : un moment au choix, des parties à garder ou non,
   assert.match(m(), /avant le vendredi 14 novembre\./);
   assert.ok(!/Trois colonnes/.test(m()), 'une partie écartée n\'est plus dans le message');
   ev(`window.__c.msg = { moment: 'miperiode', off: [] }`);
-  assert.match(m(), /Je prépare le bilan intermédiaire du S1 pour la 5e C\./);
+  assert.match(m(), /Je prépare le conseil de mi-semestre \(S1\) de la 5e C\./);
   // Un texte réécrit sert de modèle ; les repères y sont remplacés.
   ev(`S.prefs.avisMsg = { contexte_miperiode: 'Point de mi-{periode} en {classe}.', fin: 'Bien à vous,' }`);
   assert.match(m(), /Point de mi-S1 en 5e C\./);
@@ -337,4 +337,27 @@ test('Colonne des noms à la largeur du plus long', () => {
   ev(`S.eleves.s1.nom = 'DE LA FONTAINE-SAINT-MARTIN'; S.eleves.s1.prenom = 'Marie-Charlotte'`);
   const f = evObj(`_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }))`)[0];
   assert.strictEqual(f.colWidthsCm[0], long);
+});
+
+test('Objectif de la feuille : conseil, mi-période ou point du mois — dit dans la feuille, et choisi au bilan', () => {
+  ev(FIXTURE);
+  ev(`window.__a = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'], objectif: 'miperiode' });
+      window.__b = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] });
+      window.__a.avis = { s1: { maths: { travail: 'Avis de mi-semestre' } } };
+      window.__b.avis = { s1: { maths: { travail: 'Avis du conseil' } } };`);
+  assert.deepStrictEqual(evObj(`_avisObjectif(getCls(), window.__a)`), { key: 'miperiode', court: 'conseil de mi-semestre', long: 'le conseil de mi-semestre (S1)' });
+  assert.strictEqual(ev(`_avisObjectif(getCls(), window.__b).long`), 'le conseil de classe du S1', 'conseil par défaut');
+  assert.match(evObj(`_avisFeuilles(getCls(), window.__a)`)[0].rows[1][0].text, /avis pour le conseil de mi-semestre \(S1\)/);
+  // En trimestres, on dit « mi-trimestre ».
+  ev(`S.prefs.periodMode = 'trimestre'`);
+  assert.strictEqual(ev(`_avisObjectif(getCls(), window.__a).court`), 'conseil de mi-trimestre');
+  ev(`S.prefs.periodMode = 'semestre'`);
+  // Le bilan de mi-période lit la feuille de mi-période, le conseil celle du conseil.
+  ev(`window.__a.date = '2026-01-05'; window.__b.date = '2025-11-10'`);
+  assert.strictEqual(ev(`_avisEleve(getCls(), 's1', 0, 'miperiode').items[0].travail`), 'Avis de mi-semestre');
+  assert.strictEqual(ev(`_avisEleve(getCls(), 's1', 0, 'conseil').items[0].travail`), 'Avis du conseil');
+  assert.strictEqual(ev(`_avisEleve(getCls(), 's1', 0).items[0].travail`), 'Avis de mi-semestre', 'sans préférence : la plus récente');
+  // Point du mois.
+  ev(`window.__a.msg = { moment: 'mois', mois: 11 }`);
+  assert.strictEqual(ev(`_avisObjectif(getCls(), window.__a).long`), 'le point de novembre');
 });

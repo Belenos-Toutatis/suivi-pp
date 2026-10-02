@@ -2390,8 +2390,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.5';
-const APP_BUILD_DATE = '2026-10-02T10:31:17Z';
+const APP_VERSION    = '1.40.6';
+const APP_BUILD_DATE = '2026-10-02T10:35:13Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5281,7 +5281,7 @@ function _ficheRender() {
   const avisFiche = cls ? _avisCampagnes(cls.id).filter(c => c.avis?.[stu.id]).map(c => ({ c, p: _avisPeriode(cls, c),
     items: c.disciplines.filter(d => c.avis[stu.id][d.id]).map(d => ({ disc: d, ...c.avis[stu.id][d.id] })) })).filter(x => x.items.length) : [];
   const avisFicheHTML = avisFiche.length
-    ? avisFiche.map(x => `<div class="fi-j"><div class="fi-j-h">${_escName(x.p ? x.p.label : '?')} · feuille du ${_escName(_fmtDateFr(x.c.date))}</div>${_avisItemsHTML(x.items)}</div>`).join('')
+    ? avisFiche.map(x => `<div class="fi-j"><div class="fi-j-h">${_escName(x.p ? x.p.label : '?')} · ${_escName(_avisObjectif(cls, x.c).court)} · feuille du ${_escName(_fmtDateFr(x.c.date))}</div>${_avisItemsHTML(x.items)}</div>`).join('')
     : vide('Aucun avis de collègue — 🗣 Avis des collègues, dans la liste des élèves, pour en demander.');
   const remHTML = _ficheEdit === 'remarque'
     ? `<textarea id="fi-rem-edit" data-fi-focus rows="4" style="width:100%" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral.">${_escName(stu.remarque || '')}</textarea>
@@ -5547,8 +5547,8 @@ function _bilanHint() {
   // Les avis des collègues de la période, sous les yeux pendant qu'on rédige (v1.39.0).
   const av = document.getElementById('mbilan-avis');
   if (av) {
-    const a = p ? _avisEleve(cls, _bilanSid, p.n - 1) : null;
-    av.innerHTML = a ? `<details class="av-det av-bil" open><summary><strong>🗣 Avis des collègues — ${_escName(p.label)}</strong> <span class="tb-hint">${a.items.length} discipline${a.items.length > 1 ? 's' : ''}</span></summary>
+    const a = p ? _avisEleve(cls, _bilanSid, p.n - 1, document.getElementById('mbilan-type')?.value) : null;
+    av.innerHTML = a ? `<details class="av-det av-bil" open><summary><strong>🗣 Avis des collègues — ${_escName(_avisObjectif(cls, a.camp).long)}</strong> <span class="tb-hint">${a.items.length} discipline${a.items.length > 1 ? 's' : ''}</span></summary>
       <div class="av-scroll">${_avisItemsHTML(a.items)}</div></details>` : '';
   }
 }
@@ -12186,7 +12186,7 @@ function _avisOngletsUniques(list) {
   });
 }
 function _avisDidsOrdonnes(dids) { const ordre = _disciplinesAll().map(d => d.id); return [...dids].sort((a, b) => ordre.indexOf(a) - ordre.indexOf(b)); }
-function avisCampagneCreer(cls, { pIdx, disciplines, lien, cibles }) {
+function avisCampagneCreer(cls, { pIdx, disciplines, lien, cibles, objectif, mois }) {
   const p = _periods(cls)[pIdx];
   const dids = (disciplines || []).filter(did => S.disciplines[did]);
   if (!p || !dids.length) return null;
@@ -12196,6 +12196,8 @@ function avisCampagneCreer(cls, { pIdx, disciplines, lien, cibles }) {
   const camp = { id, date: _ymdClampAnnee(cls, _todayYmd()), ts: Date.now(), cible: p.end,
     label: `Avis des collègues — ${p.label}`, fichier: '', lien: _avisLienSur(lien), lu: null,
     cibles: [...new Set((cibles || []).filter(sid => cls.eleves.includes(sid)))],
+    msg: { moment: AVIS_MOMENTS.some(m => m.key === objectif) ? objectif : 'conseil',
+           mois: Number.isInteger(mois) && mois >= 1 && mois <= 12 ? mois : +_todayYmd().slice(5, 7), echeance: '', off: [] },
     disciplines: _avisOngletsUniques(_avisDidsOrdonnes(dids).map(did => _avisDisc(cls, did))), avis: {} };
   S.avis[cls.id][id] = camp;
   return camp;
@@ -12244,7 +12246,7 @@ function _avisFeuilles(cls, camp) {
   const p = _avisPeriode(cls, camp);
   const eleves = _avisEleves(cls, camp);
   const cibles = new Set(_avisCibles(cls, camp));
-  const pour = `${cls.nom}${cls.annee ? ' (' + cls.annee + ')' : ''} — avis pour ${p ? 'le conseil du ' + p.label : 'le conseil de classe'}`;
+  const pour = `${cls.nom}${cls.annee ? ' (' + cls.annee + ')' : ''} — avis pour ${_avisObjectif(cls, camp).long}`;
   // En **gras** dans la feuille : ce qu'il ne faut pas manquer (demande de l'utilisateur).
   const surligne = cibles.size ? ` Les élèves **SURLIGNÉS EN JAUNE** : j'ai besoin de votre avis en particulier (je rencontre bientôt leur famille).` : '';
   const largeurNoms = _avisLargeurNoms(eleves.map(s => `${s.nom} ${s.prenom}`));
@@ -12367,10 +12369,14 @@ function _avisFusion(camp, lecture) {
 }
 // Les avis d'un élève pour une période : la DERNIÈRE campagne de cette période qui en
 // porte, dans l'ordre de ses onglets. [{ disc: { nom, profs }, travail, … }]
-function _avisEleve(cls, sid, pIdx) {
+// `prefere` ('conseil' | 'miperiode') : la feuille de cet OBJECTIF d'abord — on prépare le
+// conseil de mi-semestre avec les avis de mi-semestre —, une autre de la période à défaut.
+function _avisEleve(cls, sid, pIdx, prefere) {
   const p = _periods(cls)[pIdx];
   if (!p) return null;
-  for (const camp of _avisCampagnes(cls.id)) {
+  const camps = _avisCampagnes(cls.id);
+  const ordre = prefere ? [...camps.filter(c => _avisMsgReglages(c).moment === prefere), ...camps.filter(c => _avisMsgReglages(c).moment !== prefere)] : camps;
+  for (const camp of ordre) {
     if (camp.cible < p.start || camp.cible > p.end) continue;
     const parDisc = camp.avis?.[sid];
     if (!parDisc) continue;
@@ -12446,7 +12452,7 @@ function _avisRender() {
   if (t) t.textContent = `🗣 Avis des collègues — ${cls.nom}`;
   const choix = `<div class="fg"><label for="mavis-camp">Feuille</label>
     <select id="mavis-camp" onchange="_avisCampId=this.value||null;_avisRender();if(_avisCampId)avisRelire(_avisCampId,{demander:false,silencieux:true})" style="max-width:100%">
-      ${camps.map(c => { const p = _avisPeriode(cls, c); return `<option value="${_escAttr(c.id)}"${c.id === _avisCampId ? ' selected' : ''}>${_escName(p ? p.label : '?')} — préparée le ${_escName(_fmtDateFr(c.date))}${c.fichier ? ' · ' + _escName(c.fichier) : ''}</option>`; }).join('')}
+      ${camps.map(c => { const p = _avisPeriode(cls, c); return `<option value="${_escAttr(c.id)}"${c.id === _avisCampId ? ' selected' : ''}>${_escName(p ? p.label : '?')} · ${_escName(_avisObjectif(cls, c).court)} — préparée le ${_escName(_fmtDateFr(c.date))}${c.fichier ? ' · ' + _escName(c.fichier) : ''}</option>`; }).join('')}
       <option value=""${!_avisCampId ? ' selected' : ''}>＋ Nouvelle feuille…</option>
     </select></div>`;
   if (_avisRevue && camp && _avisRevue.campId === camp.id) { box.innerHTML = _avisRevueHTML(cls, camp); return; }
@@ -12513,6 +12519,7 @@ function _avisNouvelleHTML(cls) {
       <br><strong>Avant</strong> : crée une feuille de calcul vide dans le Nuage, dans un dossier synchronisé, et partage-la par lien public <em>en modification</em>.</div>
     <div class="fg"><label for="mavis-per">Pour la période</label>
       <select id="mavis-per" style="max-width:100%">${ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('')}</select></div>
+    ${_avisObjectifHTML(cls, null)}
     ${_avisRattacherHTML(cls)}
     <div class="fg"><label>Disciplines</label>${_avisDiscPickHTML(cls, _disciplinesActives().map(d => d.id))}</div>
     ${_avisDetails('cibles-new', `<strong>⭐ Élèves sur qui je veux un avis en particulier</strong> <span class="tb-hint">— ${_avisCiblesDraft.size || 'aucun'} · surlignés en jaune dans la feuille</span>`,
@@ -12524,6 +12531,18 @@ function _avisNouvelleHTML(cls) {
       ${_AVIS_FS() ? '' : '<button class="btn btn-s" onclick="avisPreparerUI(true)" title="Ton navigateur ne sait pas écrire dans un fichier : la feuille se télécharge, à déposer ensuite dans le Nuage à la place de la feuille vide">⬇ Télécharger la feuille</button>'}
       ${_AVIS_FS() ? '<button class="btn btn-p" onclick="avisPreparerUI(false)" title="Choisis la copie locale de la feuille vide (dans ton dossier Nextcloud) : l\'app y écrit les onglets et les élèves">📝 Choisir la feuille et la préparer…</button>' : ''}
     </div>`;
+}
+// Le choix de l'objectif : en tête d'une feuille existante (un changement se reporte sur la
+// feuille par « Mettre la feuille à jour »), ou dans la création d'une nouvelle.
+function _avisObjectifHTML(cls, camp) {
+  const r = camp ? _avisMsgReglages(camp) : { moment: 'conseil', mois: +_todayYmd().slice(5, 7) };
+  const surCamp = (champ, conv) => camp ? `onchange="avisMsgReglageUI('${_escJsAttr(camp.id)}','${champ}',${conv})"` : '';
+  const moisVis = r.moment === 'mois' ? '' : ' style="display:none"';
+  return `<div class="fi-form" style="margin-bottom:8px">
+      <label>Objectif <select id="mavis-obj" ${camp ? surCamp('moment', 'this.value') : `onchange="document.getElementById('mavis-mois-w').style.display=this.value==='mois'?'':'none'"`}>${
+        AVIS_MOMENTS.map(m => `<option value="${m.key}"${m.key === r.moment ? ' selected' : ''}>${_escName(m.label)}</option>`).join('')}</select></label>
+      <label id="mavis-mois-w"${moisVis}>Mois <select id="mavis-mois" ${surCamp('mois', '+this.value')}>${AVIS_MOIS.map((m, i) => `<option value="${i + 1}"${i + 1 === r.mois ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+      ${camp ? '<span class="tb-hint">Changé ici, il arrive dans la feuille par <strong>📝 Mettre la feuille à jour</strong>.</span>' : ''}</div>`;
 }
 function _avisCampHTML(cls, camp) {
   const p = _avisPeriode(cls, camp);
@@ -12538,7 +12557,9 @@ function _avisCampHTML(cls, camp) {
     lec.inconnus.length ? `<div class="al al-w" style="margin-top:6px">⚠️ Onglet${lec.inconnus.length > 1 ? 's' : ''} ignoré${lec.inconnus.length > 1 ? 's' : ''} (pas une discipline de cette feuille, ou en-têtes modifiés) : ${lec.inconnus.map(_escName).join(', ')}</div>` : ''].join('');
   const fichier = camp.fichier ? `<strong>${_escName(camp.fichier)}</strong>` : '<em>aucune feuille choisie</em>';
   const choisirLbl = camp.fichier ? 'Autre fichier…' : 'Choisir la feuille…';
-  return `<div class="tb-hint" style="margin-bottom:8px">Pour ${p ? `le <strong>${_escName(p.label)}</strong>` : 'la période'} · feuille ${fichier} · ${cpt.n} avis rangé${cpt.n > 1 ? 's' : ''}${rap ? ` · relue à ${_escName(new Date(rap.quand).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }))}` : ''}</div>
+  const obj = _avisObjectif(cls, camp);
+  return `${_avisObjectifHTML(cls, camp)}
+    <div class="tb-hint" style="margin-bottom:8px">Pour <strong>${_escName(obj.long)}</strong> · feuille ${fichier} · ${cpt.n} avis rangé${cpt.n > 1 ? 's' : ''}${rap ? ` · relue à ${_escName(new Date(rap.quand).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }))}` : ''}</div>
     <div class="rel-wrap" style="margin-bottom:8px"><table class="dt"><thead><tr><th>Discipline</th><th style="text-align:right" title="Élèves sur qui la discipline a écrit quelque chose, sur les élèves de la feuille">Élèves avec un avis</th></tr></thead><tbody>${lignes}</tbody></table></div>
     ${rapport}
     <div class="ma" style="flex-wrap:wrap;justify-content:flex-start;margin-top:8px">
@@ -12569,17 +12590,33 @@ function _avisCampHTML(cls, camp) {
 // Les TEXTES sont des modèles partagés par toutes les feuilles (S.prefs.avisMsg, seulement ce
 // que l'utilisateur a réécrit) ; une feuille ne retient que ses choix (camp.msg : moment,
 // mois, échéance, parties écartées). Les {repères} sont remplacés au moment d'assembler.
+// L'OBJECTIF de la feuille (2026-10-02 : « ce n'est pas forcément pour le conseil du S1, ça
+// peut être pour le conseil de mi-semestre — et je ne vois rien d'indiqué pour ça »). Choisi
+// à la création, réglable ensuite, et DIT partout : titre de la feuille, liste des feuilles,
+// message, bilan, fiche. Rangé dans camp.msg.moment / camp.msg.mois (les noms d'origine).
 const AVIS_MOMENTS = [
-  { key: 'conseil',   label: 'Fin de période — conseil de classe' },
-  { key: 'miperiode', label: 'Bilan intermédiaire (mi-période)' },
+  { key: 'conseil',   label: 'Conseil de classe (fin de période)' },
+  { key: 'miperiode', label: 'Conseil de mi-période' },
   { key: 'mois',      label: 'Point du mois' },
 ];
+// { key, court, long } : « conseil de mi-semestre » / « le conseil de mi-semestre (S1) ».
+function _avisObjectif(cls, camp) {
+  const r = _avisMsgReglages(camp);
+  const p = _avisPeriode(cls, camp);
+  const lab = p ? p.label : '';
+  if (r.moment === 'miperiode') {
+    const mi = _periodMode() === 'trimestre' ? 'mi-trimestre' : 'mi-semestre';
+    return { key: r.moment, court: `conseil de ${mi}`, long: `le conseil de ${mi}${lab ? ` (${lab})` : ''}` };
+  }
+  if (r.moment === 'mois') { const m = AVIS_MOIS[r.mois - 1]; return { key: r.moment, court: `point de ${m}`, long: `le point de ${m}` }; }
+  return { key: 'conseil', court: 'conseil de classe', long: `le conseil de classe${lab ? ` du ${lab}` : ''}` };
+}
 const AVIS_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const AVIS_MSG_PARTIES = [
   { key: 'bonjour',  label: 'Salutation',            texte: 'Bonjour,' },
   { key: 'contexte', label: 'Le moment',             parMoment: {
-      conseil:   'Je prépare le conseil de classe du {periode} de la {classe}.',
-      miperiode: 'Je prépare le bilan intermédiaire du {periode} pour la {classe}.',
+      conseil:   'Je prépare {objectif} de la {classe}.',
+      miperiode: 'Je prépare {objectif} de la {classe}.',
       mois:      'Je fais le point sur les élèves de la {classe} pour le mois de {mois}.' } },
   { key: 'demande',  label: 'La demande',            texte: 'Pourriez-vous me donner votre avis sur les élèves, dans l\'onglet de votre discipline de cette feuille :\n{lien}\n\nLe lien ouvre la feuille dans le navigateur, sans compte à créer. Écrivez seulement sur les élèves dont vous avez quelque chose à dire : une case vide veut dire « rien à signaler ».' },
   { key: 'colonnes', label: 'Les colonnes',          texte: 'Trois colonnes :\n' + AVIS_CRITERES.map(c => `– ${c.label} : ${c.aide}`).join(' ;\n') + '.' },
@@ -12587,7 +12624,7 @@ const AVIS_MSG_PARTIES = [
   { key: 'echeance', label: 'Échéance',              texte: 'Merci de compléter la feuille avant le {echeance}.' },
   { key: 'fin',      label: 'Formule finale',        texte: 'Merci beaucoup,' },
 ];
-const AVIS_REPERES = '{classe} {periode} {mois} {lien} {eleves} {echeance}';
+const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {lien} {eleves} {echeance}';
 function _avisMsgCle(key, moment) { return key === 'contexte' ? `contexte_${moment}` : key; }
 function _avisMsgDefaut(key, moment) {
   const pa = AVIS_MSG_PARTIES.find(x => x.key === key);
@@ -12619,11 +12656,11 @@ function _avisMessage(cls, camp) {
   const p = _avisPeriode(cls, camp);
   const ech = r.echeance ? new Date(r.echeance + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   const vals = {
-    classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], lien: camp.lien || '[lien de partage de la feuille]',
+    objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], lien: camp.lien || '[lien de partage de la feuille]',
     eleves: _avisCibles(cls, camp).map(sid => `– ${S.eleves[sid].nom} ${S.eleves[sid].prenom}`).join('\n'), echeance: ech,
   };
   return AVIS_MSG_PARTIES.filter(pa => _avisMsgDedans(cls, camp, pa.key))
-    .map(pa => _avisMsgModele(pa.key, r.moment).replace(/\{(classe|periode|mois|lien|eleves|echeance)\}/g, (_, k) => vals[k]))
+    .map(pa => _avisMsgModele(pa.key, r.moment).replace(/\{(objectif|classe|periode|mois|lien|eleves|echeance)\}/g, (_, k) => vals[k]))
     .filter(t => t.trim()).join('\n\n') + '\n';
 }
 function _avisMessageHTML(cls, camp) {
@@ -12643,8 +12680,6 @@ function _avisMessageHTML(cls, camp) {
     </div>`;
   }).join('');
   return `<div class="fi-form" style="margin:6px 0">
-      <label>Moment <select onchange="avisMsgReglageUI('${id}','moment',this.value)">${AVIS_MOMENTS.map(m => `<option value="${m.key}"${m.key === r.moment ? ' selected' : ''}>${_escName(m.label)}</option>`).join('')}</select></label>
-      ${r.moment === 'mois' ? `<label>Mois <select onchange="avisMsgReglageUI('${id}','mois',+this.value)">${AVIS_MOIS.map((m, i) => `<option value="${i + 1}"${i + 1 === r.mois ? ' selected' : ''}>${m}</option>`).join('')}</select></label>` : ''}
       <label>Avant le <input type="date" value="${_escAttr(r.echeance)}" style="min-width:140px" onchange="avisMsgReglageUI('${id}','echeance',this.value)"></label></div>
     <div class="fg"><label for="mavis-lien">Lien de partage de la feuille</label>
       <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${id}',this.value)"></div>
@@ -12748,7 +12783,9 @@ async function avisPreparerUI(telecharger) {
     catch (e) { if (e.name !== 'AbortError') toast('⚠️ ' + e.message, 'warn'); return; }
   }
   pushUndo();
-  const camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, lien, cibles: [..._avisCiblesDraft] });
+  const objectif = document.getElementById('mavis-obj')?.value || 'conseil';
+  const mois = +(document.getElementById('mavis-mois')?.value || _todayYmd().slice(5, 7));
+  const camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, lien, cibles: [..._avisCiblesDraft], objectif, mois });
   if (!camp) { undoLast(); return toast('⚠️ Période ou disciplines invalides.', 'warn'); }
   _avisCiblesDraft = new Set();
   if (h) { camp.fichier = h.name; _avisHandles[camp.id] = h; await idbSaveHandleKey(h, 'avis_' + camp.id); }
@@ -13074,7 +13111,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
       moyennes: _moyPeriodeEleve(mp, stu.id),
       bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
       // Avis des collègues (v1.39.0) : la dernière feuille de CETTE période.
-      avis: (_avisEleve(cls, stu.id, periodIdx)?.items || []).map(it => ({ nom: it.disc.nom, onglet: it.disc.onglet,
+      avis: (_avisEleve(cls, stu.id, periodIdx, o.type || 'conseil')?.items || []).map(it => ({ nom: it.disc.nom, onglet: it.disc.onglet,
         ...Object.fromEntries(AVIS_CRITERES.map(c => [c.key, it[c.key] || ''])) })),
     };
   });
@@ -15261,6 +15298,19 @@ function createDemo(opts) {
       A(5, 'technologie', 'Sérieux.', '', 'Le tiers-temps est bien utilisé en évaluation.');
       A(9, 'eps', 'Fait le minimum.', 'Bavardages.', '');
       A(9, 'anglais', '', 'Beaucoup mieux depuis qu\'elle est devant.', 'Commence à participer.');
+    }
+    // Et une feuille plus ancienne, pour le CONSEIL DE MI-SEMESTRE (objectif « mi-période ») :
+    // le bilan de mi-période de novembre la lit, le conseil de janvier lit l'autre.
+    const mi = avisCampagneCreer(cls, { pIdx: 0, disciplines: ['maths', 'francais', 'eps'], objectif: 'miperiode' });
+    if (mi) {
+      delete S.avis[cls.id][mi.id];
+      mi.id = 'demo_av0'; mi.date = D('11-04'); mi.ts = Date.parse(D('11-04') + 'T18:00:00');
+      mi.fichier = 'Avis mi-semestre 5e C.ods'; mi.lu = Date.parse(D('11-12') + 'T07:30:00');
+      S.avis[cls.id][mi.id] = mi;
+      const M = (i, did, o) => { if (sids[i] && mi.disciplines.some(d => d.id === did)) (mi.avis[sids[i]] = mi.avis[sids[i]] || {})[did] = o; };
+      M(9, 'eps', { comportement: 'Deux exclusions de cours ce mois-ci : bavardages, provocations.' });
+      M(9, 'francais', { participation: 'Ne participe pas, se met au fond.', comportement: 'Bavarde beaucoup.' });
+      M(12, 'maths', { travail: 'Les devoirs ne sont plus faits depuis octobre.' });
     }
   }
 

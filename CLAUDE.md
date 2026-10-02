@@ -729,6 +729,16 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   onglet, le mode d'emploi le dit, le message les cite. Choisis dans la modale (⭐), purgés
   avec l'élève (`_purgeStudentRefs`). ⚠️ Changer la liste d'une feuille déjà préparée demande
   *Mettre la feuille à jour* pour que le surlignage y arrive.
+- **L'OBJECTIF de la feuille** (v1.40.6 — *« ce n'est pas forcément pour le conseil du S1,
+  ça peut être pour le conseil de mi-semestre, et je ne vois rien d'indiqué pour ça »*) :
+  conseil de classe (fin de période) · conseil de mi-période (« mi-semestre » ou
+  « mi-trimestre » selon le réglage) · point du mois. Choisi à la création, réglable en tête
+  d'une feuille existante (rangé dans `camp.msg.moment` / `mois`). `_avisObjectif` →
+  `{ court, long }`, DIT partout : titre de la feuille (« avis pour le conseil de mi-semestre
+  (S1) »), liste des feuilles, message (repère `{objectif}`), bilan, fiche. ⚠️
+  `_avisEleve(cls, sid, pIdx, prefere)` lit d'abord la feuille du MÊME objectif : le bilan de
+  mi-période lit l'avis de mi-semestre, le conseil celui du conseil (synthèse de période
+  comprise, par `o.type`). Démo : deux feuilles au S1, mi-semestre (novembre) et conseil (janvier).
 - **Le message aux collègues, en PARTIES** (v1.40.0 — *« pour différents moments de l'année :
   un mois, la fin du semestre ou du trimestre, les bilans intermédiaires ; des parties déjà
   écrites, faciles à remplacer, ou ne garder que la partie nécessaire »*) : `AVIS_MSG_PARTIES`
@@ -1331,6 +1341,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 67 | **Objectif de la feuille** (conseil · mi-période · point du mois) choisi à la création, dit dans la feuille, la liste, le message, le bilan et la fiche ; le bilan lit la feuille de son objectif ; démo à deux feuilles ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.6) |
 | 66 | **Colonne des noms à la largeur du plus long** (`_avisLargeurNoms`) ; 1 test. Vu dans LibreOffice avec un nom de 43 caractères | ✅ **fait** (2026-10-02, v1.40.5) |
 | 65 | **Mots clés en gras** dans le mode d'emploi (`gras`, span `T1`) · **onglets verrouillés** sauf les cases de saisie (`table:protected`, `cell-protect="none"`) ; test étendu. Vu dans LibreOffice | ✅ **fait** (2026-10-02, v1.40.4) |
 | 64 | **Ctrl+Entrée rappelé** dans le mode d'emploi de chaque onglet ; test mis à jour | ✅ **fait** (2026-10-02, v1.40.3) |
