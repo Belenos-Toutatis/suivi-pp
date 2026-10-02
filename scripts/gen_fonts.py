@@ -60,6 +60,8 @@ for cle, (famille, motif, fichiers) in ([] if '--ods' in sys.argv else FAMILLES.
     txt = txt[:a] + f'/* {cle}-DEBUT */\n' + '\n'.join(blocs) + '\n' + txt[b:]
     print(f'{famille} : 4 variantes, {poids_total // 1024} Ko')
 
+FAMILLE_ODS = 'Andika SuiviPP'
+
 def ttf_deflate(path):
     opts = subset.Options()
     opts.layout_features = ['kern', 'liga']
@@ -79,19 +81,49 @@ def ttf_deflate(path):
     os2.sTypoAscender, os2.sTypoDescender, os2.sTypoLineGap = asc, -desc, 0
     os2.usWinAscent, os2.usWinDescent = asc, desc
     os2.fsSelection |= 1 << 7          # USE_TYPO_METRICS
+    # ⚠️ Un NOM DE FAMILLE PROPRE (« Andika SuiviPP ») : sur un poste où Andika est installée,
+    # le tableur préférait la police du système (métriques d'origine, interligne 1,61 em) à
+    # celle du fichier, et les hauteurs fixées des lignes d'en-tête ne collaient plus.
+    nom = font['name']
+    for rec in list(nom.names):
+        if rec.nameID in (1, 16):
+            rec.string = FAMILLE_ODS
+        elif rec.nameID == 4:
+            rec.string = str(rec.toUnicode()).replace('Andika', FAMILLE_ODS, 1)
+        elif rec.nameID == 6:
+            rec.string = str(rec.toUnicode()).replace('Andika', FAMILLE_ODS.replace(' ', ''), 1)
     buf = io.BytesIO()
     font.save(buf)
     data = buf.getvalue()
     c = zlib.compressobj(9, zlib.DEFLATED, -15)
     return data, c.compress(data) + c.flush()
 
-entrees, total = [], 0
+# Les LARGEURS des caractères (en millièmes d'em), par variante : l'app calcule elle-même
+# la hauteur des lignes d'en-tête de la feuille (le tableur, lui, la calcule avant d'avoir
+# chargé la police incluse — demande de l'utilisateur du 2026-10-02 : « des hauteurs fixes
+# avec la police Andika pour les quatre premières lignes »).
+def largeurs(path):
+    font = TTFont(str(path))
+    cmap, hm, upm = font.getBestCmap(), font['hmtx'], font['head'].unitsPerEm
+    cps = [cp for cp in sorted(cmap) if any(a <= cp <= b for a, b in RANGES)]
+    return ''.join(chr(cp) for cp in cps), [round(hm[cmap[cp]][0] * 1000 / upm) for cp in cps]
+
+RANGES = []
+for part in UNICODES.split(','):
+    a, _, b = part.replace('U+', '').partition('-')
+    RANGES.append((int(a, 16), int(b or a, 16)))
+
+entrees, total, larg = [], 0, []
 for (style, poids), f in zip(VARIANTES, FAMILLES['ANDIKA'][2]):
+    chars, ws = largeurs(FAMILLES['ANDIKA'][1].format(f))
+    cle = ('gras' if poids == 700 else '') + ('italique' if style == 'italic' else '') or 'normal'
+    larg.append(f"  {cle}: [{ws and ','.join(map(str, ws))}],")
     data, z = ttf_deflate(FAMILLES['ANDIKA'][1].format(f))
     total += len(z)
     entrees.append(f"  {{ fichier: 'Andika-{f}.ttf', style: '{style}', poids: '{'bold' if poids == 700 else 'normal'}', "
                    f"crc: 0x{zlib.crc32(data):08x}, taille: {len(data)}, b64: '{base64.b64encode(z).decode()}' }},")
 a, b = txt.index('/* ODS-ANDIKA-DEBUT */'), txt.index('/* ODS-ANDIKA-FIN */')
-txt = txt[:a] + '/* ODS-ANDIKA-DEBUT */\nconst _ODS_ANDIKA = [\n' + '\n'.join(entrees) + '\n];\n' + txt[b:]
+txt = txt[:a] + '/* ODS-ANDIKA-DEBUT */\nconst _ODS_ANDIKA = [\n' + '\n'.join(entrees) + '\n];\n' + \
+    f"const _ODS_ANDIKA_CARS = {chars!r};\nconst _ODS_ANDIKA_LARGEURS = {{\n" + '\n'.join(larg) + '\n};\n' + txt[b:]
 print(f'Andika pour les .ods : 4 variantes TTF, {total // 1024} Ko compressés')
 HTML.write_text(txt, encoding='utf-8')

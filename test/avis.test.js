@@ -332,7 +332,7 @@ test('Colonne des noms à la largeur du plus long', () => {
   ev(FIXTURE);
   assert.strictEqual(ev(`_avisLargeurNoms(['DURAND Léa'])`), 4.6, 'jamais sous le minimum');
   const long = ev(`_avisLargeurNoms(['DURAND Léa', 'DE LA FONTAINE-SAINT-MARTIN Marie-Charlotte'])`);
-  assert.ok(long > 10, `nom long : ${long} cm`);
+  assert.ok(long > 8.5 && long < 10.5, `nom long : ${long} cm`);
   assert.ok(ev(`_avisLargeurNoms(['W'.repeat(80)])`) <= 12, 'plafonnée');
   ev(`S.eleves.s1.nom = 'DE LA FONTAINE-SAINT-MARTIN'; S.eleves.s1.prenom = 'Marie-Charlotte'`);
   const f = evObj(`_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }))`)[0];
@@ -380,4 +380,21 @@ test('.ods : Andika incluse dans le fichier, gardée au réenregistrement', asyn
   // Sans police demandée, rien d'inclus.
   const nu = await ev(`_zipRead(_odsBuild([{ name: 'A', rows: [['x']] }]))`);
   assert.ok(![...nu.keys()].some(n => n.startsWith('Fonts/')));
+});
+
+test('Feuille d\'avis : hauteurs FIXES (mesurées en Andika) pour les quatre lignes de tête, automatiques pour les élèves', () => {
+  ev(FIXTURE);
+  const r = evObj(`(() => { const cls = getCls(); const camp = avisCampagneCreer(cls, { pIdx: 0, disciplines: ['maths'] });
+    const sh = _avisFeuilles(cls, camp).find(f => f.rowHeightsCm); const xml = new TextDecoder().decode(_odsBuild([sh]));
+    return { h: sh.rowHeightsCm, xml, court: _odsLignes('un mot', 5, 10), long: _odsLignes('mot '.repeat(60), 5, 10) }; })()`);
+  assert.strictEqual(r.h.length, 4);
+  assert.ok(r.h.every(h => h > 0.4 && h < 3), JSON.stringify(r.h));
+  assert.ok(r.h[1] > r.h[3], 'le mode d\'emploi (plusieurs lignes) est plus haut que la ligne des en-têtes');
+  const rows = [...r.xml.matchAll(/<table:table-row table:style-name="(ro[h0-9]*)"/g)].map(m => m[1]);
+  assert.deepStrictEqual(rows.slice(0, 4), ['roh1', 'roh2', 'roh3', 'roh4']);
+  assert.ok(rows.slice(4).every(s => s === 'ro1'), 'les lignes d\'élèves restent à hauteur automatique');
+  assert.match(r.xml, /style:name="roh1"[^>]*>[^<]*<style:table-row-properties style:row-height="[\d.]+cm" style:use-optimal-row-height="false"/);
+  assert.match(r.xml, /style:name="ro1"[^>]*>[^<]*<style:table-row-properties style:use-optimal-row-height="true"\/>/);
+  assert.strictEqual(r.court, 1);
+  assert.ok(r.long > 4, 'un long texte se coupe sur plusieurs lignes');
 });

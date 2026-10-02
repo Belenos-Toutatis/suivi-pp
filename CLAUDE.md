@@ -861,7 +861,20 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   calculée AVANT d'activer la police incluse, avec une police de repli ; avec les métriques
   d'origine, les noms sortaient rognés. Retirer le `row-height` fixe ne suffisait pas.
   ⚠️ `--ods` : la sortie woff2 varie d'une version de fontTools à l'autre, ne pas régénérer
-  les blocs CSS sans raison. Non vérifié dans Collabora Online même. Validé par LibreOffice (réenregistrement,
+  les blocs CSS sans raison. **Hauteurs de lignes** (v1.40.9, arbitré par l'utilisateur :
+  *« des hauteurs fixes avec la police Andika pour les quatre premières lignes, et le calcul
+  automatique pour les suivantes »*) : titre, mode d'emploi, consignes et en-têtes portent
+  une hauteur FIXE (`sh.rowHeightsCm` → styles `rohN`, `use-optimal-row-height="false"`),
+  calculée par `_odsLignes` / `_odsHauteurCm` sur les **chasses réelles** d'Andika
+  (`_ODS_ANDIKA_LARGEURS`, exportées par `gen_fonts.py --ods`, gras et italique compris, les
+  `**…**` mesurés en gras) ; les lignes d'élèves restent automatiques (`ro1`) et grandissent
+  quand un collègue écrit. La largeur de la colonne des noms se mesure de même. ⚠️ La police
+  incluse s'appelle **« Andika SuiviPP »** (nom réécrit dans la table `name` des TTF) : sur un
+  poste où Andika est installée, le tableur préférait la police du système, aux métriques
+  d'origine (1,61 em), et les hauteurs fixées ne collaient plus. Vu dans LibreOffice, avec et
+  sans Andika installée. Reste une limite : une ligne d'élève qui CONTIENT déjà un long texte
+  à l'ouverture peut être mal dimensionnée (calcul fait avant la police) ; non vérifié
+  dans Collabora Online. Non vérifié dans Collabora Online même. Validé par LibreOffice (réenregistrement,
   export CSV, gel vérifié sous python-uno) ; une feuille réenregistrée par LibreOffice est
   gardée en fixture (`test/fixtures/avis-libreoffice.ods`, noms inventés). ⚠️ **Non vérifié
   dans Collabora Online** même : à regarder une fois dans le Nuage.
@@ -1367,6 +1380,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 70 | **Hauteurs des lignes de la feuille d'avis** : fixes et mesurées en Andika pour les quatre lignes de tête (`_odsLignes`, `_odsHauteurCm`, chasses exportées par `gen_fonts.py`), automatiques pour les élèves ; police incluse renommée « Andika SuiviPP » ; 1 test. Vu dans LibreOffice avec et sans Andika installée | ✅ **fait** (2026-10-02, v1.40.9) |
 | 69 | **Bilans pour l'objectif d'une feuille d'avis** (bouton ✍️, mode feuille de la modale de bilan, type « Point du mois », reprise du bilan existant) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.8) |
 | 68 | **Andika incluse dans la feuille .ods** (TTF déjà compressés, `EmbedFonts`, métriques resserrées) ; 1 test. Vu dans un LibreOffice sans Andika installée | ✅ **fait** (2026-10-02, v1.40.7) |
 | 67 | **Objectif de la feuille** (conseil · mi-période · point du mois) choisi à la création, dit dans la feuille, la liste, le message, le bilan et la fiche ; le bilan lit la feuille de son objectif ; démo à deux feuilles ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.6) |
