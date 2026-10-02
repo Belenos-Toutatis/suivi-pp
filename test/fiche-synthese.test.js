@@ -28,18 +28,20 @@ const FIXTURE = `S = _emptyState(); postLoadHook(); S.prefs.periodMode = 'semest
   incidentAdd('s1', { date:'2026-02-10', type:'retenue', objet:'Hors S1', texte:'' });
   journalAdd('s1', '2025-10-14', 'appel', 'Appel à la mère');`;
 
-test('Ouverture : à côté de la liste sur un écran large, plein écran sinon ; le choix de l\'utilisateur passe avant', () => {
+test('Ouverture : à côté de la liste sur un écran large, plein écran sinon ; le bouton bascule pour la session', () => {
   ev(FIXTURE);
-  ev(`localStorage.removeItem(_LS_FICHE_OUV)`);
+  ev(`_ficheOuvForce = null`);
   assert.strictEqual(ev(`_ficheOuverture(2560)`), 'cote', 'écran 21:9');
   assert.strictEqual(ev(`_ficheOuverture(1440)`), 'plein', 'Surface Pro');
-  ev(`localStorage.setItem(_LS_FICHE_OUV, 'plein')`);
-  assert.strictEqual(ev(`_ficheOuverture(2560)`), 'plein');
-  ev(`localStorage.setItem(_LS_FICHE_OUV, 'cote')`);
+  ev(`_ficheOuvForce = 'plein'`);
+  assert.strictEqual(ev(`_ficheOuverture(2560)`), 'plein', 'le bouton passe avant la largeur');
+  ev(`_ficheOuvForce = 'cote'`);
   assert.strictEqual(ev(`_ficheOuverture(1024)`), 'cote');
-  ev(`localStorage.setItem(_LS_FICHE_OUV, 'n\\'importe quoi')`);
-  assert.strictEqual(ev(`_ficheOuvertureReglage()`), 'auto');
-  ev(`localStorage.removeItem(_LS_FICHE_OUV)`);
+  ev(`_ficheOuvForce = null; _ficheSid = 's1'`);
+  // La barre porte le bouton, qui dit ce qu'il fera.
+  ev(`window.innerWidth = 1440`);
+  assert.match(ev(`_ficheBarHTML(S.classes['5C'], S.eleves.s1, _ficheMomentCourant(S.classes['5C']))`), /onclick="ficheOuvertureBascule\(\)"[^>]*>◧ À côté de la liste</);
+  assert.ok(!/localStorage[^\n]*suiviPP_ficheOuverture/.test(ev(`ficheOuvertureBascule.toString()`)), 'rien de retenu sur le poste');
 });
 
 test('Moments : conseil et mi-période de chaque période jusqu\'à la courante, bornes de chacun', () => {

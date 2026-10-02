@@ -1046,6 +1046,16 @@ officielles, l'utilisateur les règle ou les décoche, et il note la décision p
 
 ## Écrans
 
+⚠️ **Pas de grand titre d'onglet** (v1.44.1, l'utilisateur : *« ça prend trop de place »*) :
+le `.sh` de chaque onglet est retiré de l'écran (gardé pour les lecteurs d'écran) — l'onglet
+actif dit où l'on est. **Seule la grille défile** dans Élèves, Observations et Moyennes
+(`.tab.fige`, même version — *« quand on fait coulisser la liste, que l'en-tête ne bouge
+pas »*) : `#main` prend exactement la hauteur sous le bandeau, en colonne flex ; barres
+d'outils et légendes gardent leur taille, le cadre figé prend le reste et défile seul (avant,
+il valait la hauteur de l'écran moins le bandeau, et les barres d'outils faisaient défiler la
+page d'autant). Écran ≥ 700 × 480 seulement, jamais sur le papier. ⚠️ Le bloc CSS est APRÈS
+la règle `.rel-wrap.frozen` de base (il lève son `max-height`).
+
 Navigation à un seul niveau, **6 onglets** depuis la v1.32.0 (**📈 Moyennes** ajouté entre Observations et Retours — c'est un suivi scolaire, comme le carnet) ; 5 de la v1.23.0 à la v1.31 (la Synthèse a été fusionnée dans Élèves — cf. 5.) ; l'app reste petite, pas de `.tab-group` à deux étages ici.
 
 ⚠️ **Les libellés nomment ce qu'on FAIT, pas l'objet qu'on manipule** (arbitré le 2026-09-11 :
@@ -1175,8 +1185,11 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        plein écran sinon ; proposer ces choix par défaut selon la largeur, mais laisser le
        choix »*) : `_ficheOuverture` — `auto` (défaut) = **à côté** dès `FICHE_COTE_MIN` =
        1 700 px CSS (son 21:9), **plein écran** en dessous (la Surface Pro 9, 1 440 px) ;
-       réglable dans la barre, retenu sur le poste (`suiviPP_ficheOuverture`), réappliqué au
-       redimensionnement. À côté : `#mfiche.cote` est ancrée à droite sous le bandeau
+       réappliqué au redimensionnement. ⚠️ Révisé en v1.44.1 : le menu « Ouverture » de la
+       v1.44.0 est devenu un **bouton** (*⛶ Plein écran* / *◧ À côté de la liste*,
+       `ficheOuvertureBascule`) — l'utilisateur ne l'avait pas vu comme un choix. Le choix
+       vaut pour la SESSION (`_ficheOuvForce`) : rien n'est retenu sur le poste, au prochain
+       lancement la largeur de l'écran décide de nouveau. À côté : `#mfiche.cote` est ancrée à droite sous le bandeau
        (`--fiche-cote-w` = 58vw), sans voile, `aria-modal="false"`, et `body.fiche-cote`
        donne à l'onglet une marge à droite — la liste reste utilisable, un clic sur un nom
        change de fiche, la ligne ouverte est surlignée (`tr.el-cur`).
@@ -1557,6 +1570,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 80 | **Bouton** plein écran / à côté dans la fiche (la largeur de l'écran décide par défaut, le choix vaut pour la session) · **titres d'onglet retirés** · **seule la grille défile** dans Élèves, Observations, Moyennes ; test mis à jour. Audit 6 onglets + fiche, 2 thèmes, 1 440 / 2 560 / 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.1) |
 | 79 | **Fiche élève refondue** : trois vues (tableau de bord en colonnes, chronologie avec frise et journal, faits et rédaction avec avis en tableau, mots qui reviennent et brouillon), synthèse bornée à un moment, bilan écrit en place, ouverture à côté de la liste sur écran large ou plein écran ; 6 tests (`test/fiche-synthese.test.js`). Audit 3 vues × 2 thèmes à 2 560, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.0) |
 | 78 | **Liste des élèves : deux affichages** (indicateurs sur une ligne par élève, carte de chaleur repliable par groupe), **filtres d'un clic** cumulables, **vues** toutes faites, colonne **Avis** des collègues (traits par discipline, n/N, ⭐) ; token `--chip-on-fg` ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.43.0) |
 | 77 | **Avis des collègues : colonnes réglables par feuille** (nombre et titres, modèles : conseil à trois colonnes, appréciation de bulletin, remarque libre, points forts / à travailler ; renommer garde les avis, retirer une colonne remplie est refusé), `{colonnes}` dans le message ; démo : point de mars à une colonne ; 5 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; feuille vue dans LibreOffice | ✅ **fait** (2026-10-02, v1.42.0) |

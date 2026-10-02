@@ -578,7 +578,7 @@ body:has(.mo.on)::before { display: none; }
 }
 
 /* ─── MAIN ─── */
-#main { padding: 24px 24px 64px calc(var(--margin-w) + 8px); position: relative; z-index: 1; }
+#main { padding: 12px 24px 64px calc(var(--margin-w) + 8px); position: relative; z-index: 1; }
 /* ⚠️ Sur téléphone, 56 px de marge de cahier prennent 15 % de la largeur — et la même
    part sur CHAQUE tableau qui défile à l'intérieur, qui défile donc d'autant plus. On
    garde le filet rouge (c'est l'identité du carnet, pas un ornement) mais on le
@@ -597,6 +597,9 @@ body:has(.mo.on)::before { display: none; }
   border-bottom: 1px solid var(--rule-line);
   padding-bottom: 12px; margin-bottom: 18px;
 }
+/* v1.44.1 (l'utilisateur : « pas besoin de mettre en gros le titre, ça prend trop de
+   place ») : l'onglet actif dit déjà où l'on est. Le titre reste pour les lecteurs d'écran. */
+.tab > .sh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; margin: 0; }
 .sh h2 {
   font-family: var(--font-serif); font-weight: 500; font-size: 1.9em;
   color: var(--ink-deep); letter-spacing: -.02em; line-height: 1;
@@ -1053,6 +1056,22 @@ td.rel-delta.hot  { background: var(--alert-bg);   color: var(--alert-fg); }
 /* Une cellule amenée au focus (Entrée, flèches) ne doit pas atterrir SOUS la ligne ou
    la colonne figée : la marge de défilement la dégage avant qu'on la voie. */
 .rel-wrap.frozen input, .rel-wrap.frozen button, .rel-wrap.frozen select { scroll-margin: 72px 8px 8px 200px; }
+/* ⚠️ APRÈS la règle de base du cadre figé : elle lève son max-height. */
+/* v1.44.1 (l'utilisateur : « quand on fait coulisser la liste, que seule la liste coulisse,
+   pas l'en-tête ») : dans les onglets à grille (.tab.fige), la zone principale prend
+   EXACTEMENT la hauteur sous le bandeau, en colonne ; barres d'outils et légendes gardent
+   leur taille, et la grille figée prend ce qui reste et défile seule. Avant, son cadre
+   valait la hauteur de l'écran moins le bandeau : les barres d'outils au-dessus faisaient
+   défiler la PAGE d'autant. Écran assez grand seulement (au téléphone, la page défile) ;
+   jamais sur le papier. */
+@media screen and (min-width: 700px) and (min-height: 480px) {
+  #main:has(> .tab.fige.on) { height: calc(100dvh - var(--topbar-h)); display: flex; flex-direction: column; padding-bottom: 8px; box-sizing: border-box; }
+  #main > .tab.fige.on { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #main > .tab.fige.on > * { flex: 0 0 auto; }
+  #main > .tab.fige.on > [id$="-body"] { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #main > .tab.fige.on > [id$="-body"] > * { flex: 0 0 auto; }
+  #main > .tab.fige.on > [id$="-body"] > .rel-wrap.frozen { flex: 0 1 auto; min-height: 140px; max-height: none; }
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    ONGLET MOYENNES — un import = une photographie datée
@@ -1759,7 +1778,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 
 <!-- ═══════════════ MAIN ═══════════════ -->
 <div id="main">
-  <div id="tab-eleves" class="tab on">
+  <div id="tab-eleves" class="tab on fige">
     <div class="sh"><h2>👥 Élèves</h2></div>
     <div class="tb" id="eleves-tb">
       <button class="btn btn-p btn-sm" onclick="openAddStudent()" title="Saisir un élève à la main">+ Ajouter</button>
@@ -1770,8 +1789,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
     <div id="eleves-body"></div>
   </div>
-  <div id="tab-carnets"   class="tab"><div class="sh"><h2>📓 Observations du carnet</h2></div><div id="carnets-body"></div></div>
-  <div id="tab-moyennes"  class="tab"><div class="sh"><h2>📈 Moyennes par matière</h2></div><div id="moyennes-body"></div></div>
+  <div id="tab-carnets"   class="tab fige"><div class="sh"><h2>📓 Observations du carnet</h2></div><div id="carnets-body"></div></div>
+  <div id="tab-moyennes"  class="tab fige"><div class="sh"><h2>📈 Moyennes par matière</h2></div><div id="moyennes-body"></div></div>
   <div id="tab-documents" class="tab"><div class="sh"><h2>📄 Retours de documents</h2></div><div id="documents-body"></div></div>
   <div id="tab-delegues"  class="tab"><div class="sh"><h2>🏫 Vie de classe</h2></div><div id="delegues-body"></div></div>
   <div id="tab-donnees"   class="tab">
@@ -2547,8 +2566,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.44.0';
-const APP_BUILD_DATE = '2026-10-02T20:24:15Z';
+const APP_VERSION    = '1.44.1';
+const APP_BUILD_DATE = '2026-10-02T20:35:05Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5958,22 +5977,29 @@ function _ficheRender() {
 // large (son 21:9 à la maison), en plein écran sinon (la Surface en conseil) — le choix
 // reste dans la barre, et se retient sur le poste.
 // ═══════════════════════════════════════════════════════════════════════════
-const _LS_FICHE_VUE = 'suiviPP_ficheVue', _LS_FICHE_OUV = 'suiviPP_ficheOuverture';
+const _LS_FICHE_VUE = 'suiviPP_ficheVue';
 const FICHE_VUES = [['dossier', '▦ Tableau de bord', 'Tout le dossier, en colonnes'], ['chrono', '🕑 Chronologie', 'La période choisie : chiffres clés, frise, journal'], ['faits', '✍️ Faits et rédaction', 'Les faits en phrases, les avis en tableau, un brouillon de synthèse']];
 const FICHE_COTE_MIN = 1700;    // px CSS : au-delà, la fiche s'ouvre à côté de la liste
 let _ficheMoment = null;        // clé de la colonne de bilan choisie (session)
 let _ficheMot = null;           // mot surligné dans les avis (session)
 function _ficheVue() { try { const v = localStorage.getItem(_LS_FICHE_VUE); return FICHE_VUES.some(x => x[0] === v) ? v : 'dossier'; } catch (_) { return 'dossier'; } }
 function ficheVueSet(v) { try { localStorage.setItem(_LS_FICHE_VUE, v); } catch (_) { } _ficheRender(); }
-function _ficheOuvertureReglage() { try { const v = localStorage.getItem(_LS_FICHE_OUV); return v === 'cote' || v === 'plein' ? v : 'auto'; } catch (_) { return 'auto'; } }
+// ⚠️ Révisé en v1.44.1 (l'utilisateur : « un BOUTON pour avoir le choix, la position par
+// défaut selon la largeur de l'écran ») : un bouton dans la barre de la fiche bascule
+// plein écran ↔ à côté ; le choix vaut pour la SESSION (rien de retenu sur le poste), et
+// au prochain lancement la largeur de l'écran décide de nouveau.
+let _ficheOuvForce = null;      // 'cote' | 'plein' | null (= selon la largeur)
 // L'ouverture effective. PUR à largeur donnée (les tests passent `largeur`).
 function _ficheOuverture(largeur) {
-  const r = _ficheOuvertureReglage();
-  if (r !== 'auto') return r;
+  if (_ficheOuvForce === 'cote' || _ficheOuvForce === 'plein') return _ficheOuvForce;
   const w = largeur ?? (typeof window !== 'undefined' ? window.innerWidth : 0);
   return w >= FICHE_COTE_MIN ? 'cote' : 'plein';
 }
-function ficheOuvertureSet(v) { try { localStorage.setItem(_LS_FICHE_OUV, v === 'cote' || v === 'plein' ? v : 'auto'); } catch (_) { } _ficheAppliqueOuverture(); _ficheRender(); }
+function ficheOuvertureBascule() {
+  _ficheOuvForce = _ficheOuverture() === 'cote' ? 'plein' : 'cote';
+  _ficheAppliqueOuverture(); _ficheRender();
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+}
 function _ficheAppliqueOuverture() {
   const el = document.getElementById('mfiche');
   if (!el || !el.classList) return;
@@ -6149,14 +6175,14 @@ function _ficheBrouillon(cls, stu, col) {
 function _ficheBarHTML(cls, stu, col) {
   if (!cls) return '';
   const o = _ficheOrdre(cls), i = o.indexOf(stu.id);
-  const vue = _ficheVue(), ouv = _ficheOuvertureReglage();
+  const vue = _ficheVue(), cote = _ficheOuverture() === 'cote';
   const ms = _ficheMoments(cls);
   const per = _periods(cls);
   const groupes = per.map((p, pi) => ({ p, cols: ms.filter(c => c.pIdx === pi) })).filter(g => g.cols.length);
   return `<span class="el-aff" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     <label class="tb-hint fi-bar-l">Synthèse pour <select onchange="ficheMomentSet(this.value)">${groupes.map(g => `<optgroup label="${_escAttr(g.p.label)}">${g.cols.map(c => `<option value="${_escAttr(c.key)}"${col && c.key === col.key ? ' selected' : ''}>${_escName(c.long)}</option>`).join('')}</optgroup>`).join('')}</select></label>
-    <label class="tb-hint fi-bar-l">Ouverture <select onchange="ficheOuvertureSet(this.value)" title="À côté de la liste : la liste reste visible et un clic sur un nom change de fiche"><option value="auto"${ouv === 'auto' ? ' selected' : ''}>selon l'écran (${_ficheOuverture() === 'cote' ? 'à côté' : 'plein écran'})</option><option value="cote"${ouv === 'cote' ? ' selected' : ''}>à côté de la liste</option><option value="plein"${ouv === 'plein' ? ' selected' : ''}>plein écran</option></select></label>
     <span class="fi-nav"><button class="btn btn-g btn-sm" onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="tb-hint">${i + 1} / ${o.length}</span><button class="btn btn-g btn-sm" onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>
+    <button class="btn btn-g btn-sm" onclick="ficheOuvertureBascule()" title="${cote ? 'Ouvrir la fiche en plein écran' : 'Ouvrir la fiche à côté de la liste : la liste reste visible, un clic sur un nom change de fiche'} — par défaut, la largeur de l'écran décide">${cote ? '⛶ Plein écran' : '◧ À côté de la liste'}</button>
     <button class="btn btn-g btn-sm fi-x" onclick="closeMod2('mfiche')" title="Fermer (Échap)">✕</button>`;
 }
 // ── La rédaction : le bilan du moment choisi, écrit EN PLACE ──
