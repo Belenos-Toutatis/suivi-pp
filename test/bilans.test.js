@@ -198,3 +198,65 @@ test('Liste des élèves : les bilans des PÉRIODES PRÉCÉDENTES ont aussi leur
   assert.ok(['Point sept.', 'Mi-S1', 'Conseil S1', 'Point avr.', 'Conseil S2'].every(t => pr.includes(`<th>${t}</th>`)));
   ev(`_bilanMode = null; _bilanOrdreFige = null`);
 });
+
+// ── Liste des élèves refondue (v1.43.0) : deux affichages, filtres, vues, avis ──
+test('Liste : filtres d\'un clic (cumulés), vues toutes faites, colonne et résumé des avis', () => {
+  ev(FIXTURE);
+  ev(`_bilanColsAjout = new Set(); _eleveFilter = ''; eleveSort = { col: 'nom', dir: 1 }; _elevesFiltres = new Set();
+      bilanAdd('s1', { date:'2026-01-20', type:'conseil', texte:'Conseil de Léa' });
+      incidentAdd('s2', { date:'2025-12-03', type:'retenue', objet:'Bavardages', texte:'' });`);
+  const ids = () => evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`);
+  const tous = ids();
+  ev(`elevesFiltreToggle('incid')`);
+  assert.deepStrictEqual(ids(), ['s2'], 'un incident dans la période');
+  ev(`elevesFiltreToggle('sansBilan')`);
+  assert.deepStrictEqual(ids(), ['s2'], 'cumulés : incident ET sans bilan du conseil');
+  ev(`elevesFiltreToggle('incid')`);
+  assert.ok(!ids().includes('s1') && ids().length === tous.length - 1, 'sans bilan : Léa sort');
+  // Le papier le dit.
+  assert.match(ev(`_elevesPrintHTML(S.classes['5C'])`), /filtre : sans bilan du conseil/);
+  ev(`_elevesFiltres.clear()`);
+  // Vues : un cran d'undo, la même préférence que ☰ Colonnes, reconnue ensuite.
+  const u = ev(`undoStack.length`);
+  ev(`elevesVueUI('papiers')`);
+  assert.strictEqual(ev(`undoStack.length`), u + 1);
+  assert.strictEqual(ev(`_elevesVueCourante(S.classes['5C'])`), 'papiers');
+  assert.ok(!ev(`_elevesColVue('cumul')`) && ev(`_elevesColVue('docs')`));
+  ev(`elevesVueUI('papiers')`);
+  assert.strictEqual(ev(`undoStack.length`), u + 1, 'déjà dans cette vue : rien n\'est empilé');
+  ev(`elevesColToggle('cumul', true)`);
+  assert.strictEqual(ev(`_elevesVueCourante(S.classes['5C'])`), '', 'retouchée : personnalisée');
+  ev(`elevesVueUI('tout')`);
+  assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), []);
+  // Avis : résumé par élève, sur la feuille la plus récente de la période courante.
+  ev(`const c = avisCampagneCreer(S.classes['5C'], { pIdx: _carnetCurrentPeriodIdx(S.classes['5C']), disciplines: ['maths', 'anglais'] });
+      c.avis = { s1: { maths: { travail: 'Bien', participation: 'Oui', comportement: 'Calme' }, anglais: { travail: 'Moyen' } } }; c.cibles = ['s2'];`);
+  const r1 = evObj(`(() => { const r = _avisResume(_avisDeLaPeriode(S.classes['5C'], _carnetCurrentPeriodIdx(S.classes['5C'])), 's1'); return { n: r.n, total: r.total, pleins: r.disc.map(x => x.n) }; })()`);
+  assert.deepStrictEqual(r1, { n: 2, total: 2, pleins: [1, 3] }, 'dans l\'ordre des onglets : anglais (langues) puis maths');
+  ev(`elevesFiltreToggle('cible')`);
+  assert.deepStrictEqual(ids(), ['s2'], 'avis demandés en particulier');
+  ev(`_elevesFiltres.clear()`);
+  const h = ev(`_avisCelluleHTML(S.classes['5C'], _avisDeLaPeriode(S.classes['5C'], _carnetCurrentPeriodIdx(S.classes['5C'])), 's1')`);
+  assert.match(h, /<i class="p"><\/i><i class="f"><\/i>/, 'un trait partiel, un trait plein');
+  assert.match(h, />2\/2</);
+  // Tri : demandés d'abord, puis le plus d'avis.
+  ev(`eleveSort = { col: 'avis', dir: 1 }`);
+  assert.deepStrictEqual(ids().slice(0, 2), ['s2', 's1']);
+  ev(`eleveSort = { col: 'nom', dir: 1 }`);
+});
+
+test('Carte de chaleur : une case par relevé, matière, discipline, papier, mois, bilan — tout échappé', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = '';`);
+  const g = evObj(`(() => { const cls = getCls(); const bc = _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), new Set());
+    return _chaleurGroupes(cls, bc).map(x => ({ key: x.key, n: x.sub.length })); })()`);
+  assert.deepStrictEqual(g.map(x => x.key), ['carnet', 'moy', 'avis', 'docs', 'inc', 'ct', 'bil']);
+  assert.ok(g.every(x => x.n > 0));
+  // Un nom piégé ne passe pas en clair.
+  ev(`const s = S.eleves[getCls().eleves[0]]; s.nom = '<img src=x onerror=alert(1)>'`);
+  const html = evObj(`(() => { const cls = getCls(); return _elevesChaleurHTML(cls, _elevesRows(cls), []).table; })()`);
+  assert.ok(!html.includes('<img src=x') && html.includes('&lt;img'));
+  // Chaque case : [classe, texte, infobulle] ; le relevé d'un absent dit « absent ».
+  const abs = evObj(`(() => { const cls = getCls(), m = _relMap(cls.id); for (const d of _relDates(cls.id)) for (const sid of cls.eleves) if (m[d].counts[sid] === 'A') return { d, sid }; return null; })()`);
+  if (abs) assert.match(evObj(`_chaleurGroupes(getCls(), []).find(x => x.key === 'carnet')?.cell(${JSON.stringify(abs.sid)}, ${JSON.stringify(abs.d)})?.[2] || 'absent'`), /absent/);
+  assert.deepStrictEqual(evObj(`_moisDe({ start: '2025-08-01', end: '2026-01-31' }).map(x => x[1])`), ['août', 'sept.', 'oct.', 'nov.', 'déc.', 'janv.']);
+});

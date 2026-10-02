@@ -170,6 +170,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
   --highlighter:     #f5d76e;
   /* Fond d'une puce active sans variante de couleur (onglets de jour, filtres neutres) */
   --chip-on-bg:      #263545;
+  --chip-on-fg:      #f4f6fa;   /* encre d'une puce active : claire dans les DEUX thèmes (--paper s'assombrit la nuit : 2,5:1) */
   /* Accents sémantiques utilisés en TEXTE — déclinés par thème, car les valeurs vives
      historiques (#3498db, #e91e63, #00838f, #92400e) descendaient sous 4,5:1 sur le
      papier clair et devenaient illisibles sur le fond nuit. */
@@ -294,6 +295,7 @@ html[data-theme="dark"] {
   --pencil-soft:     #8792a3;
   --highlighter:     #c9a93f;
   --chip-on-bg:      #3d5a80;
+  --chip-on-fg:      #eef3f8;
   /* Accent « discipline » : le violet clair #5b21b6 n'avait pas de variante sombre — ses
      12 usages en `color:` tombaient à ~1,6:1 sur le fond nuit. */
   --disc-accent:      #c4a5fa;
@@ -381,7 +383,7 @@ html[data-theme="dark"] {
     --pencil:           #56697f;  --pencil-soft:  #5b6a80;
     --rule-line:        #c8d2e0;  --rule-line-soft: #dde4ee;
     --margin-red:       #b03d2e;  --margin-red-soft: rgba(176, 61, 46, 0.14);
-    --highlighter:      #f5d76e;  --chip-on-bg:   #263545;
+    --highlighter:      #f5d76e;  --chip-on-bg:   #263545;  --chip-on-fg: #f4f6fa;
     --civ-m:            #1c6ea4;  --civ-f:        #b3123f;
     --agr-fg:           #00707d;  --tt-fg:        #6d28d9;  --warn-fg:      #92400e;
     --disc-accent:      #5b21b6;  --disc-accent-soft: #ede9fe;  --disc-accent-mid: #c4b5fd;
@@ -1303,6 +1305,55 @@ body.el-projecting #main { padding-top: 8px; }
 .synth-rem-td { min-width: 160px; }
 /* Le choix des colonnes de la liste (v1.41.0) : un volet qui s'ouvre sous le bouton. */
 .el-cols { position: relative; }
+/* Liste des élèves (v1.43.0) : deux affichages, filtres d'un clic, avis des collègues. */
+.el-aff-tb { flex-wrap: wrap; row-gap: 6px; }
+.el-aff { display: inline-flex; border: 1px solid var(--rule-line); border-radius: var(--radius-md); overflow: hidden; }
+.el-aff button { border: 0; border-right: 1px solid var(--rule-line); background: var(--paper); padding: 4px 10px; font-size: .9em; white-space: nowrap; }
+.el-aff button:last-child { border-right: 0; }
+.el-aff button.on { background: var(--chip-on-bg); color: var(--chip-on-fg); font-weight: 700; }
+@media (max-width: 520px) { .el-aff { max-width: 100%; } .el-aff button { white-space: normal; } }
+.el-filtres { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; min-width: 0; }
+.el-chip { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 999px; padding: 2px 10px; font-size: .86em; white-space: nowrap; }
+.el-chip.on { background: var(--chip-on-bg); color: var(--chip-on-fg); border-color: var(--chip-on-bg); }
+.el-chip-n { font-family: var(--font-mono); font-size: .9em; opacity: .85; }
+.el-av { border: 0; background: none; padding: 2px 0; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.el-avbar { display: inline-flex; gap: 2px; }
+.el-avbar i { width: 5px; height: 13px; border-radius: 1px; background: var(--rule-line); }
+.el-avbar i.p { background: var(--del-t-bg); box-shadow: inset 0 0 0 1px var(--ok-fg); }
+.el-avbar i.f { background: var(--ok-fg); }
+.el-av-n { font-family: var(--font-mono); font-size: .9em; }
+/* En indicateurs, une ligne par élève : les textes (remarque, bilans) sur UNE ligne, le
+   reste au survol. Une case qui grandit double la hauteur de toute la rangée. */
+.eleves-table .synth-rem { white-space: nowrap; text-overflow: ellipsis; max-width: 16em; max-height: none; }
+.eleves-table .synth-rem-td { min-width: 0; }
+.eleves-table .age-sub { display: inline; margin-left: 6px; }
+.eleves-table td:first-child { white-space: nowrap; }
+/* Carte de chaleur. */
+.el-chaleur { border-collapse: separate; border-spacing: 0; }
+.el-chaleur th, .el-chaleur td { padding: 0; }
+.el-chaleur td:first-child, .el-chaleur th:first-child { padding: 3px 8px; white-space: nowrap; text-align: left; }
+.el-chaleur thead tr.ch-r1 th { height: 30px; }
+.rel-wrap.frozen .el-chaleur thead tr.ch-r2 th { top: 30px; }
+.el-chaleur th.ch-gh { border-left: 2px solid var(--rule-line); padding: 0 4px; text-align: left; }
+.ch-pli { border: 0; background: none; font-weight: 700; white-space: nowrap; padding: 3px 4px; color: var(--ink-deep); }
+.el-chaleur th.ch-sh { height: 78px; vertical-align: bottom; padding-bottom: 4px; font-weight: 400; font-size: .8em; }
+.el-chaleur th.ch-sh span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; max-height: 72px; overflow: hidden; text-overflow: ellipsis; }
+.el-chaleur td.ch { min-width: 30px; height: 26px; text-align: center; font-family: var(--font-mono); font-size: .8em; border-bottom: 1px solid var(--rule-line-soft); border-right: 1px solid var(--paper); }
+.el-chaleur .ch-g0 { border-left: 2px solid var(--rule-line); }
+.el-chaleur td.ch-no { color: var(--pencil); }
+.ch-un, .ch-sw.ch-un { background: var(--notice-bg); color: var(--notice-fg); }
+.ch-warm, .ch-sw.ch-warm { background: var(--caution-bg); color: var(--caution-fg); }
+.ch-hot, .ch-sw.ch-hot, .ch-lo, .ch-sw.ch-lo, .ch-inc, .ch-sw.ch-inc { background: var(--alert-bg); color: var(--alert-fg); font-weight: 700; }
+.ch-av, .ch-sw.ch-av { background: var(--del-t-bg); color: var(--del-t-fg); font-weight: 700; }
+.ch-avp, .ch-sw.ch-avp { background: var(--info-bg); color: var(--ink-deep); }
+.ch-ct, .ch-sw.ch-ct { background: var(--info-bg); color: var(--ink-deep); font-weight: 700; }
+.el-chaleur td.ch-ok { color: var(--ok-fg); }
+.el-chaleur td.ch-miss { color: var(--danger-fg); font-weight: 700; }
+.el-chaleur td.ch-bil { color: var(--ink-blue); }
+.el-chaleur td.ch-code { font-style: italic; }
+.ch-leg { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
+.ch-leg span { display: inline-flex; gap: 4px; align-items: center; }
+.ch-sw { display: inline-block; width: 14px; height: 11px; border-radius: 2px; border: 1px solid var(--rule-line); }
 .el-cols > summary { list-style: none; }
 .el-cols > summary::-webkit-details-marker { display: none; }
 .el-cols-p { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; min-width: 250px; max-width: calc(100vw - 32px);
@@ -1344,10 +1395,10 @@ body.el-projecting #main { padding-top: 8px; }
   background: var(--paper-warm); border: 1px solid var(--rule-line); border-radius: var(--radius-md);
   color: var(--ink-deep); padding: 2px 6px;
 }
-.rel-sug-b:hover { background: var(--chip-on-bg); color: var(--paper); }
+.rel-sug-b:hover { background: var(--chip-on-bg); color: var(--chip-on-fg); }
 .rel-sug-v { font: 700 15px var(--font-mono); line-height: 1; }
 .rel-sug-kbd { background: var(--paper); }
-.rel-sug-kbd.on { background: var(--chip-on-bg); color: var(--paper); }
+.rel-sug-kbd.on { background: var(--chip-on-bg); color: var(--chip-on-fg); }
 .rel-sug-kbd.on .rel-sug-d { color: inherit; }
 .rel-sug-d { font-size: 10px; color: var(--pencil); font-family: var(--font-serif); font-style: italic; }
 .rel-sug-b:hover .rel-sug-d { color: inherit; }
@@ -2426,8 +2477,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.42.0';
-const APP_BUILD_DATE = '2026-10-02T20:09:41Z';
+const APP_VERSION    = '1.43.0';
+const APP_BUILD_DATE = '2026-10-02T20:17:17Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4683,8 +4734,10 @@ let _elevesNais = false;
 // chargé d'abord — c'est lui qu'on cherche), les inconnus en fin dans les deux sens.
 function _elevesRows(cls) {
   const dir = eleveSort.dir, col = eleveSort.col;
+  const ctx = _elevesFiltres.size ? _elevesFiltreCtx(cls) : null;
   const rows = cls.eleves.map(id => S.eleves[id]).filter(Boolean).filter(s => _matchFilter(s, _eleveFilter))
-    .map(s => ({ s, r: _syntheseRow(cls, s) }));
+    .map(s => ({ s, r: _syntheseRow(cls, s) }))
+    .filter(x => !ctx || [..._elevesFiltres].every(k => { const f = ELEVES_FILTRES.find(y => y.key === k); return !f || f.test(x, ctx); }));
   const byName = (a, b) => (a.s.nom + ' ' + a.s.prenom).localeCompare(b.s.nom + ' ' + b.s.prenom, 'fr', { sensitivity: 'base' });
   // Les modes de place et de ramassage n'ont pas de sens « à l'envers » : un ordre de
   // passage dans les rangs se parcourt dans le sens où on le marche.
@@ -4720,6 +4773,13 @@ function _elevesRows(cls) {
       return ((va ?? 0) - (vb ?? 0)) * dir || byName(a, b);
     }
     if (col === 'amen') return ((_amenLabel(b.s) ? 1 : 0) - (_amenLabel(a.s) ? 1 : 0)) * dir || byName(a, b);
+    // Avis des collègues : demandé en particulier d'abord, puis le plus d'avis.
+    if (col === 'avis') {
+      const camp = _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls));
+      if (!camp) return byName(a, b);
+      const v = x => { const r = _avisResume(camp, x.s.id); return (r.cible ? 100 : 0) + r.n; };
+      return (v(b) - v(a)) * dir || byName(a, b);
+    }
     if (['cumul', 'delta', 'periode', 'docs', 'incidents', 'bilan'].includes(col)) {
       const va = num(a), vb = num(b);
       if ((va === null) !== (vb === null)) return va === null ? 1 : -1;
@@ -4746,6 +4806,7 @@ const ELEVES_COLS = [
   { key: 'moy',       label: 'Moyenne' },
   { key: 'docs',      label: 'Non rendus' },
   { key: 'incidents', label: 'Incidents' },
+  { key: 'avis',      label: 'Avis des collègues' },
   { key: 'rem',       label: 'Remarque · contacts' },
 ];
 function _elevesColsOff() { const o = _prefs().elevesColsOff; return Array.isArray(o) ? o.filter(k => typeof k === 'string') : []; }
@@ -4756,6 +4817,7 @@ function _elevesColVide(key, rows) {
     grp: x => x.s.groupe || _studentTags(x.s).length, amen: x => _amenLabel(x.s), cumul: x => x.r.cumul !== null,
     delta: x => x.r.delta !== null, periode: x => x.r.periodeTotal !== null, moy: x => x.r.moyenne && x.r.moyenne.generale !== null,
     docs: x => x.r.nonRendus.length, incidents: x => x.r.nbIncidents, rem: x => x.s.remarque || (x.s.journal || []).length,
+    avis: x => { const cls = getCls(), camp = cls && _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls)); return camp && _avisResume(camp, x.s.id).n; },
   }[key];
   return t ? !rows.some(x => t(x)) : false;
 }
@@ -4961,6 +5023,208 @@ function _matchFilter(stu, q) {
 
 // Le choix des colonnes : une liste à cocher qui DIT lesquelles sont vides, « masquer les
 // vides » d'un geste, et l'ajout d'une colonne de bilan (mi-période, point du mois).
+// ═══ La liste des élèves, refondue (v1.43.0) ═══
+// Demandé le 2026-10-02 : « sur l'écran principal, mieux voir les informations essentielles
+// et pouvoir les sélectionner ; voir quand des choses sont renseignées, même sans le
+// contenu ; un nombre quand des collègues ont donné leur avis ». Prototypes comparés par
+// l'utilisateur : il garde DEUX affichages — les INDICATEURS (une case = un repère court,
+// le contenu au survol) et la CARTE DE CHALEUR (une case par relevé, matière, discipline,
+// papier, mois, bilan : ce qui est rempli et quand) — et écarte les cartes par élève.
+// L'affichage est propre au POSTE (localStorage) : la carte de chaleur sur l'écran large
+// de la maison, les indicateurs sur la tablette en conseil.
+const _LS_ELEVES_AFF = 'suiviPP_elevesAffichage';
+const _LS_CHALEUR_PLIS = 'suiviPP_chaleurPlis';
+function _elevesAffichage() { try { return localStorage.getItem(_LS_ELEVES_AFF) === 'chaleur' ? 'chaleur' : 'indic'; } catch (_) { return 'indic'; } }
+function elevesAffichageSet(v) { try { localStorage.setItem(_LS_ELEVES_AFF, v === 'chaleur' ? 'chaleur' : 'indic'); } catch (_) { } renderStudents(); }
+// Les FILTRES d'un clic (session) : ils se cumulent (« et »), avec la recherche. Ils valent
+// pour l'écran, l'impression et l'enchaînement des bilans — on prépare ceux qu'on voit.
+const ELEVES_FILTRES = [
+  { key: 'sous10',    label: 'Moyenne sous 10',          test: x => !!x.r.moyenne && typeof x.r.moyenne.generale === 'number' && x.r.moyenne.generale < 10 },
+  { key: 'incid',     label: 'Incident dans la période', test: (x, c) => !!c.p && (x.s.incidents || []).some(e => e && e.date >= c.p.start && e.date <= c.p.end) },
+  { key: 'carnet',    label: 'Carnet en hausse (Δ ≥ 3)', test: x => x.r.delta !== null && x.r.delta >= 3 },
+  { key: 'papiers',   label: 'Papier à rendre',          test: x => x.r.nonRendus.length > 0 },
+  { key: 'contact',   label: 'Famille contactée',        test: (x, c) => !!c.p && (x.s.journal || []).some(e => e && e.date >= c.p.start && e.date <= c.p.end) },
+  { key: 'cible',     label: 'Avis demandés ⭐',          test: (x, c) => !!c.camp && (c.camp.cibles || []).includes(x.s.id) },
+  { key: 'sansBilan', label: 'Sans bilan du conseil',    test: (x, c) => !c.bc || !_bilanDeColonne(c.cls, x.s.id, c.bc) },
+];
+let _elevesFiltres = new Set();
+function _elevesFiltreCtx(cls) {
+  const pIdx = _carnetCurrentPeriodIdx(cls);
+  return { cls, p: _periods(cls)[pIdx] || null, camp: _avisDeLaPeriode(cls, pIdx),
+    bc: _bilanColonnesListe(cls, pIdx, _bilanColsAjout).find(c => c.key === `bil:conseil:${pIdx}`) || null };
+}
+function elevesFiltreToggle(key) {
+  if (_elevesFiltres.has(key)) _elevesFiltres.delete(key); else _elevesFiltres.add(key);
+  renderStudents();
+}
+function _elevesFiltresHTML(cls) {
+  const ctx = _elevesFiltreCtx(cls);
+  const tous = cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => ({ s, r: _syntheseRow(cls, s) }));
+  return `<div class="el-filtres" role="group" aria-label="Filtres"><span class="tb-hint">Ne garder que :</span>${ELEVES_FILTRES.map(f => {
+    const n = tous.filter(x => f.test(x, ctx)).length;
+    return `<button class="el-chip${_elevesFiltres.has(f.key) ? ' on' : ''}" aria-pressed="${_elevesFiltres.has(f.key)}" onclick="elevesFiltreToggle('${f.key}')" title="${_escAttr(f.label)} — ${n} élève${n > 1 ? 's' : ''}">${_escName(f.label)} <span class="el-chip-n">${n}</span></button>`;
+  }).join('')}${_elevesFiltres.size ? `<button class="btn btn-g btn-sm" onclick="_elevesFiltres.clear();renderStudents()">✕ Retirer les filtres</button>` : ''}</div>`;
+}
+// Les VUES toutes faites : un clic pose les colonnes utiles au moment. Elles écrivent la même
+// préférence que le volet ☰ Colonnes (on affine ensuite), un cran d'undo.
+const ELEVES_VUES = [
+  { key: 'conseil', label: 'Préparer le conseil', cols: ['cumul', 'delta', 'periode', 'moy', 'incidents', 'avis', 'rem'], bilans: 'courants' },
+  { key: 'parents', label: 'Appeler les familles', cols: ['cumul', 'delta', 'moy', 'docs', 'incidents', 'rem'], bilans: 'aucun' },
+  { key: 'papiers', label: 'Papiers', cols: ['grp', 'docs', 'rem'], bilans: 'aucun' },
+  { key: 'tout',    label: 'Tout', cols: null, bilans: 'tous' },
+];
+function _elevesVueOff(cls, v) {
+  const pCour = _carnetCurrentPeriodIdx(cls);
+  const bcols = _bilanColonnesListe(cls, pCour, _bilanColsAjout);
+  const garde = v.cols ? new Set(v.cols) : null;
+  return [...ELEVES_COLS.map(c => c.key).filter(k => garde && !garde.has(k)),
+    ...bcols.filter(c => v.bilans === 'aucun' || (v.bilans === 'courants' && c.pIdx !== pCour)).map(c => c.key)];
+}
+function _elevesVueCourante(cls) {
+  const connues = new Set([...ELEVES_COLS.map(c => c.key), ..._bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).map(c => c.key)]);
+  const off = new Set(_elevesColsOff().filter(k => connues.has(k)));
+  const v = ELEVES_VUES.find(v => { const o = _elevesVueOff(cls, v); return o.length === off.size && o.every(k => off.has(k)); });
+  return v ? v.key : '';
+}
+function elevesVueUI(key) {
+  const cls = getCls();
+  const v = ELEVES_VUES.find(x => x.key === key);
+  if (!cls || !v) return;
+  const neuf = _elevesVueOff(cls, v);
+  const off = _elevesColsOff();
+  if (neuf.length === off.length && neuf.every(k => off.includes(k))) return;
+  pushUndo();
+  _prefs().elevesColsOff = neuf;      // ⚠️ remplacé, jamais modifié en place
+  save(); renderStudents();
+}
+// ── Avis des collègues dans la liste : la feuille la plus récente de la période courante ──
+function _avisDeLaPeriode(cls, pIdx) {
+  const p = _periods(cls)[pIdx];
+  if (!p) return null;
+  return _avisCampagnes(cls.id).find(c => c.cible >= p.start && c.cible <= p.end) || null;
+}
+// Ce qu'un élève a reçu sur une feuille : par discipline, le nombre de colonnes remplies. PUR.
+function _avisResume(camp, sid) {
+  const cols = _avisCols(camp);
+  const parSid = camp.avis?.[sid] || {};
+  const disc = (camp.disciplines || []).map(d => ({ d, n: cols.filter(c => parSid[d.id]?.[c.key]).length }));
+  return { disc, n: disc.filter(x => x.n).length, total: disc.length, ncols: cols.length, cible: (camp.cibles || []).includes(sid) };
+}
+function _avisCelluleHTML(cls, camp, sid) {
+  if (!camp) return '<span class="tb-hint">—</span>';
+  const r = _avisResume(camp, sid);
+  const obj = _avisObjectif(cls, camp);
+  const tip = `${r.n} discipline${r.n > 1 ? 's' : ''} sur ${r.total} — feuille pour ${obj.long}${r.cible ? '\nDemandé en particulier ⭐' : ''}${
+    r.n ? '\n' + r.disc.filter(x => x.n).map(x => x.d.nom).join(', ') : ''}\nClic : la fiche de l'élève`;
+  return `<button class="el-av" onclick="openFiche('${_escJsAttr(sid)}')" title="${_escAttr(tip)}"><span class="el-avbar" aria-hidden="true">${
+    r.disc.map(x => `<i class="${x.n ? (x.n >= r.ncols ? 'f' : 'p') : ''}"></i>`).join('')}</span><span class="el-av-n">${r.n}/${r.total}</span>${r.cible ? ' ⭐' : ''}</button>`;
+}
+
+// ── La CARTE DE CHALEUR ── une case par relevé, matière, discipline, papier, mois et bilan
+// de la PÉRIODE COURANTE ; le contenu au survol, la fiche au clic. Un groupe se replie en une
+// case de synthèse (le pli se retient sur le poste) : utile sur un écran étroit.
+function _chaleurPlis() { try { const a = JSON.parse(localStorage.getItem(_LS_CHALEUR_PLIS) || '[]'); return new Set(Array.isArray(a) ? a.filter(k => typeof k === 'string') : []); } catch (_) { return new Set(); } }
+function chaleurPliToggle(k) {
+  const pl = _chaleurPlis();
+  if (pl.has(k)) pl.delete(k); else pl.add(k);
+  try { localStorage.setItem(_LS_CHALEUR_PLIS, JSON.stringify([...pl])); } catch (_) { }
+  renderStudents();
+}
+// Les mois d'une période, du premier au dernier : [['2025-09', 'sept.'], …].
+function _moisDe(p) {
+  const out = [], ab = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  let y = +p.start.slice(0, 4), m = +p.start.slice(5, 7);
+  const fin = p.end.slice(0, 7);
+  for (let i = 0; i < 14; i++) {
+    const ym = `${y}-${String(m).padStart(2, '0')}`;
+    if (ym > fin) break;
+    out.push([ym, ab[m - 1]]);
+    if (++m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+// Les groupes de colonnes de la carte, pour une classe. PUR (lit S). Chaque groupe :
+// { key, label, sub: [{ id, l, long }], cell(sid, id) → [classe, texte, infobulle], sum(sid) → idem }.
+function _chaleurGroupes(cls, bcols) {
+  const cid = cls.id, pIdx = _carnetCurrentPeriodIdx(cls), p = _periods(cls)[pIdx];
+  if (!p) return [];
+  const G = [];
+  const dates = _relDates(cid).filter(d => d >= p.start && d <= p.end);
+  const map = _relMap(cid) || {};
+  if (dates.length) G.push({ key: 'carnet', label: `Carnet ${p.label}`, sub: dates.map(d => ({ id: d, l: _fmtDateFr(d).slice(0, 5), long: 'Relevé du ' + _fmtDateFr(d) })),
+    cell: (sid, d) => {
+      const v = _relValue(map[d], sid);
+      if (v === REL_ABSENT) return ['ch-no', _codeA(), `Relevé du ${_fmtDateFr(d)} : absent`];
+      if (v === null) return ['ch-no', '', `Relevé du ${_fmtDateFr(d)} : pas relevé`];
+      const x = _relDelta(cid, d, sid), dd = x ? x.delta : 0;
+      return [dd >= 5 ? 'ch-hot' : dd >= 2 ? 'ch-warm' : dd >= 1 ? 'ch-un' : '', dd > 0 ? '+' + dd : (x?.decreasing ? '▼' : '·'),
+        `Relevé du ${_fmtDateFr(d)} : cumul ${v}${dd > 0 ? ` (+${dd})` : x?.decreasing ? ' (en baisse : à vérifier)' : ' (inchangé)'}`];
+    },
+    sum: sid => { const t = _relPeriodTotal(cid, sid, pIdx), l = _relLast(cid, sid);
+      return [t >= 10 ? 'ch-hot' : t >= 5 ? 'ch-warm' : '', t === null ? '—' : '+' + t, `${t ?? 0} observation(s) sur la période${l ? ` — cumul ${l.n} au ${_fmtDateFr(l.ymd)}` : ''}`]; } });
+  const mp = _moyPourPeriode(cid, p);
+  if (mp) {
+    const rel = mp.dernier, mats = _moyColsOf([rel]);
+    const fmt = v => typeof v === 'number' ? _fmtNote(v, 1) : String(v);
+    G.push({ key: 'moy', label: `Moyennes du ${_fmtDateFr(rel.date)}`, sub: [...mats.map(m => ({ id: m.id, l: _moyAbbr(m.nom), long: m.nom })), { id: '__gen', l: 'Générale', long: 'Moyenne générale' }],
+      cell: (sid, mid) => {
+        const v = mid === '__gen' ? _moyGen(rel, sid) : _moyVal(rel, sid, mid);
+        const nom = mid === '__gen' ? 'Moyenne générale' : (S.matieres[mid]?.nom || mid);
+        if (v === null || v === undefined) return ['ch-no', '', `${nom} : pas de note`];
+        if (typeof v !== 'number') return ['ch-code', String(v).slice(0, 4), `${nom} : ${v}`];
+        return [v < 10 ? 'ch-lo' : '', String(Math.round(v)), `${nom} : ${fmt(v)}`];
+      },
+      sum: sid => { const g = _moyGen(rel, sid), n = _moySous10(rel, sid);
+        return [typeof g === 'number' && g < 10 ? 'ch-lo' : '', typeof g === 'number' ? fmt(g) + (n ? ` · ${n}<10` : '') : '—', `Moyenne générale ${typeof g === 'number' ? fmt(g) : '—'}, ${n} matière(s) sous 10`]; } });
+  }
+  const camp = _avisDeLaPeriode(cls, pIdx);
+  if (camp) {
+    const cols = _avisCols(camp);
+    G.push({ key: 'avis', label: `Avis — ${_avisObjectif(cls, camp).court}`, sub: camp.disciplines.map(d => ({ id: d.id, l: d.onglet, long: d.nom })),
+      cell: (sid, did) => {
+        const a = camp.avis?.[sid]?.[did], d = camp.disciplines.find(x => x.id === did);
+        const pleins = a ? cols.filter(c => a[c.key]) : [];
+        if (!pleins.length) return ['ch-no', '·', `${d?.nom || did} : pas d'avis`];
+        return [pleins.length >= cols.length ? 'ch-av' : 'ch-avp', cols.length > 1 ? String(pleins.length) : '✓',
+          `${d?.nom || did}\n` + pleins.map(c => `${cols.length > 1 ? c.label + ' : ' : ''}${String(a[c.key]).slice(0, 300)}`).join('\n')];
+      },
+      sum: sid => { const r = _avisResume(camp, sid); return [r.n ? 'ch-avp' : 'ch-no', `${r.n}/${r.total}${r.cible ? ' ⭐' : ''}`, `${r.n} discipline(s) sur ${r.total}${r.cible ? ' — demandé en particulier' : ''}`]; } });
+  }
+  const docs = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false);
+  if (docs.length) G.push({ key: 'docs', label: 'Papiers', sub: docs.map(d => ({ id: d.id, l: d.titre.length > 16 ? d.titre.slice(0, 15) + '…' : d.titre, long: d.titre })),
+    cell: (sid, id) => {
+      const d = docs.find(x => x.id === id);
+      if (!_docExpected(d).some(x => x.id === sid)) return ['ch-no', '—', `${d.titre} : non concerné`];
+      const r = _retour(d, sid);
+      return r.rendu ? ['ch-ok', '✓', `${d.titre} : rendu${r.dateRetour ? ' le ' + _fmtDateFr(r.dateRetour) : ''}`] : ['ch-miss', '☐', `${d.titre} : pas rendu`];
+    },
+    sum: sid => { const n = docs.filter(d => _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu).length;
+      return [n ? 'ch-miss' : 'ch-ok', n ? n + ' ☐' : '✓', n ? `${n} papier(s) à rendre` : 'tout est rendu']; } });
+  const mois = _moisDe(p);
+  const parMois = (key, label, liste, cl, fmt) => G.push({ key, label, sub: mois.map(([id, l]) => ({ id, l, long: l })),
+    cell: (sid, ym) => { const x = liste(sid).filter(e => String(e.date).startsWith(ym)); return x.length ? [cl, String(x.length), x.map(fmt).join('\n')] : ['ch-no', '', ''] },
+    sum: sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? cl : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n')]; } });
+  parMois('inc', 'Incidents', sid => (S.eleves[sid]?.incidents || []).filter(_isPlainObj), 'ch-inc', e => `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label} : ${e.objet || ''}`);
+  parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`);
+  if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: c.court, long: c.long })),
+    cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c);
+      return b ? ['ch-bil', '●', `${c.long} — ${_fmtDateFr(b.date)}\n${String(b.texte).slice(0, 400)}`] : ['ch-no', '○', `${c.long} : rien d'écrit`]; },
+    sum: sid => ['ch-bil', bcols.map(c => _bilanDeColonne(cls, sid, c) ? '●' : '○').join(''), bcols.map(c => `${c.court} : ${_bilanDeColonne(cls, sid, c) ? 'écrit' : '—'}`).join('\n')] });
+  return G;
+}
+function _elevesChaleurHTML(cls, rowsData, bcols) {
+  const G = _chaleurGroupes(cls, bcols);
+  const plis = _chaleurPlis();
+  const td = ([c, t, tip], first) => `<td class="ch${first ? ' ch-g0' : ''}${c ? ' ' + c : ''}"${tip ? ` title="${_escAttr(tip)}"` : ''}>${_escName(t)}</td>`;
+  const head1 = G.map(g => `<th class="ch-gh" colspan="${plis.has(g.key) ? 1 : g.sub.length}"><button class="ch-pli" onclick="chaleurPliToggle('${g.key}')" aria-expanded="${!plis.has(g.key)}" title="${plis.has(g.key) ? 'Déplier' : 'Replier'} ce groupe">${plis.has(g.key) ? '▸' : '▾'} ${_escName(g.label)}</button></th>`).join('');
+  const head2 = G.map(g => plis.has(g.key) ? '<th class="ch-sh ch-g0"><span>synthèse</span></th>'
+    : g.sub.map((x, i) => `<th class="ch-sh${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(x.long)}"><span>${_escName(x.l)}</span></th>`).join('')).join('');
+  const body = rowsData.map(({ s }) => `<tr${_isStudentActive(s) ? '' : ' class="inactive"'}><td><a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète" style="text-decoration:none;color:inherit">${_nomHTML(s.id, s.nom, s.prenom)}</a></td>${
+    G.map(g => plis.has(g.key) ? td(g.sum(s.id), true) : g.sub.map((x, i) => td(g.cell(s.id, x.id), i === 0)).join('')).join('')}</tr>`).join('');
+  const leg = `<div class="ch-leg tb-hint"><span><i class="ch-sw ch-warm"></i><i class="ch-sw ch-hot"></i> observations gagnées au relevé</span><span><i class="ch-sw ch-lo"></i> sous 10</span><span><i class="ch-sw ch-av"></i><i class="ch-sw ch-avp"></i> avis (toutes les colonnes · une partie)</span><span>☐ papier à rendre · — non concerné</span><span><i class="ch-sw ch-inc"></i> incidents · <i class="ch-sw ch-ct"></i> contacts du mois</span><span>● bilan écrit · ○ vide</span><span>Survol : le contenu · clic sur le nom : la fiche · ▾ replie un groupe</span></div>`;
+  // Le cadre (.rel-wrap frozen) est posé par renderStudents, entre _wrapScrollKeep et keep().
+  return { table: `<table class="dt el-chaleur"><thead><tr class="ch-r1"><th rowspan="2">Élève</th>${head1}</tr><tr class="ch-r2">${head2}</tr></thead><tbody>${body}</tbody></table>`, leg };
+}
 function _elevesColsPickHTML(cls, rowsData, bcols, pIdx) {
   const nOff = ELEVES_COLS.filter(c => !_elevesColVue(c.key)).length + bcols.filter(c => !_elevesColVue(c.key)).length;
   const ligne = (key, label, vide) => `<label class="el-cols-l"><input type="checkbox"${_elevesColVue(key) ? ' checked' : ''} onchange="elevesColToggle('${_escJsAttr(key)}',this.checked)"> ${_escName(label)}${vide ? ' <span class="tb-hint">— vide</span>' : ''}</label>`;
@@ -5015,7 +5279,9 @@ function renderStudents() {
   const bcolsTout = _bilanColonnesListe(cls, pCour, _bilanColsAjout);
   const bcols = bcolsTout.filter(c => _elevesColVue(c.key));
   const vuPer = vu.periode;
-  const rows = rowsData.map(({ s, r }) => {
+  const campCour = _avisDeLaPeriode(cls, pCour);
+  const aff = _elevesAffichage();
+  const rows = aff === 'chaleur' ? '' : rowsData.map(({ s, r }) => {
     const civColor = s.civilite === 'M' ? 'var(--civ-m)' : s.civilite === 'F' ? 'var(--civ-f)' : 'var(--pencil-soft)';
     const civBtn = `<button class="btn btn-sm" onclick="cycleCivilite('${_escJsAttr(s.id)}')" title="Civilité : ${_escAttr(civiliteFullLabel(s.civilite))} — clic pour cycler" style="background:transparent;color:${civColor};font-size:1.05em;padding:0 5px;font-weight:700;min-width:22px">${civiliteLabel(s.civilite)}</button>`;
     const grpBadge = s.groupe
@@ -5049,7 +5315,7 @@ function renderStudents() {
     const dCls = r.delta === null ? '' : r.delta >= 5 ? ' hot' : r.delta >= 2 ? ' warm' : '';
     const delta = r.delta === null ? '<span class="tb-hint">—</span>' : `<span class="rel-delta${dCls}" style="padding:1px 6px;border-radius:6px">${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}</span>`;
     const per = r.periodeTotal === null ? '<span class="tb-hint">—</span>' : `<span style="font-family:var(--font-mono);font-weight:700">${r.periodeTotal}</span>`;
-    const moy = _moyCelluleHTML(r.moyenne);
+    const moy = _moyCelluleHTML(r.moyenne, true);
     // Non rendus : le NOMBRE seul, en pastille — la liste des titres en clair élargissait la
     // colonne à la moitié de l'écran. Le détail vient au survol (infobulle) ou au clic
     // (déplié sous la pastille, mémorisé par élève le temps de la session).
@@ -5065,7 +5331,7 @@ function renderStudents() {
       ? `${r.nbIncidents} entrée${r.nbIncidents > 1 ? 's' : ''} — dernière : ${_fmtDateFr(r.incident.date)} — ${_instanceOf(r.incident.type).label} — ${r.incident.objet}\nClic : noter un nouvel incident ou une instance`
       : 'Noter un incident ou une instance (rapport, retenue, commission éducative…)';
     const inc = `<button class="btn btn-sm" style="${stSty(!!r.nbIncidents, '#8c3f1d', 0)}" onclick="openIncident('${_escJsAttr(s.id)}')" title="${_escAttr(incTitre)}">⚖️${r.nbIncidents ? ' ' + r.nbIncidents : ''}</button>${
-      r.nbIncidents ? `<div class="synth-inc" role="button" tabindex="0" title="${_escAttr(r.incident.objet)} — clic pour modifier cette entrée" onclick="openIncident('${_escJsAttr(s.id)}','${_escJsAttr(r.incident.id)}')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.click()}">${_escName(_fmtDateFr(r.incident.date))} · ${_escName(_instanceOf(r.incident.type).label)}</div>` : ''}`;
+      r.nbIncidents ? ` <span class="synth-inc" role="button" tabindex="0" title="${_escAttr(r.incident.objet)} — clic pour modifier cette entrée" onclick="openIncident('${_escJsAttr(s.id)}','${_escJsAttr(r.incident.id)}')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.click()}">${_escName(_fmtDateFr(r.incident.date).slice(0, 5))} · ${_escName(_instanceOf(r.incident.type).label)}</span>` : ''}`;
 
     // Une case par MOMENT de bilan (v1.41.0) : le bouton ouvre la rédaction de CE moment,
     // et enchaîne les élèves dans l'ordre de la liste — on remplit une colonne.
@@ -5082,11 +5348,12 @@ function renderStudents() {
       ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(s.id)}"
             max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)"
             title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
-      ${vu.grp ? `<td style="white-space:nowrap">${grpBadge}${tagsHtml ? '<br><span style="display:inline-block;margin-top:3px">' + tagsHtml + '</span>' : ''}</td>` : ''}
+      ${vu.grp ? `<td style="white-space:nowrap">${grpBadge}${tagsHtml ? ' ' + tagsHtml : ''}</td>` : ''}
       ${vu.amen ? `<td class="amen-td" onclick="openEdit('${_escJsAttr(s.id)}')" title="${_escAttr(_amenLabel(s) || 'Aucun aménagement')} — clic pour modifier">${_amenBadgesHTML(s)}</td>` : ''}
       ${vu.cumul ? `<td style="white-space:nowrap">${carnet}</td>` : ''}${vu.delta ? `<td style="text-align:center">${delta}</td>` : ''}${vuPer ? `<td style="text-align:center">${per}</td>` : ''}
       ${vu.moy ? `<td style="text-align:center;white-space:nowrap">${moy}</td>` : ''}
       ${vu.docs ? `<td>${nr}</td>` : ''}${vu.incidents ? `<td class="synth-inc-td">${inc}</td>` : ''}
+      ${vu.avis ? `<td style="white-space:nowrap">${_avisCelluleHTML(cls, campCour, s.id)}</td>` : ''}
       ${vu.rem ? `<td class="synth-rem-td">${remBtn}</td>` : ''}
       ${bilCells}
       <td style="white-space:nowrap">
@@ -5098,22 +5365,36 @@ function renderStudents() {
 
   const arrow = c => eleveSort.col === c ? (eleveSort.dir === 1 ? ' ▲' : ' ▼') : '';
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || 'période';
+  const filtrage = [_eleveFilter ? `recherche « ${_escName(_eleveFilter)} »` : '', ...ELEVES_FILTRES.filter(f => _elevesFiltres.has(f.key)).map(f => _escName(f.label.toLowerCase()))].filter(Boolean).join(' · ');
   const filtered = list.length !== all.length
-    ? `<div class="tb-hint" style="margin-bottom:6px">${list.length} élève${list.length > 1 ? 's' : ''} sur ${all.length} — filtre « ${_escName(_eleveFilter)} »</div>` : '';
+    ? `<div class="tb-hint" style="margin-bottom:6px">${list.length} élève${list.length > 1 ? 's' : ''} sur ${all.length} — ${filtrage}</div>` : '';
+  const vueCour = _elevesVueCourante(cls);
+  const affHTML = `<div class="tb el-aff-tb"><span class="el-aff" role="group" aria-label="Affichage de la liste">${[['indic', '▦ Indicateurs', 'Une case par sujet : un repère court, le contenu au survol'], ['chaleur', '▥ Carte de chaleur', 'Une case par relevé, matière, discipline, papier, mois et bilan : ce qui est rempli, et quand']].map(([k, l, t]) =>
+      `<button class="${aff === k ? 'on' : ''}" aria-pressed="${aff === k}" onclick="elevesAffichageSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
+    ${aff === 'indic' ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Vue <select onchange="elevesVueUI(this.value)" title="Les colonnes utiles au moment — ☰ Colonnes pour affiner">${vueCour ? '' : '<option value="" selected>personnalisée</option>'}${ELEVES_VUES.map(v => `<option value="${v.key}"${v.key === vueCour ? ' selected' : ''}>${_escName(v.label)}</option>`).join('')}</select></label>` : ''}
+    ${_elevesFiltresHTML(cls)}</div>`;
   const tri = `<div class="tb">${_sortPickerHTML(eleveSort.col, 'setEleveSort(this.value)', cls,
     [{ key: 'grp', label: 'par groupe' }, { key: 'amen', label: 'par aménagements' },
      { key: 'delta', label: 'par Δ du dernier relevé' }, { key: 'cumul', label: 'par total d\'observations' },
      { key: 'periode', label: `par total ${per}` }, { key: 'moy', label: 'par moyenne générale — la plus basse d\'abord' },
-     { key: 'docs', label: 'par documents non rendus' }, { key: 'incidents', label: 'par incidents' },
+     { key: 'docs', label: 'par documents non rendus' }, { key: 'incidents', label: 'par incidents' }, { key: 'avis', label: 'par avis des collègues (demandés d\'abord)' },
      ...bcols.map(c => ({ key: c.key, label: `par ${c.long.charAt(0).toLowerCase() + c.long.slice(1)} (rédigé d'abord)` }))])}
     <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Afficher la colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée"><input type="checkbox"${_elevesNais ? ' checked' : ''} onchange="_elevesNais=this.checked;renderStudents()"> 📅 naissances</label>
-    ${_elevesColsPickHTML(cls, rowsData, bcolsTout, pCour)}
+    ${aff === 'indic' ? _elevesColsPickHTML(cls, rowsData, bcolsTout, pCour) : ''}
     <span class="tb-hint">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span>
     <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="openAvis()" title="Demander l'avis des collègues sur les élèves — une feuille du Nuage, un onglet par discipline — puis relire leurs réponses">🗣 Avis des collègues…</button>
     <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
     <button class="btn btn-g btn-sm" onclick="printEleves()" title="La liste telle qu'elle est à l'écran, en paysage — Ctrl+P fait pareil">🖨 Imprimer la liste</button></div>`;
   const keep = _wrapScrollKeep(el);
-  el.innerHTML = tri + filtered + (list.length ? `
+  const vide = _emptyStateHTML('🔍', 'Aucun élève ne correspond',
+      `${_eleveFilter ? `Le filtre « ${_escName(_eleveFilter)} » ne trouve personne. ` : ''}${_elevesFiltres.size ? 'Les filtres choisis ne gardent personne. ' : ''}<button class="btn btn-g btn-sm" onclick="document.getElementById('eleve-search').value='';_elevesFiltres.clear();setEleveFilter('')">Tout afficher</button>`);
+  if (aff === 'chaleur') {
+    const ch = list.length ? _elevesChaleurHTML(cls, rowsData, bcols) : null;
+    el.innerHTML = affHTML + tri + filtered + (ch ? `<div class="rel-wrap frozen">${ch.table}</div>${ch.leg}` : vide);
+    keep();
+    return;
+  }
+  el.innerHTML = affHTML + tri + filtered + (list.length ? `
     <div class="rel-wrap frozen"><table class="dt eleves-table">
       <thead><tr>
         <th onclick="sortEleves('nom')" style="cursor:pointer">Élève${arrow('nom')}</th>
@@ -5126,13 +5407,13 @@ function renderStudents() {
         ${vu.moy ? `<th onclick="sortEleves('moy')" style="cursor:pointer" title="Dernière moyenne générale importée (onglet 📈 Moyennes), son évolution, et le nombre de matières sous 10 — la plus basse d'abord">Moy.${arrow('moy')}</th>` : ''}
         ${vu.docs ? `<th onclick="sortEleves('docs')" style="cursor:pointer" title="Documents non rendus — survol ou clic pour la liste">Non rendus${arrow('docs')}</th>` : ''}
         ${vu.incidents ? `<th onclick="sortEleves('incidents')" style="cursor:pointer" title="Incidents et instances — le nombre, et le dernier">Incidents${arrow('incidents')}</th>` : ''}
+        ${vu.avis ? `<th onclick="sortEleves('avis')" style="cursor:pointer" title="${_escAttr(campCour ? `Avis des collègues — feuille pour ${_avisObjectif(cls, campCour).long} : un trait par discipline (plein : toutes les colonnes remplies), le nombre de disciplines qui ont écrit, ⭐ demandé en particulier` : 'Aucune feuille d\'avis pour cette période — 🗣 Avis des collègues… pour en préparer une')}">Avis${arrow('avis')}</th>` : ''}
         ${vu.rem ? `<th title="Dernier contact avec la famille, puis la remarque libre">Remarque · contacts</th>` : ''}
         ${bcols.map(c => `<th onclick="sortEleves('${_escJsAttr(c.key)}')" style="cursor:pointer" title="${_escAttr(c.long)} — clic sur l'icône d'un élève pour écrire, puis ◀ ▶ d'un élève à l'autre ; clic sur l'en-tête : rédigés d'abord">${_escName(c.court)}${arrow(c.key) || (c.type === 'conseil' && eleveSort.col === 'bilan' ? arrow('bilan') : '')}</th>`).join('')}
         <th style="cursor:default">Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>` : _emptyStateHTML('🔍', 'Aucun élève ne correspond',
-      `Le filtre « ${_escName(_eleveFilter)} » ne trouve personne. <button class="btn btn-g btn-sm" onclick="document.getElementById('eleve-search').value='';setEleveFilter('')">Effacer le filtre</button>`));
+    </table></div>` : vide);
   keep();
 }
 
@@ -11632,12 +11913,12 @@ function _syntheseRow(cls, stu) {
 }
 // La case « Moy. » de la liste des élèves, et sa version papier (sans couleur : le Δ
 // entre parenthèses, les matières sous 10 en toutes lettres).
-function _moyCelluleHTML(m) {
+function _moyCelluleHTML(m, enLigne) {
   if (!m) return '<span class="tb-hint">—</span>';
   const tip = `Moyenne générale importée le ${_fmtDateFr(m.date)}${m.delta !== null ? ` — ${_fmtDelta(m.delta)} depuis l'import précédent` : ''}`;
   const v = m.generale === null ? '<span class="tb-hint">—</span>' : `<strong style="font-family:var(--font-mono)">${_escName(_fmtNote(m.generale))}</strong>`;
   const d = m.delta !== null ? ` <span class="moy-d${m.delta > 0 ? ' up' : m.delta < 0 ? ' down' : ''}" style="display:inline">${_escName(_fmtDelta(m.delta))}</span>` : '';
-  const s10 = m.sous10 ? `<br><span class="badge warn" title="Matières où la moyenne est sous 10">${m.sous10} &lt; 10</span>` : '';
+  const s10 = m.sous10 ? `${enLigne ? ' ' : '<br>'}<span class="badge warn" title="Matières où la moyenne est sous 10">${m.sous10} &lt; 10</span>` : '';
   return `<span title="${_escAttr(tip)}">${v}${d}</span>${s10}`;
 }
 function _moyPrintHTML(m) {
@@ -11748,6 +12029,7 @@ function _elevesPrintHTML(cls) {
   const rows = rowsData.map(x => x.r);
   const pIdx = _carnetCurrentPeriodIdx(cls);
   const per = _periods(cls)[pIdx]?.label || '';
+  const campP = _avisDeLaPeriode(cls, pIdx);
   const jm = ymd => { const x = String(ymd || '').split('-'); return x.length === 3 ? `${x[2]}/${x[1]}` : ''; };
   // Moyenne en deux lignes courtes au plus (« 11,1 +0,2 » puis « 1 < 10 ») : la version
   // longue de la liste à l'écran (« 1 matière < 10 ») s'étalait sur trois lignes dans
@@ -11768,16 +12050,17 @@ function _elevesPrintHTML(cls) {
     { key: 'moy', th: 'Moy.', w: 6.5, c: 1, td: r => moy(r.moyenne) },
     { key: 'docs', th: 'Non rendus', w: 9, td: r => `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` },
     { key: 'incidents', th: 'Incidents', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
+    { key: 'avis', th: 'Avis coll.', w: 4.5, c: 1, td: (r, sid) => { const a = campP ? _avisResume(campP, sid) : null; return a && (a.n || a.cible) ? `${a.n}/${a.total}${a.cible ? ' ★' : ''}` : ''; } },
     { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(r.remarque)}</small>` },
     ..._bilanColonnesListe(cls, pIdx, _bilanColsAjout).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
       td: (r, sid) => { const b = _bilanDeColonne(cls, sid, c); return `<small>${b ? _escName(b.texte) : ''}</small>`; } })),
-  ].filter(c => c.key === 'nom' || _elevesColVue(c.key));
+  ].filter(c => c.key === 'nom' || (_elevesColVue(c.key) && (c.key !== 'avis' || campP)));   // pas de feuille d'avis : pas de colonne vide sur le papier
   const tot = cols.reduce((n, c) => n + c.w, 0);
   const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c.w / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
   const body = rows.map((r, i) => `<tr${r.actif ? '' : ' class="pp-parti"'}>${cols.map(c =>
     `<td${c.c ? ' class="c"' : c.rem ? ' class="pp-rem"' : ''}>${c.td(r, rowsData[i].s.id)}</td>`).join('')}</tr>`).join('');
   return `<div class="pp-titre">${_escName(cls.nom)} — ${_escName(cls.annee || '')}</div>
-    <p class="pp-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}</p>
+    <p class="pp-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}${_elevesFiltres.size ? ` · filtre : ${_escName(ELEVES_FILTRES.filter(f => _elevesFiltres.has(f.key)).map(f => f.label.toLowerCase()).join(', '))}` : ''}</p>
     <table class="pp-t pp-el">${colgroup}<thead><tr>${cols.map(c => `<th${c.c ? ' class="c"' : ''}>${c.th}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
 }
 function printEleves() {

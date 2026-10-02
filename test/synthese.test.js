@@ -142,7 +142,8 @@ test('liste des élèves : la case Incidents ouvre la saisie d\'une entrée, com
   const id = evObj(`_incidentsOf('s1')[0].id`);
   assert.strictEqual(evObj(`_incidentsOf('s1')[0].date`), '2026-01-15', 'la plus récente d\'abord');
   assert.ok(html.includes(`openIncident('s1','${id}')`), 'la dernière entrée s\'ouvre en modification');
-  assert.ok(html.includes('15/01/2026 · Commission éducative'), 'date et instance de la dernière entrée');
+  // Sur UNE ligne depuis la v1.43.0 (indicateurs) : la date sans l'année, l'année est celle de la classe.
+  assert.ok(html.includes('15/01 · Commission éducative'), 'date et instance de la dernière entrée');
 });
 
 test('Liste des élèves imprimée : feuille .pp-t, colonnes fixes à 100 %, en-tête répétable, taille fixe', () => {

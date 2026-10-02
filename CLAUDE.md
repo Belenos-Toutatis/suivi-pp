@@ -1090,6 +1090,39 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      **qui ont au moins un bilan** (le conseil du S1 vide n'a pas de colonne au S2) ; le volet
      les range sous *Bilans S1*, *Bilans S2*. On n'ajoute une colonne vide qu'à la période
      courante. Démo au S2 : six colonnes (sept., mi-S1, conseil S1, mars, mi-S2, conseil S2).
+   - **Deux AFFICHAGES, des filtres, des vues** (v1.43.0 — demande de l'utilisateur : *« mieux
+     voir les informations essentielles et pouvoir les sélectionner ; voir quand des choses
+     sont renseignées, même sans le contenu ; un nombre quand des collègues ont donné leur
+     avis »*). Trois prototypes comparés (page publiée à part) : il garde les **indicateurs**
+     et la **carte de chaleur**, écarte les cartes par élève. L'affichage est propre au POSTE
+     (`localStorage` `suiviPP_elevesAffichage`) : chaleur sur l'écran 21:9 de la maison,
+     indicateurs sur la Surface en conseil.
+     - **▦ Indicateurs** : la liste d'avant, mais **une ligne par élève** — âge et options sur
+       la ligne du nom, remarque et bilans sur UNE ligne (le texte entier au survol), moyenne
+       et « n < 10 » côte à côte, dernier incident en « jj/mm · type ». Nouvelle colonne
+       **Avis** (`_avisCelluleHTML`) : la feuille la plus récente de la période courante
+       (`_avisDeLaPeriode`), un trait par discipline (plein : toutes les colonnes remplies,
+       pâle : une partie, gris : rien), « n/N », ⭐ demandé en particulier ; triable (demandés
+       d'abord), imprimée (« 3/11 ★ » — pas de colonne sur le papier sans feuille).
+       **Vues** toutes faites (`ELEVES_VUES` : *Préparer le conseil*, *Appeler les familles*,
+       *Papiers*, *Tout*) : elles écrivent `S.prefs.elevesColsOff` (le même réglage que ☰
+       Colonnes, un cran d'undo, rien si rien ne change) ; « personnalisée » dès qu'on retouche.
+     - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
+       (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
+       discipline de la feuille d'avis (pleine / partielle), par papier (✓ ☐ —), par MOIS
+       pour les incidents et les contacts, par colonne de bilan (● ○) ; le contenu en
+       infobulle, la fiche au clic sur le nom. Chaque groupe se **replie** en une case de
+       synthèse (`chaleurPliToggle`, retenu sur le poste) : sur la Surface. Deux lignes
+       d'en-tête figées (la seconde à `top: 30px`). Tout ce qui est de la période COURANTE.
+     - **Filtres d'un clic** (`ELEVES_FILTRES`, session) : moyenne sous 10 · incident dans la
+       période · carnet en hausse (Δ ≥ 3) · papier à rendre · famille contactée · avis
+       demandés ⭐ · sans bilan du conseil. Ils se **cumulent** (et), avec la recherche, le
+       nombre d'élèves concernés sur chaque puce ; ils valent dans les deux affichages, sur
+       le papier (dit au sous-titre) et pour l'enchaînement des bilans — on prépare ceux
+       qu'on voit. La synthèse de période garde tous les présents (les filtrés au bout).
+     - ⚠️ `--chip-on-fg` (nouveau token, aux trois endroits) : l'encre d'une puce active
+       était `--paper`, qui s'assombrit la nuit — 2,5:1 mesuré. Corrige aussi les touches
+       du carnet (`.rel-sug-kbd.on`), qui avaient le même défaut.
    - **Aménagements en LECTURE dans la liste** (2026-09-11) : seuls les actifs, en texte
      coloré (`_amenBadgesHTML`, mêmes encres `--st-*-fg` que les cases de la modale ✏️).
      Les huit boutons-bascules d'origine faisaient de cette colonne la plus large du tableau
@@ -1485,6 +1518,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 78 | **Liste des élèves : deux affichages** (indicateurs sur une ligne par élève, carte de chaleur repliable par groupe), **filtres d'un clic** cumulables, **vues** toutes faites, colonne **Avis** des collègues (traits par discipline, n/N, ⭐) ; token `--chip-on-fg` ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.43.0) |
 | 77 | **Avis des collègues : colonnes réglables par feuille** (nombre et titres, modèles : conseil à trois colonnes, appréciation de bulletin, remarque libre, points forts / à travailler ; renommer garde les avis, retirer une colonne remplie est refusé), `{colonnes}` dans le message ; démo : point de mars à une colonne ; 5 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; feuille vue dans LibreOffice | ✅ **fait** (2026-10-02, v1.42.0) |
 | 76 | **Import Plan de classe : une case vide là-bas ne vide plus naissance, dates, civilité d'ici** (`stats.gardes`), point nommé avant l'import, outil *🩹 Récupérer des dates…* (`_recupChamps`) · **colonnes des bilans des périodes précédentes** (`_bilanColonnesListe`) ; 3 tests | ✅ **fait** (2026-10-02, v1.41.1) |
 | 75 | **Liste des élèves : colonnes à masquer** (volet ☰ Colonnes, « vide » signalé, masquer les vides, écran et papier, `S.prefs.elevesColsOff`) · **une colonne par moment de bilan** (conseil, mi-période, point du mois ; ajout d'une colonne vide) ; démo : point de mars ; 2 tests. Audit 2 thèmes, 1 570 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.41.0) |
