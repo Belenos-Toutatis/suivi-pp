@@ -808,9 +808,10 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   harnais), parseur XML maison (pas de DOMParser dans le harnais). ⚠️ Collabora et
   LibreOffice écrivent des **répétitions énormes** de cases vides (1 048 576 lignes) : on ne
   développe que ce qui a du contenu, et on borne. ⚠️ Sans `xmlns:ooo` sur `settings.xml`,
-  LibreOffice ignore le gel des volets en silence. ⚠️ Et sans `ShowGrid` à `true` (vue ET
-  onglet), notre bloc de vue remplace celui de LibreOffice et la feuille s'ouvre **sans
-  quadrillage** (remarqué par l'utilisateur, v1.40.1). La ligne des consignes est
+  LibreOffice ignore le gel des volets en silence. Le **quadrillage de l'écran est masqué**
+  (`ShowGrid` à `false`, vue ET onglet — v1.40.2, arbitré par l'utilisateur : *« je ne veux
+  pas afficher les lignes de la grille »*) : ce sont les bordures des cellules qui dessinent
+  le tableau. (La v1.40.1 l'avait affiché par erreur d'interprétation.) La ligne des consignes est
   **encadrée** (style `consigne`) : sans bordure, elle flottait entre le mode d'emploi et les
   en-têtes. Validé par LibreOffice (réenregistrement,
   export CSV, gel vérifié sous python-uno) ; une feuille réenregistrée par LibreOffice est
@@ -1318,6 +1319,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 63 | **Quadrillage masqué** (`ShowGrid` false) : le tableau n'est dessiné que par ses bordures ; test mis à jour | ✅ **fait** (2026-10-02, v1.40.2) |
 | 62 | **Feuille plus lisible** : quadrillage affiché (`ShowGrid`), consignes des colonnes encadrées ; 1 test. Vu dans LibreOffice | ✅ **fait** (2026-10-02, v1.40.1) |
 | 61 | **Colonnes Travail · Participation · Comportement** avec leur consigne (migration des anciennes) · **élèves demandés en particulier**, surlignés en jaune · **message en parties** (moment, mois, échéance, parties à garder, textes réécrits devenus modèles) ; 3 tests. Feuille vue dans LibreOffice ; audit 2 thèmes, 1 024 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.40.0) |
 | 60 | **Onglets colorés** : une couleur par domaine disciplinaire, une nuance par discipline (`DOMAINES`, `_discCouleur`, `tableooo:tab-color`), domaine réglable dans Données, catalogue et onglets rangés par domaine ; tests mis à jour | ✅ **fait** (2026-10-02, v1.39.3) |
