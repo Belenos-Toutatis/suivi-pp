@@ -162,7 +162,9 @@ stu = {
   arrivalDate, departureDate,   // 'YYYY-MM-DD' | null — départ = 1er jour d'absence
   remarque,                // texte libre du PP (la colonne « Remarque » du tableur)
   regime,                  // 'DP' | 'EXT' | 'INT' | absent — demi-pensionnaire, externe, interne (v1.45.1)
-  sortie,                  // code du régime de sortie de l'établissement ('A1'…'D3') | absent (v1.45.1)
+  joursDP,                 // ['lun', 'mar', …] | absent — jours de demi-pension (v1.45.2, DP seulement)
+  entree,                  // code du régime d'ENTRÉE de l'établissement ('A1', 'A2') | absent (v1.45.2)
+  sortie,                  // code du régime de SORTIE ('D1', 'D2', 'D3') | absent (v1.45.1, révisé v1.45.2)
   // Journal des contacts avec la famille — DATÉ et qualifié, à côté du texte libre.
   journal: [ { id, date: 'YYYY-MM-DD', ts, type: 'appel'|'rencontre'|'courriel'|'mot'|'autre', texte } ],
   // Incidents et instances (2026-09-11) : fiche incident, punition, commission éducative…
@@ -1064,7 +1066,9 @@ le `.sh` de chaque onglet est retiré de l'écran (gardé pour les lecteurs d'é
 actif dit où l'on est. **Seule la grille défile** dans Élèves, Observations et Moyennes
 (`.tab.fige`, même version — *« quand on fait coulisser la liste, que l'en-tête ne bouge
 pas »*) : `#main` prend exactement la hauteur sous le bandeau, en colonne flex ; barres
-d'outils et légendes gardent leur taille, le cadre figé prend le reste et défile seul (avant,
+d'outils et légendes gardent leur taille, le cadre figé prend le reste et défile seul — et
+**dans 📄 Retours** depuis la v1.45.2 (remontée de l'utilisateur : le tableau d'un document et
+le ramassage avaient encore l'en-tête qui partait), même classe `.fige` (avant,
 il valait la hauteur de l'écran moins le bandeau, et les barres d'outils faisaient défiler la
 page d'autant). Écran ≥ 700 × 480 seulement, jamais sur le papier. ⚠️ Le bloc CSS est APRÈS
 la règle `.rel-wrap.frozen` de base (il lève son `max-height`).
@@ -1132,6 +1136,31 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      reçu ces champs. ⚠️ Corrigé au passage : la colonne « Date de naissance » de l'import
      était reconnue mais **jamais lue** (aucun `rec.naissance`) — la documentation l'annonçait
      depuis le 2026-09-09. Démo : demi-pensionnaires et externes, codes de sortie.
+   - ⚠️ **Révisé en v1.45.2 — DEUX régimes, pas un** : l'export de Mon Bureau Numérique (MBN)
+     de l'utilisateur a montré `Élève · Classe · Régime de ½ pension · Jours de ½ pension ·
+     Régime de sortie · Régime d'entrée` — A1 A2 sont des codes d'**entrée**, D1 D2 D3 de
+     **sortie**. La v1.45.1 les avait mis dans un seul catalogue. Désormais `stu.entree` et
+     `stu.sortie`, deux catalogues (`prefs.regimesEntree`, `prefs.regimesSortie`, deux
+     zones dans 💾 Données, `regimesCodesUI`), `stu.joursDP` (cases à cocher dans ✏️, « DP
+     (4 j) » dans la liste quand ce n'est pas la semaine entière). **Migration** : le
+     catalogue unique de la v1.45.1 resté au défaut se sépare, et un code d'entrée rangé en
+     « sortie » passe dans `entree`. La saisie en série (🍽 Régimes) a trois colonnes.
+     **Import de l'export MBN** (`openMbnImport`, modale `mmbn` — bouton *📥 Depuis MBN…*
+     à côté de 🍽 Régimes, et dans 💾 Données) : `_mbnLire` reconnaît les colonnes par leur
+     EN-TÊTE, « NOM Prénom (M.) / (Mme) » donne aussi la civilité (remplie seulement si vide)
+     ; `_mbnRapprocher` rattache par la clé de nom des moyennes, ⚠️ rien n'est deviné (nom
+     inconnu, homonymes → rattachement manuel, « ignorer » par défaut) ; `_mbnChangements`
+     liste chaque champ qui change, avant / après, et **rien n'est appliqué sans le bouton**
+     (un cran d'undo). MBN est la source : une valeur différente remplace celle de l'app ;
+     ⚠️ une case VIDE de l'export ne vide rien. Les élèves de la classe absents de l'export
+     sont nommés. Vérifié sur le vrai fichier de l'utilisateur, hors du dépôt (27 élèves, six
+     colonnes) ; les tests fabriquent leur propre classeur aux noms inventés.
+     **Lecture .xlsx** (`_xlsxRead`, `_xlsxParse`) : l'app n'en lisait pas — le module ZIP
+     et le parseur XML de la feuille d'avis suffisent (chaînes partagées, `inlineStr`,
+     ordre des feuilles par workbook.xml et ses relations). `_tableurLire(file)` rend les
+     lignes d'un .xlsx, .ods ou .csv ; l'**import d'élèves** accepte désormais aussi .xlsx
+     et .ods (collés en tabulations), et reconnaît « Régime de ½ pension », « Jours de ½
+     pension », « Régime d'entrée ».
    - **Plus de ligne « Trier »** (v1.45.0, l'utilisateur : *« on clique maintenant sur le
      titre de colonne pour trier »*) : l'en-tête des élèves porte **Nom · Prénom**, deux tris
      réversibles (`_elevesThNomHTML`) ; les ordres de place et de ramassage n'ont pas d'usage
@@ -1648,6 +1677,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 85 | **Régimes d'entrée ET de sortie** séparés (catalogues, migration), jours de ½ pension ; **import de l'export MBN** (.xlsx, avant / après, rattachement manuel) ; **lecture .xlsx** (`_xlsxRead`), import d'élèves en .xlsx / .ods ; **Retours** : seule la grille défile ; 3 tests. Vérifié sur le vrai export (hors dépôt). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.2) |
 | 84 | **Régime** (demi-pensionnaire, externe, interne) et **régime de sortie** (codes de l'établissement, réglables) : colonne Groupe · options, fiche, ✏️, saisie en série (🍽 Régimes), papier, import (qui complète aussi les élèves déjà présents) ; naissance enfin lue à l'import ; démo ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.1) |
 | 83 | **Onglet 🗣 Avis des collègues** (les récoltes à gauche, la feuille à droite, grille « qui a écrit sur qui ») à la place de la fenêtre · **liste des élèves** : plus de ligne de tri (Nom · Prénom en en-tête), puce *Naissances*, impression dans la barre du haut ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.0) |
 | 82 | **Fiche = celle du prototype** : en-tête sur une rangée (moments en boutons), tableau de bord en cartes bornées au moment, chronologie et faits au style du prototype ; ✏️ 🗑 dans la carte Identité, dossier complet replié au pied ; tokens `--pf-card`, `--i-*` ; test mis à jour. Audit 3 vues × 2 moments × 2 thèmes, 1 440 / 2 560 / 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.3) |

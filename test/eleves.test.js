@@ -263,32 +263,36 @@ test('_bilanOrdre est FIGÉ à l\'ouverture : trié « rédigé d\'abord », enr
 });
 
 // ── Régime et régime de sortie (v1.45.1) ──
-test('Régime et régime de sortie : lecture d\'un export, affichage, saisie, nettoyage', () => {
+test('Régimes : ½ pension, entrée (A…) et sortie (D…) — lecture, affichage, catalogues, migration de la v1.45.1', () => {
   const { loadApp } = require('./harness.js');
   const app2 = loadApp();
   const e2 = c => app2.__TESTEVAL(c), o2 = c => JSON.parse(JSON.stringify(app2.__TESTEVAL(c)));
-  // Les valeurs telles qu'on les trouve dans un export.
   assert.deepStrictEqual(o2(`['DEMI-PENSIONNAIRE', 'DP4', 'Demi-pension', 'EXTERNE LIBRE', 'Externe', 'interne', 'INT', '', 'n\\'importe quoi'].map(_impNormRegime)`),
     ['DP', 'DP', 'DP', 'EXT', 'EXT', 'INT', 'INT', null, null]);
-  assert.strictEqual(e2(`_impNormSortie(' d2 ')`), 'D2');
-  assert.deepStrictEqual(o2(`[_impGuessField('Régime'), _impGuessField('Autorisation de sortie'), _impGuessField('Régime de sortie'), _impGuessField('Date de sortie')]`), ['regime', 'sortie', 'sortie', 'depart']);
-  // Le catalogue d'office : les codes de l'utilisateur.
+  assert.deepStrictEqual(o2(`_impNormJours('Lun., Mar., Mer., Jeu., Ven.')`), ['lun', 'mar', 'mer', 'jeu', 'ven']);
+  assert.deepStrictEqual(o2(`_impNormJours('lundi, mardi, jeudi')`), ['lun', 'mar', 'jeu']);
+  assert.strictEqual(e2(`_impNormJours('')`), null);
+  // Les en-têtes réels de MBN.
+  assert.deepStrictEqual(o2(`['Régime de ½ pension', 'Jours de ½ pension', "Régime d'entrée", 'Régime de sortie', 'Date de sortie'].map(_impGuessField)`),
+    ['regime', 'jours', 'entree', 'sortie', 'depart']);
+  // Deux catalogues d'office : entrée A1 A2, sortie D1 D2 D3.
   e2(`S = _emptyState(); postLoadHook();`);
-  assert.deepStrictEqual(o2(`_sortieCodes().map(c => c.code)`), ['A1', 'A2', 'D1', 'D2', 'D3']);
-  // Réglé dans Données : « code = signification », un par ligne ; un cran d'undo.
-  e2(`renderDonnees = () => {}; undoStack.length = 0; regimesSortieUI('A1 = sortie libre\\nd2 : après la dernière heure\\nA1 = doublon\\n\\nZ9')`);
-  assert.deepStrictEqual(o2(`_sortieCodes()`), [{ code: 'A1', label: 'sortie libre' }, { code: 'D2', label: 'après la dernière heure' }, { code: 'Z9', label: '' }]);
+  assert.deepStrictEqual(o2(`[_entreeCodes().map(c => c.code), _sortieCodes().map(c => c.code)]`), [['A1', 'A2'], ['D1', 'D2', 'D3']]);
+  e2(`renderDonnees = () => {}; undoStack.length = 0; regimesCodesUI('regimesSortie', 'D1 = après la dernière heure\\nd2 : à midi\\nD1 = doublon\\n\\nD3')`);
+  assert.deepStrictEqual(o2(`_sortieCodes()`), [{ code: 'D1', label: 'après la dernière heure' }, { code: 'D2', label: 'à midi' }, { code: 'D3', label: '' }]);
   assert.strictEqual(e2(`undoStack.length`), 1);
-  // L'étiquette dans la colonne Groupe · options, échappée, avec la signification en infobulle.
-  e2(`S.eleves.x = { id:'x', nom:'A', prenom:'B', regime:'DP', sortie:'D2', tags:[] }`);
+  e2(`S.eleves.x = { id:'x', nom:'A', prenom:'B', regime:'DP', joursDP:['lun','mar','jeu','ven'], entree:'A2', sortie:'D1', tags:[] }`);
   const h = e2(`_regimeBadgesHTML(S.eleves.x)`);
-  assert.match(h, /title="Demi-pensionnaire">DP</);
-  assert.match(h, /title="Régime de sortie D2 — après la dernière heure">D2</);
-  assert.strictEqual(e2(`_regimeTexte(S.eleves.x)`), 'Demi-pensionnaire · sortie D2 (après la dernière heure)');
-  // Nettoyage au chargement : un régime inconnu s'efface, un code reste.
-  e2(`S.eleves.x.regime = 'CANTINE'; S.eleves.x.sortie = '  a1 '; postLoadHook()`);
-  assert.strictEqual(e2(`S.eleves.x.regime`), undefined);
-  assert.strictEqual(e2(`S.eleves.x.sortie`), 'a1');
+  assert.match(h, /title="Demi-pensionnaire — Lun\. Mar\. Jeu\. Ven\.">DP \(4 j\)</);
+  assert.match(h, /class="el-reg el-entree" title="Régime d&#39;entrée A2">A2</);
+  assert.match(h, /class="el-reg el-sortie" title="Régime de sortie D1 — après la dernière heure">D1</);
+  // Migration : le catalogue unique de la v1.45.1 (A1 A2 D1 D2 D3, sans signification) se
+  // sépare, et un code d'entrée rangé en « sortie » passe dans `entree`.
+  e2(`S.prefs.regimesSortie = ['A1','A2','D1','D2','D3'].map(code => ({ code, label: '' })); S.eleves.y = { id:'y', nom:'C', prenom:'D', sortie:'A1', tags:[] }; S.eleves.x.regime = 'EXT'; postLoadHook()`);
+  assert.deepStrictEqual(o2(`_sortieCodes().map(c => c.code)`), ['D1', 'D2', 'D3']);
+  assert.strictEqual(e2(`S.eleves.y.entree`), 'A1', 'un code d\'entrée rangé en sortie passe en entrée');
+  assert.strictEqual(e2(`S.eleves.y.sortie`), undefined);
+  assert.strictEqual(e2(`S.eleves.x.joursDP`), undefined, 'des jours de ½ pension sans être demi-pensionnaire : effacés');
 });
 
 test('Import : régime, sortie et naissance lus pour les nouveaux, et COMPLÉTÉS (jamais remplacés) chez les élèves déjà présents', () => {
@@ -297,10 +301,10 @@ test('Import : régime, sortie et naissance lus pour les nouveaux, et COMPLÉTÉ
   const e2 = c => app2.__TESTEVAL(c), o2 = c => JSON.parse(JSON.stringify(app2.__TESTEVAL(c)));
   e2(`S = _emptyState(); postLoadHook(); S.classes['5C'] = { id:'5C', nom:'5C', annee:'2025-26', eleves:['a'], ord:0 }; S.cur = '5C';
       S.eleves.a = { id:'a', nom:'DURAND', prenom:'Léa', classe_id:'5C', tags:[], regime:'EXT' };`);
-  const csv = 'Nom;Prénom;Régime;Autorisation de sortie;Date de naissance\nDURAND;Léa;DEMI-PENSIONNAIRE;D1;12/03/2013\nMARTIN;Noé;Externe;A3;05/07/2013';
+  const csv = 'Nom;Prénom;Régime;Autorisation de sortie;Date de naissance\nDURAND;Léa;DEMI-PENSIONNAIRE;D1;12/03/2013\nMARTIN;Noé;Externe;D4;05/07/2013';
   const res = o2(`_impAnalyze(${JSON.stringify(csv)}, { defaultClassId:'5C', skipDup:true })`);
   const noe = res.records.find(r => r.nom === 'MARTIN');
-  assert.deepStrictEqual([noe.regime, noe.sortie, noe.naissance], ['EXT', 'A3', '2013-07-05']);
+  assert.deepStrictEqual([noe.regime, noe.sortie, noe.naissance], ['EXT', 'D4', '2013-07-05']);
   const lea = res.records.find(r => r.nom === 'DURAND');
   assert.strictEqual(lea.ok, false, 'déjà présente : pas de doublon');
   assert.strictEqual(lea.existingSid, 'a');
@@ -309,6 +313,55 @@ test('Import : régime, sortie et naissance lus pour les nouveaux, et COMPLÉTÉ
   assert.deepStrictEqual(o2(`[S.eleves.a.regime, S.eleves.a.sortie, S.eleves.a.naissance]`), ['EXT', 'D1', '2013-03-12']);
   assert.strictEqual(e2(`_impACompleter(window.__r).length`), 0, 'plus rien à compléter');
   // Un code inconnu du catalogue y entre.
-  e2(`_sortieAjouteCode('A3')`);
-  assert.ok(o2(`_sortieCodes().map(c => c.code)`).includes('A3'));
+  e2(`_sortieAjouteCode('D4')`);
+  assert.ok(o2(`_sortieCodes().map(c => c.code)`).includes('D4'));
+});
+
+
+// ── L'export MBN « régimes de sortie » (v1.45.2) : lu en .xlsx par le module ZIP de l'app ──
+// Le classeur de test est FABRIQUÉ ici (noms inventés), avec la structure de l'export réel :
+// Élève (« NOM Prénom (M.) ») · Classe · Régime de ½ pension · Jours de ½ pension ·
+// Régime de sortie · Régime d'entrée.
+test('MBN : lecture .xlsx, rattachement des élèves, changements montrés puis appliqués (une case vide ne vide rien)', async () => {
+  const { loadApp } = require('./harness.js');
+  const app2 = loadApp();
+  const e2 = c => app2.__TESTEVAL(c), o2 = c => JSON.parse(JSON.stringify(app2.__TESTEVAL(c)));
+  e2(`S = _emptyState(); postLoadHook(); S.classes['5E'] = { id:'5E', nom:'5e E', annee:'2025-26', eleves:['a','b','c'], ord:0 }; S.cur = '5E';
+      S.eleves.a = { id:'a', nom:'DURAND', prenom:'Léa', classe_id:'5E', tags:[], regime:'EXT', sortie:'D1' };
+      S.eleves.b = { id:'b', nom:'MARTIN', prenom:'Noé', classe_id:'5E', tags:[] };
+      S.eleves.c = { id:'c', nom:'PETIT', prenom:'Inès', classe_id:'5E', tags:[], entree:'A2' };`);
+  const sst = ['Élève', 'Classe', 'Régime de ½ pension', 'Jours de ½ pension', 'Régime de sortie', "Régime d'entrée",
+    'DURAND Léa (Mme)', '5E', 'Demi-pensionnaire', 'Lun., Mar., Mer., Jeu., Ven.', 'D3', 'A1',
+    'MARTIN Noé (M.)', 'Externe', 'D2', 'INCONNU Zoé (Mme)'];
+  const si = t => sst.indexOf(t);
+  const cell = (ref, t) => t === null ? '' : `<c r="${ref}" t="s"><v>${si(t)}</v></c>`;
+  const row = (n, vals) => `<row r="${n}">${vals.map((v, i) => cell(String.fromCharCode(65 + i) + n, v)).join('')}</row>`;
+  const sheet = `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${
+    row(1, sst.slice(0, 6))}${row(2, sst.slice(6, 12))}${row(3, ['MARTIN Noé (M.)', '5E', 'Externe', null, 'D2', null])}${row(4, ['INCONNU Zoé (Mme)', '5E', 'Externe', null, 'D2', 'A1'])}</sheetData></worksheet>`;
+  const shared = `<?xml version="1.0"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${sst.map(t => `<si><t>${t.replace(/&/g, '&amp;')}</t></si>`).join('')}</sst>`;
+  const wb = `<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+  const rels = `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
+  e2(`window.__xlsx = _zipStore([{ name: 'xl/workbook.xml', data: ${JSON.stringify(wb)} }, { name: 'xl/_rels/workbook.xml.rels', data: ${JSON.stringify(rels)} },
+      { name: 'xl/sharedStrings.xml', data: ${JSON.stringify(shared)} }, { name: 'xl/worksheets/sheet1.xml', data: ${JSON.stringify(sheet)} }])`);
+  const sheets = JSON.parse(JSON.stringify(await app2.__TESTEVAL(`_xlsxRead(window.__xlsx)`)));
+  assert.strictEqual(sheets[0].name, 'Sheet1');
+  assert.deepStrictEqual(sheets[0].rows[1], ['DURAND Léa (Mme)', '5E', 'Demi-pensionnaire', 'Lun., Mar., Mer., Jeu., Ven.', 'D3', 'A1']);
+  assert.deepStrictEqual(sheets[0].rows[2], ['MARTIN Noé (M.)', '5E', 'Externe', '', 'D2']);
+  e2(`window.__rows = ${JSON.stringify(sheets[0].rows)}`);
+  const lu = o2(`_mbnLire(window.__rows)`);
+  assert.ok(lu.ok);
+  assert.deepStrictEqual(lu.lignes[0], { ligne: 2, nom: 'DURAND Léa', civ: 'F', classe: '5E', regime: 'DP', regimeBrut: 'Demi-pensionnaire', joursDP: ['lun', 'mar', 'mer', 'jeu', 'ven'], entree: 'A1', sortie: 'D3' });
+  const L = o2(`_mbnRapprocher(getCls(), _mbnLire(window.__rows).lignes)`);
+  assert.deepStrictEqual(L.map(l => l.sid), ['a', 'b', null], 'Zoé n\'est pas de la classe : à rattacher');
+  e2(`window.__L = _mbnRapprocher(getCls(), _mbnLire(window.__rows).lignes)`);
+  const ch = o2(`_mbnChangements(window.__L)`).map(c => [c.sid, c.champ, c.avant, c.apres]);
+  assert.deepStrictEqual(ch, [
+    ['a', 'regime', 'EXT', 'DP'], ['a', 'joursDP', null, ['lun', 'mar', 'mer', 'jeu', 'ven']], ['a', 'entree', null, 'A1'], ['a', 'sortie', 'D1', 'D3'], ['a', 'civilite', null, 'F'],
+    ['b', 'regime', null, 'EXT'], ['b', 'sortie', null, 'D2'], ['b', 'civilite', null, 'M']]);
+  // Inès est absente de l'export : rien ne la touche. Une case d'entrée VIDE pour Noé : rien.
+  e2(`undoStack.length = 0; pushUndo(); _mbnAppliquer(_mbnChangements(window.__L))`);
+  assert.deepStrictEqual(o2(`[S.eleves.a.regime, S.eleves.a.sortie, S.eleves.a.entree, S.eleves.b.entree ?? null, S.eleves.c.entree]`), ['DP', 'D3', 'A1', null, 'A2']);
+  assert.strictEqual(e2(`_mbnChangements(window.__L).length`), 0, 'appliqué : plus rien à changer');
+  // Un fichier qui n'est pas l'export : refusé avec un message, pas d'exception.
+  assert.match(o2(`_mbnLire([['Nom', 'Note'], ['X', '12']])`).err, /Élève/);
 });
