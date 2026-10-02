@@ -780,6 +780,24 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   `S.prefs.avisMsg.objet` (même mécanique que les parties, ↺ pour revenir), rendu par
   `_avisObjetMail` (pur : une ligne, sans gras, sans {lien} ni {eleves}) et copié par son
   propre bouton 📋 — il n'entre pas dans le message.
+  **Formule de politesse et signature** (v1.40.13, demande de l'utilisateur) : la partie
+  `fin` devient « Merci d'avance pour votre aide. / Bien cordialement, », suivie d'une partie
+  `signature` (`{nom}` · « Professeur principal de la {classe} » · `{etablissement}`) ; une
+  ligne dont les repères sont vides disparaît. `S.prefs.avisNom` (champ « Votre nom » de la
+  modale) et `S.prefs.etablissement` (déjà celui du PV des élections), par `avisSignatureUI`.
+  **Signature HTML de la messagerie** : collée dans la modale (`S.prefs.avisSignatureHtml`),
+  elle REMPLACE la partie signature — dans le riche telle quelle, dans le brut par
+  `_htmlTexte` (une ligne par bloc, entités décodées). ⚠️ Elle finit dans `innerHTML` et
+  dans un courriel : **filtrée par `_htmlSur`** (pur, sans DOMParser) à l'enregistrement ET
+  au rendu — liste blanche de balises et d'attributs, contenu des script / style / svg
+  retiré, style refusé s'il contient `url(`, `expression`, `javascript:`, `@import`, une
+  entité numérique ou une barre oblique inverse, liens https / mailto seulement, AUCUNE image
+  (traceur, et la CSP la bloquerait), balises **équilibrées** (une table restée ouverte
+  avalerait la modale). ⚠️ La signature réelle de l'utilisateur ne va ni dans le code ni dans
+  les tests (dépôt public) : elle vit dans ses données ; les tests en utilisent une inventée.
+  ⚠️ L'aperçu du message est sur une surface **courriel blanche dans les deux thèmes**
+  (`--mail-bg/-fg/-link/-rule`, mêmes valeurs aux trois endroits) : une signature collée
+  porte ses propres encres sombres, illisibles sur le bleu nuit.
 - **Disciplines** (`S.disciplines`, `_disciplinesSeed`, comme les instances : d'office =
   décochables, pas supprimables) : la liste de l'utilisateur — **allemand** (ajouté en
   v1.39.2, oubli de la liste d'origine ; ALLEMAND et ALLEMAND BILINGUE s'y rangent, la LCE
@@ -1400,6 +1418,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 74 | **Formule de politesse et signature** du message aux collègues (nom, établissement, ou signature HTML de la messagerie collée et filtrée par `_htmlSur`), aperçu sur fond courriel blanc ; 2 tests. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.13) |
 | 73 | **Objet du courriel** proposé selon l'objectif, modifiable, copié à part (`_avisObjetMail`, `avisCopierObjet`) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.12) |
 | 72 | **Message aux collègues en texte riche** : aperçu mis en forme, copie HTML + texte (gras, puces, lien cliquable), copie en texte brut à part, mots clés en gras dans les textes proposés ; 1 test. Audit 2 thèmes et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.40.11) |
 | 71 | **Message aux collègues** : la parenthèse « ne compléter que pour les élèves dont vous en ressentez le besoin » devient une partie à part, cochable (`besoin`) ; test étendu | ✅ **fait** (2026-10-02, v1.40.10) |

@@ -259,6 +259,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
      l'ambre du thème nuit (#e8d9b8) sur l'or (#c9a93f), soit 1,63:1. Un fond clair
      laissé tel quel en thème sombre a besoin de sa propre encre, pas de celle du thème. */
   --rgpd-bg: #f5d76e;  --rgpd-fg: #0e1a26;
+  --mail-bg: #ffffff;  --mail-fg: #222222;  --mail-link: #1a4fa0;  --mail-rule: #c9cfd8;
   --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
   /* Nom surligné des délégués : vert = titulaire, jaune = suppléant. Fond ET encre par
      thème (règles 2 et 3 du design system) : un pastel laissé tel quel ferait un trou de
@@ -355,6 +356,7 @@ html[data-theme="dark"] {
   --info-bg: #1a2733;  --info-bd: #2f4d66;
   /* Surface d'or assourdie pour la veillée, MÊME encre sombre (cf. :root). */
   --rgpd-bg: #c9a93f;  --rgpd-fg: #0e1a26;
+  --mail-bg: #ffffff;  --mail-fg: #222222;  --mail-link: #1a4fa0;  --mail-rule: #c9cfd8;
   --del-t-bg: #1f4a2e;  --del-t-fg: #d5f0dc;
   --del-s-bg: #4d4212;  --del-s-fg: #f6e9a8;
   --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
@@ -413,6 +415,7 @@ html[data-theme="dark"] {
     --danger-bg: #b03d2e;  --danger-on: #ffffff;
     --info-bg: #eaf4ff;  --info-bd: #90c8f0;
     --rgpd-bg: #f5d76e;  --rgpd-fg: #0e1a26;
+    --mail-bg: #ffffff;  --mail-fg: #222222;  --mail-link: #1a4fa0;  --mail-rule: #c9cfd8;
     --del-t-bg: #cdf5d9;  --del-t-fg: #12351f;
     --del-s-bg: #fbeea0;  --del-s-fg: #3b2f00;
     --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
@@ -975,8 +978,11 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .av-part-h input { width: 16px; height: 16px; flex: none; }
 .av-part textarea { width: 100%; font-size: .88em; }
 /* L'aperçu du message mis en forme : ce qui sera collé dans le courriel. */
-.av-msg-riche { background: var(--paper); color: var(--ink-deep); border: 1px solid var(--rule-line); border-radius: var(--radius-sm, 4px); padding: 10px 12px; font-size: .92em; max-height: 340px; overflow: auto; overflow-wrap: anywhere; }
-.av-msg-riche a { color: var(--ink-blue); }
+/* ⚠️ Fond « courriel » BLANC dans les deux thèmes : c'est l'aperçu de ce qui sera collé,
+   et une signature HTML collée par l'utilisateur porte ses propres encres sombres. */
+.av-msg-riche { background: var(--mail-bg); color: var(--mail-fg); border: 1px solid var(--mail-rule); border-radius: var(--radius-sm, 4px); padding: 10px 12px; font-size: .92em; max-height: 340px; overflow: auto; overflow-wrap: anywhere; }
+.av-msg-riche a { color: var(--mail-link); }
+.av-sig-src { width: 100%; font-family: var(--font-mono, monospace); font-size: .8em; }
 .av-objet { margin-top: 4px; overflow-wrap: anywhere; }
 .av-cibles { display: flex; flex-wrap: wrap; gap: 4px; }
 .av-cibles .tagpick { background: var(--paper-warm); }
@@ -2394,8 +2400,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.12';
-const APP_BUILD_DATE = '2026-10-02T12:01:15Z';
+const APP_VERSION    = '1.40.13';
+const APP_BUILD_DATE = '2026-10-02T16:15:00Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2488,6 +2494,12 @@ const DEFAULT_PREFS = {
   // Les textes du message aux collègues RÉÉCRITS par l'utilisateur (les autres restent ceux
   // proposés) — { [partie]: texte }. Remplacé, jamais modifié en place.
   avisMsg: {},
+  // Le nom qui signe le message aux collègues (v1.40.13). L'établissement, lui, est
+  // `prefs.etablissement`, déjà partagé avec le procès-verbal des élections.
+  avisNom: '',
+  // La signature de la messagerie de l'utilisateur, collée en HTML (v1.40.13) — FILTRÉE à
+  // l'enregistrement et au rendu (`_htmlSur`) : elle finit dans innerHTML et dans le courriel.
+  avisSignatureHtml: '',
 };
 function _prefs() { return (S.prefs && typeof S.prefs === 'object') ? S.prefs : (S.prefs = {}); }
 function _codeA() { const c = _prefs().codeAbsent; return (typeof c === 'string' && c.trim()) ? c.trim() : DEFAULT_PREFS.codeAbsent; }
@@ -12792,9 +12804,12 @@ const AVIS_MSG_PARTIES = [
   { key: 'colonnes', label: 'Les colonnes',          texte: 'Trois colonnes :\n' + AVIS_CRITERES.map(c => `– **${c.label}** : ${c.aide}`).join(' ;\n') + '.' },
   { key: 'cibles',   label: 'Élèves en particulier', texte: 'J\'ai besoin de votre avis en particulier sur ces élèves, **surlignés en jaune** dans la feuille, car je rencontre bientôt leur famille :\n{eleves}' },
   { key: 'echeance', label: 'Échéance',              texte: 'Merci de compléter la feuille **avant le {echeance}**.' },
-  { key: 'fin',      label: 'Formule finale',        texte: 'Merci beaucoup,' },
+  { key: 'fin',      label: 'Formule de politesse',  texte: 'Merci d\'avance pour votre aide.\n\nBien cordialement,' },
+  // La signature (v1.40.13, demande de l'utilisateur) : une ligne dont le repère est vide
+  // (pas d'établissement) disparaît, au lieu de laisser un trou.
+  { key: 'signature', label: 'Signature',            texte: '{nom}\nProfesseur principal de la {classe}\n{etablissement}' },
 ];
-const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {lien} {eleves} {echeance}';
+const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {lien} {eleves} {echeance} {nom} {etablissement}';
 // L'OBJET du courriel (v1.40.12, demande de l'utilisateur) : un modèle comme les parties,
 // réécrit = gardé dans S.prefs.avisMsg.objet. Pas une partie du message : il se copie à part.
 const AVIS_MSG_OBJET = 'Votre avis sur les élèves de la {classe} pour {objectif}';
@@ -12824,15 +12839,81 @@ function _avisMsgDedans(cls, camp, key) {
   if (key === 'echeance') return !!r.echeance;
   return true;
 }
+// ── Un HTML collé par l'utilisateur, ramené à de la MISE EN FORME (v1.40.13) ──
+// Liste blanche de balises et d'attributs ; contenus de script / style / svg… retirés en
+// entier ; styles refusés s'ils peuvent charger ou exécuter quoi que ce soit (url(),
+// expression, javascript:, @import, échappements) ; liens en https: ou mailto: seulement ;
+// AUCUNE image (une image distante est un traceur, et la CSP la bloquerait). Les balises
+// sont ÉQUILIBRÉES : une table laissée ouverte avalerait la suite de la modale. PUR.
+const _HS_TAGS = new Set(['table', 'tbody', 'thead', 'tfoot', 'tr', 'td', 'th', 'div', 'p', 'span', 'b', 'strong', 'i', 'em', 'u', 'br', 'hr', 'a', 'font', 'small', 'big', 'sup', 'sub', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'center', 'blockquote']);
+const _HS_VIDES = new Set(['br', 'hr']);
+const _HS_ATTRS = new Set(['style', 'colspan', 'rowspan', 'cellpadding', 'cellspacing', 'align', 'valign', 'width', 'height', 'border', 'href', 'color', 'size', 'face', 'bgcolor', 'title']);
+function _htmlSur(html) {
+  const src = String(html || '').slice(0, 20000)
+    .replace(/<!--[^]*?(-->|$)/g, '')
+    .replace(/<(script|style|iframe|object|embed|template|svg|math|noscript|textarea|title|head|xml)\b[^]*?(<\/\1\s*>|$)/gi, '');
+  const out = [], pile = [];
+  const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b((?:[^<>"']|"[^"]*"|'[^']*')*)>/g;
+  const texte = t => t.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  let k = 0, m;
+  while ((m = re.exec(src))) {
+    out.push(texte(src.slice(k, m.index)));
+    k = m.index + m[0].length;
+    const nom = m[2].toLowerCase();
+    if (!_HS_TAGS.has(nom)) continue;
+    if (m[1]) {
+      const i = pile.lastIndexOf(nom);
+      if (i < 0) continue;
+      while (pile.length > i) out.push(`</${pile.pop()}>`);
+      continue;
+    }
+    const attrs = [];
+    const ra = /([a-zA-Z][a-zA-Z0-9_:-]*)\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+    let a;
+    while ((a = ra.exec(m[3]))) {
+      const an = a[1].toLowerCase();
+      if (!_HS_ATTRS.has(an)) continue;
+      const v = a[3] !== undefined ? a[3] : a[4] !== undefined ? a[4] : a[5];
+      if (/[\\]|&#|[\u0000-\u001f]/.test(v)) continue;
+      if (an === 'style' && /url\s*\(|expression|javascript:|@import|behavior|binding|[<>]/i.test(v)) continue;
+      if (an === 'href' && !/^(https:\/\/|mailto:)[^\s"'<>]+$/i.test(v.trim())) continue;
+      attrs.push(` ${an}="${v.replace(/&(?![a-zA-Z]+;)/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`);
+    }
+    out.push(`<${nom}${attrs.join('')}>`);
+    if (!_HS_VIDES.has(nom)) pile.push(nom);
+  }
+  out.push(texte(src.slice(k)));
+  while (pile.length) out.push(`</${pile.pop()}>`);
+  return out.join('').trim();
+}
+// Le TEXTE d'un HTML (pour la copie en texte brut) : une ligne par bloc. PUR.
+const _HT_ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', mdash: '—', ndash: '–', hellip: '…', laquo: '«', raquo: '»', rsquo: '’', lsquo: '‘', middot: '·', bull: '•', euro: '€', copy: '©',
+  eacute: 'é', egrave: 'è', ecirc: 'ê', euml: 'ë', agrave: 'à', acirc: 'â', auml: 'ä', ccedil: 'ç', icirc: 'î', iuml: 'ï', ocirc: 'ô', ouml: 'ö', ugrave: 'ù', ucirc: 'û', uuml: 'ü', oelig: 'œ', aelig: 'æ',
+  Eacute: 'É', Egrave: 'È', Ecirc: 'Ê', Agrave: 'À', Acirc: 'Â', Ccedil: 'Ç', Icirc: 'Î', Ocirc: 'Ô', Ugrave: 'Ù', Ucirc: 'Û', OElig: 'Œ' };
+function _htmlTexte(html) {
+  return String(html || '')
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr|li|h\d|table|blockquote|center)\s*>/gi, '\n').replace(/<hr[^>]*>/gi, '\n')
+    .replace(/<\/t[dh]\s*>/gi, ' ').replace(/<[^>]*>/g, '')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&([a-zA-Z]+);/g, (x, n) => _HT_ENT[n] !== undefined ? _HT_ENT[n] : x)
+    .split('\n').map(l => l.replace(/[ \t ]+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+function _avisSignatureHtml() {
+  const h = _prefs().avisSignatureHtml;
+  return typeof h === 'string' && h.trim() ? _htmlSur(h) : '';
+}
 // Les parties du message, repères remplacés. PUR. Chaque partie est une liste de morceaux :
 // du texte (où **…** marque le gras), le lien, la liste des élèves — pour que le texte brut
 // et le texte riche sortent du MÊME assemblage et ne divergent jamais.
-const _AVIS_REPERE_RE = /\{(objectif|classe|periode|mois|lien|eleves|echeance)\}/g;
+const _AVIS_REPERE_RE = /\{(objectif|classe|periode|mois|lien|eleves|echeance|nom|etablissement)\}/g;
 function _avisMsgVals(cls, camp) {
   const r = _avisMsgReglages(camp);
   const p = _avisPeriode(cls, camp);
   const ech = r.echeance ? new Date(r.echeance + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
-  return { objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], echeance: ech };
+  const nom = typeof _prefs().avisNom === 'string' ? _prefs().avisNom.trim() : '';
+  const etab = typeof _prefs().etablissement === 'string' ? _prefs().etablissement.trim() : '';
+  return { objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], echeance: ech,
+    nom: nom || '[votre nom]', etablissement: etab };
 }
 // L'objet du courriel, sur une ligne, sans gras. PUR. {lien} et {eleves} n'y ont pas de sens.
 function _avisObjetMail(cls, camp) {
@@ -12845,10 +12926,17 @@ function _avisMsgParties(cls, camp) {
   const r = _avisMsgReglages(camp);
   const vals = _avisMsgVals(cls, camp);
   const eleves = _avisCibles(cls, camp).map(sid => `${S.eleves[sid].nom} ${S.eleves[sid].prenom}`);
+  const sigHtml = _avisSignatureHtml();
   return AVIS_MSG_PARTIES.filter(pa => _avisMsgDedans(cls, camp, pa.key)).map(pa => {
+    // La signature de la messagerie, collée en HTML, remplace la signature en texte.
+    if (pa.key === 'signature' && sigHtml) return [{ html: sigHtml }];
     // Les repères simples d'abord, DANS le texte : « **avant le {echeance}** » reste en gras
     // d'un bout à l'autre. Seuls le lien et la liste des élèves deviennent des morceaux.
-    const t = _avisMsgModele(pa.key, r.moment).replace(_AVIS_REPERE_RE, (x, c) => c === 'lien' || c === 'eleves' ? x : vals[c]), out = [];
+    // Ligne par ligne : une ligne qui n'avait QUE des repères devenus vides disparaît.
+    const t = _avisMsgModele(pa.key, r.moment).split('\n').map(l => {
+      const v = l.replace(_AVIS_REPERE_RE, (x, c) => c === 'lien' || c === 'eleves' ? x : vals[c]);
+      return l.trim() && !v.replace(/\*\*/g, '').trim() ? null : v;
+    }).filter(l => l !== null).join('\n'), out = [];
     let k = 0, m;
     const re = /\{(lien|eleves)\}/g;
     while ((m = re.exec(t))) {
@@ -12858,12 +12946,13 @@ function _avisMsgParties(cls, camp) {
     }
     if (k < t.length) out.push({ texte: t.slice(k) });
     return out;
-  }).filter(morceaux => morceaux.some(x => x.lien !== undefined || x.eleves || (x.texte || '').replace(/\*\*/g, '').trim()));
+  }).filter(morceaux => morceaux.some(x => x.html || x.lien !== undefined || x.eleves || (x.texte || '').replace(/\*\*/g, '').trim()));
 }
 // Le message en texte brut (le gras retiré). PUR.
 function _avisMessage(cls, camp) {
   return _avisMsgParties(cls, camp).map(morceaux => morceaux.map(x =>
-    x.lien !== undefined ? (x.lien || '[lien de partage de la feuille]')
+    x.html ? _htmlTexte(x.html)
+      : x.lien !== undefined ? (x.lien || '[lien de partage de la feuille]')
       : x.eleves ? x.eleves.map(n => '– ' + n).join('\n')
       : x.texte.replace(/\*\*/g, '')).join('')).join('\n\n') + '\n';
 }
@@ -12876,6 +12965,7 @@ function _avisMessageRiche(cls, camp) {
   const gras = t => _escName(t).replace(/\*\*([^*]+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '');
   const ul = items => '<ul style="margin:.3em 0 .3em 1.4em;padding:0">' + items.map(i => `<li>${i}</li>`).join('') + '</ul>';
   return _avisMsgParties(cls, camp).map(morceaux => {
+    if (morceaux[0] && morceaux[0].html) return `<div style="margin-top:.4em">${_htmlSur(morceaux[0].html)}</div>`;
     // On aplatit en « lignes » : un retour à la ligne coupe, la liste d'élèves est un bloc.
     const lignes = [[]];
     morceaux.forEach(x => {
@@ -12925,6 +13015,16 @@ function _avisMessageHTML(cls, camp) {
       <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${id}',this.value)"></div>
     <div class="tb-hint" style="margin-bottom:6px">Coche les parties à garder, réécris celles que tu veux : ton texte devient le modèle des prochaines feuilles (↺ pour revenir au texte proposé). Remplacés tout seuls : <code>${_escName(AVIS_REPERES)}</code>. <code>**entre deux paires d'étoiles**</code> = en gras ; une ligne qui commence par « – » = une puce.</div>
     ${parties}
+    <div class="fi-form" style="margin:6px 0">
+      <label>Votre nom <input type="text" value="${_escAttr(_prefs().avisNom || '')}" placeholder="M. ou Mme NOM" style="min-width:160px" onchange="avisSignatureUI('avisNom',this.value)"></label>
+      <label>Établissement <input type="text" value="${_escAttr(_prefs().etablissement || '')}" placeholder="Collège …" style="min-width:180px" onchange="avisSignatureUI('etablissement',this.value)"></label>
+      <span class="tb-hint">pour la signature — gardés pour toutes les feuilles (l'établissement sert aussi au PV des élections)</span></div>
+    <details class="av-det" style="margin:4px 0 8px" data-det="signature" ontoggle="_avisDetToggle(this)"${_avisOuverts.has('signature') ? ' open' : ''}>
+      <summary>✍️ Signature de votre messagerie <span class="tb-hint">— ${_avisSignatureHtml() ? 'collée : elle remplace la partie « Signature » ci-dessous' : 'facultatif : collez son code HTML'}</span></summary>
+      <div class="tb-hint" style="margin:4px 0">Collez le code HTML de la signature de votre messagerie : elle remplacera la partie « Signature » du message. Seule la mise en forme est gardée (ni script, ni image, liens en https ou mailto). Gardée pour toutes les feuilles.</div>
+      <textarea class="av-sig-src" rows="4" placeholder="&lt;table …&gt;…&lt;/table&gt;" onchange="avisSignatureUI('avisSignatureHtml',this.value)">${_escName(_prefs().avisSignatureHtml || '')}</textarea>
+      ${_avisSignatureHtml() ? `<div style="margin-top:4px"><button class="btn btn-g btn-sm" onclick="avisSignatureUI('avisSignatureHtml','')">🗑 Retirer la signature HTML</button></div>` : ''}
+    </details>
     <div class="fg" style="margin-top:8px"><label for="mavis-objet">Objet du courriel</label>
       <input id="mavis-objet" type="text" value="${_escAttr(_avisMsgModele('objet', r.moment))}" style="width:100%" onchange="avisMsgTexteUI('${id}','objet',this.value)">
       <div class="av-objet"><span class="tb-hint">Donne :</span> <strong id="mavis-objet-rendu">${_escName(_avisObjetMail(cls, camp))}</strong></div>
@@ -12969,6 +13069,15 @@ function avisMsgTexteUI(campId, key, texte) {
   if (JSON.stringify(o) === JSON.stringify(_prefs().avisMsg || {})) return;
   pushUndo();
   _prefs().avisMsg = o;     // ⚠️ remplacé, jamais modifié en place (la valeur par défaut est partagée)
+  save(); _avisRender();
+}
+function avisSignatureUI(cle, val) {
+  if (cle !== 'avisNom' && cle !== 'etablissement' && cle !== 'avisSignatureHtml') return;
+  // La signature HTML est filtrée DÈS l'enregistrement (et de nouveau au rendu).
+  const v = cle === 'avisSignatureHtml' ? _htmlSur(val) : String(val || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  if ((_prefs()[cle] || '') === v) return;
+  pushUndo();
+  _prefs()[cle] = v;
   save(); _avisRender();
 }
 function avisLienUI(campId, val) {
@@ -15196,6 +15305,7 @@ function createDemo(opts) {
   const cls = _createClassBare('5C', '5e C', annee);
   if (!cls) return false;
   S.prefs.etablissement = S.prefs.etablissement || 'Collège des Ormeaux (démo)';
+  S.prefs.avisNom = S.prefs.avisNom || 'M. CHÊNE';   // le PP de la démo enseigne la physique-chimie
 
   // ── Options suivies ── (ce que le panneau « codes de groupes » de l'import fabrique)
   const tLatin = createTag('LATIN', 'Latin');

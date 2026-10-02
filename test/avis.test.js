@@ -304,9 +304,19 @@ test('Message aux collègues : un moment au choix, des parties à garder ou non,
   // Un texte réécrit sert de modèle ; les repères y sont remplacés.
   ev(`S.prefs.avisMsg = { contexte_miperiode: 'Point de mi-{periode} en {classe}.', fin: 'Bien à vous,' }`);
   assert.match(m(), /Point de mi-S1 en 5e C\./);
-  assert.match(m(), /Bien à vous,\n$/);
+  assert.match(m(), /Bien à vous,\n\n\[votre nom\]\nProfesseur principal de la 5e C\n$/, 'la signature suit la formule ; sans établissement, sa ligne disparaît');
   assert.strictEqual(ev(`_avisMsgModele('fin', 'conseil')`), 'Bien à vous,');
-  assert.strictEqual(ev(`_avisMsgDefaut('fin', 'conseil')`), 'Merci beaucoup,');
+  assert.strictEqual(ev(`_avisMsgDefaut('fin', 'conseil')`), 'Merci d\'avance pour votre aide.\n\nBien cordialement,');
+  // La signature : nom et établissement réglés une fois, pour toutes les feuilles ; un cran d'undo.
+  const u = ev(`undoStack.length`);
+  ev(`avisSignatureUI('avisNom', '  M.   CHÊNE '); avisSignatureUI('etablissement', 'Collège des Ormeaux')`);
+  assert.strictEqual(ev(`undoStack.length`), u + 2);
+  ev(`avisSignatureUI('avisNom', 'M. CHÊNE')`);
+  assert.strictEqual(ev(`undoStack.length`), u + 2, 'rien ne change, rien n\'est empilé');
+  assert.match(m(), /Bien à vous,\n\nM\. CHÊNE\nProfesseur principal de la 5e C\nCollège des Ormeaux\n$/);
+  assert.match(ev(`_avisMessageRiche(getCls(), window.__c)`), /<p style="margin:0 0 \.8em">M\. CHÊNE<br>Professeur principal de la 5e C<br>Collège des Ormeaux<\/p>$/);
+  ev(`avisSignatureUI('scrutin', 'x')`);
+  assert.strictEqual(ev(`S.prefs.scrutin`), undefined, 'seuls le nom et l\'établissement s\'écrivent par là');
   // Un nom d'élève piégé reste du texte : le message n'est jamais du HTML (textarea).
   ev(`avisCiblesSet('5C', window.__c.id, ['s5'])`);
   assert.match(m(), /– <b>BOLD<\/b> Zoé/);
@@ -441,4 +451,40 @@ test('Objet du courriel : proposé selon l\'objectif, réécrit = modèle, sur u
   assert.ok(!ev(`_avisMessage(getCls(), window.__c)`).includes('5e C — le conseil'), 'l\'objet n\'entre pas dans le message');
   ev(`avisMsgTexteUI(window.__c.id, 'objet', null)`);
   assert.strictEqual(ev(`S.prefs.avisMsg.objet`), undefined, '↺ revient à l\'objet proposé');
+});
+
+test('Signature HTML collée : filtrée (ni script, ni image, ni lien douteux), équilibrée, et en texte pour la copie brute', () => {
+  ev(FIXTURE);
+  // Une signature inventée, de la même forme qu'une signature de messagerie réelle.
+  const sig = `<table cellpadding="0" style="font-family: 'arial' , sans-serif; color: #333;"><tbody><tr>
+    <td style="padding-right: 14px;"><div style="border-radius: 50%; background-color: #dbeafe;">AB</div></td>
+    <td><p style="margin: 0; font-weight: bold;">Alix BERGER</p><p style="margin: 2px 0 0;">Enseignant de SVT</p></td></tr>
+    <tr><td colspan="2"><p>Coll&egrave;ge des Tilleuls</p><p>1 rue des Lilas &mdash; 00000 Nulle-Part</p></td></tr></tbody></table>`;
+  const sur = ev(`_htmlSur(${JSON.stringify(sig)})`);
+  assert.match(sur, /^<table cellpadding="0" style="font-family: 'arial' , sans-serif; color: #333;"><tbody><tr>/);
+  assert.match(sur, /<td colspan="2"><p>Coll&egrave;ge des Tilleuls<\/p>/);
+  assert.match(sur, /<\/table>$/);
+  // Les pièges.
+  const piege = ev(`_htmlSur(${JSON.stringify(`<div onclick="x()" style="color:red">a<script>alert(1)</script><img src="https://t.example/p.gif"><a href="javascript:alert(1)">b</a>
+    <a href="https://ok.example/x" target="_blank">c</a><a href="mailto:a@b.fr">d</a><span style="background:url(https://t.example)">e</span>
+    <p style="color:&#114;ed">f</p><style>*{}</style><!-- note --><table><tr><td>g`)})`);
+  assert.ok(!/script|alert|onclick|<img|javascript|url\(|<style|note|target/i.test(piege), piege);
+  assert.match(piege, /<div style="color:red">a/);
+  assert.match(piege, /<a href="https:\/\/ok\.example\/x">c<\/a><a href="mailto:a@b\.fr">d<\/a><span>e<\/span>/);
+  assert.match(piege, /<p>f<\/p>/, 'un style avec entité numérique est retiré, pas le texte');
+  assert.match(piege, /<table><tr><td>g<\/td><\/tr><\/table><\/div>$/, 'balises ouvertes refermées dans l\'ordre');
+  assert.strictEqual(ev(`_htmlSur('a < b > c </div>')`), 'a &lt; b &gt; c', 'un chevron isolé reste du texte ; une fermeture orpheline disparaît');
+  // Texte brut : une ligne par bloc, entités décodées.
+  assert.strictEqual(ev(`_htmlTexte(_htmlSur(${JSON.stringify(sig)}))`),
+    'AB\nAlix BERGER\nEnseignant de SVT\nCollège des Tilleuls\n1 rue des Lilas — 00000 Nulle-Part');
+  // Dans le message : elle REMPLACE la partie Signature, filtrée dès l'enregistrement.
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }); avisSignatureUI('avisNom', 'M. TEXTE')`);
+  ev(`avisSignatureUI('avisSignatureHtml', ${JSON.stringify(sig + '<script>x</script>')})`);
+  assert.ok(!ev(`S.prefs.avisSignatureHtml`).includes('script'), 'filtrée à l\'enregistrement');
+  const brut = ev(`_avisMessage(getCls(), window.__c)`), riche = ev(`_avisMessageRiche(getCls(), window.__c)`);
+  assert.match(brut, /Bien cordialement,\n\nAB\nAlix BERGER\nEnseignant de SVT\n/);
+  assert.ok(!brut.includes('M. TEXTE'), 'la signature texte est remplacée');
+  assert.match(riche, /<div style="margin-top:\.4em"><table cellpadding="0"[^]*<\/table><\/div>$/);
+  ev(`avisSignatureUI('avisSignatureHtml', '')`);
+  assert.match(ev(`_avisMessage(getCls(), window.__c)`), /M\. TEXTE\nProfesseur principal de la 5e C\n$/, 'retirée, la signature texte revient');
 });
