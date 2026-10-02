@@ -118,7 +118,9 @@ S = {
   documents:  { [docId]: doc },
   elections:  { [classId]: { [electionId]: election } },
   moyennes:   { [classId]: { [importId]: releveMoy } },   // un import = une photographie
-  matieres:   { [mid]: { id, nom, norm, ord } },          // catalogue qui réaligne les colonnes
+  matieres:   { [mid]: { id, nom, norm, ord, disc? } },   // catalogue qui réaligne les colonnes ; disc = discipline (avis)
+  avis:       { [classId]: { [campId]: campagne } },     // avis des collègues : une feuille du Nuage par période
+  disciplines:{ [did]: { id, nom, onglet, actif, ord, builtin } },   // les onglets de cette feuille
   prefs:      { periodMode: 'semestre'|'trimestre', … },
   instances:  { [instanceId]: instance },          // catalogue des instances (incidents)
   cur:        classId,
@@ -695,6 +697,84 @@ dit combien d'élèves sont **sans bilan rédigé**. Les choix se retiennent pou
   piégés). CSS `.print-fiche*` dans le bloc `@media print`. Vérifié à l'écran par injection
   des règles d'impression (tableau paysage et fiches portrait) ; ⚠️ le papier réel, non.
 
+## Avis des collègues (v1.39.0)
+
+Demandé le 2026-10-02 : *« à l'approche des bilans, je demande l'avis des collègues sur
+certains élèves — investissement, comportement, implication — avec un lien de réponse qui
+enregistre leur réponse là où le logiciel pourra la récupérer »*.
+
+**Le circuit** : une **feuille de calcul du Nuage** (Nextcloud académique, Collabora,
+format **.ods**), **un onglet par discipline**, partagée par **lien public en modification**
+— les collègues écrivent sans compte. Le client Nextcloud recopie la feuille sur le poste
+(`~/Nextcloud/…`, c'est nuage03) ; l'app la **prépare** (écrit les onglets, les élèves, les
+titres) et la **relit**, dans ce fichier local, par File System Access (un handle par
+campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
+
+- ⚠️ **Pourquoi pas plus direct** : l'app est une page statique sans serveur, et le
+  navigateur lui interdit de parler au Nuage (CORS, CSP). **Formulaires n'est PAS activé**
+  sur le Nuage (vérifié par l'utilisateur : `…/apps/forms` → erreur). Google Forms,
+  Framaforms : écartés, un avis sur le comportement d'un élève ne sort pas des services de
+  l'Éducation nationale.
+- ⚠️ **Réponses LIBRES**, trois par discipline (`AVIS_CRITERES`) — arbitré : *« une réponse
+  libre, pas un commentaire fermé »*. Aucune échelle, aucun calcul.
+- **Disciplines** (`S.disciplines`, `_disciplinesSeed`, comme les instances : d'office =
+  décochables, pas supprimables) : la liste de l'utilisateur — anglais, arts plastiques,
+  éducation musicale, EPS, enseignement des religions, français, histoire-géographie,
+  mathématiques, physique-chimie, SVT, technologie. Réglables dans 💾 Données (nom, nom
+  d'onglet ≤ 31 caractères sans `[]*?:/\`, actif), complétables (Allemand, Latin…).
+- **Matières des moyennes → disciplines** (*« tu les identifies en commun avec le relevé des
+  moyennes ; si tu as un doute, le logiciel peut me demander »*) : `_matiereDisc(mid)` —
+  `m.disc` posé à la main (un id, ou `''` = ignorée), sinon reconnaissance par les motifs de
+  `DISCIPLINES_DEFAUT` sur le nom normalisé, relevés sur les VRAIS exports (« ÉD.PHYSIQUE &
+  SPORT. », « SCIENCES VIE & TERRE », « SVT BILINGUE », « ANGLAIS LV2 », « HISTOIRE-GEOGRAPHIE
+  EMC »…), sinon une discipline ajoutée de même nom. ⚠️ L'EPS se teste AVANT la
+  physique-chimie, dont le motif exige CHIMIE — « ÉD. PHYSIQUE » contient PHYSIQUE. ⚠️ **Rien
+  n'est deviné** (allemand, LCE, espagnol…) : la modale **pose la question** (« à rattacher »,
+  nouvelle discipline, ignorer), et 💾 Données corrige tout. Le **professeur** de l'onglet
+  vient du DERNIER import de moyennes de ses matières (`_discProfs` — LV1 et LV2 réunies,
+  co-enseignants tous, sans doublon).
+- **Campagne** (`S.avis[classId][campId]`) : `{ id, date, cible, label, fichier, lien, lu,
+  disciplines: [{ id, nom, onglet, profs }] (les onglets de LA feuille, figés), avis: { sid:
+  { did: { investissement, comportement, implication } } } }`. ⚠️ **`cible` = la fin de la
+  période visée**, choisie à la création : la période se déduit de la date comme partout,
+  et le conseil du S1, préparé en février, reste « pour le S1 ». Les élèves de la feuille :
+  **présents pendant la période**, par **ordre alphabétique** (c'est par le nom qu'un
+  collègue cherche).
+- **Lecture** (`_avisLire`, pur) : l'onglet par son nom (ou, renommé, par le nom de la
+  discipline en titre), les colonnes par leur **en-tête** (un collègue peut en déplacer une),
+  l'élève par la clé de nom des moyennes. ⚠️ **Rien n'est rangé au hasard** : homonymes
+  parfaits, nom retouché, onglet inconnu sont **rapportés** dans la modale. **Fusion**
+  (`_avisFusion`) : un onglet lu fait foi (un avis effacé par son auteur disparaît), un onglet
+  ABSENT du fichier garde ses avis — une mauvaise feuille choisie n'efface rien. Un cran
+  d'undo seulement si quelque chose change. Relecture silencieuse à l'ouverture de la modale
+  si la permission est restée accordée.
+- **Écriture** (`_avisEcrireFeuille`) : relit d'abord le fichier et **garde** les avis déjà
+  écrits (mettre à jour une feuille pour une discipline oubliée ne perd rien) ; un fichier
+  qui contient AUTRE chose n'est écrasé qu'après confirmation. ⚠️ La modale prévient : mettre
+  à jour pendant qu'un collègue écrit peut créer un conflit dans le Nuage.
+- **Module .ods** (`_zipStore`, `_zipRead`, `_odsBuild`, `_odsRead` — écrit par un agent,
+  relu) : ZIP « stored » à l'écriture (le `mimetype` premier, sans champ extra : règle ODF),
+  deflate à la lecture par `DecompressionStream('deflate-raw')` (ajouté au bac à sable du
+  harnais), parseur XML maison (pas de DOMParser dans le harnais). ⚠️ Collabora et
+  LibreOffice écrivent des **répétitions énormes** de cases vides (1 048 576 lignes) : on ne
+  développe que ce qui a du contenu, et on borne. ⚠️ Sans `xmlns:ooo` sur `settings.xml`,
+  LibreOffice ignore le gel des volets en silence. Validé par LibreOffice (réenregistrement,
+  export CSV, gel vérifié sous python-uno) ; une feuille réenregistrée par LibreOffice est
+  gardée en fixture (`test/fixtures/avis-libreoffice.ods`, noms inventés). ⚠️ **Non vérifié
+  dans Collabora Online** même : à regarder une fois dans le Nuage.
+- **Sans File System Access** (Firefox) : télécharger la feuille, la déposer dans le Nuage,
+  et relire par « Lire la feuille… » (choix de fichier).
+- **Où on les lit** : la **fenêtre de bilan** (les avis de la période sous les yeux pendant
+  qu'on rédige — `_bilanHint`, qui suit aussi la date), la **fiche** (section 🗣, lecture
+  seule : la source est la feuille), la **synthèse de période** (bloc *Avis des collègues*,
+  **décoché par défaut** : du texte long, tableau ou fiches). Le **message aux collègues**
+  (avec le lien de partage, `https` seulement) se copie depuis la modale.
+- Purge : `camp.avis[sid]` dans `_purgeStudentRefs`, `S.avis[classId]` dans
+  `_purgeClassRefs` ; liste blanche de `_validateImport` (deux niveaux) ; état maximal du
+  balayage. RGPD : le bandeau dit que la feuille (noms compris) vit dans le Nuage, ouverte à
+  qui a le lien. Démo : une feuille du S1 relue (13 avis, 7 disciplines), et « ESPAGNOL LV2 »
+  laissée sans discipline pour que la question se voie.
+
 ## Incidents et instances
 
 Ce qui se passe quand ça se passe mal, et ce qui en découle : une fiche incident, une
@@ -1181,6 +1261,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 57 | **Avis des collègues** : feuille .ods du Nuage préparée et relue par l'app (un onglet par discipline, réponses libres), catalogue des disciplines réglable, matières des moyennes rattachées (demande quand elle ne sait pas), professeur repris des moyennes ; bilan, fiche, synthèse de période ; module .ods sans dépendance ; démo ; 10 tests · **réglages en une colonne sur téléphone** (débordement de 39 px) et **auditeur corrigé** (cf. défaut 29) | ✅ **fait** (2026-10-02, v1.39.0) |
 | 56 | **Couleurs de palier sur la synthèse de période** (cumul de fin de période, tableau et fiches, légende) · **démo sans cumul qui baisse** (rappel de l'utilisateur) ; 2 tests | ✅ **fait** (2026-09-30, v1.38.1) |
 | 55 | **Observations du carnet : couleurs par palier** (`S.prefs.obsPalier`, 5 par défaut, réglable, `_obsBande`, 8 tokens × 2 aux trois endroits) dans la grille, la liste, la fiche et le papier · **impression de la grille** (modale `mcarprint`, période, colonnes, orientation, A4 / A3, une page) ; 6 tests. Audit : 14 états, 2 thèmes, 1 916 et 320 px, **0 défaut** | ✅ **fait** (2026-09-30, v1.38.0) |
 | 54 | **Polices au choix** : Andika à l'écran par défaut, Latin Modern au papier par défaut, les deux réglables dans 💾 Données (`_applyPolices`, `scripts/gen_fonts.py`) ; Fraunces et IBM Plex retirées (−430 Ko) · **visuel commun à tous les tableaux imprimés** (`.print-t`, PV) ; 5 tests | ✅ **fait** (2026-09-30, v1.37.0) |
@@ -1469,6 +1550,22 @@ seconde définition gagnait, la première restait comme un piège), `_stubHTML`,
 `_impNormTags` ; `reloadLastFile`, écrit à l'étape 8 et jamais branché, l'est désormais
 (💾 Données → *↩ Dernier fichier chargé*) — la copie IndexedDB avait un écrivain et
 aucun lecteur.
+
+**2026-10-02, v1.39.0 (Avis des collègues) : 0 écart**, clair et sombre — la liste des
+élèves, la modale (feuille relue et nouvelle feuille avec sa question « à rattacher »), la
+fiche, le bilan avec les avis, Données, la synthèse : 14 états à 1 024 px, 22 à 320 px
+(les six onglets compris). Feuille rendue par LibreOffice (PDF) : un onglet tient en
+largeur sur une A4 paysage. Fiches de la synthèse simulées sur papier depuis le thème sombre.
+
+Un défaut trouvé, et l'outil réparé :
+29. **Les réglages débordaient de 39 px à 375 px** (`.prefs` : `max-content 1fr`, la seconde
+   colonne gardait la largeur naturelle des menus). **L'auditeur ne le voyait pas** : en
+   émulation mobile, la fenêtre s'ÉLARGIT d'elle-même à la largeur du contenu (`innerWidth`
+   414 pour 375), et le test `scrollWidth > innerWidth` passait. → `scripts/audit_browser.js`
+   compare à `documentElement.clientWidth` ; les réglages passent en une colonne sous 520 px
+   (`!important` : certaines grilles portent leur gabarit en ligne). ⚠️ Les audits à 320 px
+   d'avant le 2026-10-02 sont donc à relire avec prudence pour le débordement (le contraste,
+   lui, n'est pas concerné).
 
 **2026-09-29, v1.32.0 (Moyennes) : 0 écart**, clair et sombre, par `scripts/audit_browser.js`
 (contraste, débordement, texte tronqué, erreurs JS) — 8 états × 2 thèmes, 4 276 nœuds : le

@@ -90,6 +90,8 @@ function loadApp(htmlPath) {
     Promise, Date, Math, JSON, Object, Array, String, Number, Boolean, RegExp,
     Map, Set, WeakMap, WeakSet, Symbol, parseInt, parseFloat, isNaN, isFinite,
     encodeURIComponent, decodeURIComponent, URL, TextEncoder, TextDecoder,
+    // La lecture des feuilles .ods (avis des collègues) décompresse le deflate par le navigateur.
+    DecompressionStream,
     Blob: global.Blob || function () {}, crypto: global.crypto,
     FileReader: function () {}, AbortController: global.AbortController,
     localStorage,

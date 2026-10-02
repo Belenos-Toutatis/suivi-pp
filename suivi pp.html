@@ -876,6 +876,15 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
    même ligne poussaient la page (343 px mesurés). La ligne passe en flex qui replie. */
 .prefs > div { min-width: 0; }
 .prefs-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* ⚠️ Sur téléphone, une colonne : `max-content 1fr` gardait la seconde colonne à la largeur
+   naturelle des menus (220 px) à côté des libellés, et la page débordait de 39 px à 375 px
+   (trouvé le 2026-10-02 — l'auditeur ne le voyait pas, la fenêtre mobile s'élargissant
+   d'elle-même à la largeur du contenu). Libellé au-dessus, réglage dessous. */
+@media (max-width: 520px) {
+  .prefs { grid-template-columns: minmax(0, 1fr) !important; gap: 4px; }
+  .prefs .pref-help { grid-column: 1; margin: 0 0 10px; }
+  .prefs select, .prefs input:not([type="checkbox"]) { max-width: 100% !important; }
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    ONGLET CARNETS — grille élèves × relevés
@@ -939,6 +948,18 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
   border: 1px solid var(--rule-line); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .ob-leg { display: inline-flex; flex-wrap: wrap; gap: 3px; vertical-align: middle; }
 .ob-leg .ob-chip { font-size: 11px; padding: 0 5px; }
+/* Avis des collègues : la liste des disciplines à cocher, et les avis rendus en blocs. */
+.av-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 4px 12px; }
+.fg .av-pick-i, .av-pick-i { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; color: var(--ink-deep); font-weight: 400; font-size: .92em; margin: 0; min-width: 0; }
+.fg .av-pick-i input, .av-pick-i input { width: 16px; height: 16px; margin-top: 2px; flex: none; }
+.av-pick-i small { display: block; color: var(--pencil); font-size: .88em; overflow-wrap: anywhere; }
+.av-det > summary { cursor: pointer; }
+.av-it { margin: 0 0 8px; }
+.av-d { font-weight: 700; color: var(--ink-blue); }
+.av-c { white-space: pre-line; font-size: .93em; margin-left: 10px; overflow-wrap: anywhere; }
+.av-k { font: 600 .78em var(--font-mono); color: var(--pencil); text-transform: uppercase; letter-spacing: .04em; margin-right: 4px; }
+.av-bil { margin-bottom: 10px; border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 6px 10px; background: var(--paper-warm); }
+.av-bil .av-scroll { max-height: 220px; overflow-y: auto; margin-top: 6px; }
 .ob-1 .rel-inp, .ob-chip.ob-1 { background: var(--obs-1); color: var(--obs-1-fg); border-color: transparent; }
 .ob-2 .rel-inp, .ob-chip.ob-2 { background: var(--obs-2); color: var(--obs-2-fg); border-color: transparent; }
 .ob-3 .rel-inp, .ob-chip.ob-3 { background: var(--obs-3); color: var(--obs-3-fg); border-color: transparent; }
@@ -1513,7 +1534,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     dates de naissance, aménagements pédagogiques, relevés de carnet, moyennes par matière,
     retours de documents administratifs, réponses des familles, un journal des contacts avec elles, et les
     incidents et instances (commission éducative…) avec, si tu les joins, les PDF des fiches —
-    ceux-ci dans le dossier que tu choisis, pas dans le navigateur.
+    ceux-ci dans le dossier que tu choisis, pas dans le navigateur —, et les avis des collègues :
+    la feuille qui les recueille (noms des élèves compris) vit dans ton Nuage académique, ouverte
+    à qui a le lien que tu leur envoies.
     En cadre professionnel, déclare-la à ton DPO d'établissement (souvent <code>dpo@ac-&lt;ton-académie&gt;.fr</code>).
     Rien ne sort de ton navigateur : aucun serveur, aucune télémétrie.
   </span>
@@ -1801,10 +1824,11 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <h2 id="mbilan-title">🎓 Conseil de classe</h2>
     <div class="tb-hint" style="margin-bottom:8px">Ce que je dirai de l'élève au conseil, ou ce que je retiens à mi-période — sans note ni moyenne, elles sont dans Pronote. La période se déduit de la date. <strong>Ctrl+Entrée</strong> enregistre et passe à l'élève suivant, dans l'ordre de la liste.</div>
     <div class="fi-form" style="margin-bottom:10px">
-      <label>Date <input type="date" id="mbilan-date" style="min-width:140px"></label>
+      <label>Date <input type="date" id="mbilan-date" style="min-width:140px" onchange="_bilanHint()"></label>
       <label>Moment <select id="mbilan-type" onchange="_bilanHint()"></select></label>
       <span id="mbilan-per" class="tb-hint"></span>
     </div>
+    <div id="mbilan-avis"></div>
     <div class="fg">
       <textarea id="mbilan-txt" data-autofocus rows="6" placeholder="Élève sérieux, en progrès à l'oral. Le carnet reste chargé (+6 ce semestre) : rappeler le cadre. Encourager à demander de l'aide en maths." onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
     </div>
@@ -1995,6 +2019,14 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <button class="btn btn-g" onclick="closeMod2('mmoyimp')">Annuler</button>
       <button class="btn btn-p" id="mmoyimp-ok" onclick="moyImportOk()" disabled>✓ Importer</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════ AVIS DES COLLÈGUES ═══════════════ -->
+<div id="mavis" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:660px;width:100%">
+    <h2 id="mavis-title">🗣 Avis des collègues</h2>
+    <div id="mavis-body"></div>
   </div>
 </div>
 
@@ -2332,8 +2364,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.38.1';
-const APP_BUILD_DATE = '2026-09-30T04:38:33Z';
+const APP_VERSION    = '1.39.0';
+const APP_BUILD_DATE = '2026-10-02T08:56:02Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2378,6 +2410,14 @@ function _emptyState() {
     // Catalogue des matières, partagé par tous les imports : c'est lui qui réaligne les
     // colonnes quand un fichier en gagne une. { [mid]: { id, nom, norm, ord } }
     matieres:  {},
+    // Avis des collègues (v1.39.0) : une CAMPAGNE = une feuille du Nuage envoyée pour une
+    // période. { [classId]: { [campId]: { id, date, cible, label, fichier, lien, lu,
+    //   disciplines: [{ id, nom, onglet, profs }], avis: { sid: { did: { investissement,
+    //   comportement, implication } } } } } }
+    avis:      {},
+    // Catalogue des disciplines (un onglet de la feuille chacune) — pré-rempli, renommable,
+    // désactivable, complétable. Les matières du bureau numérique s'y rattachent par m.disc.
+    disciplines: {},   // { [did]: { id, nom, onglet, actif, ord, builtin } }
     tags:      {},   // { [tagId]: { id, abbr, name, color } } — codes Pronote : LATIN, BIL, DNL…
     // Catalogue des instances (fiche incident, commission éducative…) : pré-rempli des
     // instances officielles, renommables, désactivables, complétables. Les ENTRÉES, elles,
@@ -3069,16 +3109,16 @@ function _isPlainObj(o) { return !!o && typeof o === 'object' && !Array.isArray(
 // manquer — c'est le rôle de cette fonction, appelée EN TÊTE de postLoadHook.
 // ⚠️ Toute section ajoutée à S s'ajoute ici.
 function _sanitizeCoreSections() {
-  for (const k of ['classes', 'eleves', 'releves', 'documents', 'elections', 'moyennes', 'matieres', 'tags', 'salles', 'prefs', 'instances']) {
+  for (const k of ['classes', 'eleves', 'releves', 'documents', 'elections', 'moyennes', 'matieres', 'tags', 'salles', 'prefs', 'instances', 'avis', 'disciplines']) {
     if (!_isPlainObj(S[k])) { console.warn(`Section ${k} absente ou invalide — recréée vide`); S[k] = {}; }
   }
-  for (const k of ['classes', 'eleves', 'documents', 'matieres', 'tags', 'salles', 'instances']) {
+  for (const k of ['classes', 'eleves', 'documents', 'matieres', 'tags', 'salles', 'instances', 'disciplines']) {
     for (const [id, v] of Object.entries(S[k])) {
       if (!_isPlainObj(v)) { console.warn(`Entrée ${k}.${id} invalide — supprimée`); delete S[k][id]; }
     }
   }
-  // releves / elections / moyennes sont à DEUX niveaux : { classId: { clé: objet } }
-  for (const k of ['releves', 'elections', 'moyennes']) {
+  // releves / elections / moyennes / avis sont à DEUX niveaux : { classId: { clé: objet } }
+  for (const k of ['releves', 'elections', 'moyennes', 'avis']) {
     for (const [cid, sub] of Object.entries(S[k])) {
       if (!_isPlainObj(sub)) { console.warn(`${k}.${cid} invalide — supprimé`); delete S[k][cid]; continue; }
       for (const [id, v] of Object.entries(sub)) {
@@ -3121,6 +3161,19 @@ function _sanitizeCoreSections() {
   }
   for (const m of Object.values(S.matieres)) {
     if (typeof m.norm !== 'string' || !m.norm) m.norm = _moyNorm(m.nom);
+    if (m.disc !== undefined && typeof m.disc !== 'string') delete m.disc;
+  }
+  for (const byId of Object.values(S.avis)) {
+    for (const c of Object.values(byId)) {
+      if (!Array.isArray(c.disciplines)) c.disciplines = [];
+      c.disciplines = c.disciplines.filter(d => _isPlainObj(d) && typeof d.id === 'string' && typeof d.onglet === 'string');
+      if (!_isPlainObj(c.avis)) c.avis = {};
+      for (const [sid, o] of Object.entries(c.avis)) {
+        if (!_isPlainObj(o)) { delete c.avis[sid]; continue; }
+        for (const [did, a] of Object.entries(o)) if (!_isPlainObj(a)) delete o[did];
+      }
+      if (typeof c.cible !== 'string') c.cible = typeof c.date === 'string' ? c.date : '';
+    }
   }
   for (const d of Object.values(S.documents)) {
     if (!Array.isArray(d.classIds)) d.classIds = [];
@@ -3138,6 +3191,7 @@ function postLoadHook() {
   }
   if (typeof S.version !== 'number') S.version = 1;
   _instancesSeed();
+  _disciplinesSeed();
   // Stratégie de sauvegarde : voyage dans le JSON (donc suit la sync), avec repli sur le
   // réglage local pour un fichier venu d'une version antérieure.
   if (!S.prefs.backupStrategy) {
@@ -3194,13 +3248,13 @@ function _validateImport(d) {
   // vérifiées compatibles ID_RE, sinon des imports légitimes seraient rejetés.
   // Clés vérifiées : ids de classe/élève/document, dates 'YYYY-MM-DD' (releves),
   // ids d'élection, ids de tag ('tag_3'), noms fixes (prefs), ids d'appareil (clock).
-  const sections = ['classes', 'eleves', 'releves', 'documents', 'elections', 'moyennes', 'matieres', 'tags', 'salles', 'prefs', 'clock', 'instances'];
+  const sections = ['classes', 'eleves', 'releves', 'documents', 'elections', 'moyennes', 'matieres', 'tags', 'salles', 'prefs', 'clock', 'instances', 'avis', 'disciplines'];
   for (const sec of sections) {
     const err = checkKeys(d[sec], sec);
     if (err) return err;
   }
   // releves / elections / moyennes : les sous-clés aussi (dates de relevé, ids d'élection, ids d'import).
-  for (const sec of ['releves', 'elections', 'moyennes']) {
+  for (const sec of ['releves', 'elections', 'moyennes', 'avis']) {
     if (d[sec] && typeof d[sec] === 'object') {
       for (const [cid, sub] of Object.entries(d[sec])) {
         const err = checkKeys(sub, `${sec}[${cid}]`);
@@ -3257,6 +3311,10 @@ function _purgeStudentRefs(sid) {
       if (rel?.generale) delete rel.generale[sid];
     }
   }
+  // Avis des collègues : ceux qui le concernent, dans chaque campagne.
+  for (const byId of Object.values(_isPlainObj(S.avis) ? S.avis : {})) {
+    for (const camp of Object.values(byId || {})) if (_isPlainObj(camp?.avis)) delete camp.avis[sid];
+  }
   delete S.eleves[sid];
 }
 
@@ -3269,6 +3327,7 @@ function _purgeClassRefs(classId) {
   delete S.releves[classId];
   delete S.elections[classId];
   if (_isPlainObj(S.moyennes)) delete S.moyennes[classId];
+  if (_isPlainObj(S.avis)) delete S.avis[classId];
   for (const [did, doc] of Object.entries(S.documents)) {
     if (!Array.isArray(doc.classIds)) continue;
     doc.classIds = doc.classIds.filter(c => c !== classId);
@@ -3323,6 +3382,12 @@ function _auditState() {
       for (const mid of (rel.matieres || [])) {
         if (!S.matieres[mid]) pb.push(`moyennes ${cid}/${rid} : matière inconnue ${mid}`);
       }
+    }
+  }
+  for (const [cid, byId] of Object.entries(_isPlainObj(S.avis) ? S.avis : {})) {
+    if (!S.classes[cid]) pb.push(`avis : classe inconnue ${cid}`);
+    for (const [aid, camp] of Object.entries(byId || {})) {
+      for (const sid of Object.keys(camp.avis || {})) if (!known.has(sid)) pb.push(`avis ${cid}/${aid} : élève fantôme ${sid}`);
     }
   }
   for (const [did, doc] of Object.entries(S.documents)) {
@@ -3455,6 +3520,9 @@ function _renderDonneesInner(el) {
     <h3 style="margin-bottom:10px">⚖️ Instances et incidents</h3>
     <div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renomme, décris, décoche celles que ton établissement n'utilise pas, ajoute les tiennes. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>
     ${_instancesTableHTML()}
+    <h3 style="margin-bottom:10px">🗣 Disciplines — avis des collègues</h3>
+    <div class="pref-help" style="margin-bottom:8px">Les onglets de la feuille d'avis envoyée aux collègues (👥 Élèves → 🗣 Avis des collègues). Renomme, décoche, ajoute les tiennes (Allemand, Latin…). Une discipline d'office se décoche, elle ne se supprime pas.</div>
+    ${_disciplinesTableHTML()}
     <h3 style="margin-bottom:10px">💾 Mémoire locale</h3>
     <div id="about-storage" class="sto-box" style="max-width:620px;margin-bottom:18px">
       <div class="sto-head"><strong>Occupation</strong> <span class="sto-sum">mesure en cours…</span></div>
@@ -4745,7 +4813,8 @@ function renderStudents() {
      { key: 'bilan', label: `par bilan ${per} (rédigé d'abord)` }])}
     <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Afficher la colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée"><input type="checkbox"${_elevesNais ? ' checked' : ''} onchange="_elevesNais=this.checked;renderStudents()"> 📅 naissances</label>
     <span class="tb-hint">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span>
-    <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
+    <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="openAvis()" title="Demander l'avis des collègues sur les élèves — une feuille du Nuage, un onglet par discipline — puis relire leurs réponses">🗣 Avis des collègues…</button>
+    <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
     <button class="btn btn-g btn-sm" onclick="printEleves()" title="La liste telle qu'elle est à l'écran, en paysage — Ctrl+P fait pareil">🖨 Imprimer la liste</button></div>`;
   const keep = _wrapScrollKeep(el);
   el.innerHTML = tri + filtered + (list.length ? `
@@ -5166,6 +5235,13 @@ function _ficheRender() {
       }).join('')
     : vide('Rien de rédigé pour un conseil de classe ou un bilan de mi-période.');
 
+  // Avis des collègues : toutes les feuilles où il apparaît, la plus récente d'abord. Lecture
+  // seule — la source est la feuille du Nuage, c'est là qu'un collègue corrige.
+  const avisFiche = cls ? _avisCampagnes(cls.id).filter(c => c.avis?.[stu.id]).map(c => ({ c, p: _avisPeriode(cls, c),
+    items: c.disciplines.filter(d => c.avis[stu.id][d.id]).map(d => ({ disc: d, ...c.avis[stu.id][d.id] })) })).filter(x => x.items.length) : [];
+  const avisFicheHTML = avisFiche.length
+    ? avisFiche.map(x => `<div class="fi-j"><div class="fi-j-h">${_escName(x.p ? x.p.label : '?')} · feuille du ${_escName(_fmtDateFr(x.c.date))}</div>${_avisItemsHTML(x.items)}</div>`).join('')
+    : vide('Aucun avis de collègue — 🗣 Avis des collègues, dans la liste des élèves, pour en demander.');
   const remHTML = _ficheEdit === 'remarque'
     ? `<textarea id="fi-rem-edit" data-fi-focus rows="4" style="width:100%" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral.">${_escName(stu.remarque || '')}</textarea>
        <div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="ficheSaveRemarque()">✓ Enregistrer</button><button class="btn btn-g btn-sm" onclick="ficheEdit('remarque')">Annuler</button></div>`
@@ -5203,7 +5279,8 @@ function _ficheRender() {
     + sec('📋 Remarque', remHTML, { onclick: "ficheEdit('remarque')", title: stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', icone: stu.remarque ? '✎' : '+' })
     + sec(`📇 Contacts avec la famille${journal.length ? ` <span class="fi-vide">(${journal.length})</span>` : ''}`, contactForm + jHTML, { onclick: "ficheEdit('contact')", title: 'Noter un contact avec la famille' })
     + sec(`⚖️ Incidents et instances${incs.length ? ` <span class="fi-vide">(${incs.length})</span>` : ''}`, incHTML, { onclick: 'ficheVersIncident()', title: 'Noter un incident ou une instance' })
-    + sec(`🎓 Conseils de classe et bilans${bilans.length ? ` <span class="fi-vide">(${bilans.length})</span>` : ''}`, bilHTML, { onclick: 'ficheVersBilan()', title: 'Rédiger ce que je dirai au conseil, ou un bilan de mi-période' });
+    + sec(`🎓 Conseils de classe et bilans${bilans.length ? ` <span class="fi-vide">(${bilans.length})</span>` : ''}`, bilHTML, { onclick: 'ficheVersBilan()', title: 'Rédiger ce que je dirai au conseil, ou un bilan de mi-période' })
+    + sec(`🗣 Avis des collègues${avisFiche.length ? ` <span class="fi-vide">(${avisFiche.length})</span>` : ''}`, avisFicheHTML);
   const f = box.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
 }
@@ -5426,6 +5503,13 @@ function _bilanHint() {
   const p = _periodOf(cls, d.value);
   const pos = _bilanOrdre().indexOf(_bilanSid);
   el.textContent = `${p ? `période ${p.label}` : 'hors année scolaire'} · ${pos < 0 ? 'hors de la liste affichée (filtre)' : `élève ${pos + 1} / ${_bilanOrdre().length}`}`;
+  // Les avis des collègues de la période, sous les yeux pendant qu'on rédige (v1.39.0).
+  const av = document.getElementById('mbilan-avis');
+  if (av) {
+    const a = p ? _avisEleve(cls, _bilanSid, p.n - 1) : null;
+    av.innerHTML = a ? `<details class="av-det av-bil" open><summary><strong>🗣 Avis des collègues — ${_escName(p.label)}</strong> <span class="tb-hint">${a.items.length} discipline${a.items.length > 1 ? 's' : ''}</span></summary>
+      <div class="av-scroll">${_avisItemsHTML(a.items)}</div></details>` : '';
+  }
 }
 // L'ordre de la liste des élèves à l'écran (tri et filtre compris) — celui qu'on avait
 // sous les yeux en ouvrant, figé pour la durée de la modale (cf. openBilan).
@@ -11374,6 +11458,1108 @@ function printEleves() {
   if (!cls || !cls.eleves.length) return toast('⚠️ Rien à imprimer.', 'warn');
   _printHTML(_elevesPrintHTML(cls), 'landscape', { fontPt: _ELEVES_PRINT_PT });
 }
+/* ───────── Tableur OpenDocument (.ods) : écriture et lecture, sans dépendance ─────────
+   Collé tel quel dans le <script> de l'application : que des `function` (et des `var`)
+   de niveau supérieur, préfixées _zip / _ods / _crc32. Tourne aussi sous Node ≥ 18. */
+
+/* ── ZIP ── */
+
+var _zipCrcT = null;
+
+function _crc32(u8) {
+  if (!_zipCrcT) {
+    _zipCrcT = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      _zipCrcT[n] = c >>> 0;
+    }
+  }
+  var crc = 0xFFFFFFFF;
+  for (var i = 0; i < u8.length; i++) crc = _zipCrcT[(crc ^ u8[i]) & 255] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// Archive « stored » (méthode 0) : aucune compression à embarquer, et c'est ce que
+// la règle ODF demande pour `mimetype`. Date DOS figée (1980-01-01) : une sortie
+// reproductible vaut mieux qu'un horodatage que personne ne lira.
+function _zipStore(files) {
+  var enc = new TextEncoder();
+  var es = files.map(function (f) {
+    var data = typeof f.data === 'string' ? enc.encode(f.data) : f.data;
+    return { name: enc.encode(f.name), data: data, crc: _crc32(data) };
+  });
+  if (es.length > 0xFFFF) throw new Error('Trop de fichiers pour une archive ZIP simple');
+  var total = 22, i, e;
+  for (i = 0; i < es.length; i++) total += 76 + 2 * es[i].name.length + es[i].data.length;
+  if (total > 0xFFFFFFFF) throw new Error('Archive trop volumineuse (ZIP64 non pris en charge)');
+  var out = new Uint8Array(total), dv = new DataView(out.buffer), p = 0, offs = [];
+  for (i = 0; i < es.length; i++) {
+    e = es[i]; offs.push(p);
+    dv.setUint32(p, 0x04034b50, true);
+    dv.setUint16(p + 4, 20, true);
+    dv.setUint16(p + 6, 0x0800, true);          // bit 11 : noms en UTF-8
+    dv.setUint16(p + 8, 0, true);               // méthode 0 = stored
+    dv.setUint16(p + 10, 0, true);
+    dv.setUint16(p + 12, 0x21, true);
+    dv.setUint32(p + 14, e.crc, true);
+    dv.setUint32(p + 18, e.data.length, true);
+    dv.setUint32(p + 22, e.data.length, true);
+    dv.setUint16(p + 26, e.name.length, true);
+    dv.setUint16(p + 28, 0, true);              // pas de champ extra (exigé pour mimetype)
+    out.set(e.name, p + 30);
+    out.set(e.data, p + 30 + e.name.length);
+    p += 30 + e.name.length + e.data.length;
+  }
+  var cdStart = p;
+  for (i = 0; i < es.length; i++) {
+    e = es[i];
+    dv.setUint32(p, 0x02014b50, true);
+    dv.setUint16(p + 4, 20, true);
+    dv.setUint16(p + 6, 20, true);
+    dv.setUint16(p + 8, 0x0800, true);
+    dv.setUint16(p + 10, 0, true);
+    dv.setUint16(p + 12, 0, true);
+    dv.setUint16(p + 14, 0x21, true);
+    dv.setUint32(p + 16, e.crc, true);
+    dv.setUint32(p + 20, e.data.length, true);
+    dv.setUint32(p + 24, e.data.length, true);
+    dv.setUint16(p + 28, e.name.length, true);
+    dv.setUint32(p + 38, 0, true);              // attributs externes
+    dv.setUint32(p + 42, offs[i], true);
+    out.set(e.name, p + 46);
+    p += 46 + e.name.length;
+  }
+  dv.setUint32(p, 0x06054b50, true);
+  dv.setUint16(p + 8, es.length, true);
+  dv.setUint16(p + 10, es.length, true);
+  dv.setUint32(p + 12, p - cdStart, true);
+  dv.setUint32(p + 16, cdStart, true);
+  return out;
+}
+
+// Décompresse un flux deflate brut. La taille annoncée BORNE la lecture : une entrée
+// malformée (ou une bombe) ne doit pas pouvoir remplir la mémoire.
+async function _zipInflate(data, expected) {
+  if (typeof DecompressionStream === 'undefined')
+    throw new Error('Ce navigateur ne sait pas décompresser les archives (DecompressionStream absent)');
+  if (expected > 256 * 1024 * 1024) throw new Error('Fichier contenu dans l’archive trop volumineux');
+  var ds = new DecompressionStream('deflate-raw');
+  var w = ds.writable.getWriter();
+  // Les rejets d'écriture/fermeture sont aussi remontés côté lecture : on les absorbe ici
+  // pour ne pas laisser de promesse rejetée « non gérée ».
+  w.write(data).catch(function () {});
+  w.close().catch(function () {});
+  var r = ds.readable.getReader(), chunks = [], got = 0;
+  try {
+    for (;;) {
+      var x = await r.read();
+      if (x.done) break;
+      got += x.value.length;
+      if (got > expected) { r.cancel().catch(function () {}); throw new Error('taille'); }
+      chunks.push(x.value);
+    }
+  } catch (e) {
+    throw new Error('Données compressées corrompues dans l’archive');
+  }
+  if (got !== expected) throw new Error('Données compressées corrompues dans l’archive (taille inattendue)');
+  var out = new Uint8Array(got), p = 0;
+  chunks.forEach(function (c) { out.set(c, p); p += c.length; });
+  return out;
+}
+
+async function _zipRead(u8) {
+  if (u8 instanceof ArrayBuffer) u8 = new Uint8Array(u8);
+  if (!ArrayBuffer.isView(u8)) throw new Error('Archive ZIP illisible (contenu inattendu)');
+  var n = u8.length, dv = new DataView(u8.buffer, u8.byteOffset, n);
+  if (n < 22) throw new Error('Archive ZIP trop courte ou illisible');
+  var eocd = -1;
+  for (var i = n - 22; i >= 0 && i >= n - 22 - 65535; i--)
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('Archive ZIP illisible (fin de répertoire introuvable : fichier tronqué ?)');
+  if (eocd >= 20 && dv.getUint32(eocd - 20, true) === 0x07064b50)
+    throw new Error('Archive ZIP64 non prise en charge');
+  var count = dv.getUint16(eocd + 10, true), cdSize = dv.getUint32(eocd + 12, true), cdOff = dv.getUint32(eocd + 16, true);
+  if (count === 0xFFFF || cdSize === 0xFFFFFFFF || cdOff === 0xFFFFFFFF)
+    throw new Error('Archive ZIP64 non prise en charge');
+  if (cdOff + cdSize > n) throw new Error('Archive ZIP corrompue (répertoire central hors du fichier)');
+  var dec = new TextDecoder('utf-8'), files = new Map(), pos = cdOff;
+  for (var k = 0; k < count; k++) {          // borné par `count` : jamais de boucle sans fin
+    if (pos + 46 > n || dv.getUint32(pos, true) !== 0x02014b50)
+      throw new Error('Archive ZIP corrompue (entrée du répertoire illisible)');
+    var flag = dv.getUint16(pos + 8, true), method = dv.getUint16(pos + 10, true);
+    var crc = dv.getUint32(pos + 16, true), cSize = dv.getUint32(pos + 20, true), uSize = dv.getUint32(pos + 24, true);
+    var nl = dv.getUint16(pos + 28, true), xl = dv.getUint16(pos + 30, true), cl = dv.getUint16(pos + 32, true);
+    var lo = dv.getUint32(pos + 42, true);
+    if (pos + 46 + nl + xl + cl > n) throw new Error('Archive ZIP corrompue (nom d’entrée hors du fichier)');
+    var name = dec.decode(u8.subarray(pos + 46, pos + 46 + nl));
+    pos += 46 + nl + xl + cl;
+    if (cSize === 0xFFFFFFFF || uSize === 0xFFFFFFFF || lo === 0xFFFFFFFF)
+      throw new Error('Archive ZIP64 non prise en charge');
+    if (name.charAt(name.length - 1) === '/') continue;   // simple dossier
+    if (flag & 1) throw new Error('Archive chiffrée : non prise en charge');
+    // Les longueurs de l'en-tête LOCAL servent seulement à sauter jusqu'aux données : tailles
+    // et CRC viennent du répertoire central, car un « data descriptor » les laisse à 0 là-bas.
+    if (lo + 30 > n || dv.getUint32(lo, true) !== 0x04034b50)
+      throw new Error('Archive ZIP corrompue (en-tête local de « ' + name + ' » illisible)');
+    var ds = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true);
+    if (ds + cSize > n) throw new Error('Archive ZIP corrompue (données de « ' + name + ' » hors du fichier)');
+    var raw = u8.subarray(ds, ds + cSize), data;
+    if (method === 0) {
+      if (cSize !== uSize) throw new Error('Archive ZIP corrompue (tailles incohérentes pour « ' + name + ' »)');
+      data = raw.slice();
+    } else if (method === 8) {
+      data = await _zipInflate(raw, uSize);
+    } else {
+      throw new Error('Méthode de compression ' + method + ' non prise en charge (« ' + name + ' »)');
+    }
+    if (_crc32(data) !== crc) throw new Error('Archive ZIP corrompue (somme de contrôle de « ' + name + ' » incorrecte)');
+    files.set(name, data);
+  }
+  return files;
+}
+
+/* ── ODS : écriture ── */
+
+// Échappe pour XML ; retire les caractères de contrôle, interdits même en entité en XML 1.0.
+function _odsEsc(s) {
+  return String(s == null ? '' : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+// ODF réduit toute suite d'espaces à un seul : sans <text:s>, « a  b » et un espace en
+// début ou fin de texte (une indentation de saisie) seraient perdus à la relecture.
+function _odsInline(s) {
+  return _odsEsc(s).replace(/ +|\t/g, function (m, off, all) {
+    if (m === '\t') return '<text:tab/>';
+    if (off === 0 || off + m.length === all.length) return '<text:s text:c="' + m.length + '"/>';
+    return m.length === 1 ? ' ' : ' <text:s text:c="' + (m.length - 1) + '"/>';
+  });
+}
+
+var _ODS_NS = 'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ' +
+  'xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" ' +
+  'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" ' +
+  'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" ' +
+  'xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" ' +
+  'xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" ' +
+  'xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" ';
+
+var _ODS_BORD = ' fo:border="0.5pt solid #000000"';
+// Propriétés des cinq styles de cellule, par nom (le fond est posé en `fo:background-color`).
+var _ODS_STYLES = {
+  titre:  { t: ' fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold" fo:font-size="13pt"', c: '' },
+  aide:   { t: ' fo:font-style="italic" style:font-style-asian="italic" style:font-style-complex="italic" fo:color="#444444"', c: ' fo:wrap-option="wrap"' },
+  entete: { t: ' fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"', c: ' fo:background-color="#e4e4e4"' + _ODS_BORD + ' fo:wrap-option="wrap"' },
+  nom:    { t: ' fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"', c: _ODS_BORD + ' style:vertical-align="top"' },
+  saisie: { t: '', c: _ODS_BORD + ' fo:wrap-option="wrap" style:vertical-align="top"' }
+};
+
+function _odsCm(w) { return (isFinite(w) && w > 0 ? +w : 2.5).toFixed(3) + 'cm'; }
+
+// Gel des volets : même structure que celle que LibreOffice écrit lui-même, vérifiée en
+// ouvrant le fichier dans une vraie fenêtre LibreOffice (hasFrozenPanes). ⚠️ Piège : sans
+// la déclaration xmlns:ooo (que le nom « ooo:view-settings » appelle), LibreOffice ignore
+// TOUT le bloc sans rien dire. Et la conversion en ligne de commande (--headless, sans
+// vue) ne relit ni n'écrit jamais ces réglages : elle ne prouve rien sur le gel.
+function _odsSettings(sheets) {
+  function item(n, t, v) { return '<config:config-item config:name="' + n + '" config:type="' + t + '">' + v + '</config:config-item>'; }
+  var ents = '';
+  sheets.forEach(function (sh, i) {
+    var f = sh.freeze || {}, r = Math.max(0, f.rows | 0), c = Math.max(0, f.cols | 0);
+    if (!r && !c) return;
+    ents += '<config:config-item-map-entry config:name="' + _odsEsc(sh.name || 'Feuille' + (i + 1)) + '">' +
+      item('HorizontalSplitMode', 'short', c ? 2 : 0) + item('VerticalSplitMode', 'short', r ? 2 : 0) +
+      item('HorizontalSplitPosition', 'int', c) + item('VerticalSplitPosition', 'int', r) +
+      item('ActiveSplitRange', 'short', c && r ? 3 : r ? 2 : 1) +
+      item('PositionLeft', 'int', 0) + item('PositionRight', 'int', c) +
+      item('PositionTop', 'int', 0) + item('PositionBottom', 'int', r) +
+      '</config:config-item-map-entry>';
+  });
+  return '<?xml version="1.0" encoding="UTF-8"?><office:document-settings ' + _ODS_NS + 'xmlns:ooo="http://openoffice.org/2004/office" office:version="1.3"><office:settings>' +
+    '<config:config-item-set config:name="ooo:view-settings"><config:config-item-map-indexed config:name="Views">' +
+    '<config:config-item-map-entry>' + item('ViewId', 'string', 'view1') +
+    '<config:config-item-map-named config:name="Tables">' + ents + '</config:config-item-map-named>' +
+    item('ActiveTable', 'string', _odsEsc(sheets[0] && sheets[0].name || 'Feuille1')) +
+    '</config:config-item-map-entry></config:config-item-map-indexed></config:config-item-set>' +
+    '</office:settings></office:document-settings>';
+}
+
+function _odsBuild(sheets) {
+  var colStyles = {}, colXml = '';                    // largeur → nom de style de colonne
+  function colStyle(w) {
+    var cm = _odsCm(w);
+    if (!colStyles[cm]) {
+      colStyles[cm] = 'co' + (Object.keys(colStyles).length + 1);
+      colXml += '<style:style style:name="' + colStyles[cm] + '" style:family="table-column"><style:table-column-properties fo:break-before="auto" style:column-width="' + cm + '"/></style:style>';
+    }
+    return colStyles[cm];
+  }
+  var tabs = sheets.map(function (sh, si) {
+    var rows = sh.rows || [], widths = sh.colWidthsCm || [], ncol = widths.length;
+    var body = rows.map(function (row) {
+      var w = 0, x = '';
+      row.forEach(function (cell) {
+        var o = (cell && typeof cell === 'object') ? cell : { text: cell };
+        var txt = o.text == null ? '' : String(o.text);
+        var st = _ODS_STYLES[o.style] ? ' table:style-name="ce_' + o.style + '"' : '';
+        var span = Math.max(1, o.span | 0);
+        var sp = span > 1 ? ' table:number-columns-spanned="' + span + '" table:number-rows-spanned="1"' : '';
+        if (txt === '') x += '<table:table-cell' + st + sp + '/>';
+        else x += '<table:table-cell' + st + sp + ' office:value-type="string">' +
+          txt.split(/\r\n|\r|\n/).map(function (l) { return '<text:p>' + _odsInline(l) + '</text:p>'; }).join('') + '</table:table-cell>';
+        for (var k = 1; k < span; k++) x += '<table:covered-table-cell/>';
+        w += span;
+      });
+      if (w > ncol) ncol = w;
+      return '<table:table-row table:style-name="ro1">' + (x || '<table:table-cell/>') + '</table:table-row>';
+    }).join('');
+    var cols = '';
+    for (var c = 0; c < ncol; c++)
+      cols += c < widths.length ? '<table:table-column table:style-name="' + colStyle(widths[c]) + '"/>' : '<table:table-column/>';
+    return '<table:table table:name="' + _odsEsc(sh.name || 'Feuille' + (si + 1)) + '" table:style-name="ta1">' + cols + (body || '<table:table-row><table:table-cell/></table:table-row>') + '</table:table>';
+  }).join('');
+  var cellStyles = Object.keys(_ODS_STYLES).map(function (k) {
+    var s = _ODS_STYLES[k];
+    return '<style:style style:name="ce_' + k + '" style:family="table-cell" style:parent-style-name="Default">' +
+      (s.c ? '<style:table-cell-properties' + s.c + '/>' : '') + (s.t ? '<style:text-properties' + s.t + '/>' : '') + '</style:style>';
+  }).join('');
+  var content = '<?xml version="1.0" encoding="UTF-8"?><office:document-content ' + _ODS_NS + 'office:version="1.3">' +
+    '<office:automatic-styles>' + colXml +
+    '<style:style style:name="ro1" style:family="table-row"><style:table-row-properties style:row-height="0.5cm" style:use-optimal-row-height="true"/></style:style>' +
+    '<style:style style:name="ta1" style:family="table" style:master-page-name="Default"><style:table-properties table:display="true" style:writing-mode="lr-tb"/></style:style>' +
+    cellStyles + '</office:automatic-styles><office:body><office:spreadsheet>' + tabs + '</office:spreadsheet></office:body></office:document-content>';
+  var styles = '<?xml version="1.0" encoding="UTF-8"?><office:document-styles ' + _ODS_NS + 'office:version="1.3">' +
+    '<office:styles><style:style style:name="Default" style:family="table-cell"/></office:styles>' +
+    '<office:automatic-styles><style:page-layout style:name="Mpm1"><style:page-layout-properties fo:page-width="29.7cm" fo:page-height="21cm" style:print-orientation="landscape"/></style:page-layout></office:automatic-styles>' +
+    '<office:master-styles><style:master-page style:name="Default" style:page-layout-name="Mpm1"/></office:master-styles></office:document-styles>';
+  var meta = '<?xml version="1.0" encoding="UTF-8"?><office:document-meta ' + _ODS_NS + 'office:version="1.3"><office:meta><meta:generator>Suivi PP</meta:generator></office:meta></office:document-meta>';
+  var mt = 'application/vnd.oasis.opendocument.spreadsheet';
+  var manifest = '<?xml version="1.0" encoding="UTF-8"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3">' +
+    '<manifest:file-entry manifest:full-path="/" manifest:version="1.3" manifest:media-type="' + mt + '"/>' +
+    ['content.xml', 'styles.xml', 'settings.xml', 'meta.xml'].map(function (f) {
+      return '<manifest:file-entry manifest:full-path="' + f + '" manifest:media-type="text/xml"/>';
+    }).join('') + '</manifest:manifest>';
+  return _zipStore([
+    { name: 'mimetype', data: mt },               // première entrée, stockée, sans extra : règle ODF
+    { name: 'META-INF/manifest.xml', data: manifest },
+    { name: 'content.xml', data: content },
+    { name: 'styles.xml', data: styles },
+    { name: 'settings.xml', data: _odsSettings(sheets) },
+    { name: 'meta.xml', data: meta }
+  ]);
+}
+
+/* ── ODS : lecture ── */
+
+function _odsUnent(s) {
+  if (s.indexOf('&') < 0) return s;
+  return s.replace(/&(#[xX][0-9a-fA-F]+|#[0-9]+|amp|lt|gt|quot|apos);/g, function (m, e) {
+    if (e === 'amp') return '&'; if (e === 'lt') return '<'; if (e === 'gt') return '>';
+    if (e === 'quot') return '"'; if (e === 'apos') return "'";
+    var cp = (e[1] === 'x' || e[1] === 'X') ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+    return (cp > 0 && cp <= 0x10FFFF && !(cp >= 0xD800 && cp <= 0xDFFF)) ? String.fromCodePoint(cp) : m;
+  });
+}
+
+// Tokenizer XML minimal. Chaque tour avance `i` d'au moins un caractère : aucune entrée
+// ne peut le faire boucler. On repère la fin d'une balise en respectant les guillemets,
+// car un `>` peut figurer, non échappé, dans une valeur d'attribut.
+function _odsScan(xml, onTag, onText) {
+  var i = 0, n = xml.length, j;
+  while (i < n) {
+    if (xml.charCodeAt(i) !== 60) {
+      j = xml.indexOf('<', i); if (j < 0) j = n;
+      onText(_odsUnent(xml.slice(i, j))); i = j; continue;
+    }
+    if (xml.startsWith('<!--', i)) { j = xml.indexOf('-->', i + 4); if (j < 0) throw new Error('XML tronqué'); i = j + 3; continue; }
+    if (xml.startsWith('<![CDATA[', i)) { j = xml.indexOf(']]>', i + 9); if (j < 0) throw new Error('XML tronqué'); onText(xml.slice(i + 9, j)); i = j + 3; continue; }
+    if (xml.startsWith('<?', i)) { j = xml.indexOf('?>', i + 2); if (j < 0) throw new Error('XML tronqué'); i = j + 2; continue; }
+    if (xml.startsWith('<!', i)) { j = xml.indexOf('>', i + 2); if (j < 0) throw new Error('XML tronqué'); i = j + 1; continue; }
+    var q = 0;
+    for (j = i + 1; j < n; j++) {
+      var c = xml.charCodeAt(j);
+      if (q) { if (c === q) q = 0; } else if (c === 34 || c === 39) q = c; else if (c === 62) break;
+    }
+    if (j >= n) throw new Error('XML tronqué');
+    var body = xml.slice(i + 1, j); i = j + 1;
+    var close = body.charAt(0) === '/', self = body.charAt(body.length - 1) === '/';
+    var nm = /^\/?\s*([^\s\/]+)/.exec(body);
+    if (!nm) continue;
+    var attrs = {};
+    if (!close) {
+      var re = /([^\s=\/]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g, a;
+      while ((a = re.exec(body))) attrs[a[1]] = _odsUnent(a[2] !== undefined ? a[2] : a[3]);
+    }
+    onTag(nm[1], attrs, close ? 1 : self ? 2 : 0);
+  }
+}
+
+// Contenus sans rapport avec le texte de la cellule : une note ou une zone de texte
+// dessinée y ajouteraient leurs propres <text:p>.
+var _ODS_IGNORE = { 'office:annotation': 1, 'draw:frame': 1, 'table:shapes': 1, 'table:sub-table': 1, 'office:forms': 1 };
+
+function _odsParse(xml) {
+  // Plafonds : un export LibreOffice/Collabora répète les cases vides jusqu'à 1 048 576
+  // lignes. On NE développe donc que ce qui a du contenu, et même alors on borne.
+  var MAXC = 4096, MAXR = 200000, MAXREP = 1000;
+  var sheets = [], sh = null, row = null, rowRep = 1, cell = null, ign = 0, para = null, lead = true;
+  function rep(v) { var r = parseInt(v, 10); return r > 0 ? r : 1; }
+  function fill(arr, v) { for (var i = 0; i < arr.length; i++) if (!(i in arr)) arr[i] = v; }
+  function open(nm, a) {
+    if (ign) { if (_ODS_IGNORE[nm]) ign++; return; }
+    if (_ODS_IGNORE[nm]) { ign = 1; return; }
+    if (nm === 'table:table') sh = { name: a['table:name'] || '', rows: [], idx: 0 };
+    else if (nm === 'table:table-row' && sh) { row = { cells: [], col: 0 }; rowRep = rep(a['table:number-rows-repeated']); }
+    else if ((nm === 'table:table-cell' || nm === 'table:covered-table-cell') && row)
+      cell = { rep: rep(a['table:number-columns-repeated']), covered: nm !== 'table:table-cell', paras: [], a: a };
+    else if ((nm === 'text:p' || nm === 'text:h') && cell) { para = ''; lead = true; }
+    else if (para !== null) {
+      if (nm === 'text:s') { para += ' '.repeat(Math.min(rep(a['text:c']), 10000)); lead = false; }
+      else if (nm === 'text:tab') { para += '\t'; lead = false; }
+      else if (nm === 'text:line-break') { para += '\n'; lead = true; }
+    }
+  }
+  function shut(nm) {
+    if (ign) { if (_ODS_IGNORE[nm]) ign--; return; }
+    if ((nm === 'text:p' || nm === 'text:h') && para !== null) { cell.paras.push(para); para = null; }
+    else if ((nm === 'table:table-cell' || nm === 'table:covered-table-cell') && cell) {
+      var a = cell.a, v = '';
+      if (!cell.covered) {
+        v = cell.paras.length ? cell.paras.join('\n') : ['office:string-value', 'office:value', 'office:date-value', 'office:time-value', 'office:boolean-value']
+          .map(function (k) { return a[k]; }).filter(function (x) { return x !== undefined; })[0] || '';
+      }
+      if (v === '') row.col += cell.rep;
+      else {
+        for (var k = 0; k < cell.rep && row.col + k < MAXC; k++) row.cells[row.col + k] = v;
+        row.col += cell.rep;
+      }
+      cell = null; para = null;
+    } else if (nm === 'table:table-row' && row) {
+      if (row.cells.length) {
+        fill(row.cells, '');
+        for (var r = 0; r < Math.min(rowRep, MAXREP) && sh.idx + r < MAXR; r++) sh.rows[sh.idx + r] = r ? row.cells.slice() : row.cells;
+      }
+      sh.idx += rowRep; row = null;
+    } else if (nm === 'table:table' && sh) {
+      fill(sh.rows, []);                              // lignes vides intercalées ; celles de fin n'existent pas
+      sheets.push({ name: sh.name, rows: sh.rows }); sh = null;
+    }
+  }
+  _odsScan(xml, function (nm, a, kind) {
+    if (kind !== 1) open(nm, a);
+    if (kind !== 0) shut(nm);
+  }, function (t) {
+    if (ign || para === null) return;
+    // Espaces non significatifs réduits à un seul, comme le fait ODF ; un espace
+    // d'ouverture de paragraphe (ou qui suit déjà une espace réduite) est retiré.
+    t = t.replace(/[ \t\r\n]+/g, ' ');
+    if (lead && t.charAt(0) === ' ') t = t.slice(1);
+    if (t === '') return;
+    para += t; lead = t.charAt(t.length - 1) === ' ';
+  });
+  return sheets;
+}
+
+async function _odsRead(u8) {
+  var files;
+  try { files = await _zipRead(u8); }
+  catch (e) { throw new Error('Fichier tableur illisible : ' + (e && e.message || e)); }
+  var mt = files.get('mimetype');
+  if (mt && new TextDecoder().decode(mt).indexOf('opendocument.spreadsheet') < 0)
+    throw new Error('Ce fichier OpenDocument n’est pas un tableur');
+  var c = files.get('content.xml');
+  if (!c) throw new Error('Fichier tableur illisible : content.xml est absent de l’archive');
+  try { return _odsParse(new TextDecoder('utf-8').decode(c)); }
+  catch (e) { throw new Error('Fichier tableur illisible : contenu XML invalide (' + (e && e.message || e) + ')'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AVIS DES COLLÈGUES (v1.39.0) — demandé le 2026-10-02 : « à l'approche des bilans, je
+// demande l'avis des collègues sur certains élèves ; j'aimerais un lien de réponse qui
+// enregistre leur réponse là où le logiciel pourra la récupérer ».
+// Le circuit : une FEUILLE DE CALCUL du Nuage (le Nextcloud académique), UN ONGLET PAR
+// DISCIPLINE, partagée par lien public en modification. Les collègues y écrivent sans
+// compte ; le client Nextcloud recopie la feuille sur le poste, et l'app la lit dans ce
+// fichier local (File System Access) — elle l'écrit aussi, pour la préparer.
+// ⚠️ Pourquoi pas plus direct : l'app est une page statique sans serveur, et le navigateur
+// lui interdit de parler au Nuage (CORS, CSP). Le Nuage n'a pas l'application Formulaires
+// (vérifié par l'utilisateur le 2026-10-02). Et pas Google Forms ni Framaforms : un avis
+// sur le comportement d'un élève ne sort pas des services de l'Éducation nationale.
+// ⚠️ Réponses LIBRES, trois par discipline (arbitré : « une réponse libre, pas un
+// commentaire fermé ») — aucune échelle, aucun calcul : on lit ce que les collègues écrivent.
+// ═══════════════════════════════════════════════════════════════════════════
+const AVIS_CRITERES = [
+  { key: 'investissement', label: 'Investissement' },
+  { key: 'comportement',   label: 'Comportement' },
+  { key: 'implication',    label: 'Implication' },
+];
+// Les disciplines d'office (liste donnée par l'utilisateur). [id, nom, onglet, motif] — le
+// motif reconnaît, sur le nom NORMALISÉ (_moyNorm), les matières de l'export du bureau
+// numérique : « ÉD.PHYSIQUE & SPORT. », « SCIENCES VIE & TERRE », « HISTOIRE-GEOGRAPHIE
+// EMC », « ANGLAIS LV2 », « SVT BILINGUE »… (relevés sur les vrais exports, 2025-26).
+// ⚠️ L'EPS avant la physique-chimie : « ÉD. PHYSIQUE » contient PHYSIQUE — le motif de la
+// physique-chimie exige CHIMIE (ou « SCIENCES PHYSIQUES »), jamais PHYSIQUE seul.
+// ⚠️ Ce qui n'est reconnu par AUCUN motif n'est pas deviné (l'allemand, le latin, la LCE…) :
+// l'app le dit et demande où le ranger (« si tu as un doute, demande-moi »).
+const DISCIPLINES_DEFAUT = [
+  ['anglais',            'Anglais',                             'Anglais',          /\bANGLAIS\b/],
+  ['arts_plastiques',    'Arts plastiques',                     'Arts plastiques',  /\bARTS? PLASTIQUES?\b/],
+  ['education_musicale', 'Éducation musicale',                  'Éd. musicale',     /\bMUSI(QUE|CALE)\b/],
+  ['eps',                'Éducation physique et sportive',      'EPS',              /\bEPS\b|\bED(UCATION)? PHYSIQUE\b|\bSPORT/],
+  ['religions',          'Enseignement des religions',          'Religions',        /RELIGI|CATECH|PASTORAL|CULTURE CHRETIENNE/],
+  ['francais',           'Français',                            'Français',         /\bFRANCAIS\b/],
+  ['histoire_geo',       'Histoire-géographie',                 'Hist.-géo.',       /\bHISTOIRE\b|\bGEOGRAPHIE\b|\bEMC\b/],
+  ['maths',              'Mathématiques',                       'Maths',            /\bMATH/],
+  ['physique_chimie',    'Physique-chimie',                     'Physique-chimie',  /\bCHIMIE\b|\bSCIENCES? PHYSIQUES?\b/],
+  ['svt',                'Sciences de la vie et de la Terre',   'SVT',              /\bSVT\b|\bSCIENCES? (DE LA )?VIE\b/],
+  ['technologie',        'Technologie',                         'Technologie',      /\bTECHNO/],
+];
+// Un nom d'onglet que Collabora, LibreOffice et Excel acceptent : ni [ ] * ? : / \, au
+// plus 31 caractères, jamais vide.
+function _discOngletSur(nom) {
+  const t = String(nom || '').replace(/[\[\]*?:/\\]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 31).trim();
+  return t || 'Discipline';
+}
+// Complète le catalogue SANS écraser — même école que _instancesSeed : une discipline
+// renommée ou décochée garde ses réglages, une discipline d'office absente revient.
+function _disciplinesSeed() {
+  if (!_isPlainObj(S.disciplines)) S.disciplines = {};
+  DISCIPLINES_DEFAUT.forEach(([id, nom, onglet], i) => {
+    const cur = S.disciplines[id];
+    if (!_isPlainObj(cur)) { S.disciplines[id] = { id, nom, onglet, actif: true, ord: i, builtin: true }; return; }
+    cur.id = id; cur.builtin = true;
+    if (typeof cur.ord !== 'number') cur.ord = i;
+    if (typeof cur.nom !== 'string' || !cur.nom.trim()) cur.nom = nom;
+    if (typeof cur.onglet !== 'string' || !cur.onglet.trim()) cur.onglet = onglet;
+    if (typeof cur.actif !== 'boolean') cur.actif = true;
+  });
+  for (const [id, d] of Object.entries(S.disciplines)) {
+    if (DISCIPLINES_DEFAUT.some(x => x[0] === id)) continue;
+    d.id = id; d.builtin = false;
+    if (typeof d.nom !== 'string' || !d.nom.trim()) d.nom = id;
+    if (typeof d.onglet !== 'string' || !d.onglet.trim()) d.onglet = d.nom;
+    if (typeof d.actif !== 'boolean') d.actif = true;
+    if (typeof d.ord !== 'number') d.ord = 1000;
+  }
+}
+function _disciplinesAll() { return Object.values(S.disciplines || {}).sort((a, b) => (a.ord - b.ord) || String(a.nom).localeCompare(String(b.nom), 'fr')); }
+function _disciplinesActives() { return _disciplinesAll().filter(d => d.actif); }
+function disciplineAdd(nom) {
+  const n = String(nom || '').trim().slice(0, 60);
+  if (!n) return null;
+  if (_disciplinesAll().some(d => _moyNorm(d.nom) === _moyNorm(n))) return null;
+  const id = uid('disc');
+  const ord = Math.max(0, ..._disciplinesAll().map(d => d.ord)) + 1;
+  S.disciplines[id] = { id, nom: n, onglet: _discOngletSur(n), actif: true, ord, builtin: false };
+  return S.disciplines[id];
+}
+function disciplineSet(id, patch) {
+  const d = S.disciplines[id];
+  if (!d) return false;
+  if ('nom' in patch) { const n = String(patch.nom || '').trim().slice(0, 60); if (!n) return false; d.nom = n; }
+  if ('onglet' in patch) d.onglet = _discOngletSur(patch.onglet || d.nom);
+  if ('actif' in patch) d.actif = !!patch.actif;
+  return true;
+}
+// Une discipline d'office se DÉCOCHE, ne se supprime pas ; une discipline ajoutée se
+// supprime, et les matières qui y étaient rattachées repassent « à rattacher ».
+function disciplineRemove(id) {
+  const d = S.disciplines[id];
+  if (!d || d.builtin) return false;
+  for (const m of Object.values(S.matieres)) if (m.disc === id) delete m.disc;
+  delete S.disciplines[id];
+  return true;
+}
+
+// ── Matières du bureau numérique → disciplines ──
+// `m.disc` : un id = rattachée À LA MAIN ; '' = ignorée volontairement (« Vie de classe »,
+// une option sans avis à demander) ; absent = reconnaissance automatique. Rend un id, ''
+// (ignorée) ou null (personne ne sait : c'est la question à poser).
+function _matiereDiscAuto(norm) {
+  for (const [id, , , re] of DISCIPLINES_DEFAUT) if (re.test(norm) && S.disciplines[id]) return id;
+  // Une discipline ajoutée par l'utilisateur reconnaît la matière de même nom (« Allemand »).
+  for (const d of _disciplinesAll()) if (_moyNorm(d.nom) === norm || _moyNorm(d.onglet) === norm) return d.id;
+  return null;
+}
+function _matiereDisc(mid) {
+  const m = S.matieres[mid];
+  if (!m) return null;
+  if (typeof m.disc === 'string') return m.disc === '' ? '' : (S.disciplines[m.disc] ? m.disc : _matiereDiscAuto(m.norm || _moyNorm(m.nom)));
+  return _matiereDiscAuto(m.norm || _moyNorm(m.nom));
+}
+// did = 'auto' (revenir à la reconnaissance), '' (ignorer) ou l'id d'une discipline.
+function matiereSetDisc(mid, did) {
+  const m = S.matieres[mid];
+  if (!m) return false;
+  if (did === 'auto') delete m.disc;
+  else if (did === '' || S.disciplines[did]) m.disc = did;
+  else return false;
+  return true;
+}
+// Les matières que les imports de moyennes de la classe ont rencontrées, dans l'ordre du catalogue.
+function _avisMatieresClasse(classId) {
+  const ids = new Set(_moyReleves(classId).flatMap(r => r.matieres || []));
+  return _moyMatieresSorted().filter(m => ids.has(m.id));
+}
+function _avisMatieresARattacher(classId) { return _avisMatieresClasse(classId).filter(m => _matiereDisc(m.id) === null); }
+function _discMatieres(classId, did) { return _avisMatieresClasse(classId).filter(m => _matiereDisc(m.id) === did); }
+// Le ou les professeurs d'une discipline : ceux que porte le DERNIER import de moyennes
+// où une de ses matières a un nom de professeur — un remplaçant arrivé en cours d'année
+// prend la place de celui qu'il remplace. Plusieurs matières (anglais LV1 et LV2),
+// plusieurs professeurs (co-enseignement) : tous, sans doublon.
+function _discProfs(classId, did) {
+  const rels = _moyReleves(classId).slice().reverse();
+  for (const rel of rels) {
+    const ps = (rel.matieres || []).filter(mid => _matiereDisc(mid) === did).map(mid => rel.profs?.[mid]).filter(Boolean);
+    if (ps.length) return [...new Set(ps.flatMap(p => String(p).split(',').map(x => x.trim())).filter(Boolean))].join(', ');
+  }
+  return '';
+}
+
+// ── Campagnes ── une campagne = UNE feuille envoyée aux collègues, pour UNE période.
+// S.avis[classId][campId] = { id, date, ts, cible, label, fichier, lien, lu,
+//   disciplines: [{ id, nom, onglet, profs }],   ← les onglets de LA feuille, figés
+//   avis: { [sid]: { [did]: { investissement, comportement, implication } } } }
+// `cible` est une date DANS la période visée (sa fin) : la période se déduit de la date,
+// comme partout — et le conseil du S1, tenu en février, se prépare quand même « pour le S1 ».
+function _avisMap(classId) { return _isPlainObj(S.avis) && _isPlainObj(S.avis[classId]) ? S.avis[classId] : null; }
+function _avisCampagnes(classId) {
+  const m = _avisMap(classId);
+  return m ? Object.values(m).sort((a, b) => String(b.date).localeCompare(String(a.date)) || (b.ts || 0) - (a.ts || 0)) : [];
+}
+function _avisPeriode(cls, camp) { return cls && camp ? _periodOf(cls, camp.cible) : null; }
+function _avisDisc(cls, did) {
+  const d = S.disciplines[did];
+  return { id: did, nom: d.nom, onglet: _discOngletSur(d.onglet || d.nom), profs: _discProfs(cls.id, did) };
+}
+// Les onglets d'une feuille portent des noms UNIQUES : deux disciplines abrégées pareil
+// (« Langues » et « Langues ») se départagent par un numéro.
+function _avisOngletsUniques(list) {
+  const vus = new Set();
+  return list.map(d => {
+    let o = d.onglet, k = 2;
+    while (vus.has(_moyNorm(o))) o = _discOngletSur(`${d.onglet.slice(0, 27)} (${k++})`);
+    vus.add(_moyNorm(o));
+    return { ...d, onglet: o };
+  });
+}
+function avisCampagneCreer(cls, { pIdx, disciplines, lien }) {
+  const p = _periods(cls)[pIdx];
+  const dids = (disciplines || []).filter(did => S.disciplines[did]);
+  if (!p || !dids.length) return null;
+  if (!_isPlainObj(S.avis)) S.avis = {};
+  if (!_isPlainObj(S.avis[cls.id])) S.avis[cls.id] = {};
+  const id = uid('av');
+  const camp = { id, date: _ymdClampAnnee(cls, _todayYmd()), ts: Date.now(), cible: p.end,
+    label: `Avis des collègues — ${p.label}`, fichier: '', lien: _avisLienSur(lien), lu: null,
+    disciplines: _avisOngletsUniques(dids.map(did => _avisDisc(cls, did))), avis: {} };
+  S.avis[cls.id][id] = camp;
+  return camp;
+}
+// Les disciplines d'une campagne changent (une oubliée, une de trop) : les avis déjà lus
+// pour celles qui restent sont gardés, et les professeurs sont relus des moyennes.
+function avisCampagneDisciplines(cls, campId, dids) {
+  const camp = _avisMap(cls.id)?.[campId];
+  const list = (dids || []).filter(did => S.disciplines[did]);
+  if (!camp || !list.length) return false;
+  camp.disciplines = _avisOngletsUniques(list.map(did => _avisDisc(cls, did)));
+  for (const parSid of Object.values(camp.avis || {})) for (const did of Object.keys(parSid)) if (!list.includes(did)) delete parSid[did];
+  return true;
+}
+// Le lien de partage du Nuage : https seulement, rien d'autre ne part dans un courriel.
+function _avisLienSur(l) { const t = String(l || '').trim(); return /^https:\/\/[^\s"'<>]+$/.test(t) ? t.slice(0, 300) : ''; }
+function avisCampagneSupprimer(classId, campId) {
+  const m = _avisMap(classId);
+  if (!m || !m[campId]) return false;
+  delete m[campId];
+  return true;
+}
+// Les élèves de la feuille : PRÉSENTS pendant la période (parti avant son début ou arrivé
+// après sa fin : pas d'avis à demander), par ordre alphabétique — c'est par le nom qu'un
+// collègue cherche un élève, pas dans l'ordre de la liste du PP.
+function _avisEleves(cls, camp) {
+  const p = _avisPeriode(cls, camp);
+  return cls.eleves.map(id => S.eleves[id]).filter(Boolean)
+    .filter(s => !p || (!(s.departureDate && s.departureDate <= p.start) && !(s.arrivalDate && s.arrivalDate > p.end)))
+    .sort((a, b) => `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`, 'fr', { sensitivity: 'base' }));
+}
+function _avisCompte(camp) {
+  const parDisc = {};
+  let n = 0;
+  for (const d of camp.disciplines || []) parDisc[d.id] = 0;
+  for (const parSid of Object.values(camp.avis || {})) for (const [did, a] of Object.entries(parSid)) {
+    if (AVIS_CRITERES.some(c => a?.[c.key])) { parDisc[did] = (parDisc[did] || 0) + 1; n++; }
+  }
+  return { parDisc, n };
+}
+
+// ── La feuille ── PUR : les onglets à écrire (pour _odsBuild), et la lecture de ce qu'on y trouve.
+const AVIS_LIGNE_ENTETE = 3;   // titre, mode d'emploi, en-têtes : les élèves commencent en 4e ligne
+function _avisFeuilles(cls, camp) {
+  const p = _avisPeriode(cls, camp);
+  const eleves = _avisEleves(cls, camp);
+  const pour = `${cls.nom}${cls.annee ? ' (' + cls.annee + ')' : ''} — avis pour ${p ? 'le conseil du ' + p.label : 'le conseil de classe'}`;
+  return camp.disciplines.map(d => ({
+    name: d.onglet, colWidthsCm: [4.6, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 },
+    rows: [
+      [{ text: `${d.nom}${d.profs ? ' — ' + d.profs : ''}`, style: 'titre', span: 4 }],
+      [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « rien à signaler ». Merci de ne modifier ni les noms ni les titres de colonnes.`, style: 'aide', span: 4 }],
+      [{ text: 'Élève', style: 'entete' }, ...AVIS_CRITERES.map(c => ({ text: c.label, style: 'entete' }))],
+      ...eleves.map(s => [{ text: `${s.nom} ${s.prenom}`, style: 'nom' },
+        ...AVIS_CRITERES.map(c => ({ text: camp.avis?.[s.id]?.[d.id]?.[c.key] || '', style: 'saisie' }))]),
+    ],
+  }));
+}
+// Ce que dit la feuille lue. `sheets` = [{ name, rows }] (de _odsRead). PUR.
+// L'onglet se reconnaît par son NOM (ou, renommé, par le nom de la discipline en titre) ;
+// les colonnes par leur EN-TÊTE (un collègue peut en avoir déplacé une) ; l'élève par son
+// nom, avec la clé de rapprochement des moyennes (mots triés, sans accents ni casse).
+// ⚠️ Rien n'est deviné : deux homonymes parfaits, une ligne au nom retouché, un onglet
+// inconnu sont RAPPORTÉS, jamais rangés au hasard sur un élève.
+function _avisLire(cls, camp, sheets) {
+  const parCle = new Map(), doublons = new Set();
+  for (const s of cls.eleves.map(id => S.eleves[id]).filter(Boolean)) {
+    const k = _moyNameKey(`${s.nom} ${s.prenom}`);
+    if (parCle.has(k)) doublons.add(k); else parCle.set(k, s.id);
+  }
+  const avis = {}, lus = [], inconnus = [], nonReconnus = [];
+  const discDe = sh => {
+    const n = _moyNorm(sh.name);
+    const d = camp.disciplines.find(x => _moyNorm(x.onglet) === n || _moyNorm(x.nom) === n);
+    if (d) return d;
+    const titre = _moyNorm((sh.rows[0] || [])[0] || '');
+    return camp.disciplines.find(x => titre && (titre === _moyNorm(x.nom) || titre.startsWith(_moyNorm(x.nom) + ' '))) || null;
+  };
+  for (const sh of sheets || []) {
+    const rows = Array.isArray(sh.rows) ? sh.rows : [];
+    const plein = rows.some(r => (r || []).some(c => String(c || '').trim()));
+    const d = discDe(sh);
+    if (!d || lus.includes(d.id)) { if (plein) inconnus.push(String(sh.name || '?')); continue; }
+    const h = rows.findIndex(r => _moyNorm((r || [])[0]) === 'ELEVE');
+    if (h < 0) { if (plein) inconnus.push(String(sh.name)); continue; }
+    const col = {};
+    for (const c of AVIS_CRITERES) col[c.key] = rows[h].findIndex(x => _moyNorm(x) === _moyNorm(c.label));
+    lus.push(d.id);
+    for (const r of rows.slice(h + 1)) {
+      const nom = String((r || [])[0] || '').trim();
+      const vals = {};
+      for (const c of AVIS_CRITERES) { const v = col[c.key] >= 0 ? String(r[col[c.key]] || '').trim() : ''; if (v) vals[c.key] = v.slice(0, 4000); }
+      if (!Object.keys(vals).length) continue;
+      const k = _moyNameKey(nom);
+      const sid = doublons.has(k) ? null : parCle.get(k);
+      if (!sid) { nonReconnus.push({ onglet: d.onglet, nom: nom || '(sans nom)' }); continue; }
+      ((avis[sid] = avis[sid] || {})[d.id] = vals);
+    }
+  }
+  return { avis, lus, inconnus, nonReconnus };
+}
+// Ce que la lecture change, pour le dire (et ne poser un cran d'undo que s'il y a lieu).
+// ⚠️ Un onglet ABSENT du fichier lu garde ses avis : un fichier tronqué ou une mauvaise
+// feuille choisie ne doivent pas effacer ce qu'on avait. Un onglet lu, lui, fait foi —
+// un avis effacé par son auteur disparaît.
+function _avisFusion(camp, lecture) {
+  const avant = JSON.stringify(camp.avis || {});
+  const avis = JSON.parse(avant);
+  for (const sid of Object.keys(avis)) {
+    for (const did of lecture.lus) delete avis[sid][did];
+    if (!Object.keys(avis[sid]).length) delete avis[sid];
+  }
+  for (const [sid, parDisc] of Object.entries(lecture.avis)) avis[sid] = Object.assign(avis[sid] || {}, parDisc);
+  return { avis, change: JSON.stringify(avis) !== avant };
+}
+// Les avis d'un élève pour une période : la DERNIÈRE campagne de cette période qui en
+// porte, dans l'ordre de ses onglets. [{ disc: { nom, profs }, investissement, … }]
+function _avisEleve(cls, sid, pIdx) {
+  const p = _periods(cls)[pIdx];
+  if (!p) return null;
+  for (const camp of _avisCampagnes(cls.id)) {
+    if (camp.cible < p.start || camp.cible > p.end) continue;
+    const parDisc = camp.avis?.[sid];
+    if (!parDisc) continue;
+    const items = camp.disciplines.filter(d => parDisc[d.id]).map(d => ({ disc: d, ...parDisc[d.id] }));
+    if (items.length) return { camp, items };
+  }
+  return null;
+}
+
+// ── Affichage partagé : les avis d'un élève, en blocs (fiche, bilan, feuilles) ──
+function _avisItemsHTML(items) {
+  return items.map(it => `<div class="av-it"><div class="av-d">${_escName(it.disc.nom)}${it.disc.profs ? ` <span class="fi-vide">${_escName(it.disc.profs)}</span>` : ''}</div>${
+    AVIS_CRITERES.filter(c => it[c.key]).map(c => `<div class="av-c"><span class="av-k">${_escName(c.label)}</span> ${_escName(it[c.key])}</div>`).join('')}</div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AVIS DES COLLÈGUES — la modale (préparer la feuille, la relire) et le fichier
+// ═══════════════════════════════════════════════════════════════════════════
+// Le fichier : un handle par campagne, gardé en IndexedDB (clé « avis_<id> ») — comme le
+// dossier des PDF, il est propre au POSTE : sur l'autre ordinateur, on rechoisit la même
+// feuille une fois (le client Nextcloud l'y a recopiée).
+const _avisHandles = {};
+let _avisCampId = null;          // campagne affichée dans la modale ; null = nouvelle feuille
+let _avisRapport = {};           // campId → { lec, quand } : ce qu'a dit la dernière lecture (session)
+async function _avisHandle(campId) {
+  if (_avisHandles[campId]) return _avisHandles[campId];
+  const h = await idbLoadHandleKey('avis_' + campId);
+  if (h) _avisHandles[campId] = h;
+  return h || null;
+}
+async function _avisPermission(h, mode, demander) {
+  if (!h || typeof h.queryPermission !== 'function') return !!h;
+  try {
+    let p = await h.queryPermission({ mode });
+    if (p !== 'granted' && demander) p = await h.requestPermission({ mode });
+    return p === 'granted';
+  } catch (_) { return false; }
+}
+const _AVIS_FS = () => typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function';
+async function _avisChoisirHandle() {
+  const [h] = await window.showOpenFilePicker({ multiple: false,
+    types: [{ description: 'Feuille de calcul du Nuage (.ods)', accept: { 'application/vnd.oasis.opendocument.spreadsheet': ['.ods'] } }] });
+  if (!/\.ods$/i.test(h.name)) throw new Error('choisis une feuille .ods — c\'est le format des feuilles de calcul du Nuage');
+  return h;
+}
+async function _avisLireOctets(bytes) {
+  if (!bytes || !bytes.length) return [];          // une feuille vide de zéro octet : rien à lire
+  return _odsRead(bytes);
+}
+function _avisCls() { return getCls(); }
+function _avisCamp() { const cls = _avisCls(); return cls && _avisCampId ? _avisMap(cls.id)?.[_avisCampId] || null : null; }
+
+function openAvis(campId) {
+  const cls = getCls();
+  if (!cls) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
+  const camps = _avisCampagnes(cls.id);
+  _avisCampId = campId !== undefined ? campId : (camps[0]?.id || null);
+  openMod('mavis');
+  _avisRender();
+  // Relecture SILENCIEUSE à l'ouverture, si le navigateur a gardé la permission : on vient
+  // presque toujours voir où en sont les collègues.
+  if (_avisCampId) avisRelire(_avisCampId, { demander: false, silencieux: true });
+}
+function _avisRender() {
+  const box = document.getElementById('mavis-body');
+  const cls = _avisCls();
+  if (!box || !cls) return;
+  const camps = _avisCampagnes(cls.id);
+  const camp = _avisCamp();
+  if (_avisCampId && !camp) _avisCampId = null;
+  const t = document.getElementById('mavis-title');
+  if (t) t.textContent = `🗣 Avis des collègues — ${cls.nom}`;
+  const choix = `<div class="fg"><label for="mavis-camp">Feuille</label>
+    <select id="mavis-camp" onchange="_avisCampId=this.value||null;_avisRender();if(_avisCampId)avisRelire(_avisCampId,{demander:false,silencieux:true})" style="max-width:100%">
+      ${camps.map(c => { const p = _avisPeriode(cls, c); return `<option value="${_escAttr(c.id)}"${c.id === _avisCampId ? ' selected' : ''}>${_escName(p ? p.label : '?')} — préparée le ${_escName(_fmtDateFr(c.date))}${c.fichier ? ' · ' + _escName(c.fichier) : ''}</option>`; }).join('')}
+      <option value=""${!_avisCampId ? ' selected' : ''}>＋ Nouvelle feuille…</option>
+    </select></div>`;
+  box.innerHTML = (camps.length ? choix : '') + (camp ? _avisCampHTML(cls, camp) : _avisNouvelleHTML(cls));
+}
+// Les matières des moyennes qu'aucune discipline ne reconnaît : on DEMANDE où les ranger.
+function _avisRattacherHTML(cls) {
+  const liste = _avisMatieresARattacher(cls.id);
+  if (!liste.length) return '';
+  const opts = m => `<option value="__" selected>— à rattacher —</option>${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}">${_escName(d.nom)}</option>`).join('')}
+      <option value="new">＋ Nouvelle discipline « ${_escName(_avisTitre(m.nom))} »</option><option value="">Ignorer (pas d'avis à demander)</option>`;
+  return `<div class="al al-w" style="margin-bottom:10px"><strong>Matières des moyennes sans discipline</strong> — dis-moi où les ranger ; le choix se garde (et se corrige dans 💾 Données).
+    <div style="display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);gap:6px 10px;align-items:center;margin-top:6px">${liste.map(m =>
+      `<span>${_escName(m.nom)}</span><select onchange="avisRattacherUI('${_escJsAttr(m.id)}',this.value)" style="max-width:100%">${opts(m)}</select>`).join('')}</div></div>`;
+}
+// « ESPAGNOL LV2 » → « Espagnol LV2 » : le nom proposé pour une discipline créée d'une matière.
+function _avisTitre(nom) {
+  const t = String(nom || '').toLowerCase().replace(/\s+/g, ' ').trim().replace(/\b(lv|lca|lce|emc|svt|eps)(\d?)\b/g, (m, a, b) => a.toUpperCase() + b);
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function avisRattacherUI(mid, val) {
+  if (val === '__') return;
+  const m = S.matieres[mid];
+  if (!m) return;
+  pushUndo();
+  if (val === 'new') {
+    const d = disciplineAdd(_avisTitre(m.nom)) || _disciplinesAll().find(x => _moyNorm(x.nom) === _moyNorm(m.nom));
+    if (d) matiereSetDisc(mid, d.id);
+  } else matiereSetDisc(mid, val);
+  save();
+  _avisRender();
+}
+// Les disciplines à cocher : nom, matières rattachées, professeur(s) lus dans les moyennes.
+function _avisDiscPickHTML(cls, coches) {
+  return `<div class="av-pick">${_disciplinesActives().map(d => {
+    const mats = _discMatieres(cls.id, d.id).map(m => m.nom);
+    const profs = _discProfs(cls.id, d.id);
+    return `<label class="av-pick-i"><input type="checkbox" data-disc="${_escAttr(d.id)}"${coches.includes(d.id) ? ' checked' : ''}>
+      <span><strong>${_escName(d.nom)}</strong><small>${_escName(profs || 'professeur inconnu')}${mats.length ? ' · ' + _escName(mats.join(', ')) : ''}</small></span></label>`;
+  }).join('')}</div>
+    <div class="tb-hint" style="margin-top:4px">Un onglet par discipline cochée. Le professeur vient du dernier import de moyennes ; la liste des disciplines se règle dans 💾 Données.</div>`;
+}
+function _avisDiscCoches() { return [...document.querySelectorAll('#mavis-body input[data-disc]')].filter(c => c.checked).map(c => c.dataset.disc); }
+function _avisNouvelleHTML(cls) {
+  const ps = _periods(cls);
+  const cur = _carnetCurrentPeriodIdx(cls);
+  return `<div class="tb-hint" style="margin-bottom:10px">Une feuille de calcul du Nuage, un onglet par discipline, que les collègues remplissent par un lien de partage — sans compte. L'app la prépare, puis relit leurs réponses dans la copie que le client Nextcloud garde sur ton ordinateur.
+      <br><strong>Avant</strong> : crée une feuille de calcul vide dans le Nuage, dans un dossier synchronisé, et partage-la par lien public <em>en modification</em>.</div>
+    <div class="fg"><label for="mavis-per">Pour la période</label>
+      <select id="mavis-per" style="max-width:100%">${ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('')}</select></div>
+    ${_avisRattacherHTML(cls)}
+    <div class="fg"><label>Disciplines</label>${_avisDiscPickHTML(cls, _disciplinesActives().map(d => d.id))}</div>
+    <div class="fg"><label for="mavis-lien">Lien de partage de la feuille <span class="tb-hint">(facultatif — il ira dans le message aux collègues)</span></label>
+      <input id="mavis-lien" type="text" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%"></div>
+    <div class="ma" style="flex-wrap:wrap">
+      <button class="btn btn-g" onclick="closeMod2('mavis')">Fermer</button>
+      ${_AVIS_FS() ? '' : '<button class="btn btn-s" onclick="avisPreparerUI(true)" title="Ton navigateur ne sait pas écrire dans un fichier : la feuille se télécharge, à déposer ensuite dans le Nuage à la place de la feuille vide">⬇ Télécharger la feuille</button>'}
+      ${_AVIS_FS() ? '<button class="btn btn-p" onclick="avisPreparerUI(false)" title="Choisis la copie locale de la feuille vide (dans ton dossier Nextcloud) : l\'app y écrit les onglets et les élèves">📝 Choisir la feuille et la préparer…</button>' : ''}
+    </div>`;
+}
+function _avisCampHTML(cls, camp) {
+  const p = _avisPeriode(cls, camp);
+  const cpt = _avisCompte(camp);
+  const total = _avisEleves(cls, camp).length;
+  const rap = _avisRapport[camp.id];
+  const lec = rap?.lec;
+  const lignes = camp.disciplines.map(d => `<tr><td><strong>${_escName(d.nom)}</strong>${d.profs ? ` <span class="fi-vide">${_escName(d.profs)}</span>` : ''}</td>
+      <td style="font-family:var(--font-mono);text-align:right">${cpt.parDisc[d.id] ? `<strong>${cpt.parDisc[d.id]}</strong>` : '<span class="tb-hint">0</span>'} / ${total}</td></tr>`).join('');
+  const rapport = !lec ? '' : [
+    lec.nonReconnus.length ? `<div class="al al-w" style="margin-top:6px">⚠️ ${lec.nonReconnus.length} ligne${lec.nonReconnus.length > 1 ? 's' : ''} écrite${lec.nonReconnus.length > 1 ? 's' : ''} sur un élève que l'app ne reconnaît pas (nom retouché, homonyme) — rien n'a été rangé : ${lec.nonReconnus.slice(0, 6).map(x => `${_escName(x.onglet)} : « ${_escName(x.nom)} »`).join(' · ')}${lec.nonReconnus.length > 6 ? '…' : ''}</div>` : '',
+    lec.inconnus.length ? `<div class="al al-w" style="margin-top:6px">⚠️ Onglet${lec.inconnus.length > 1 ? 's' : ''} ignoré${lec.inconnus.length > 1 ? 's' : ''} (pas une discipline de cette feuille, ou en-têtes modifiés) : ${lec.inconnus.map(_escName).join(', ')}</div>` : ''].join('');
+  const fichier = camp.fichier ? `<strong>${_escName(camp.fichier)}</strong>` : '<em>aucune feuille choisie</em>';
+  const choisirLbl = camp.fichier ? 'Autre fichier…' : 'Choisir la feuille…';
+  const msg = _avisMessage(cls, camp);
+  return `<div class="tb-hint" style="margin-bottom:8px">Pour ${p ? `le <strong>${_escName(p.label)}</strong>` : 'la période'} · feuille ${fichier} · ${cpt.n} avis rangé${cpt.n > 1 ? 's' : ''}${rap ? ` · relue à ${_escName(new Date(rap.quand).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }))}` : ''}</div>
+    <div class="rel-wrap" style="margin-bottom:8px"><table class="dt"><thead><tr><th>Discipline</th><th style="text-align:right" title="Élèves sur qui la discipline a écrit quelque chose, sur les élèves de la feuille">Élèves avec un avis</th></tr></thead><tbody>${lignes}</tbody></table></div>
+    ${rapport}
+    <div class="ma" style="flex-wrap:wrap;justify-content:flex-start;margin-top:8px">
+      ${_AVIS_FS() ? `<button class="btn btn-p" onclick="avisRelire('${_escJsAttr(camp.id)}')" title="Relire la copie locale de la feuille : les avis écrits depuis s'ajoutent, ceux qu'un collègue a effacés disparaissent">📥 Relire les avis</button>
+        <button class="btn btn-g btn-sm" onclick="avisChoisirUI('${_escJsAttr(camp.id)}')" title="Désigner la copie locale de la feuille (à refaire une fois sur chaque ordinateur)">📂 ${choisirLbl}</button>`
+      : `<label class="btn btn-p" style="cursor:pointer">📥 Lire la feuille… <input type="file" accept=".ods" style="display:none" onchange="avisLireFichierUI('${_escJsAttr(camp.id)}',this)"></label>`}
+    </div>
+    <details class="av-det" style="margin-top:12px"><summary><strong>✉️ Le message aux collègues</strong></summary>
+      <div class="fg" style="margin-top:6px"><label for="mavis-lien">Lien de partage de la feuille</label>
+        <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${_escJsAttr(camp.id)}',this.value)"></div>
+      <textarea id="mavis-msg" rows="8" readonly style="width:100%;font-size:.9em">${_escName(msg)}</textarea>
+      <div style="margin-top:6px"><button class="btn btn-s btn-sm" onclick="avisCopierMessage()">📋 Copier le message</button></div>
+    </details>
+    <details class="av-det" style="margin-top:8px"><summary><strong>🗂 Disciplines de la feuille</strong> <span class="tb-hint">— en ajouter, en retirer, puis mettre la feuille à jour</span></summary>
+      ${_avisRattacherHTML(cls)}
+      ${_avisDiscPickHTML(cls, camp.disciplines.map(d => d.id))}
+      <div class="tb-hint" style="margin-top:6px">⚠️ Mettre à jour réécrit la feuille (les avis déjà écrits sont gardés). Fais-le quand personne n'y écrit : une modification faite pendant la mise à jour peut créer un conflit dans le Nuage.</div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" onclick="avisMettreAJourUI('${_escJsAttr(camp.id)}')">📝 Mettre la feuille à jour</button>
+        ${_AVIS_FS() ? '' : `<button class="btn btn-g btn-sm" onclick="avisTelecharger('${_escJsAttr(camp.id)}')">⬇ Télécharger la feuille</button>`}
+      </div>
+    </details>
+    <div class="ma"><button class="btn btn-d btn-sm" onclick="avisSupprimerUI('${_escJsAttr(camp.id)}')" title="Oublier cette feuille et les avis rangés (la feuille du Nuage, elle, reste)">🗑</button>
+      <button class="btn btn-g" onclick="closeMod2('mavis')">Fermer</button></div>`;
+}
+function _avisMessage(cls, camp) {
+  const p = _avisPeriode(cls, camp);
+  return `Bonjour,\n\nJe prépare le conseil de classe de la ${cls.nom}${p ? ` (${p.label})` : ''}. Pourriez-vous me donner votre avis sur les élèves — investissement, comportement, implication — dans l'onglet de votre discipline :\n\n${camp.lien || '[colle ici le lien de partage de la feuille]'}\n\nLe lien ouvre la feuille dans le navigateur, sans compte à créer. Écrivez seulement sur les élèves dont vous avez quelque chose à dire : une case vide veut dire « rien à signaler ».\n\nMerci beaucoup,\n`;
+}
+function avisLienUI(campId, val) {
+  const camp = _avisMap(getCls()?.id)?.[campId];
+  if (!camp) return;
+  const l = _avisLienSur(val);
+  if (String(val || '').trim() && !l) { toast('⚠️ Le lien doit commencer par https:// — copie-le depuis « Partager » dans le Nuage.', 'warn'); return _avisRender(); }
+  if (l === (camp.lien || '')) return;
+  pushUndo(); camp.lien = l; save();
+  const ta = document.getElementById('mavis-msg');
+  if (ta) ta.value = _avisMessage(getCls(), camp);
+}
+function avisCopierMessage() {
+  const ta = document.getElementById('mavis-msg');
+  if (!ta) return;
+  const ok = () => toast('📋 Message copié — colle-le dans un courriel aux collègues.');
+  try { navigator.clipboard.writeText(ta.value).then(ok, () => { ta.select(); toast('Sélectionné : Ctrl+C pour copier.'); }); }
+  catch (_) { ta.select(); toast('Sélectionné : Ctrl+C pour copier.'); }
+}
+
+// ── Préparer ── écrire les onglets dans la feuille. ⚠️ Le sélecteur de fichier s'ouvre
+// AVANT tout await : il exige un geste de l'utilisateur encore « frais ».
+async function avisPreparerUI(telecharger) {
+  const cls = getCls();
+  if (!cls) return;
+  const pIdx = +(document.getElementById('mavis-per')?.value || 0);
+  const dids = _avisDiscCoches();
+  if (!dids.length) return toast('⚠️ Coche au moins une discipline.', 'warn');
+  const lien = document.getElementById('mavis-lien')?.value || '';
+  if (String(lien).trim() && !_avisLienSur(lien)) return toast('⚠️ Le lien doit commencer par https:// — copie-le depuis « Partager » dans le Nuage.', 'warn');
+  let h = null;
+  if (!telecharger) {
+    try { h = await _avisChoisirHandle(); }
+    catch (e) { if (e.name !== 'AbortError') toast('⚠️ ' + e.message, 'warn'); return; }
+  }
+  pushUndo();
+  const camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, lien });
+  if (!camp) { undoLast(); return toast('⚠️ Période ou disciplines invalides.', 'warn'); }
+  if (h) { camp.fichier = h.name; _avisHandles[camp.id] = h; await idbSaveHandleKey(h, 'avis_' + camp.id); }
+  save();
+  _avisCampId = camp.id;
+  if (telecharger) { avisTelecharger(camp.id); _avisRender(); return; }
+  await _avisEcrireFeuille(cls, camp, h, { nouvelle: true });
+}
+// Écrit la feuille dans le fichier. Ce que le fichier contient déjà est relu d'abord et
+// GARDÉ : des avis déjà écrits survivent à une mise à jour ; un fichier qui contient autre
+// chose (une autre feuille choisie par erreur) n'est écrasé qu'après confirmation.
+async function _avisEcrireFeuille(cls, camp, h, { nouvelle } = {}) {
+  if (!await _avisPermission(h, 'readwrite', true)) { toast('⚠️ Écriture refusée par le navigateur.', 'warn'); return _avisRender(); }
+  let existant = [];
+  try { existant = await _avisLireOctets(new Uint8Array(await (await h.getFile()).arrayBuffer())); }
+  catch (e) { existant = null; }
+  const ecrire = async () => {
+    try {
+      if (existant && existant.length) {
+        const lec = _avisLire(cls, camp, existant);
+        const f = _avisFusion(camp, lec);
+        if (f.change) { pushUndo(); camp.avis = f.avis; save(); }
+      }
+      const bytes = _odsBuild(_avisFeuilles(cls, camp));
+      const w = await h.createWritable();
+      await w.write(bytes);
+      await w.close();
+      toast(`✓ Feuille « ${h.name} » préparée : ${camp.disciplines.length} onglet${camp.disciplines.length > 1 ? 's' : ''}, ${_avisEleves(cls, camp).length} élèves. Le client Nextcloud l'envoie au Nuage.`);
+    } catch (e) { toast('⚠️ Écriture impossible : ' + e.message, 'error'); }
+    _avisRender();
+    renderStudents();
+  };
+  // Le fichier contient-il autre chose que notre feuille ?
+  const etranger = existant === null || (existant.length && existant.some(sh => sh.rows.some(r => r.some(c => String(c || '').trim())))
+    && !_avisLire(cls, camp, existant).lus.length);
+  if (etranger) {
+    return _uiConfirm({ title: 'Remplacer le contenu de ce fichier ?',
+      message: `« ${h.name} » contient déjà autre chose qu'une feuille d'avis${existant === null ? ' (ou n\'est pas lisible)' : ''}. Le préparer efface ce contenu.`,
+      okLabel: 'Remplacer', okClass: 'btn-d', onOk: ecrire, onCancel: () => _avisRender() });
+  }
+  await ecrire();
+}
+async function avisMettreAJourUI(campId) {
+  const cls = getCls();
+  const camp = _avisMap(cls?.id)?.[campId];
+  if (!camp) return;
+  const dids = _avisDiscCoches();
+  if (!dids.length) return toast('⚠️ Coche au moins une discipline.', 'warn');
+  const neuves = _avisOngletsUniques(dids.filter(did => S.disciplines[did]).map(did => _avisDisc(cls, did)));
+  if (JSON.stringify(neuves) !== JSON.stringify(camp.disciplines)) { pushUndo(); avisCampagneDisciplines(cls, campId, dids); save(); }
+  if (!_AVIS_FS()) return avisTelecharger(campId);
+  let h = await _avisHandle(campId);
+  if (!h) { try { h = await _avisChoisirHandle(); } catch (e) { if (e.name !== 'AbortError') toast('⚠️ ' + e.message, 'warn'); return; }
+    _avisHandles[campId] = h; await idbSaveHandleKey(h, 'avis_' + campId); if (camp.fichier !== h.name) { camp.fichier = h.name; save(); } }
+  await _avisEcrireFeuille(cls, camp, h);
+}
+async function avisChoisirUI(campId) {
+  const camp = _avisMap(getCls()?.id)?.[campId];
+  if (!camp) return;
+  let h;
+  try { h = await _avisChoisirHandle(); } catch (e) { if (e.name !== 'AbortError') toast('⚠️ ' + e.message, 'warn'); return; }
+  _avisHandles[campId] = h;
+  await idbSaveHandleKey(h, 'avis_' + campId);
+  if (camp.fichier !== h.name) { pushUndo(); camp.fichier = h.name; save(); }
+  await avisRelire(campId);
+}
+function avisTelecharger(campId) {
+  const cls = getCls();
+  const camp = _avisMap(cls?.id)?.[campId];
+  if (!camp) return;
+  const p = _avisPeriode(cls, camp);
+  const nom = `Avis des collègues — ${cls.nom}${p ? ' — ' + p.label : ''}.ods`.replace(/[\\/:*?"<>|]+/g, '-');
+  const url = URL.createObjectURL(new Blob([_odsBuild(_avisFeuilles(cls, camp))], { type: 'application/vnd.oasis.opendocument.spreadsheet' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = nom; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('⬇ Feuille téléchargée — dépose-la dans le Nuage à la place de la feuille vide, puis partage-la.');
+}
+
+// ── Relire ── ce que les collègues ont écrit. `demander: false` : sans redemander la
+// permission (relecture silencieuse à l'ouverture de la modale).
+async function avisRelire(campId, { demander = true, silencieux = false } = {}) {
+  const cls = getCls();
+  const camp = _avisMap(cls?.id)?.[campId];
+  if (!camp) return;
+  const h = await _avisHandle(campId);
+  if (!h) { if (!silencieux) toast('📂 Choisis d\'abord la feuille (sa copie dans ton dossier Nextcloud).', 'warn'); return; }
+  if (!await _avisPermission(h, 'read', demander)) { if (!silencieux) toast('⚠️ Lecture refusée par le navigateur.', 'warn'); return; }
+  let sheets;
+  try { sheets = await _avisLireOctets(new Uint8Array(await (await h.getFile()).arrayBuffer())); }
+  catch (e) { if (!silencieux) toast('⚠️ Feuille illisible : ' + e.message, 'warn'); return; }
+  _avisAppliquer(cls, camp, sheets, silencieux);
+}
+async function avisLireFichierUI(campId, input) {
+  const f = input?.files?.[0];
+  if (input) input.value = '';
+  const cls = getCls();
+  const camp = _avisMap(cls?.id)?.[campId];
+  if (!f || !camp) return;
+  try { _avisAppliquer(cls, camp, await _avisLireOctets(new Uint8Array(await f.arrayBuffer())), false); }
+  catch (e) { toast('⚠️ Feuille illisible : ' + e.message, 'warn'); }
+}
+// Range ce que la feuille dit. Un cran d'undo seulement si quelque chose change.
+function _avisAppliquer(cls, camp, sheets, silencieux) {
+  const lec = _avisLire(cls, camp, sheets);
+  const avant = _avisCompte(camp).n;
+  const f = _avisFusion(camp, lec);
+  if (f.change) { pushUndo(); camp.avis = f.avis; camp.lu = Date.now(); save(); }
+  _avisRapport[camp.id] = { lec, quand: Date.now() };
+  const apres = _avisCompte(camp).n;
+  if (document.getElementById('mavis')?.classList.contains('on')) _avisRender();
+  if (f.change) { renderStudents(); if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); }
+  if (!lec.lus.length && !silencieux) return toast('⚠️ Aucun onglet de cette feuille n\'a été reconnu — est-ce la bonne feuille ?', 'warn');
+  if (!silencieux || f.change) toast(f.change ? `🗣 ${apres} avis rangé${apres > 1 ? 's' : ''}${apres !== avant ? ` (${apres > avant ? '+' : ''}${apres - avant})` : ' — mis à jour'}.` : '✓ Rien de nouveau dans la feuille.');
+}
+function avisSupprimerUI(campId) {
+  const cls = getCls();
+  const camp = _avisMap(cls?.id)?.[campId];
+  if (!camp) return;
+  const n = _avisCompte(camp).n;
+  _uiConfirm({ title: 'Oublier cette feuille ?',
+    message: `${n} avis rangé${n > 1 ? 's' : ''} disparaîtront de l'app (Ctrl+Z les rend). La feuille du Nuage, elle, n'est pas touchée.`,
+    okLabel: 'Oublier', okClass: 'btn-d',
+    onOk: () => { pushUndo(); avisCampagneSupprimer(cls.id, campId); save(); _avisCampId = null; _avisRender(); renderStudents(); } });
+}
+
+// ── 💾 Données : le catalogue des disciplines et le rattachement des matières ──
+function _disciplinesTableHTML() {
+  const cls = getCls();
+  const mats = cls ? _avisMatieresClasse(cls.id) : [];
+  const rows = _disciplinesAll().map(d => {
+    const ms = mats.filter(m => _matiereDisc(m.id) === d.id).map(m => m.nom);
+    return `<tr${d.actif ? '' : ' class="inactive"'}>
+      <td style="text-align:center"><input type="checkbox"${d.actif ? ' checked' : ''} onchange="disciplineSetUI('${_escJsAttr(d.id)}',{actif:this.checked})" title="${d.actif ? 'Proposée pour les feuilles d\'avis — décocher pour la retirer' : 'Retirée des feuilles d\'avis'}"></td>
+      <td style="min-width:170px"><input type="text" value="${_escAttr(d.nom)}" maxlength="60" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{nom:this.value})"></td>
+      <td style="min-width:120px"><input type="text" value="${_escAttr(d.onglet)}" maxlength="31" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{onglet:this.value})" title="Le nom de l'onglet dans la feuille (31 caractères au plus)"></td>
+      <td class="tb-hint" style="width:99%">${ms.length ? _escName(ms.join(' · ')) : '—'}</td>
+      <td style="white-space:nowrap">${d.builtin ? '<span class="tb-hint" title="Discipline d\'office : se décoche, ne se supprime pas">d\'office</span>'
+        : `<button class="btn btn-d btn-sm" onclick="disciplineRemoveUI('${_escJsAttr(d.id)}')" title="Supprimer cette discipline">🗑</button>`}</td></tr>`;
+  }).join('');
+  const matRows = mats.map(m => {
+    const auto = _matiereDiscAuto(m.norm || _moyNorm(m.nom));
+    const val = typeof m.disc === 'string' ? m.disc : 'auto';
+    return `<tr><td>${_escName(m.nom)}</td><td><select onchange="matiereDiscUI('${_escJsAttr(m.id)}',this.value)" style="max-width:100%">
+        <option value="auto"${val === 'auto' ? ' selected' : ''}>automatique${auto ? ' → ' + _escName(S.disciplines[auto]?.nom || '') : ' — non reconnue'}</option>
+        ${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}"${val === d.id ? ' selected' : ''}>${_escName(d.nom)}</option>`).join('')}
+        <option value=""${val === '' ? ' selected' : ''}>aucune — pas d'avis à demander</option></select></td></tr>`;
+  }).join('');
+  return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th>Onglet</th><th>Matières des moyennes rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tb" style="max-width:900px;margin-bottom:12px"><input type="text" id="disc-new" placeholder="Nouvelle discipline (ex. : Allemand, Latin…)" maxlength="60" style="flex:1;min-width:200px"
+         onkeydown="if(event.key==='Enter'){event.preventDefault();disciplineAddUI()}"> <button class="btn btn-s btn-sm" onclick="disciplineAddUI()">+ Ajouter</button></div>
+    ${mats.length ? `<div class="pref-help" style="margin-bottom:6px">Chaque matière des imports de moyennes se range dans une discipline — c'est ce qui donne le professeur de l'onglet, et regroupe par exemple « ANGLAIS » et « ANGLAIS LV2 ».</div>
+    <div class="rel-wrap" style="max-width:640px;margin-bottom:18px"><table class="dt inst-table"><thead><tr><th>Matière (bureau numérique)</th><th>Discipline</th></tr></thead><tbody>${matRows}</tbody></table></div>`
+    : '<div class="pref-help" style="margin-bottom:18px">Les matières des moyennes apparaîtront ici après un import (📈 Moyennes).</div>'}`;
+}
+function disciplineSetUI(id, patch) {
+  if (patch && typeof patch.nom === 'string' && !patch.nom.trim()) { toast('⚠️ Une discipline sans nom ne se propose pas — décoche-la plutôt.', 'warn'); renderDonnees(); return; }
+  pushUndo(); disciplineSet(id, patch); save(); renderDonnees();
+}
+function disciplineAddUI() {
+  const inp = document.getElementById('disc-new');
+  if (!inp || !inp.value.trim()) return toast('⚠️ Donne un nom à la discipline.', 'warn');
+  if (_disciplinesAll().some(d => _moyNorm(d.nom) === _moyNorm(inp.value))) return toast('⚠️ Cette discipline existe déjà.', 'warn');
+  pushUndo();
+  disciplineAdd(inp.value);
+  save(); renderDonnees(); toast('✓ Discipline ajoutée.');
+}
+function disciplineRemoveUI(id) { if (!S.disciplines[id] || S.disciplines[id].builtin) return; pushUndo(); disciplineRemove(id); save(); renderDonnees(); }
+function matiereDiscUI(mid, val) {
+  if (!S.matieres[mid] || !(val === 'auto' || val === '' || S.disciplines[val])) return;
+  pushUndo(); matiereSetDisc(mid, val); save(); renderDonnees();
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SYNTHÈSE DE PÉRIODE — la feuille qu'on emporte au conseil de classe (ou qu'on relit à
 // mi-période). Demandée le 2026-09-11. Tout y est BORNÉ À LA PÉRIODE : le cumul en fin de
@@ -11444,6 +12630,9 @@ function _periodeSynthese(cls, periodIdx, opts) {
       nonRendus, incidents, contacts,
       moyennes: _moyPeriodeEleve(mp, stu.id),
       bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
+      // Avis des collègues (v1.39.0) : la dernière feuille de CETTE période.
+      avis: (_avisEleve(cls, stu.id, periodIdx)?.items || []).map(it => ({ nom: it.disc.nom, onglet: it.disc.onglet,
+        ...Object.fromEntries(AVIS_CRITERES.map(c => [c.key, it[c.key] || ''])) })),
     };
   });
   return { periode: p, nbReleves: dates.length, rows,
@@ -11457,9 +12646,12 @@ const _PERIODE_BLOCS = [
   { key: 'incidents', label: 'Incidents',           hint: 'Incidents, punitions, sanctions, instances DE la période' },
   { key: 'contacts',  label: 'Contacts',            hint: 'Contacts avec la famille DE la période' },
   { key: 'bilan',     label: 'Bilan',               hint: 'Ce que j\'ai rédigé pour ce conseil (ou ce bilan de mi-période)' },
+  { key: 'avis',      label: 'Avis des collègues',  hint: 'Ce que les collègues ont écrit dans la feuille d\'avis de la période — investissement, comportement, implication' },
   { key: 'hvc',       label: 'Heures de vie de classe', hint: 'Les heures de vie de classe tenues pendant la période, en tête de la feuille' },
 ];
-let _periodePrintOpts = { blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc'), type: 'conseil', forme: 'tableau', format: 'A4' };
+// Décochés par défaut : les heures de vie de classe et les avis des collègues — du texte
+// long, qui ne doit pas allonger la feuille sans qu'on le demande.
+let _periodePrintOpts = { blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc' && k !== 'avis'), type: 'conseil', forme: 'tableau', format: 'A4' };
 function _periodeTitre(type, p) { return `${type === 'miperiode' ? 'Bilan de mi-période' : 'Conseil de classe'} ${p.label}`; }
 // Le HTML de la feuille : un tableau paysage (une ligne par élève), ou des fiches portrait
 // (un bloc par élève — ce qu'on lit pendant que le conseil parle de lui).
@@ -11506,6 +12698,9 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     return `${m.generale !== null ? `générale ${moyGenHTML(m)} — ` : ''}${m.notes.map(noteHTML).join(' · ')}`; };
   const incCell = r => r.incidents.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_instanceOf(e.type).label)} : ${_escName(e.objet)}</div>`).join('');
   const conCell = r => r.contacts.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_journalType(e.type).label)}${o.forme === 'fiches' ? ' : ' + _escName(e.texte) : ''}</div>`).join('');
+  const AV_ABR = { investissement: 'invest.', comportement: 'comport.', implication: 'implic.' };
+  const avisLigne = a => AVIS_CRITERES.filter(c => a[c.key]).map(c => `<em>${AV_ABR[c.key]}</em> ${_escName(a[c.key])}`).join(' · ');
+  const avisFiche = r => r.avis.map(a => `<div><strong>${_escName(a.nom)}</strong> — ${avisLigne(a)}</div>`).join('');
   const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanType(r.bilan.type).label)} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
   if (o.forme === 'fiches') {
     const bloc = (t, c) => c ? `<div class="print-fb"><span class="print-fb-t">${t}</span> ${c}</div>` : '';
@@ -11516,6 +12711,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
       ${on('docs') ? bloc('Non rendus', _escName(r.nonRendus.join(', '))) : ''}
       ${on('incidents') ? bloc('Incidents', incCell(r)) : ''}
       ${on('contacts') ? bloc('Contacts', conCell(r)) : ''}
+      ${on('avis') ? bloc('Collègues', avisFiche(r)) : ''}
       ${on('bilan') ? bloc(o.type === 'miperiode' ? 'Bilan' : 'Conseil', bilCell(r) ? `<div class="print-rem">${bilCell(r)}</div>` : '') : ''}
     </div>`).join('') };
   }
@@ -11529,11 +12725,11 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   // double la hauteur de TOUTE la rangée — mesuré sur la démo, 25 rangées de 27 px au
   // minimum à 7 pt, soit la page entière avant même le premier bilan.
   const cols = [['eleve', 11], ['ident', 7], on('obs') && ['obs', 7], on('moy') && ['moy', 16], on('docs') && ['docs', 9],
-    on('incidents') && ['incidents', 16], on('contacts') && ['contacts', 8], on('bilan') && ['bilan', 26]].filter(Boolean);
+    on('incidents') && ['incidents', 16], on('contacts') && ['contacts', 8], on('avis') && ['avis', 26], on('bilan') && ['bilan', 26]].filter(Boolean);
   const tot = cols.reduce((n, c) => n + c[1], 0);
   const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c[1] / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
   const titres = { eleve: 'Élève', ident: 'Groupe · options', obs: `Observ. ${_escName(p.label)}`, moy: 'Moyenne',
-    docs: 'Non rendus', incidents: 'Incidents', contacts: 'Contacts', bilan: o.type === 'miperiode' ? 'Bilan' : 'Conseil' };
+    docs: 'Non rendus', incidents: 'Incidents', contacts: 'Contacts', avis: 'Avis des collègues', bilan: o.type === 'miperiode' ? 'Bilan' : 'Conseil' };
   const premier = syn.moyennes ? syn.moyennes.premier : null;
   const cell = {
     eleve: r => `<span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${
@@ -11549,6 +12745,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     docs: r => r.nonRendus.length ? `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` : '',
     incidents: r => `<small>${r.incidents.map(e => `<span class="pp-l">${_escName(jm(e.date))} <strong>${_escName(_instanceOf(e.type).label)}</strong> — ${_escName(e.objet)}</span>`).join('')}</small>`,
     contacts: r => `<small>${r.contacts.map(e => `${_escName(jm(e.date))} ${_escName(_journalType(e.type).label.toLowerCase())}`).join(' · ')}</small>`,
+    avis: r => `<small>${r.avis.map(a => `<span class="pp-l"><strong>${_escName(a.onglet)}</strong> ${avisLigne(a)}</span>`).join('')}</small>`,
     bilan: r => `<div class="pp-rem">${bilCell(r)}</div>`,
   };
   const subT = sub + (on('moy') && premier ? ` · évolution des moyennes depuis le ${_fmtDateFr(premier)}` : '');
@@ -12761,7 +13958,7 @@ function _remeasureStorage() {
 // Les clés du modèle sont en anglais et le restent (compatibilité des anciens fichiers),
 // mais elles n'ont rien à faire sous les yeux de l'utilisateur.
 const S_SECTION_LABELS = { classes: 'classes', eleves: 'élèves', releves: 'relevés de carnet',
-  documents: 'documents', elections: 'élections', moyennes: 'moyennes', matieres: 'matières', tags: 'options', prefs: 'réglages', clock: 'horloge de synchronisation' };
+  documents: 'documents', elections: 'élections', moyennes: 'moyennes', matieres: 'matières', avis: 'avis des collègues', disciplines: 'disciplines', tags: 'options', prefs: 'réglages', clock: 'horloge de synchronisation' };
 function _sectionLabel(k) { return S_SECTION_LABELS[k] || k; }
 
 // Anciennes clés de stockage : le nom peut changer au fil des versions du modèle, et rien
@@ -13580,6 +14777,43 @@ function createDemo(opts) {
       const parse = _moyParse(lignes.join('\n'));
       moyImport(cls.id, parse, _moyMatch(parse, cls.id), { date: im.date, label: im.label || '',
         fichier: `moyennes_5e_${im.date.replace(/-/g, '')}.csv` });
+    }
+  }
+
+  // ── Avis des collègues (v1.39.0) : la feuille du S1, déjà relue ──
+  // Sept disciplines ont écrit, sur une poignée d'élèves — c'est l'usage réel : on n'écrit
+  // que sur ceux dont on a quelque chose à dire. « ESPAGNOL LV2 » n'est rattachée à aucune
+  // discipline d'office : la modale POSE la question, c'est voulu (la démo la montre).
+  // Pas de lien de partage : un faux lien vers le Nuage serait pris pour un vrai.
+  {
+    _disciplinesSeed();
+    const camp = avisCampagneCreer(cls, { pIdx: 0, disciplines: _disciplinesActives().map(d => d.id), lien: '' });
+    if (camp) {
+      delete S.avis[cls.id][camp.id];
+      camp.id = 'demo_av1'; camp.date = D('01-12'); camp.ts = Date.parse(D('01-12') + 'T18:00:00');
+      camp.fichier = 'Avis des collègues 5e C.ods'; camp.lu = Date.parse(D('01-19') + 'T07:30:00');
+      S.avis[cls.id][camp.id] = camp;
+      const A = (i, did, investissement, comportement, implication) => {
+        if (!sids[i] || !camp.disciplines.some(d => d.id === did)) return;
+        const o = {};
+        if (investissement) o.investissement = investissement;
+        if (comportement) o.comportement = comportement;
+        if (implication) o.implication = implication;
+        ((camp.avis[sids[i]] = camp.avis[sids[i]] || {})[did] = o);
+      };
+      A(0, 'maths', 'Travail personnel inexistant depuis novembre.', 'Insolent quand on le reprend ; deux rapports ce semestre.', '');
+      A(0, 'francais', 'Ne rend pas les rédactions.', 'Calme en classe entière, difficile en demi-groupe.', 'Aucune.');
+      A(0, 'eps', '', 'Très bon esprit d\'équipe en sports collectifs.', 'S\'implique quand l\'activité lui plaît.');
+      A(12, 'maths', 'Décroche : les évaluations ne sont plus préparées.', 'Rien à signaler.', 'Ne demande plus d\'aide.');
+      A(12, 'svt', 'Baisse nette depuis la Toussaint.', '', 'Semble ailleurs, à surveiller.');
+      A(12, 'anglais', 'Travail irrégulier.', 'Discret.', 'Participe peu à l\'oral.');
+      A(6, 'physique_chimie', 'Gros progrès depuis octobre, le travail paie.', 'Agréable.', 'Pose de bonnes questions.');
+      A(6, 'histoire_geo', 'En progrès.', '', 'Prend des notes avec soin.');
+      A(16, 'maths', 'Excellent travail.', 'Exemplaire.', 'Aide spontanément ses camarades.');
+      A(16, 'francais', 'Très sérieux.', '', 'Lectures personnelles nombreuses.');
+      A(5, 'technologie', 'Sérieux.', '', 'Le tiers-temps est bien utilisé en évaluation.');
+      A(9, 'eps', 'Fait le minimum.', 'Bavardages.', '');
+      A(9, 'anglais', '', 'Beaucoup mieux depuis qu\'elle est devant.', 'Commence à participer.');
     }
   }
 

@@ -44,12 +44,18 @@ sauvegarde dans un dossier Nextcloud (onglet 💾 Données et réglages).
    ses notes) prend simplement sa colonne. Moyenne, médiane, écart type, minimum,
    maximum, nombre de moyennes sous 10 et à 10 ou plus, par matière et pour la moyenne
    générale ; une vue « évolution » de ces statistiques import après import.
-3. **📄 Documents administratifs** — qui a rendu quoi, et quand. La feuille imprimée d'un
+3. **🗣 Avis des collègues** — avant un conseil, une feuille de calcul du Nuage académique,
+   un onglet par discipline, que les collègues remplissent par un lien de partage (sans
+   compte) : investissement, comportement, implication, en réponses libres. L'app prépare la
+   feuille (élèves, professeurs repris des moyennes) et relit les réponses dans la copie que
+   le client Nextcloud garde sur l'ordinateur ; on les retrouve en rédigeant le bilan, sur la
+   fiche et sur la synthèse de période.
+4. **📄 Documents administratifs** — qui a rendu quoi, et quand. La feuille imprimée d'un
    document — comme la grille élèves × documents — se termine par un **bilan** : combien ont
    rendu, et combien ont coché chaque choix.
-4. **Réponses portées sur ces documents** — le choix de la famille (participation à
+5. **Réponses portées sur ces documents** — le choix de la famille (participation à
    Devoirs Faits, options d'orientation…), avec un **avis du PP** quand il y en a un.
-5. **🗳 Élection des délégués** — candidatures en binôme, dépouillement bulletin par
+6. **🗳 Élection des délégués** — candidatures en binôme, dépouillement bulletin par
    bulletin **projeté en direct devant la classe**, procès-verbal imprimable.
 
 La liste des **👥 Élèves** porte, sur la même ligne que l'identité, tout ce qui est connu de

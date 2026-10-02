@@ -27,7 +27,10 @@
   const state = { results: [] };
   function run(label) {
     const out = { label, contrast: [], overflow: null, hidden: [], errors: (window.__suiviPPErrors || []).length, nodes: 0 };
-    out.overflow = document.documentElement.scrollWidth > innerWidth + 1 ? `${document.documentElement.scrollWidth} px pour ${innerWidth}` : null;
+    // ⚠️ clientWidth, pas innerWidth : en émulation mobile, la fenêtre s'élargit d'elle-même à
+    // la largeur du contenu (innerWidth 414 pour 375), et un débordement passait inaperçu.
+    const largeur = Math.min(innerWidth, document.documentElement.clientWidth);
+    out.overflow = document.documentElement.scrollWidth > largeur + 1 ? `${document.documentElement.scrollWidth} px pour ${largeur}` : null;
     const seen = new Set();
     for (const el of document.querySelectorAll('body *')) {
       if (!visible(el) || el.closest('#pa, script, style')) continue;
