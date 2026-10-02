@@ -1115,8 +1115,12 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      colonnes de bilan se masquent comme les autres, et s'impriment une par une. Démo : un
      point de mars au S2 (trois colonnes de bilan au S2 : mars, mi-S2, conseil).
      **Retirer un moment** (v1.45.3, l'utilisateur : *« on peut ajouter des moments mais on
-     ne peut pas en enlever »*) : menu *－ retirer un moment…* à côté de *＋* (chaque moment
-     avec le nombre de bilans écrits). Ajouté et encore vide : il disparaît (rien dans `S`).
+     ne peut pas en enlever »*). ⚠️ Révisé en v1.45.4 (*« une liste qui s'appelle Moments, et à
+     droite de chaque moment le symbole moins ou plus »*) : les deux menus ＋ / － sont devenus
+     la puce **🗓 Moments** — un volet (`_elevesMomentsHTML`, `_elevesMoments` pur) qui liste
+     TOUS les moments, période par période, dans l'ordre : ceux de la colonne avec **−** (et
+     le nombre de bilans écrits), ceux qu'on peut ajouter avec **+**. Il reste ouvert pendant
+     qu'on clique (`_elMomOpen`) et se ferme au clic ailleurs. Ajouté et encore vide : il disparaît (rien dans `S`).
      Avec des bilans : MASQUÉ (`S.prefs.bilansMasques`, un cran d'undo), les bilans restent
      dans les fiches, *＋* le remet (« (retiré) »). `_bilanColsVues` = la liste, la carte de
      chaleur, le tri, le papier ; la fiche garde tous les moments. Au passage : « Point
@@ -1686,6 +1690,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 87 | **Liste « 🗓 Moments »** à la place des menus ＋ / − : chaque moment de bilan avec − (dans la colonne) ou + (à ajouter) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.45.4) |
 | 86 | **Grille des bulletins figée** (ligne des candidats en place, position gardée) ; **retirer un moment de bilan** (vide : disparaît ; écrit : masqué, retenu) ; « Point d'avril » ; test du cadre figé étendu aux renderers qui délèguent la garde ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.3) |
 | 85 | **Régimes d'entrée ET de sortie** séparés (catalogues, migration), jours de ½ pension ; **import de l'export MBN** (.xlsx, avant / après, rattachement manuel) ; **lecture .xlsx** (`_xlsxRead`), import d'élèves en .xlsx / .ods ; **Retours** : seule la grille défile ; 3 tests. Vérifié sur le vrai export (hors dépôt). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.2) |
 | 84 | **Régime** (demi-pensionnaire, externe, interne) et **régime de sortie** (codes de l'établissement, réglables) : colonne Groupe · options, fiche, ✏️, saisie en série (🍽 Régimes), papier, import (qui complète aussi les élèves déjà présents) ; naissance enfin lue à l'import ; démo ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.1) |

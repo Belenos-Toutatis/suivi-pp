@@ -304,3 +304,21 @@ test('Point du mois : « de mars » mais « d\'avril », « d\'août », « d\'o
   assert.deepStrictEqual(evObj(`['mars', 'avril', 'août', 'octobre', 'septembre'].map(_deMois)`), ['de mars', 'd\'avril', 'd\'août', 'd\'octobre', 'de septembre']);
   assert.strictEqual(ev(`_bilanLabel({ type: 'mois', date: '2026-04-10' })`), 'Point d\'avril');
 });
+
+test('Liste « Moments » : les moments de la colonne avec −, ceux qu\'on peut ajouter avec +, dans l\'ordre', () => {
+  ev(FIXTURE);
+  ev(`_bilanColsAjout = new Set(); S.prefs.bilansMasques = []; bilanAdd('s1', { date:'2025-11-20', type:'miperiode', texte:'Mi-S1' });`);
+  const ms = evObj(`_elevesMoments(S.classes['5C'], 0)`);
+  const vus = ms.filter(m => m.vu).map(m => m.key);
+  assert.deepStrictEqual(vus, ['bil:miperiode:0', 'bil:conseil:0']);
+  assert.strictEqual(ms.find(m => m.key === 'bil:miperiode:0').n, 1);
+  assert.ok(ms.some(m => !m.vu && m.key === 'bil:mois:2025-10' && m.label === 'Point d\'octobre'), 'un mois à ajouter, bien élidé');
+  const ordre = ms.map(m => m.key);
+  assert.ok(ordre.indexOf('bil:mois:2025-10') < ordre.indexOf('bil:conseil:0'), 'le conseil au bout');
+  const h = ev(`_elevesMomentsHTML(S.classes['5C'], 0)`);
+  assert.match(h, /onclick="elevesBilanColRetirer\('bil:miperiode:0'\)"[^>]*>−</);
+  assert.match(h, /onclick="elevesBilanColAjout\('bil:mois:2025-10'\)"[^>]*>\+</);
+  // Retiré : il passe du côté « + ».
+  ev(`elevesBilanColRetirer('bil:miperiode:0')`);
+  assert.strictEqual(evObj(`_elevesMoments(S.classes['5C'], 0)`).find(m => m.key === 'bil:miperiode:0').vu, false);
+});

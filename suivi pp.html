@@ -1378,6 +1378,13 @@ body.el-projecting #main { padding-top: 8px; }
 .el-sl { font-size: .74em; text-transform: uppercase; letter-spacing: .06em; color: var(--pencil); }
 .el-chip.col.on { background: var(--g1); color: var(--g1-on); border-color: var(--g1); }
 .el-bil-add { font-size: .86em; max-width: 14em; }
+.el-mom > summary { list-style: none; cursor: pointer; }
+.el-mom > summary::-webkit-details-marker { display: none; }
+@media (min-width: 521px) { .el-mom .el-cols-p { min-width: 290px; } }   /* sous 520 px, le volet s'ouvre dans la barre (règle de .el-cols) */
+.el-mom-l { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.el-mom-l.off > span:first-child { color: var(--pencil); }
+.el-mom-b { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 50%; width: 24px; height: 24px; line-height: 20px; padding: 0; font-weight: 700; color: var(--danger-fg); flex: none; }
+.el-mom-b.plus { color: var(--ok-fg); }
 .el-reg { display: inline-block; font: 600 .78em var(--font-mono); padding: 0 5px; border-radius: 4px; border: 1px solid var(--rule-line); color: var(--ink-deep); margin-left: 2px; }
 .el-reg.el-entree { border-color: var(--g1); }
 .el-reg.el-sortie { border-style: dashed; }
@@ -2719,8 +2726,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.45.3';
-const APP_BUILD_DATE = '2026-10-02T21:55:36Z';
+const APP_VERSION    = '1.45.4';
+const APP_BUILD_DATE = '2026-10-02T22:11:38Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5504,8 +5511,44 @@ function elevesBilanColRetirer(key) {
   _prefs().bilansMasques = [..._bilansMasques().filter(k => k !== key), key];   // ⚠️ remplacé, jamais modifié en place
   _bilanColsAjout.delete(key);
   save(); renderStudents();
-  toast(n ? `${col.long} : retiré de la liste — ses ${n} bilan${n > 1 ? 's' : ''} rest${n > 1 ? 'ent' : 'e'} dans les fiches. « ＋ moment de bilan » le remet.` : `${col.long} : retiré.`);
+  toast(n ? `${col.long} : retiré de la liste — ses ${n} bilan${n > 1 ? 's' : ''} rest${n > 1 ? 'ent' : 'e'} dans les fiches. + dans Moments le remet.` : `${col.long} : retiré.`);
 }
+// ── La liste « Moments » (v1.45.4, l'utilisateur : « une liste qui s'appelle Moments, et à
+// droite de chaque moment le symbole moins ou plus ») ── tous les moments de bilan, dans
+// l'ordre : ceux de la colonne Bilans avec −, ceux qu'on peut ajouter avec +. Un volet qui
+// reste ouvert pendant qu'on clique (`_elMomOpen`) et se ferme au clic ailleurs. PUR sauf
+// l'état d'ouverture : [{ key, label, pIdx, ordre, vu, n }].
+let _elMomOpen = false;
+function _elevesMoments(cls, pCour) {
+  const masques = new Set(_bilansMasques());
+  const liste = _bilanColonnesListe(cls, pCour, _bilanColsAjout);
+  const p = _periods(cls)[pCour];
+  const milieu = p ? _todayYmd(new Date((new Date(p.start + 'T12:00:00').getTime() + new Date(p.end + 'T12:00:00').getTime()) / 2)) : '';
+  const out = liste.map(c => ({ key: c.key, label: c.long, pIdx: c.pIdx, ordre: c.ordre === '9999' ? '9999' : c.ordre, vu: !masques.has(c.key),
+    n: cls.eleves.filter(sid => _bilanDeColonne(cls, sid, c)).length }));
+  for (const o of _bilanColsProposables(cls, pCour, liste.filter(c => c.pIdx === pCour))) {
+    const m = /^bil:mois:(\d{4})-(\d{2})$/.exec(o.key);
+    out.push({ key: o.key, label: m ? `Point ${_deMois(_BILAN_MOIS[+m[2] - 1])}` : o.label, pIdx: pCour, ordre: m ? `${m[1]}-${m[2]}-01` : milieu, vu: false, n: 0 });
+  }
+  return out.sort((a, b) => a.pIdx - b.pIdx || String(a.ordre).localeCompare(String(b.ordre)));
+}
+function _elevesMomentsHTML(cls, pCour) {
+  const ms = _elevesMoments(cls, pCour), per = _periods(cls);
+  const nVus = ms.filter(m => m.vu).length;
+  const lignes = ms.map((m, i) => `${i === 0 || ms[i - 1].pIdx !== m.pIdx ? `<div class="el-cols-t">${_escName(per[m.pIdx]?.label || '')}</div>` : ''}
+    <div class="el-mom-l${m.vu ? '' : ' off'}"><span>${_escName(m.label)}${m.n ? ` <span class="tb-hint">· ${m.n} écrit${m.n > 1 ? 's' : ''}</span>` : ''}</span>${m.vu
+      ? `<button class="el-mom-b" onclick="elevesBilanColRetirer('${_escJsAttr(m.key)}')" title="Retirer de la colonne Bilans${m.n ? ' — les bilans écrits restent dans les fiches' : ''}" aria-label="Retirer ${_escAttr(m.label)}">−</button>`
+      : `<button class="el-mom-b plus" onclick="elevesBilanColAjout('${_escJsAttr(m.key)}')" title="Ajouter à la colonne Bilans" aria-label="Ajouter ${_escAttr(m.label)}">+</button>`}</div>`).join('');
+  return `<details class="el-cols el-mom"${_elMomOpen ? ' open' : ''} ontoggle="_elMomOpen=this.open">
+    <summary class="el-chip col on" title="Les moments de bilan de la colonne Bilans : − pour en retirer un, + pour en ajouter">🗓 Moments <span class="el-chip-n">${nVus}</span></summary>
+    <div class="el-cols-p">${lignes}</div></details>`;
+}
+// Le volet se referme au clic AILLEURS — une cible détachée (un bouton du volet qui vient de
+// re-rendre la liste) n'est pas « ailleurs ».
+document.addEventListener('click', e => {
+  const d = document.querySelector('.el-mom[open]');
+  if (d && e.target && document.contains(e.target) && !d.contains(e.target)) { d.open = false; _elMomOpen = false; }
+});
 function elevesBilanColAjout(key) {
   if (!key) return;
   if (_bilansMasques().includes(key)) { pushUndo(); _prefs().bilansMasques = _bilansMasques().filter(k => k !== key); save(); }
@@ -5833,9 +5876,6 @@ function renderStudents() {
   const affHTML = `<div class="tb el-aff-tb"><span class="el-aff" role="group" aria-label="Affichage de la liste">${[['indic', '▦ Indicateurs', 'Une case par sujet : un repère court, le contenu au survol'], ['chaleur', '▥ Carte de chaleur', 'Une case par relevé, matière, discipline, papier, mois et bilan : ce qui est rempli, et quand']].map(([k, l, t]) =>
       `<button class="${aff === k ? 'on' : ''}" aria-pressed="${aff === k}" onclick="elevesAffichageSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     ${_elevesFiltresHTML(cls)}</div>`;
-  const masques = _bilanColonnesListe(cls, pCour, _bilanColsAjout).filter(c => _bilansMasques().includes(c.key));
-  const prop = [..._bilanColsProposables(cls, pCour, _bilanColonnesListe(cls, pCour, _bilanColsAjout).filter(c => c.pIdx === pCour)),
-    ...masques.map(c => ({ key: c.key, label: `${c.long} (retiré)` }))];
   const vuesHTML = aff !== 'indic' ? `<div class="tb el-vues-tb">${compte}</div>` : `<div class="tb el-vues-tb">
       <span class="el-sl">Vue</span><span class="el-aff" role="group" aria-label="Vue">${ELEVES_VUES.map(v => `<button class="${v.key === vueCour ? 'on' : ''}" aria-pressed="${v.key === vueCour}" onclick="elevesVueUI('${v.key}')">${_escName(v.label)}</button>`).join('')}</span>
       <span class="el-sl">Colonnes</span><span class="el-filtres">${ELEVES_COLS.map(c => { const on = _elevesColVue(c.key);
@@ -5843,9 +5883,7 @@ function renderStudents() {
       <button class="el-chip col${_elevesNais ? ' on' : ''}" aria-pressed="${_elevesNais}" onclick="_elevesNais=!_elevesNais;renderStudents()" title="La colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée">📅 Naissances</button>
       <button class="el-chip col${_elevesReg ? ' on' : ''}" aria-pressed="${_elevesReg}" onclick="_elevesReg=!_elevesReg;renderStudents()" title="Trois colonnes pour saisir en série le régime de demi-pension, le régime d'entrée et le régime de sortie">🍽 Régimes</button>
       ${_elevesReg ? `<button class="btn btn-g btn-sm" onclick="openMbnImport()" title="Reprendre les régimes depuis l'export « régimes de sortie » de Mon Bureau Numérique (.xlsx)">📥 Depuis MBN…</button>` : ''}
-      ${prop.length && _elevesColVue('bilans') ? `<select class="el-bil-add" onchange="elevesBilanColAjout(this.value)" title="Un moment de bilan de plus (un point par élève dans la colonne Bilans)"><option value="">＋ moment de bilan…</option>${prop.map(o => `<option value="${_escAttr(o.key)}">${_escName(o.label)}</option>`).join('')}</select>` : ''}
-      ${bcols.length && _elevesColVue('bilans') ? `<select class="el-bil-add" onchange="elevesBilanColRetirer(this.value)" title="Retirer un moment de la colonne Bilans — les bilans déjà écrits restent dans les fiches"><option value="">－ retirer un moment…</option>${bcols.map(c => { const n = cls.eleves.filter(sid => _bilanDeColonne(cls, sid, c)).length;
-        return `<option value="${_escAttr(c.key)}">${_escName(c.long)}${n ? ` (${n} écrit${n > 1 ? 's' : ''})` : ''}</option>`; }).join('')}</select>` : ''}
+      ${_elevesColVue('bilans') ? _elevesMomentsHTML(cls, pCour) : ''}
       ${compte}</div>`;
   // ⚠️ Plus de ligne « Trier » (v1.44.4, l'utilisateur : « on clique maintenant sur le titre
   // de colonne pour trier ») ; les ordres de place et de ramassage servent aux SAISIES (carnet,
