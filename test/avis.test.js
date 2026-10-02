@@ -306,3 +306,12 @@ test('Message aux collègues : un moment au choix, des parties à garder ou non,
   ev(`avisCiblesSet('5C', window.__c.id, ['s5'])`);
   assert.match(m(), /– <b>BOLD<\/b> Zoé/);
 });
+
+test('.ods : quadrillage affiché, consignes encadrées', () => {
+  ev(FIXTURE);
+  // Sans ShowGrid explicite, LibreOffice ouvrait la feuille sans lignes de grille.
+  const set = ev(`_odsSettings([{ name: 'Maths', freeze: { rows: 4, cols: 1 }, tabColor: '#2e8752' }])`);
+  assert.ok((set.match(/config:name="ShowGrid" config:type="boolean">true</g) || []).length >= 2, 'au niveau de la vue et de l\'onglet');
+  const f = evObj(`_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }))`)[0];
+  assert.ok(f.rows[2].every(c => c.style === 'consigne'), 'la ligne des consignes a des bordures, comme le tableau');
+});
