@@ -176,3 +176,25 @@ test('Liste des élèves : des colonnes se masquent (écran ET papier), « vide 
   ev(`elevesColsTout()`);
   assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), []);
 });
+
+test('Liste des élèves : les bilans des PÉRIODES PRÉCÉDENTES ont aussi leurs colonnes (seulement si remplies)', () => {
+  ev(FIXTURE);
+  // Période courante : S2 (dernier relevé en mars).
+  ev(`_bilanColsAjout = new Set(); S.releves['5C']['2026-03-05'] = { date:'2026-03-05', ts:2, counts:{ s1:9, s2:12 } };
+      bilanAdd('s1', { date:'2025-09-30', type:'mois', texte:'Septembre' });
+      bilanAdd('s2', { date:'2025-11-20', type:'miperiode', texte:'Mi-S1' });
+      bilanAdd('s2', { date:'2026-04-02', type:'mois', texte:'Avril' });`);
+  const cols = () => evObj(`_bilanColonnesListe(S.classes['5C'], _carnetCurrentPeriodIdx(S.classes['5C']), _bilanColsAjout).map(c => [c.court, c.pIdx])`);
+  assert.deepStrictEqual(cols(), [['Point sept.', 0], ['Mi-S1', 0], ['Point avr.', 1], ['Conseil S2', 1]],
+    'le conseil du S1, vide, n\'a pas de colonne ; celui du S2 (courant) toujours');
+  ev(`bilanAdd('s1', { date:'2026-01-22', type:'conseil', texte:'Conseil S1' })`);
+  assert.deepStrictEqual(cols().map(c => c[0]), ['Point sept.', 'Mi-S1', 'Conseil S1', 'Point avr.', 'Conseil S2']);
+  // Une case du S1 ouvre la rédaction de CE moment, daté au S1.
+  ev(`document.getElementById('mbilan')?.classList.remove('on'); _bilanMode = null; elevesBilanOuvrir('s2', 'bil:conseil:0')`);
+  assert.deepStrictEqual(evObj(`_bilanMode`), { type: 'conseil', date: '2026-01-22' });
+  // Et sur le papier.
+  ev(`_eleveFilter = ''; eleveSort = { col: 'nom', dir: 1 }; S.prefs.elevesColsOff = []`);
+  const pr = ev(`_elevesPrintHTML(S.classes['5C'])`);
+  assert.ok(['Point sept.', 'Mi-S1', 'Conseil S1', 'Point avr.', 'Conseil S2'].every(t => pr.includes(`<th>${t}</th>`)));
+  ev(`_bilanMode = null; _bilanOrdreFige = null`);
+});

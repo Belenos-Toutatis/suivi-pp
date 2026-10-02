@@ -1657,6 +1657,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importJSON(event)">
       <button class="btn btn-g" onclick="document.getElementById('imp-file-pdc').click()" title="Lire un export plan-classe-*.json : on choisit la classe à reprendre ; identité, groupe, options et aménagements des élèves, plus les places et les ordres de ramassage. C'est AUSSI par ici qu'on met à jour un placement qui a changé.">🪑 Depuis Plan de classe…</button>
       <input type="file" id="imp-file-pdc" accept=".json" style="display:none" onchange="importPlanDeClasse(event)">
+      <button class="btn btn-g" onclick="document.getElementById('imp-file-recup').click()" title="Relire une ANCIENNE sauvegarde (export .json, suivi-pp-bk-…, point nommé) pour remplir les naissances, dates d'arrivée ou de départ et civilités qui sont VIDES aujourd'hui — par exemple effacées par un import depuis Plan de classe avant la v1.41.1. Rien de ce qui est rempli n'est remplacé.">🩹 Récupérer des dates…</button>
+      <input type="file" id="imp-file-recup" accept=".json" style="display:none" onchange="recupChampsFichier(event)">
       <button class="btn btn-g" style="margin-left:auto" onclick="loadDemoOnDemand()" title="Remplacer les données par une classe fictive complète, pour essayer l'application sans risque. Récupérable par Ctrl+Z.">🧪 Données de démo</button>
       <button class="btn btn-d" onclick="resetEverything()" title="Effacer classes, élèves, relevés, documents et élections. Récupérable par Ctrl+Z.">🗑 Tout effacer</button>
     </div>
@@ -2420,8 +2422,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.41.0';
-const APP_BUILD_DATE = '2026-10-02T16:22:07Z';
+const APP_VERSION    = '1.41.1';
+const APP_BUILD_DATE = '2026-10-02T16:32:10Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4683,7 +4685,7 @@ function _elevesRows(cls) {
   // v1.41.0) désigne celle du conseil de la période courante.
   if (col === 'bilan' || String(col).startsWith('bil:')) {
     const k = col === 'bilan' ? `bil:conseil:${_carnetCurrentPeriodIdx(cls)}` : col;
-    const bc = _bilanColonnes(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).find(c => c.key === k);
+    const bc = _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).find(c => c.key === k);
     const a1 = new Map(rows.map(x => [x.s.id, _bilanDeColonne(cls, x.s.id, bc) ? 1 : 0]));
     return rows.sort((a, b) => ((a1.get(b.s.id) - a1.get(a.s.id)) * dir) || byName(a, b));
   }
@@ -4758,7 +4760,7 @@ function elevesColsVides() {
   const cls = getCls();
   if (!cls) return;
   const rows = _elevesRows(cls);
-  const bcols = _bilanColonnes(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout);
+  const bcols = _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout);
   const vides = [...ELEVES_COLS.map(c => c.key).filter(k => _elevesColVide(k, rows)),
     ...bcols.filter(c => !rows.some(x => _bilanDeColonne(cls, x.s.id, c))).map(c => c.key)].filter(_elevesColVue);
   if (!vides.length) return toast('Aucune colonne vide à masquer.');
@@ -4828,6 +4830,18 @@ function _bilanColonnes(cls, pIdx, ajout) {
       long: c.type === 'mois' ? `Point de ${_BILAN_MOIS[mo]}` : c.type === 'miperiode' ? `Bilan de mi-période ${p.label}` : `Conseil de classe ${p.label}` };
   }).sort((a, b) => a.ordre.localeCompare(b.ordre));
 }
+// Les colonnes de la LISTE (v1.41.1, demande de l'utilisateur : « affiche aussi les bilans
+// des périodes précédentes ») : celles de la période courante, PRÉCÉDÉES de celles des
+// périodes passées qui ont au moins un bilan — une colonne vide d'une période close ne
+// servirait à rien (le conseil du S1 vide reste donc caché au S2). Ordre chronologique. PUR.
+function _bilanColonnesListe(cls, pCour, ajout) {
+  const out = [];
+  for (let i = 0; i <= pCour; i++) {
+    const cols = _bilanColonnes(cls, i, i === pCour ? ajout : null).map(c => ({ ...c, pIdx: i }));
+    out.push(...(i === pCour ? cols : cols.filter(c => cls.eleves.some(sid => _bilanDeColonne(cls, sid, c)))));
+  }
+  return out;
+}
 // Le bilan d'un élève pour une colonne : même type, même période (même mois). PUR.
 function _bilanDeColonne(cls, sid, col) { return col ? _bilanCible(cls, sid, { type: col.type, date: col.date }) : null; }
 // Les mois de la période qui n'ont pas encore leur colonne (pour « ＋ colonne »), sans août ni juillet.
@@ -4854,7 +4868,7 @@ function elevesBilanColAjout(key) {
 }
 function elevesBilanOuvrir(sid, colKey) {
   const cls = getCls();
-  const col = cls && _bilanColonnes(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).find(c => c.key === colKey);
+  const col = cls && _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).find(c => c.key === colKey);
   if (!col) return openBilan(sid);
   openBilan(sid, null, { mode: { type: col.type, date: col.date } });
 }
@@ -4944,8 +4958,8 @@ function _elevesColsPickHTML(cls, rowsData, bcols, pIdx) {
     <summary class="btn btn-g btn-sm" title="Choisir les colonnes affichées (et imprimées)">☰ Colonnes${nOff ? ` <span class="tb-hint">(${nOff} masquée${nOff > 1 ? 's' : ''})</span>` : ''}</summary>
     <div class="el-cols-p">
       ${ELEVES_COLS.map(c => ligne(c.key, c.label, _elevesColVide(c.key, rowsData))).join('')}
-      <div class="el-cols-t">Bilans ${_escName(_periods(cls)[pIdx]?.label || '')}</div>
-      ${bcols.map(c => ligne(c.key, c.long, !rowsData.some(x => _bilanDeColonne(cls, x.s.id, c)))).join('')}
+      ${bcols.map((c, i) => (i === 0 || bcols[i - 1].pIdx !== c.pIdx ? `<div class="el-cols-t">Bilans ${_escName(_periods(cls)[c.pIdx]?.label || '')}</div>` : '')
+        + ligne(c.key, c.long, !rowsData.some(x => _bilanDeColonne(cls, x.s.id, c)))).join('')}
       ${prop.length ? `<select class="el-cols-add" onchange="elevesBilanColAjout(this.value)"><option value="">＋ Ajouter une colonne de bilan…</option>${prop.map(o => `<option value="${_escAttr(o.key)}">${_escName(o.label)}</option>`).join('')}</select>` : ''}
       <div class="el-cols-b"><button class="btn btn-g btn-sm" onclick="elevesColsVides()">Masquer les colonnes vides</button>${nOff ? ` <button class="btn btn-g btn-sm" onclick="elevesColsTout()">Tout afficher</button>` : ''}</div>
     </div></details>`;
@@ -4987,7 +5001,7 @@ function renderStudents() {
   // Colonnes visibles (v1.41.0) et colonnes de bilan de la période courante.
   const vu = Object.fromEntries(ELEVES_COLS.map(c => [c.key, _elevesColVue(c.key)]));
   const pCour = _carnetCurrentPeriodIdx(cls);
-  const bcolsTout = _bilanColonnes(cls, pCour, _bilanColsAjout);
+  const bcolsTout = _bilanColonnesListe(cls, pCour, _bilanColsAjout);
   const bcols = bcolsTout.filter(c => _elevesColVue(c.key));
   const vuPer = vu.periode;
   const rows = rowsData.map(({ s, r }) => {
@@ -7076,7 +7090,7 @@ function _pdcSalle(src, id) {
 }
 
 function _pdcImport(d, classIds) {
-  const stats = { classes: 0, eleves: 0, maj: 0, tags: 0, salles: 0, places: 0, patterns: 0 };
+  const stats = { classes: 0, eleves: 0, maj: 0, tags: 0, salles: 0, places: 0, patterns: 0, gardes: 0 };
   const srcTags = _isPlainObj(d.tags) ? d.tags : {};
   const tagMap = {};   // id source → id local
   const mapTag = tid => {
@@ -7114,9 +7128,17 @@ function _pdcImport(d, classIds) {
       for (const k of _PDC_STU_FIELDS) {
         const v = src[k];
         if (k === 'nom' || k === 'prenom') stu[k] = String(v).trim();
-        else if (k === 'civilite') stu[k] = (v === 'M' || v === 'F') ? v : null;
+        // ⚠️ Une case VIDE là-bas ne vide PAS celle d'ici (v1.41.1) : les naissances saisies
+        // à la main dans Suivi PP étaient effacées par un import depuis un Plan de classe qui
+        // n'en avait pas. Civilité et dates : la valeur de la source si elle en a une, sinon
+        // celle d'ici est gardée (et comptée, pour que le compte rendu le dise).
+        else if (k === 'civilite') { if (v === 'M' || v === 'F') stu[k] = v; else if (stu[k] === 'M' || stu[k] === 'F') stats.gardes++; else stu[k] = null; }
         else if (k === 'groupe') stu[k] = [1, 2, 3].includes(v) ? v : null;
-        else if (k === 'arrivalDate' || k === 'departureDate' || k === 'naissance') stu[k] = (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : null;
+        else if (k === 'arrivalDate' || k === 'departureDate' || k === 'naissance') {
+          if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) stu[k] = v;
+          else if (_ymdValid(stu[k])) stats.gardes++;
+          else stu[k] = null;
+        }
         else stu[k] = v === true;
       }
       stu.tags = (Array.isArray(src.tags) ? src.tags : []).map(mapTag).filter(Boolean).filter((t, i, a) => a.indexOf(t) === i);
@@ -7207,9 +7229,15 @@ function _pdcUpdateBtn() {
   const n = _pdcChecked().length;
   if (btn) { btn.disabled = !n; btn.textContent = n ? `⬆ Importer ${n} classe${n > 1 ? 's' : ''}` : 'Choisir une classe'; }
 }
-function _pdcConfirm() {
+async function _pdcConfirm() {
   const ids = _pdcChecked();
   if (!_pdcData || !ids.length) return toast('⚠️ Choisissez au moins une classe.', 'warn');
+  // Un point nommé AVANT d'écrire (v1.41.1) : l'import réécrit identités, groupes, options,
+  // aménagements et places — le Ctrl+Z ne survit pas à la fermeture de l'onglet.
+  if (dirHandle) {
+    const ok = await _makeNamedCheckpoint('avant-import-plan-de-classe');
+    if (!ok) return toast('Rien n\'a été importé : le point de sauvegarde n\'a pas pu être écrit.', 'error');
+  }
   pushUndo();
   const st = _pdcImport(_pdcData, ids);
   _pdcData = null;
@@ -7228,6 +7256,7 @@ function _pdcConfirm() {
   // « mis à jour » de « le fichier n'en portait pas ».
   if (st.places) parts.push(`${st.places} place${st.places > 1 ? 's' : ''} à jour`);
   if (st.patterns) parts.push(`${st.patterns} ordre${st.patterns > 1 ? 's' : ''} de ramassage`);
+  if (st.gardes) parts.push(`${st.gardes} date${st.gardes > 1 ? 's' : ''} ou civilité${st.gardes > 1 ? 's' : ''} gardée${st.gardes > 1 ? 's' : ''} (vide${st.gardes > 1 ? 's' : ''} dans Plan de classe)`);
   toast('✅ ' + parts.join(' · ') + '. Annulable par Ctrl+Z.'
     + (st.places ? '' : ' Aucun placement dans ce fichier : le tri par place reste indisponible.'));
 }
@@ -11729,7 +11758,7 @@ function _elevesPrintHTML(cls) {
     { key: 'docs', th: 'Non rendus', w: 9, td: r => `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` },
     { key: 'incidents', th: 'Incidents', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
     { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(r.remarque)}</small>` },
-    ..._bilanColonnes(cls, pIdx, _bilanColsAjout).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
+    ..._bilanColonnesListe(cls, pIdx, _bilanColsAjout).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
       td: (r, sid) => { const b = _bilanDeColonne(cls, sid, c); return `<small>${b ? _escName(b.texte) : ''}</small>`; } })),
   ].filter(c => c.key === 'nom' || _elevesColVue(c.key));
   const tot = cols.reduce((n, c) => n + c.w, 0);
@@ -16037,6 +16066,66 @@ function resetEverything() {
     okLabel: '🗑 Tout effacer', okClass: 'btn-d',
     onOk: () => { _demoReplaceState('avant-effacement', () => {}, 'Tout a été effacé. Ctrl+Z ramène vos données.'); },
   });
+}
+
+// ═══════════════════════════════════════════════════════════
+// RÉCUPÉRER des champs effacés depuis une ancienne sauvegarde (v1.41.1)
+// ═══════════════════════════════════════════════════════════
+// Né d'un défaut : jusqu'à la v1.41.0, un import depuis Plan de classe VIDAIT les
+// naissances (et dates d'arrivée, de départ, civilités) saisies ici quand la source n'en
+// avait pas. On relit une sauvegarde d'avant (export, `suivi-pp-bk-*`, point nommé) et on
+// ne remplit QUE ce qui est vide aujourd'hui : rien de ce qui a été saisi depuis n'est
+// touché. Élève reconnu par son id, sinon par classe + nom + prénom (sans accents ni casse).
+const _RECUP_CHAMPS = [
+  { key: 'naissance',     label: 'naissance',      ok: v => _ymdValid(v) },
+  { key: 'arrivalDate',   label: 'arrivée',        ok: v => _ymdValid(v) },
+  { key: 'departureDate', label: 'départ',         ok: v => _ymdValid(v) },
+  { key: 'civilite',      label: 'civilité',       ok: v => v === 'M' || v === 'F' },
+];
+// PUR : ce qu'on récupérerait. [{ sid, nom, champ, label, valeur }]
+function _recupChamps(ancien) {
+  if (!_isPlainObj(ancien) || !_isPlainObj(ancien.eleves)) return [];
+  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const parSig = new Map();
+  for (const e of Object.values(ancien.eleves)) if (_isPlainObj(e)) parSig.set(`${e.classe_id}|${norm(e.nom)}|${norm(e.prenom)}`, e);
+  const out = [];
+  for (const s of Object.values(S.eleves)) {
+    const o = _isPlainObj(ancien.eleves[s.id]) ? ancien.eleves[s.id] : parSig.get(`${s.classe_id}|${norm(s.nom)}|${norm(s.prenom)}`);
+    if (!o) continue;
+    for (const c of _RECUP_CHAMPS) {
+      if (c.ok(s[c.key]) || !c.ok(o[c.key])) continue;
+      out.push({ sid: s.id, nom: `${s.nom} ${s.prenom}`, champ: c.key, label: c.label, valeur: o[c.key] });
+    }
+  }
+  return out;
+}
+function recupChampsFichier(ev) {
+  const f = ev && ev.target && ev.target.files && ev.target.files[0];
+  if (ev && ev.target) ev.target.value = '';
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    let ancien;
+    try { ancien = JSON.parse(String(rd.result || '')); } catch (_) { return toast('⚠️ Ce fichier n\'est pas une sauvegarde lisible (JSON).', 'warn'); }
+    const items = _recupChamps(ancien);
+    if (!items.length) return appAlert('Rien à récupérer', `Dans « ${f.name} », aucun élève actuel n'a de date de naissance, d'arrivée, de départ ou de civilité qui manque aujourd'hui.`);
+    const parChamp = _RECUP_CHAMPS.map(c => [c.label, items.filter(x => x.champ === c.key).length]).filter(x => x[1]);
+    const liste = items.slice(0, 12).map(x => `• ${x.nom} — ${x.label} : ${x.champ === 'civilite' ? x.valeur : _fmtDateFr(x.valeur)}`).join('\n');
+    _uiConfirm({
+      title: '🩹 Récupérer les champs effacés ?',
+      message: `Depuis « ${f.name} » : ${parChamp.map(([l, n]) => `${n} ${l}${n > 1 ? 's' : ''}`).join(', ')}.\n\n${liste}${items.length > 12 ? `\n… et ${items.length - 12} de plus.` : ''}\n\nSeuls les champs VIDES aujourd'hui sont remplis : rien de ce que vous avez saisi depuis n'est remplacé. Annulable par Ctrl+Z.`,
+      okLabel: '🩹 Récupérer', okClass: 'btn-p',
+      onOk: () => {
+        pushUndo();
+        for (const x of items) if (S.eleves[x.sid]) S.eleves[x.sid][x.champ] = x.valeur;
+        save();
+        const at = document.querySelector('.tab.on');
+        if (at) renderTab(at.id.replace('tab-', ''));
+        toast(`🩹 ${items.length} champ${items.length > 1 ? 's' : ''} récupéré${items.length > 1 ? 's' : ''}. Annulable par Ctrl+Z.`);
+      },
+    });
+  };
+  rd.readAsText(f);
 }
 
 // ═══════════════════════════════════════════════════════════

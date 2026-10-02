@@ -51,7 +51,7 @@ test('_pdcImport ne reprend QUE les classes choisies, par liste blanche, ids con
     const st = _pdcImport(${PDC}, ['6A']);
     return { st, classes: Object.keys(S.classes), eleves: Object.keys(S.eleves), e1: S.eleves.e_1, tags: Object.values(S.tags).map(t => t.abbr) };
   })()`);
-  assert.deepStrictEqual(r.st, { classes: 1, eleves: 2, maj: 0, tags: 2, salles: 0, places: 0, patterns: 0 });
+  assert.deepStrictEqual(r.st, { classes: 1, eleves: 2, maj: 0, tags: 2, salles: 0, places: 0, patterns: 0, gardes: 0 });
   assert.deepStrictEqual(r.classes, ['6A']);                                 // pas 5C, pas VC
   assert.deepStrictEqual(r.eleves.sort(), ['e_1', 'e_2']);                   // ids d'origine
   // Liste blanche : les champs internes de Plan de classe ne passent pas.
@@ -84,7 +84,7 @@ test('réimporter reconnaît les élèves par id ET par nom+prénom, sans doublo
   assert.deepStrictEqual(a, [['5C', 1, 0], ['6A', 2, 0]]);
   const r = evObj(`(() => { const st = _pdcImport(${PDC}, ['6A','5C']);
     return { st, n: Object.keys(S.eleves).length, rem: S.eleves.e_1.remarque, roster5C: S.classes['5C'].eleves, nom: S.eleves.x9.nom }; })()`);
-  assert.deepStrictEqual(r.st, { classes: 0, eleves: 0, maj: 3, tags: 0, salles: 0, places: 0, patterns: 0 });
+  assert.deepStrictEqual(r.st, { classes: 0, eleves: 0, maj: 3, tags: 0, salles: 0, places: 0, patterns: 0, gardes: 0 });
   assert.strictEqual(r.n, 3);                                                // aucun doublon
   assert.strictEqual(r.rem, 'Appel à la mère le 11/10');                     // la remarque n'existe qu'ici : conservée
   assert.deepStrictEqual(r.roster5C, ['x9']);                                // reconnu par nom+prénom, id local gardé
@@ -222,4 +222,43 @@ test('l\'analyse ne compte que les places des élèves de LA classe', () => {
   const c = evObj(`_pdcAnalyze(${PDC_PLACES})`).classes.find(x => x.id === '6A');
   const st = evObj(`_pdcImport(${PDC_PLACES}, ['6A'])`);
   assert.strictEqual(c.places, st.places, 'ce qui est annoncé est exactement ce qui est repris');
+});
+
+test('Réimporter depuis Plan de classe ne VIDE plus une naissance, une date ou une civilité saisie ici (défaut corrigé en v1.41.1)', () => {
+  ev(RESET);
+  ev(`_pdcImport(${PDC}, ['6A'])`);
+  // Saisies à la main dans Suivi PP, absentes de Plan de classe.
+  ev(`S.eleves.e_1.naissance = '2013-05-21'; S.eleves.e_1.departureDate = '2026-03-02'; S.eleves.e_2.naissance = '2013-09-30';`);
+  const st = evObj(`_pdcImport(${PDC}, ['6A'])`);
+  assert.strictEqual(ev(`S.eleves.e_1.naissance`), '2013-05-21');
+  assert.strictEqual(ev(`S.eleves.e_1.departureDate`), '2026-03-02');
+  assert.strictEqual(ev(`S.eleves.e_2.naissance`), '2013-09-30');
+  assert.strictEqual(st.gardes, 3, 'le compte rendu les compte');
+  // Quand la source A une valeur, elle s'applique (Plan de classe reste la référence).
+  ev(`S.eleves.e_2.arrivalDate = '2025-10-01'; S.eleves.e_2.civilite = 'M'`);
+  ev(`_pdcImport(${PDC}, ['6A'])`);
+  assert.strictEqual(ev(`S.eleves.e_2.arrivalDate`), '2025-11-03');
+  assert.strictEqual(ev(`S.eleves.e_2.civilite`), 'F');
+  // La civilité vide là-bas ne vide pas celle d'ici.
+  ev(`_pdcImport(${PDC}, ['5C']); S.eleves.e_3.civilite = 'F'; _pdcImport(${PDC}, ['5C'])`);
+  assert.strictEqual(ev(`S.eleves.e_3.civilite`), 'F');
+  assert.ok(/_makeNamedCheckpoint\('avant-import-plan-de-classe'\)/.test(ev(`_pdcConfirm.toString()`)), 'un point de sauvegarde avant l\'import');
+});
+
+test('Récupérer des dates depuis une ancienne sauvegarde : seulement ce qui est VIDE aujourd\'hui', () => {
+  ev(RESET);
+  ev(`_pdcImport(${PDC}, ['6A', '5C']); S.eleves.e_2.naissance = '2013-01-01';`);
+  const ancien = JSON.stringify({ eleves: {
+    e_1: { id: 'e_1', classe_id: '6A', nom: 'VINCENT', prenom: 'Mathis', naissance: '2013-05-21', civilite: 'M' },
+    e_2: { id: 'e_2', classe_id: '6A', nom: 'DURAND', prenom: 'Léa', naissance: '2012-12-12' },
+    // Reconnu par classe + nom + prénom, sans accents ni casse, sous un autre id.
+    zz: { id: 'zz', classe_id: '5C', nom: 'Petit', prenom: 'Ines', naissance: '2012-08-08', civilite: 'F', departureDate: 'n importe' },
+  } });
+  const items = evObj(`_recupChamps(${ancien})`);
+  assert.deepStrictEqual(items.map(x => [x.sid, x.champ, x.valeur]), [
+    ['e_1', 'naissance', '2013-05-21'],
+    ['e_3', 'naissance', '2012-08-08'], ['e_3', 'civilite', 'F'],
+  ], 'e_2 a déjà une naissance : on n\'y touche pas ; e_1 a déjà sa civilité ; une date illisible est ignorée');
+  assert.deepStrictEqual(evObj(`_recupChamps(null)`), []);
+  assert.deepStrictEqual(evObj(`_recupChamps({ eleves: 'x' })`), []);
 });

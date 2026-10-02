@@ -1061,6 +1061,11 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      en-tête « rédigé d'abord » ; l'ancien tri `bilan` désigne la colonne du conseil. Les
      colonnes de bilan se masquent comme les autres, et s'impriment une par une. Démo : un
      point de mars au S2 (trois colonnes de bilan au S2 : mars, mi-S2, conseil).
+     **Périodes précédentes aussi** (v1.41.1, demande de l'utilisateur) : `_bilanColonnesListe`
+     (pur) — les colonnes de la période courante, précédées de celles des périodes passées
+     **qui ont au moins un bilan** (le conseil du S1 vide n'a pas de colonne au S2) ; le volet
+     les range sous *Bilans S1*, *Bilans S2*. On n'ajoute une colonne vide qu'à la période
+     courante. Démo au S2 : six colonnes (sept., mi-S1, conseil S1, mars, mi-S2, conseil S2).
    - **Aménagements en LECTURE dans la liste** (2026-09-11) : seuls les actifs, en texte
      coloré (`_amenBadgesHTML`, mêmes encres `--st-*-fg` que les cases de la modale ✏️).
      Les huit boutons-bascules d'origine faisaient de cette colonne la plus large du tableau
@@ -1289,6 +1294,18 @@ Module repris intégralement. À adapter :
   - ⚠️ Le placement vit dans `cls.rooms[salleId].seating`. `cls.seating`, là-bas, est un **accesseur non énumérable** qui redirige vers la salle active : il n'existe pas dans le JSON, et le chercher ne donnerait rien.
   - Une place occupée par un élève qu'on n'a pas repris est **écartée** — sinon `_auditState` signalerait à juste titre un élève fantôme assis.
   - Réimporter **met à jour** : la salle homonyme et le placement sont remplacés, pas empilés. C'est LE chemin de mise à jour des places — 💾 Données et réglages → 🪑 Depuis Plan de classe. Depuis la v1.15.0, on peut aussi corriger sur place (éditeur de salles) — l'import écrase alors la correction, et l'écran le dit.
+  - ⚠️ **Une case VIDE dans Plan de classe ne vide PAS celle d'ici** (v1.41.1 — défaut remonté
+    par l'utilisateur : *« un import depuis Plan de classe a-t-il pu effacer toutes les dates
+    de naissance saisies à la main ? »* — oui : la liste blanche écrivait `null` quand la
+    source n'avait pas la valeur). Pour `naissance`, `arrivalDate`, `departureDate` et
+    `civilite` : la valeur de la source si elle en a une, sinon celle d'ici est gardée et
+    comptée (`stats.gardes`, dit au compte rendu). Groupe, options et aménagements restent
+    RÉÉCRITS (c'est documenté et l'écran le dit). **Un point nommé** (`avant-import-plan-de-classe`)
+    est écrit avant chaque import quand un dossier de sync est choisi ; s'il échoue, rien n'est
+    importé. **Pour réparer** : 💾 Données → *🩹 Récupérer des dates…* relit une ancienne
+    sauvegarde (export, `suivi-pp-bk-*`, point nommé) et ne remplit QUE les champs vides
+    aujourd'hui (`_recupChamps`, pur : élève par id, sinon classe + nom + prénom sans accents),
+    après une confirmation qui liste ce qui sera rempli ; un cran d'undo.
   - ⚠️ L'écran de choix **annonce le placement AVANT l'import** (« 🪑 25 places · 1 ordre de ramassage », ou « aucun placement »), et le compte rendu le confirme après. Sans ce repère, un export fait sans avoir placé personne donne un import qui ne change rien, et on cherche pourquoi.
 
 ## Sauvegarde, sync, stockage
@@ -1444,6 +1461,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 76 | **Import Plan de classe : une case vide là-bas ne vide plus naissance, dates, civilité d'ici** (`stats.gardes`), point nommé avant l'import, outil *🩹 Récupérer des dates…* (`_recupChamps`) · **colonnes des bilans des périodes précédentes** (`_bilanColonnesListe`) ; 3 tests | ✅ **fait** (2026-10-02, v1.41.1) |
 | 75 | **Liste des élèves : colonnes à masquer** (volet ☰ Colonnes, « vide » signalé, masquer les vides, écran et papier, `S.prefs.elevesColsOff`) · **une colonne par moment de bilan** (conseil, mi-période, point du mois ; ajout d'une colonne vide) ; démo : point de mars ; 2 tests. Audit 2 thèmes, 1 570 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.41.0) |
 | 74 | **Formule de politesse et signature** du message aux collègues (nom, établissement, ou signature HTML de la messagerie collée et filtrée par `_htmlSur`), aperçu sur fond courriel blanc ; 2 tests. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.13) |
 | 73 | **Objet du courriel** proposé selon l'objectif, modifiable, copié à part (`_avisObjetMail`, `avisCopierObjet`) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.12) |
