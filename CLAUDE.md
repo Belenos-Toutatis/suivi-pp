@@ -731,8 +731,11 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   physique-chimie, dont le motif exige CHIMIE — « ÉD. PHYSIQUE » contient PHYSIQUE. ⚠️ **Rien
   n'est deviné** (allemand, LCE, espagnol…) : la modale **pose la question** (« à rattacher »,
   nouvelle discipline, ignorer), et 💾 Données corrige tout. Le **professeur** de l'onglet
-  vient du DERNIER import de moyennes de ses matières (`_discProfs` — LV1 et LV2 réunies,
-  co-enseignants tous, sans doublon).
+  vient du DERNIER import de moyennes de ses matières (`_discProfsAuto` — LV1 et LV2
+  réunies, co-enseignants tous, sans doublon) ; ⚠️ **un nom TAPÉ passe avant**
+  (`S.disciplines[did].profs`, v1.39.1 — *« comment je saisis le nom des professeurs si tu
+  n'as pas réussi à les récupérer ? »*) : un champ par discipline dans la modale et dans
+  💾 Données ; vidé, ou égal à celui des moyennes, il redevient automatique.
 - **Campagne** (`S.avis[classId][campId]`) : `{ id, date, cible, label, fichier, lien, lu,
   disciplines: [{ id, nom, onglet, profs }] (les onglets de LA feuille, figés), avis: { sid:
   { did: { investissement, comportement, implication } } } }`. ⚠️ **`cible` = la fin de la
@@ -740,6 +743,17 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   et le conseil du S1, préparé en février, reste « pour le S1 ». Les élèves de la feuille :
   **présents pendant la période**, par **ordre alphabétique** (c'est par le nom qu'un
   collègue cherche).
+- ⚠️ **RIEN n'est repris d'office** (v1.39.1, demande de l'utilisateur : *« montrer
+  avant-après et laisser cocher, pour ne pas écraser à cause de modifications
+  accidentelles »*). `_avisChangements` liste chaque case qui diffère (élève × discipline ×
+  critère : `ajout` · `modif` · `suppr`), la **revue** (`_avisRevueHTML`) montre « dans
+  l'app » / « dans la feuille », l'utilisateur coche, `_avisAvecChoix` applique les seuls
+  choisis. Cochés d'office (`_avisCochesDefaut`) : ajouts et modifications, **jamais un
+  effacement** (c'est l'accident qui coûte). Trois moments : **relire** (ce qui n'est pas
+  coché reste dans la feuille et sera reproposé), **mettre à jour** la feuille (ce qui
+  n'est pas coché y est remplacé par la version de l'app — l'écran le dit), et **nouvelle
+  feuille dans un fichier qui contient déjà des avis** (une feuille du S1 réutilisée pour le
+  S2) : **rien n'est coché**, ce qui n'est pas repris est effacé du fichier.
 - **Lecture** (`_avisLire`, pur) : l'onglet par son nom (ou, renommé, par le nom de la
   discipline en titre), les colonnes par leur **en-tête** (un collègue peut en déplacer une),
   l'élève par la clé de nom des moyennes. ⚠️ **Rien n'est rangé au hasard** : homonymes
@@ -747,10 +761,10 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   (`_avisFusion`) : un onglet lu fait foi (un avis effacé par son auteur disparaît), un onglet
   ABSENT du fichier garde ses avis — une mauvaise feuille choisie n'efface rien. Un cran
   d'undo seulement si quelque chose change. Relecture silencieuse à l'ouverture de la modale
-  si la permission est restée accordée.
-- **Écriture** (`_avisEcrireFeuille`) : relit d'abord le fichier et **garde** les avis déjà
-  écrits (mettre à jour une feuille pour une discipline oubliée ne perd rien) ; un fichier
-  qui contient AUTRE chose n'est écrasé qu'après confirmation. ⚠️ La modale prévient : mettre
+  si la permission est restée accordée — elle n'ouvre que la revue, elle ne range rien.
+- **Écriture** (`_avisEcrireFeuille` → `_avisEcrireMaintenant`) : relit d'abord le fichier ;
+  s'il diffère de l'app, la revue passe avant (cf. ci-dessus) ; un fichier qui contient
+  AUTRE chose qu'une feuille d'avis n'est écrasé qu'après confirmation. ⚠️ La modale prévient : mettre
   à jour pendant qu'un collègue écrit peut créer un conflit dans le Nuage.
 - **Module .ods** (`_zipStore`, `_zipRead`, `_odsBuild`, `_odsRead` — écrit par un agent,
   relu) : ZIP « stored » à l'écriture (le `mimetype` premier, sans champ extra : règle ODF),
@@ -1261,6 +1275,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 58 | **Avis des collègues : revue avant / après** (rien repris d'office, effacements jamais cochés, nouvelle feuille sur un fichier déjà rempli = rien coché) · **professeur tapé à la main** (modale et Données) ; 2 tests. Audit : revue, nouvelle feuille, Données, 2 thèmes, 710 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.39.1) |
 | 57 | **Avis des collègues** : feuille .ods du Nuage préparée et relue par l'app (un onglet par discipline, réponses libres), catalogue des disciplines réglable, matières des moyennes rattachées (demande quand elle ne sait pas), professeur repris des moyennes ; bilan, fiche, synthèse de période ; module .ods sans dépendance ; démo ; 10 tests · **réglages en une colonne sur téléphone** (débordement de 39 px) et **auditeur corrigé** (cf. défaut 29) | ✅ **fait** (2026-10-02, v1.39.0) |
 | 56 | **Couleurs de palier sur la synthèse de période** (cumul de fin de période, tableau et fiches, légende) · **démo sans cumul qui baisse** (rappel de l'utilisateur) ; 2 tests | ✅ **fait** (2026-09-30, v1.38.1) |
 | 55 | **Observations du carnet : couleurs par palier** (`S.prefs.obsPalier`, 5 par défaut, réglable, `_obsBande`, 8 tokens × 2 aux trois endroits) dans la grille, la liste, la fiche et le papier · **impression de la grille** (modale `mcarprint`, période, colonnes, orientation, A4 / A3, une page) ; 6 tests. Audit : 14 états, 2 thèmes, 1 916 et 320 px, **0 défaut** | ✅ **fait** (2026-09-30, v1.38.0) |

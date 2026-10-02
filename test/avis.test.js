@@ -202,3 +202,40 @@ test('Démo : une feuille du S1 déjà relue, et une matière que l\'app demande
   assert.deepStrictEqual(evObj(`_avisMatieresARattacher(S.cur).map(m => m.nom)`), ['ESPAGNOL LV2']);
   assert.ok(cid);
 });
+
+test('Revue avant / après : chaque case qui change, et rien n\'est repris sans être coché', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'] });
+      window.__c.avis = { s1: { maths: { investissement: 'Ancien', comportement: 'Calme' }, anglais: { implication: 'Gardé' } } };`);
+  // La feuille : un avis modifié, un effacé (accident ?), un nouveau ; l'onglet Anglais ABSENT.
+  const lec = { avis: { s1: { maths: { investissement: 'Nouveau' } }, s2: { maths: { implication: 'Très bien' } } }, lus: ['maths'] };
+  ev(`window.__lec = ${JSON.stringify(lec)}`);
+  const ch = evObj(`_avisChangements(getCls(), window.__c, window.__lec)`);
+  assert.deepStrictEqual(ch.map(c => [c.sid, c.did, c.key, c.type]), [
+    ['s1', 'maths', 'investissement', 'modif'], ['s1', 'maths', 'comportement', 'suppr'], ['s2', 'maths', 'implication', 'ajout']]);
+  assert.ok(!ch.some(c => c.did === 'anglais'), 'un onglet absent du fichier ne propose aucun effacement');
+  // Cochés d'office : modifications et ajouts, jamais un effacement ; rien pour une nouvelle feuille.
+  assert.deepStrictEqual(evObj(`_avisCochesDefaut('relire', _avisChangements(getCls(), window.__c, window.__lec))`), [0, 2]);
+  assert.deepStrictEqual(evObj(`_avisCochesDefaut('nouvelle', _avisChangements(getCls(), window.__c, window.__lec))`), []);
+  // Appliquer seulement l'ajout : l'avis effacé par accident reste, la modification n'est pas prise.
+  const av = evObj(`_avisAvecChoix(window.__c, _avisChangements(getCls(), window.__c, window.__lec), [2])`);
+  assert.deepStrictEqual(av, { s1: { maths: { investissement: 'Ancien', comportement: 'Calme' }, anglais: { implication: 'Gardé' } }, s2: { maths: { implication: 'Très bien' } } });
+  // La campagne elle-même n'est pas touchée par le calcul.
+  assert.strictEqual(ev(`window.__c.avis.s2`), undefined);
+});
+
+test('Professeur tapé à la main : passe avant les moyennes, vidé il redevient automatique', () => {
+  ev(FIXTURE);
+  assert.strictEqual(ev(`_discProfs('5C', 'religions')`), '');
+  ev(`disciplineSet('religions', { profs: '  Mme K  ' }); disciplineSet('maths', { profs: 'M. Z' })`);
+  assert.strictEqual(ev(`_discProfs('5C', 'religions')`), 'Mme K');
+  assert.strictEqual(ev(`_discProfs('5C', 'maths')`), 'M. Z', 'le nom tapé passe avant celui des moyennes');
+  assert.strictEqual(ev(`_discProfsAuto('5C', 'maths')`), 'M. E, Mme F');
+  const c = evObj(`avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['religions'] })`);
+  assert.strictEqual(c.disciplines[0].profs, 'Mme K', 'en tête de l\'onglet');
+  ev(`disciplineSet('maths', { profs: '' })`);
+  assert.strictEqual(ev(`_discProfs('5C', 'maths')`), 'M. E, Mme F');
+  assert.strictEqual(ev(`'profs' in S.disciplines.maths`), false);
+  ev(`S.disciplines.anglais.profs = 42; _disciplinesSeed()`);
+  assert.strictEqual(ev(`'profs' in S.disciplines.anglais`), false, 'une valeur abîmée est écartée au chargement');
+});

@@ -950,9 +950,24 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .ob-leg .ob-chip { font-size: 11px; padding: 0 5px; }
 /* Avis des collègues : la liste des disciplines à cocher, et les avis rendus en blocs. */
 .av-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 4px 12px; }
-.fg .av-pick-i, .av-pick-i { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; color: var(--ink-deep); font-weight: 400; font-size: .92em; margin: 0; min-width: 0; }
-.fg .av-pick-i input, .av-pick-i input { width: 16px; height: 16px; margin-top: 2px; flex: none; }
+.fg .av-pick-i, .av-pick-i { display: flex; gap: 8px; align-items: flex-start; color: var(--ink-deep); font-weight: 400; font-size: .92em; margin: 0; min-width: 0; }
+.fg .av-pick-i > input[type="checkbox"], .av-pick-i > input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; flex: none; cursor: pointer; }
+.fg .av-pick-i label, .av-pick-i label { display: inline; margin: 0; color: var(--ink-deep); font-size: 1em; cursor: pointer; }
 .av-pick-i small { display: block; color: var(--pencil); font-size: .88em; overflow-wrap: anywhere; }
+.fg .av-prof, .av-prof { width: 100%; font-size: .85em; padding: 2px 6px; margin-top: 3px; }
+/* La revue avant / après : une ligne par case qui change, groupées par élève. */
+.av-rv-list { max-height: 50vh; overflow-y: auto; border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 4px 10px; }
+.av-rv-el { font-weight: 700; color: var(--ink-blue); margin: 8px 0 2px; }
+.av-rv { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; border-bottom: 1px dashed var(--rule-line); cursor: pointer; font-weight: 400; color: var(--ink-deep); }
+.av-rv input { width: 16px; height: 16px; margin-top: 3px; flex: none; }
+.av-rv-c { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: .92em; }
+.av-rv-h { font-weight: 600; }
+.av-rv-av, .av-rv-ap { white-space: pre-line; overflow-wrap: anywhere; }
+.av-rv-av { color: var(--pencil); }
+.av-rv-t { font: 600 .75em var(--font-mono); padding: 0 5px; border-radius: 4px; margin-left: 4px; }
+.av-rv-ajout { background: var(--com-pos-bg); color: var(--com-pos-fg); }
+.av-rv-modif { background: var(--caution-bg); color: var(--caution-fg); }
+.av-rv-suppr { background: var(--alert-bg); color: var(--alert-fg); }
 .av-det > summary { cursor: pointer; }
 .av-it { margin: 0 0 8px; }
 .av-d { font-weight: 700; color: var(--ink-blue); }
@@ -2364,8 +2379,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.39.0';
-const APP_BUILD_DATE = '2026-10-02T08:56:02Z';
+const APP_VERSION    = '1.39.1';
+const APP_BUILD_DATE = '2026-10-02T09:35:48Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -11934,6 +11949,7 @@ function _disciplinesSeed() {
     if (typeof cur.nom !== 'string' || !cur.nom.trim()) cur.nom = nom;
     if (typeof cur.onglet !== 'string' || !cur.onglet.trim()) cur.onglet = onglet;
     if (typeof cur.actif !== 'boolean') cur.actif = true;
+    if (cur.profs !== undefined && typeof cur.profs !== 'string') delete cur.profs;
   });
   for (const [id, d] of Object.entries(S.disciplines)) {
     if (DISCIPLINES_DEFAUT.some(x => x[0] === id)) continue;
@@ -11942,6 +11958,7 @@ function _disciplinesSeed() {
     if (typeof d.onglet !== 'string' || !d.onglet.trim()) d.onglet = d.nom;
     if (typeof d.actif !== 'boolean') d.actif = true;
     if (typeof d.ord !== 'number') d.ord = 1000;
+    if (d.profs !== undefined && typeof d.profs !== 'string') delete d.profs;
   }
 }
 function _disciplinesAll() { return Object.values(S.disciplines || {}).sort((a, b) => (a.ord - b.ord) || String(a.nom).localeCompare(String(b.nom), 'fr')); }
@@ -11958,6 +11975,7 @@ function disciplineAdd(nom) {
 function disciplineSet(id, patch) {
   const d = S.disciplines[id];
   if (!d) return false;
+  if ('profs' in patch) { const t = String(patch.profs || '').trim().slice(0, 120); if (t) d.profs = t; else delete d.profs; }
   if ('nom' in patch) { const n = String(patch.nom || '').trim().slice(0, 60); if (!n) return false; d.nom = n; }
   if ('onglet' in patch) d.onglet = _discOngletSur(patch.onglet || d.nom);
   if ('actif' in patch) d.actif = !!patch.actif;
@@ -12009,7 +12027,15 @@ function _discMatieres(classId, did) { return _avisMatieresClasse(classId).filte
 // où une de ses matières a un nom de professeur — un remplaçant arrivé en cours d'année
 // prend la place de celui qu'il remplace. Plusieurs matières (anglais LV1 et LV2),
 // plusieurs professeurs (co-enseignement) : tous, sans doublon.
+// ⚠️ Un nom SAISI à la main (S.disciplines[did].profs) passe avant les moyennes : si
+// l'utilisateur l'a écrit, c'est que l'import ne le donnait pas, ou le donnait mal (2026-10-02 :
+// « comment je saisis le nom des professeurs si tu n'as pas réussi à les récupérer ? »).
 function _discProfs(classId, did) {
+  const saisi = S.disciplines?.[did]?.profs;
+  if (typeof saisi === 'string' && saisi.trim()) return saisi.trim();
+  return _discProfsAuto(classId, did);
+}
+function _discProfsAuto(classId, did) {
   const rels = _moyReleves(classId).slice().reverse();
   for (const rel of rels) {
     const ps = (rel.matieres || []).filter(mid => _matiereDisc(mid) === did).map(mid => rel.profs?.[mid]).filter(Boolean);
@@ -12155,19 +12181,45 @@ function _avisLire(cls, camp, sheets) {
   }
   return { avis, lus, inconnus, nonReconnus };
 }
-// Ce que la lecture change, pour le dire (et ne poser un cran d'undo que s'il y a lieu).
-// ⚠️ Un onglet ABSENT du fichier lu garde ses avis : un fichier tronqué ou une mauvaise
-// feuille choisie ne doivent pas effacer ce qu'on avait. Un onglet lu, lui, fait foi —
-// un avis effacé par son auteur disparaît.
-function _avisFusion(camp, lecture) {
-  const avant = JSON.stringify(camp.avis || {});
-  const avis = JSON.parse(avant);
-  for (const sid of Object.keys(avis)) {
-    for (const did of lecture.lus) delete avis[sid][did];
-    if (!Object.keys(avis[sid]).length) delete avis[sid];
+// Ce qui DIFFÈRE entre l'app et la feuille lue, case par case (élève × discipline × critère).
+// PUR. ⚠️ Seuls les onglets LUS comptent : un onglet absent du fichier (tronqué, mauvaise
+// feuille choisie) ne propose aucun effacement. Rien n'est appliqué ici : l'utilisateur voit
+// avant / après et coche ce qu'il reprend (2026-10-02 : « pour ne pas écraser à cause de
+// modifications accidentelles »).
+function _avisChangements(cls, camp, lecture) {
+  const lus = new Set(lecture.lus || []);
+  const nom = sid => { const s = S.eleves[sid]; return s ? `${s.nom} ${s.prenom}` : sid; };
+  const sids = [...new Set([...Object.keys(camp.avis || {}), ...Object.keys(lecture.avis || {})])]
+    .sort((a, b) => nom(a).localeCompare(nom(b), 'fr', { sensitivity: 'base' }));
+  const out = [];
+  for (const sid of sids) for (const d of camp.disciplines || []) {
+    if (!lus.has(d.id)) continue;
+    const a = camp.avis?.[sid]?.[d.id] || {}, b = lecture.avis?.[sid]?.[d.id] || {};
+    for (const c of AVIS_CRITERES) {
+      const avant = a[c.key] || '', apres = b[c.key] || '';
+      if (avant !== apres) out.push({ sid, did: d.id, key: c.key, avant, apres, type: !avant ? 'ajout' : !apres ? 'suppr' : 'modif' });
+    }
   }
-  for (const [sid, parDisc] of Object.entries(lecture.avis)) avis[sid] = Object.assign(avis[sid] || {}, parDisc);
-  return { avis, change: JSON.stringify(avis) !== avant };
+  return out;
+}
+// Les avis de la campagne, une fois appliqués les changements CHOISIS (indices). PUR.
+function _avisAvecChoix(camp, changes, choisis) {
+  const avis = JSON.parse(JSON.stringify(camp.avis || {}));
+  for (const i of choisis) {
+    const ch = changes[i];
+    if (!ch) continue;
+    const parDisc = (avis[ch.sid] = avis[ch.sid] || {});
+    const o = (parDisc[ch.did] = parDisc[ch.did] || {});
+    if (ch.apres) o[ch.key] = ch.apres; else delete o[ch.key];
+    if (!Object.keys(o).length) delete parDisc[ch.did];
+    if (!Object.keys(parDisc).length) delete avis[ch.sid];
+  }
+  return avis;
+}
+// Tout reprendre (les tests, et la règle : un onglet lu fait foi, un onglet absent garde ses avis).
+function _avisFusion(camp, lecture) {
+  const ch = _avisChangements({ eleves: [] }, camp, lecture);
+  return { avis: _avisAvecChoix(camp, ch, ch.map((_, i) => i)), change: ch.length > 0 };
 }
 // Les avis d'un élève pour une période : la DERNIÈRE campagne de cette période qui en
 // porte, dans l'ordre de ses onglets. [{ disc: { nom, profs }, investissement, … }]
@@ -12228,6 +12280,7 @@ function _avisCls() { return getCls(); }
 function _avisCamp() { const cls = _avisCls(); return cls && _avisCampId ? _avisMap(cls.id)?.[_avisCampId] || null : null; }
 
 function openAvis(campId) {
+  _avisRevue = null;
   const cls = getCls();
   if (!cls) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
   const camps = _avisCampagnes(cls.id);
@@ -12252,6 +12305,8 @@ function _avisRender() {
       ${camps.map(c => { const p = _avisPeriode(cls, c); return `<option value="${_escAttr(c.id)}"${c.id === _avisCampId ? ' selected' : ''}>${_escName(p ? p.label : '?')} — préparée le ${_escName(_fmtDateFr(c.date))}${c.fichier ? ' · ' + _escName(c.fichier) : ''}</option>`; }).join('')}
       <option value=""${!_avisCampId ? ' selected' : ''}>＋ Nouvelle feuille…</option>
     </select></div>`;
+  if (_avisRevue && camp && _avisRevue.campId === camp.id) { box.innerHTML = _avisRevueHTML(cls, camp); return; }
+  if (_avisRevue && (!camp || _avisRevue.campId !== camp.id)) _avisRevue = null;
   box.innerHTML = (camps.length ? choix : '') + (camp ? _avisCampHTML(cls, camp) : _avisNouvelleHTML(cls));
 }
 // Les matières des moyennes qu'aucune discipline ne reconnaît : on DEMANDE où les ranger.
@@ -12285,11 +12340,26 @@ function avisRattacherUI(mid, val) {
 function _avisDiscPickHTML(cls, coches) {
   return `<div class="av-pick">${_disciplinesActives().map(d => {
     const mats = _discMatieres(cls.id, d.id).map(m => m.nom);
-    const profs = _discProfs(cls.id, d.id);
-    return `<label class="av-pick-i"><input type="checkbox" data-disc="${_escAttr(d.id)}"${coches.includes(d.id) ? ' checked' : ''}>
-      <span><strong>${_escName(d.nom)}</strong><small>${_escName(profs || 'professeur inconnu')}${mats.length ? ' · ' + _escName(mats.join(', ')) : ''}</small></span></label>`;
+    const auto = _discProfsAuto(cls.id, d.id);
+    return `<div class="av-pick-i"><input type="checkbox" id="avd-${_escAttr(d.id)}" data-disc="${_escAttr(d.id)}"${coches.includes(d.id) ? ' checked' : ''}>
+      <span style="min-width:0;flex:1"><label for="avd-${_escAttr(d.id)}"><strong>${_escName(d.nom)}</strong></label>${mats.length ? `<small>${_escName(mats.join(', '))}</small>` : ''}
+        <input type="text" class="av-prof" value="${_escAttr(_discProfs(cls.id, d.id))}" maxlength="120" placeholder="${auto ? _escAttr(auto) : 'professeur(s) — à saisir'}"
+          title="Le ou les professeurs, en tête de l'onglet. Repris des moyennes quand elles le donnent ; ce que tu tapes passe avant." onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)"></span></div>`;
   }).join('')}</div>
-    <div class="tb-hint" style="margin-top:4px">Un onglet par discipline cochée. Le professeur vient du dernier import de moyennes ; la liste des disciplines se règle dans 💾 Données.</div>`;
+    <div class="tb-hint" style="margin-top:4px">Un onglet par discipline cochée, avec son professeur en titre — repris du dernier import de moyennes, ou tapé ici quand elles ne le donnent pas. La liste des disciplines se règle dans 💾 Données.</div>`;
+}
+// Le professeur tapé : vidé, ou égal à celui des moyennes, il redevient automatique.
+function disciplineProfsUI(did, val) {
+  const cls = getCls();
+  const d = S.disciplines[did];
+  if (!d || !cls) return;
+  const t = String(val || '').trim();
+  const cible = t && t !== _discProfsAuto(cls.id, did) ? t : '';
+  if ((d.profs || '') === cible) return;
+  pushUndo();
+  disciplineSet(did, { profs: cible });
+  save();
+  if (document.getElementById('donnees-body') && document.querySelector('.tab.on')?.id === 'tab-donnees') renderDonnees();
 }
 function _avisDiscCoches() { return [...document.querySelectorAll('#mavis-body input[data-disc]')].filter(c => c.checked).map(c => c.dataset.disc); }
 function _avisNouvelleHTML(cls) {
@@ -12395,39 +12465,40 @@ async function avisPreparerUI(telecharger) {
   if (telecharger) { avisTelecharger(camp.id); _avisRender(); return; }
   await _avisEcrireFeuille(cls, camp, h, { nouvelle: true });
 }
-// Écrit la feuille dans le fichier. Ce que le fichier contient déjà est relu d'abord et
-// GARDÉ : des avis déjà écrits survivent à une mise à jour ; un fichier qui contient autre
-// chose (une autre feuille choisie par erreur) n'est écrasé qu'après confirmation.
+// Écrit la feuille dans le fichier. Ce que le fichier contient déjà est relu d'abord :
+// ⚠️ s'il porte des avis que l'app n'a pas (ou pas pareils), RIEN n'est repris d'office —
+// la revue les montre, avant / après, et l'utilisateur coche ce qu'il garde. Pour une
+// NOUVELLE feuille, rien n'est coché : des avis déjà là viennent sans doute d'une autre
+// période (une feuille du S1 réutilisée pour le S2). Un fichier qui contient AUTRE chose
+// qu'une feuille d'avis n'est écrasé qu'après confirmation.
 async function _avisEcrireFeuille(cls, camp, h, { nouvelle } = {}) {
   if (!await _avisPermission(h, 'readwrite', true)) { toast('⚠️ Écriture refusée par le navigateur.', 'warn'); return _avisRender(); }
   let existant = [];
   try { existant = await _avisLireOctets(new Uint8Array(await (await h.getFile()).arrayBuffer())); }
   catch (e) { existant = null; }
-  const ecrire = async () => {
-    try {
-      if (existant && existant.length) {
-        const lec = _avisLire(cls, camp, existant);
-        const f = _avisFusion(camp, lec);
-        if (f.change) { pushUndo(); camp.avis = f.avis; save(); }
-      }
-      const bytes = _odsBuild(_avisFeuilles(cls, camp));
-      const w = await h.createWritable();
-      await w.write(bytes);
-      await w.close();
-      toast(`✓ Feuille « ${h.name} » préparée : ${camp.disciplines.length} onglet${camp.disciplines.length > 1 ? 's' : ''}, ${_avisEleves(cls, camp).length} élèves. Le client Nextcloud l'envoie au Nuage.`);
-    } catch (e) { toast('⚠️ Écriture impossible : ' + e.message, 'error'); }
-    _avisRender();
-    renderStudents();
-  };
-  // Le fichier contient-il autre chose que notre feuille ?
-  const etranger = existant === null || (existant.length && existant.some(sh => sh.rows.some(r => r.some(c => String(c || '').trim())))
-    && !_avisLire(cls, camp, existant).lus.length);
+  const lec = existant && existant.length ? _avisLire(cls, camp, existant) : null;
+  const etranger = existant === null || (existant.length && existant.some(sh => sh.rows.some(r => r.some(c => String(c || '').trim()))) && !lec.lus.length);
   if (etranger) {
     return _uiConfirm({ title: 'Remplacer le contenu de ce fichier ?',
       message: `« ${h.name} » contient déjà autre chose qu'une feuille d'avis${existant === null ? ' (ou n\'est pas lisible)' : ''}. Le préparer efface ce contenu.`,
-      okLabel: 'Remplacer', okClass: 'btn-d', onOk: ecrire, onCancel: () => _avisRender() });
+      okLabel: 'Remplacer', okClass: 'btn-d', onOk: () => _avisEcrireMaintenant(cls, camp, h), onCancel: () => _avisRender() });
   }
-  await ecrire();
+  const changes = lec ? _avisChangements(cls, camp, lec) : [];
+  if (changes.length) {
+    _avisRevueOuvrir({ campId: camp.id, mode: nouvelle ? 'nouvelle' : 'ecrire', changes, lec, h });
+    return;
+  }
+  await _avisEcrireMaintenant(cls, camp, h);
+}
+async function _avisEcrireMaintenant(cls, camp, h) {
+  try {
+    const w = await h.createWritable();
+    await w.write(_odsBuild(_avisFeuilles(cls, camp)));
+    await w.close();
+    toast(`✓ Feuille « ${h.name} » préparée : ${camp.disciplines.length} onglet${camp.disciplines.length > 1 ? 's' : ''}, ${_avisEleves(cls, camp).length} élèves. Le client Nextcloud l'envoie au Nuage.`);
+  } catch (e) { toast('⚠️ Écriture impossible : ' + e.message, 'error'); }
+  _avisRender();
+  renderStudents();
 }
 async function avisMettreAJourUI(campId) {
   const cls = getCls();
@@ -12489,18 +12560,96 @@ async function avisLireFichierUI(campId, input) {
   try { _avisAppliquer(cls, camp, await _avisLireOctets(new Uint8Array(await f.arrayBuffer())), false); }
   catch (e) { toast('⚠️ Feuille illisible : ' + e.message, 'warn'); }
 }
-// Range ce que la feuille dit. Un cran d'undo seulement si quelque chose change.
+// Ce que la feuille dit : RIEN n'est rangé d'office. S'il y a des différences, la revue les
+// montre (avant / après) et l'utilisateur coche ce qu'il reprend ; ce qu'il ne coche pas
+// reste dans la feuille et lui sera reproposé à la relecture suivante.
 function _avisAppliquer(cls, camp, sheets, silencieux) {
   const lec = _avisLire(cls, camp, sheets);
-  const avant = _avisCompte(camp).n;
-  const f = _avisFusion(camp, lec);
-  if (f.change) { pushUndo(); camp.avis = f.avis; camp.lu = Date.now(); save(); }
   _avisRapport[camp.id] = { lec, quand: Date.now() };
-  const apres = _avisCompte(camp).n;
+  const changes = _avisChangements(cls, camp, lec);
+  if (!lec.lus.length) { if (!silencieux) toast('⚠️ Aucun onglet de cette feuille n\'a été reconnu — est-ce la bonne feuille ?', 'warn'); }
+  else if (!changes.length) { if (!silencieux) toast('✓ Rien de nouveau dans la feuille.'); }
+  else return _avisRevueOuvrir({ campId: camp.id, mode: 'relire', changes, lec });
   if (document.getElementById('mavis')?.classList.contains('on')) _avisRender();
-  if (f.change) { renderStudents(); if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); }
-  if (!lec.lus.length && !silencieux) return toast('⚠️ Aucun onglet de cette feuille n\'a été reconnu — est-ce la bonne feuille ?', 'warn');
-  if (!silencieux || f.change) toast(f.change ? `🗣 ${apres} avis rangé${apres > 1 ? 's' : ''}${apres !== avant ? ` (${apres > avant ? '+' : ''}${apres - avant})` : ' — mis à jour'}.` : '✓ Rien de nouveau dans la feuille.');
+}
+
+// ── La revue : avant / après, case par case ──
+let _avisRevue = null;   // { campId, mode: 'relire'|'ecrire'|'nouvelle', changes, coches: Set, lec, h }
+function _avisCochesDefaut(mode, changes) {
+  return mode === 'nouvelle' ? [] : changes.map((c, i) => c.type === 'suppr' ? -1 : i).filter(i => i >= 0);
+}
+function _avisRevueOuvrir(r) {
+  // Cochés d'office : les ajouts et les modifications ; JAMAIS un effacement (c'est la
+  // modification accidentelle qui coûte), et rien du tout pour une nouvelle feuille.
+  r.coches = new Set(_avisCochesDefaut(r.mode, r.changes));
+  _avisRevue = r;
+  _avisCampId = r.campId;
+  if (!document.getElementById('mavis')?.classList.contains('on')) openMod('mavis');
+  _avisRender();
+}
+function _avisRevueHTML(cls, camp) {
+  const r = _avisRevue;
+  const n = r.changes.length;
+  const disc = did => camp.disciplines.find(d => d.id === did) || { nom: did };
+  const crit = key => AVIS_CRITERES.find(c => c.key === key)?.label || key;
+  const intro = {
+    relire: `<strong>${n} changement${n > 1 ? 's' : ''} dans la feuille</strong> depuis ce que l'app a rangé. Coche ce que tu reprends ; ce que tu ne coches pas reste dans la feuille et te sera reproposé à la prochaine relecture.`,
+    ecrire: `<strong>La feuille porte ${n} différence${n > 1 ? 's' : ''}</strong> avec ce que l'app a rangé. Coche ce que tu gardes ; ce que tu ne coches pas sera <strong>remplacé dans la feuille</strong> par la version de l'app quand elle la mettra à jour.`,
+    nouvelle: `<strong>Ce fichier contient déjà ${n} réponse${n > 1 ? 's' : ''}</strong> — sans doute celles d'une autre période. Coche celles à reprendre dans la nouvelle feuille ; les autres seront <strong>effacées du fichier</strong> quand l'app le préparera.`,
+  }[r.mode];
+  const typeLbl = { ajout: 'nouveau', modif: 'modifié', suppr: 'effacé dans la feuille' };
+  let dernier = '';
+  const lignes = r.changes.map((c, i) => {
+    const s = S.eleves[c.sid];
+    const tete = c.sid !== dernier ? `<div class="av-rv-el">${s ? `${_escName(s.nom)} ${_escName(s.prenom)}` : _escName(c.sid)}</div>` : '';
+    dernier = c.sid;
+    return `${tete}<label class="av-rv"><input type="checkbox" data-rv="${i}"${r.coches.has(i) ? ' checked' : ''} onchange="avisRevueCoche(${i},this.checked)">
+      <span class="av-rv-c"><span class="av-rv-h">${_escName(disc(c.did).nom)} · ${_escName(crit(c.key))} <span class="av-rv-t av-rv-${c.type}">${typeLbl[c.type]}</span></span>
+      ${c.avant ? `<span class="av-rv-av"><span class="av-k">dans l'app</span> ${_escName(c.avant)}</span>` : ''}
+      ${c.apres ? `<span class="av-rv-ap"><span class="av-k">dans la feuille</span> ${_escName(c.apres)}</span>` : '<span class="av-rv-ap"><span class="av-k">dans la feuille</span> <em>(case vide)</em></span>'}</span></label>`;
+  }).join('');
+  const k = r.coches.size;
+  const ok = { relire: `✓ Reprendre ${k} changement${k > 1 ? 's' : ''}`, ecrire: `✓ Garder ${k} et mettre la feuille à jour`, nouvelle: `✓ Préparer la feuille${k ? ` en reprenant ${k} réponse${k > 1 ? 's' : ''}` : ' (vide)'}` }[r.mode];
+  return `<div class="al al-i" style="margin-bottom:8px">${intro}</div>
+    <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+      <button class="btn btn-g btn-sm" onclick="avisRevueTous(true)">Tout cocher</button>
+      <button class="btn btn-g btn-sm" onclick="avisRevueTous(false)">Tout décocher</button></div>
+    <div class="av-rv-list">${lignes}</div>
+    <div class="ma" style="flex-wrap:wrap">
+      <button class="btn btn-g" onclick="avisRevueAnnuler()">${r.mode === 'relire' ? 'Plus tard' : 'Annuler'}</button>
+      <button class="btn btn-p" id="mavis-rv-ok" onclick="avisRevueValider()">${ok}</button></div>`;
+}
+function avisRevueCoche(i, on) {
+  if (!_avisRevue) return;
+  if (on) _avisRevue.coches.add(i); else _avisRevue.coches.delete(i);
+  _avisRender();
+}
+function avisRevueTous(on) {
+  if (!_avisRevue) return;
+  _avisRevue.coches = new Set(on ? _avisRevue.changes.map((_, i) => i) : []);
+  _avisRender();
+}
+function avisRevueAnnuler() {
+  const r = _avisRevue;
+  _avisRevue = null;
+  if (r && r.mode !== 'relire') toast('Feuille laissée telle quelle.');
+  _avisRender();
+}
+async function avisRevueValider() {
+  const r = _avisRevue;
+  const cls = getCls();
+  const camp = r && _avisMap(cls?.id)?.[r.campId];
+  _avisRevue = null;
+  if (!camp) return _avisRender();
+  const avis = _avisAvecChoix(camp, r.changes, [...r.coches]);
+  if (JSON.stringify(avis) !== JSON.stringify(camp.avis || {})) { pushUndo(); camp.avis = avis; camp.lu = Date.now(); save(); }
+  if (r.mode === 'relire') {
+    toast(r.coches.size ? `🗣 ${r.coches.size} changement${r.coches.size > 1 ? 's' : ''} repris.` : 'Rien de repris.');
+    _avisRender(); renderStudents();
+    if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
+    return;
+  }
+  await _avisEcrireMaintenant(cls, camp, r.h);
 }
 function avisSupprimerUI(campId) {
   const cls = getCls();
@@ -12523,6 +12672,7 @@ function _disciplinesTableHTML() {
       <td style="text-align:center"><input type="checkbox"${d.actif ? ' checked' : ''} onchange="disciplineSetUI('${_escJsAttr(d.id)}',{actif:this.checked})" title="${d.actif ? 'Proposée pour les feuilles d\'avis — décocher pour la retirer' : 'Retirée des feuilles d\'avis'}"></td>
       <td style="min-width:170px"><input type="text" value="${_escAttr(d.nom)}" maxlength="60" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{nom:this.value})"></td>
       <td style="min-width:120px"><input type="text" value="${_escAttr(d.onglet)}" maxlength="31" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{onglet:this.value})" title="Le nom de l'onglet dans la feuille (31 caractères au plus)"></td>
+      <td style="min-width:150px"><input type="text" value="${_escAttr(cls ? _discProfs(cls.id, d.id) : (d.profs || ''))}" maxlength="120" placeholder="${_escAttr(cls && _discProfsAuto(cls.id, d.id) || 'à saisir')}" onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)" title="Repris des moyennes quand elles le donnent ; ce que tu tapes passe avant"></td>
       <td class="tb-hint" style="width:99%">${ms.length ? _escName(ms.join(' · ')) : '—'}</td>
       <td style="white-space:nowrap">${d.builtin ? '<span class="tb-hint" title="Discipline d\'office : se décoche, ne se supprime pas">d\'office</span>'
         : `<button class="btn btn-d btn-sm" onclick="disciplineRemoveUI('${_escJsAttr(d.id)}')" title="Supprimer cette discipline">🗑</button>`}</td></tr>`;
@@ -12535,7 +12685,7 @@ function _disciplinesTableHTML() {
         ${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}"${val === d.id ? ' selected' : ''}>${_escName(d.nom)}</option>`).join('')}
         <option value=""${val === '' ? ' selected' : ''}>aucune — pas d'avis à demander</option></select></td></tr>`;
   }).join('');
-  return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th>Onglet</th><th>Matières des moyennes rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th>Onglet</th><th>Professeur(s)</th><th>Matières des moyennes rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="tb" style="max-width:900px;margin-bottom:12px"><input type="text" id="disc-new" placeholder="Nouvelle discipline (ex. : Allemand, Latin…)" maxlength="60" style="flex:1;min-width:200px"
          onkeydown="if(event.key==='Enter'){event.preventDefault();disciplineAddUI()}"> <button class="btn btn-s btn-sm" onclick="disciplineAddUI()">+ Ajouter</button></div>
     ${mats.length ? `<div class="pref-help" style="margin-bottom:6px">Chaque matière des imports de moyennes se range dans une discipline — c'est ce qui donne le professeur de l'onglet, et regroupe par exemple « ANGLAIS » et « ANGLAIS LV2 ».</div>
