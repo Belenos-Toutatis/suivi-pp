@@ -2379,8 +2379,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.39.1';
-const APP_BUILD_DATE = '2026-10-02T09:35:48Z';
+const APP_VERSION    = '1.39.2';
+const APP_BUILD_DATE = '2026-10-02T09:43:44Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3536,7 +3536,8 @@ function _renderDonneesInner(el) {
     <div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renomme, décris, décoche celles que ton établissement n'utilise pas, ajoute les tiennes. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>
     ${_instancesTableHTML()}
     <h3 style="margin-bottom:10px">🗣 Disciplines — avis des collègues</h3>
-    <div class="pref-help" style="margin-bottom:8px">Les onglets de la feuille d'avis envoyée aux collègues (👥 Élèves → 🗣 Avis des collègues). Renomme, décoche, ajoute les tiennes (Allemand, Latin…). Une discipline d'office se décoche, elle ne se supprime pas.</div>
+    <div class="pref-help" style="margin-bottom:8px">Les onglets de la feuille d'avis envoyée aux collègues. Renomme, décoche, ajoute les tiennes (Latin, LCE…). Une discipline d'office se décoche, elle ne se supprime pas.</div>
+    <div style="margin-bottom:10px"><button class="btn btn-p btn-sm" onclick="openAvis()" title="Préparer la feuille d'avis, la relire, revoir les changements — la même fenêtre que 👥 Élèves → 🗣 Avis des collègues">🗣 Ouvrir les avis des collègues…</button></div>
     ${_disciplinesTableHTML()}
     <h3 style="margin-bottom:10px">💾 Mémoire locale</h3>
     <div id="about-storage" class="sto-box" style="max-width:620px;margin-bottom:18px">
@@ -11916,9 +11917,12 @@ const AVIS_CRITERES = [
 // EMC », « ANGLAIS LV2 », « SVT BILINGUE »… (relevés sur les vrais exports, 2025-26).
 // ⚠️ L'EPS avant la physique-chimie : « ÉD. PHYSIQUE » contient PHYSIQUE — le motif de la
 // physique-chimie exige CHIMIE (ou « SCIENCES PHYSIQUES »), jamais PHYSIQUE seul.
-// ⚠️ Ce qui n'est reconnu par AUCUN motif n'est pas deviné (l'allemand, le latin, la LCE…) :
+// ⚠️ Ce qui n'est reconnu par AUCUN motif n'est pas deviné (le latin, la LCE, l'espagnol…) :
 // l'app le dit et demande où le ranger (« si tu as un doute, demande-moi »).
 const DISCIPLINES_DEFAUT = [
+  // Allemand ajouté le 2026-10-02 (oubli de la liste d'origine). « LANGU.CULT EU ALLEM »
+  // (LCE) n'est PAS reconnue d'office : c'est un autre enseignement, l'app demande.
+  ['allemand',           'Allemand',                            'Allemand',         /\bALLEMAND\b/],
   ['anglais',            'Anglais',                             'Anglais',          /\bANGLAIS\b/],
   ['arts_plastiques',    'Arts plastiques',                     'Arts plastiques',  /\bARTS? PLASTIQUES?\b/],
   ['education_musicale', 'Éducation musicale',                  'Éd. musicale',     /\bMUSI(QUE|CALE)\b/],
@@ -11943,9 +11947,14 @@ function _disciplinesSeed() {
   if (!_isPlainObj(S.disciplines)) S.disciplines = {};
   DISCIPLINES_DEFAUT.forEach(([id, nom, onglet], i) => {
     const cur = S.disciplines[id];
-    if (!_isPlainObj(cur)) { S.disciplines[id] = { id, nom, onglet, actif: true, ord: i, builtin: true }; return; }
+    if (!_isPlainObj(cur)) {
+      // Une discipline d'office AJOUTÉE par une version ultérieure (l'allemand) que
+      // l'utilisateur avait déjà créée à la main : on garde la sienne, pas de doublon.
+      if (Object.values(S.disciplines).some(d => _isPlainObj(d) && !d.builtin && _moyNorm(d.nom) === _moyNorm(nom))) return;
+      S.disciplines[id] = { id, nom, onglet, actif: true, ord: i, builtin: true }; return;
+    }
     cur.id = id; cur.builtin = true;
-    if (typeof cur.ord !== 'number') cur.ord = i;
+    cur.ord = i;   // l'ordre des disciplines d'office suit TOUJOURS le tableau (une insertion s'y place)
     if (typeof cur.nom !== 'string' || !cur.nom.trim()) cur.nom = nom;
     if (typeof cur.onglet !== 'string' || !cur.onglet.trim()) cur.onglet = onglet;
     if (typeof cur.actif !== 'boolean') cur.actif = true;
@@ -11997,7 +12006,7 @@ function disciplineRemove(id) {
 // (ignorée) ou null (personne ne sait : c'est la question à poser).
 function _matiereDiscAuto(norm) {
   for (const [id, , , re] of DISCIPLINES_DEFAUT) if (re.test(norm) && S.disciplines[id]) return id;
-  // Une discipline ajoutée par l'utilisateur reconnaît la matière de même nom (« Allemand »).
+  // Une discipline ajoutée par l'utilisateur reconnaît la matière de même nom (« Latin »).
   for (const d of _disciplinesAll()) if (_moyNorm(d.nom) === norm || _moyNorm(d.onglet) === norm) return d.id;
   return null;
 }
@@ -12686,7 +12695,7 @@ function _disciplinesTableHTML() {
         <option value=""${val === '' ? ' selected' : ''}>aucune — pas d'avis à demander</option></select></td></tr>`;
   }).join('');
   return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th>Onglet</th><th>Professeur(s)</th><th>Matières des moyennes rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="tb" style="max-width:900px;margin-bottom:12px"><input type="text" id="disc-new" placeholder="Nouvelle discipline (ex. : Allemand, Latin…)" maxlength="60" style="flex:1;min-width:200px"
+    <div class="tb" style="max-width:900px;margin-bottom:12px"><input type="text" id="disc-new" placeholder="Nouvelle discipline (ex. : Latin, Espagnol…)" maxlength="60" style="flex:1;min-width:200px"
          onkeydown="if(event.key==='Enter'){event.preventDefault();disciplineAddUI()}"> <button class="btn btn-s btn-sm" onclick="disciplineAddUI()">+ Ajouter</button></div>
     ${mats.length ? `<div class="pref-help" style="margin-bottom:6px">Chaque matière des imports de moyennes se range dans une discipline — c'est ce qui donne le professeur de l'onglet, et regroupe par exemple « ANGLAIS » et « ANGLAIS LV2 ».</div>
     <div class="rel-wrap" style="max-width:640px;margin-bottom:18px"><table class="dt inst-table"><thead><tr><th>Matière (bureau numérique)</th><th>Discipline</th></tr></thead><tbody>${matRows}</tbody></table></div>`

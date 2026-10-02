@@ -31,17 +31,22 @@ const FIXTURE = `S = _emptyState(); postLoadHook(); S.prefs.periodMode = 'semest
     'SCIENCES VIE & TERRE(Mme H)', 'SVT BILINGUE(Mme I)', 'HISTOIRE-GEOGRAPHIE EMC(M. J)', 'ALLEMAND(M. K)', 'LANGU.CULT EU ALLEM(M. K)']);`;
 const mid = nom => ev(`_moyMatieresSorted().find(m => m.nom === ${JSON.stringify(nom)}).id`);
 
-test('Catalogue des disciplines : les onze d\'office, réglages gardés, une d\'office supprimée revient', () => {
+test('Catalogue des disciplines : les douze d\'office, réglages gardés, une d\'office supprimée revient', () => {
   ev(FIXTURE);
-  assert.deepStrictEqual(evObj(`_disciplinesAll().map(d => d.nom)`), ['Anglais', 'Arts plastiques', 'Éducation musicale',
+  assert.deepStrictEqual(evObj(`_disciplinesAll().map(d => d.nom)`), ['Allemand', 'Anglais', 'Arts plastiques', 'Éducation musicale',
     'Éducation physique et sportive', 'Enseignement des religions', 'Français', 'Histoire-géographie', 'Mathématiques',
     'Physique-chimie', 'Sciences de la vie et de la Terre', 'Technologie']);
-  ev(`disciplineSet('maths', { nom: 'Maths', actif: false }); delete S.disciplines.svt; const d = disciplineAdd('Allemand'); window.__did = d.id; _disciplinesSeed()`);
+  ev(`disciplineSet('maths', { nom: 'Maths', actif: false }); delete S.disciplines.svt; const d = disciplineAdd('Latin'); window.__did = d.id; _disciplinesSeed()`);
   assert.strictEqual(ev(`S.disciplines.maths.nom`), 'Maths', 'un nom changé survit au semis');
   assert.strictEqual(ev(`S.disciplines.maths.actif`), false);
   assert.ok(ev(`!!S.disciplines.svt`), 'une discipline d\'office absente revient');
-  assert.strictEqual(ev(`S.disciplines[window.__did].nom`), 'Allemand');
-  assert.strictEqual(ev(`disciplineAdd('allemand')`), null, 'pas de doublon (casse ignorée)');
+  assert.strictEqual(ev(`S.disciplines[window.__did].nom`), 'Latin');
+  assert.strictEqual(ev(`disciplineAdd('latin')`), null, 'pas de doublon (casse ignorée)');
+  assert.strictEqual(ev(`disciplineAdd('ALLEMAND')`), null, 'l\'allemand est d\'office');
+  // Un « Allemand » créé à la main AVANT qu'il soit d'office : on garde le sien, sans doublon.
+  ev(`delete S.disciplines.allemand; S.disciplines.disc_x = { id: 'disc_x', nom: 'Allemand', onglet: 'Allemand', actif: true, ord: 50, builtin: false }; _disciplinesSeed()`);
+  assert.strictEqual(ev(`'allemand' in S.disciplines`), false);
+  assert.strictEqual(ev(`_disciplinesAll().filter(d => d.nom === 'Allemand').length`), 1);
   assert.strictEqual(ev(`disciplineRemove('maths')`), false, 'une discipline d\'office ne se supprime pas');
   assert.strictEqual(ev(`_discOngletSur('Hist/géo : [5e]*')`), 'Hist-géo - -5e-');
   assert.ok(ev(`_discOngletSur('x'.repeat(50)).length`) <= 31);
@@ -58,12 +63,11 @@ test('Matières du bureau numérique → disciplines : reconnues, à rattacher, 
   assert.strictEqual(disc('SCIENCES VIE & TERRE'), 'svt');
   assert.strictEqual(disc('SVT BILINGUE'), 'svt');
   assert.strictEqual(disc('HISTOIRE-GEOGRAPHIE EMC'), 'histoire_geo');
-  // Rien n'est deviné pour ce qu'aucune discipline d'office ne couvre : on demande.
-  assert.strictEqual(disc('ALLEMAND'), null);
-  assert.deepStrictEqual(evObj(`_avisMatieresARattacher('5C').map(m => m.nom)`), ['ALLEMAND', 'LANGU.CULT EU ALLEM']);
-  // Une discipline « Allemand » ajoutée reconnaît la matière de même nom ; l'autre se rattache à la main.
-  ev(`window.__all = disciplineAdd('Allemand').id; matiereSetDisc(${JSON.stringify(mid('LANGU.CULT EU ALLEM'))}, window.__all)`);
-  assert.strictEqual(disc('ALLEMAND'), ev(`window.__all`));
+  assert.strictEqual(disc('ALLEMAND'), 'allemand');
+  // Rien n'est deviné pour ce qu'aucune discipline d'office ne couvre (la LCE) : on demande.
+  assert.deepStrictEqual(evObj(`_avisMatieresARattacher('5C').map(m => m.nom)`), ['LANGU.CULT EU ALLEM']);
+  // Une discipline « LCE allemand » ajoutée reconnaît la matière ; on peut aussi rattacher à la main.
+  ev(`window.__all = disciplineAdd('LCE allemand').id; matiereSetDisc(${JSON.stringify(mid('LANGU.CULT EU ALLEM'))}, window.__all)`);
   assert.strictEqual(disc('LANGU.CULT EU ALLEM'), ev(`window.__all`));
   assert.deepStrictEqual(evObj(`_avisMatieresARattacher('5C')`), []);
   // Ignorer, puis revenir à l'automatique.

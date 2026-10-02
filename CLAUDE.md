@@ -718,7 +718,10 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
 - ⚠️ **Réponses LIBRES**, trois par discipline (`AVIS_CRITERES`) — arbitré : *« une réponse
   libre, pas un commentaire fermé »*. Aucune échelle, aucun calcul.
 - **Disciplines** (`S.disciplines`, `_disciplinesSeed`, comme les instances : d'office =
-  décochables, pas supprimables) : la liste de l'utilisateur — anglais, arts plastiques,
+  décochables, pas supprimables) : la liste de l'utilisateur — **allemand** (ajouté en
+  v1.39.2, oubli de la liste d'origine ; ALLEMAND et ALLEMAND BILINGUE s'y rangent, la LCE
+  « LANGU.CULT EU ALLEM » non — l'app demande ; un « Allemand » déjà créé à la main est
+  gardé, sans doublon), anglais, arts plastiques,
   éducation musicale, EPS, enseignement des religions, français, histoire-géographie,
   mathématiques, physique-chimie, SVT, technologie. Réglables dans 💾 Données (nom, nom
   d'onglet ≤ 31 caractères sans `[]*?:/\`, actif), complétables (Allemand, Latin…).
@@ -778,6 +781,9 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   dans Collabora Online** même : à regarder une fois dans le Nuage.
 - **Sans File System Access** (Firefox) : télécharger la feuille, la déposer dans le Nuage,
   et relire par « Lire la feuille… » (choix de fichier).
+- **Où on l'ouvre** : 👥 Élèves → *🗣 Avis des collègues…*, et (v1.39.2) le bouton *🗣 Ouvrir
+  les avis des collègues…* de la section Disciplines de 💾 Données — c'est là que
+  l'utilisateur l'a d'abord cherché.
 - **Où on les lit** : la **fenêtre de bilan** (les avis de la période sous les yeux pendant
   qu'on rédige — `_bilanHint`, qui suit aussi la date), la **fiche** (section 🗣, lecture
   seule : la source est la feuille), la **synthèse de période** (bloc *Avis des collègues*,
@@ -1275,6 +1281,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 59 | **Allemand** parmi les disciplines d'office (en tête ; la LCE reste à rattacher) · bouton *Ouvrir les avis des collègues* dans 💾 Données ; tests mis à jour | ✅ **fait** (2026-10-02, v1.39.2) |
 | 58 | **Avis des collègues : revue avant / après** (rien repris d'office, effacements jamais cochés, nouvelle feuille sur un fichier déjà rempli = rien coché) · **professeur tapé à la main** (modale et Données) ; 2 tests. Audit : revue, nouvelle feuille, Données, 2 thèmes, 710 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.39.1) |
 | 57 | **Avis des collègues** : feuille .ods du Nuage préparée et relue par l'app (un onglet par discipline, réponses libres), catalogue des disciplines réglable, matières des moyennes rattachées (demande quand elle ne sait pas), professeur repris des moyennes ; bilan, fiche, synthèse de période ; module .ods sans dépendance ; démo ; 10 tests · **réglages en une colonne sur téléphone** (débordement de 39 px) et **auditeur corrigé** (cf. défaut 29) | ✅ **fait** (2026-10-02, v1.39.0) |
 | 56 | **Couleurs de palier sur la synthèse de période** (cumul de fin de période, tableau et fiches, légende) · **démo sans cumul qui baisse** (rappel de l'utilisateur) ; 2 tests | ✅ **fait** (2026-09-30, v1.38.1) |
