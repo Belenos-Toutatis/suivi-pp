@@ -258,3 +258,15 @@ test('Carte de chaleur : une case par relevé, matière, discipline, papier, moi
   if (abs) assert.match(evObj(`_chaleurGroupes(getCls(), []).find(x => x.key === 'carnet')?.cell(${JSON.stringify(abs.sid)}, ${JSON.stringify(abs.d)})?.[2] || 'absent'`), /absent/);
   assert.deepStrictEqual(evObj(`_moisDe({ start: '2025-08-01', end: '2026-01-31' }).map(x => x[1])`), ['août', 'sept.', 'oct.', 'nov.', 'déc.', 'janv.']);
 });
+
+test('Liste : tri par prénom depuis l\'en-tête, réversible ; un ordre de place retombe sur le nom', () => {
+  ev(FIXTURE);
+  ev(`S.eleves.s3 = { id:'s3', nom:'ZORRO', prenom:'Abel', classe_id:'5C', tags:[] }; S.classes['5C'].eleves.push('s3'); _elevesFiltres = new Set(); _eleveFilter = '';`);
+  ev(`eleveSort = { col: 'prenom', dir: 1 }`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.prenom)`), ['Abel', 'Léa', 'Noé']);
+  ev(`sortEleves('prenom')`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.prenom)`), ['Noé', 'Léa', 'Abel']);
+  assert.match(ev(`_elevesThNomHTML()`), /onclick="sortEleves\('nom'\)"[^>]*>Nom<\/button>.*onclick="sortEleves\('prenom'\)"[^>]*>Prénom</s);
+  ev(`eleveSort = { col: 'place', dir: 1 }; (() => { const z = document.createElement('div'); const o = document.getElementById; document.getElementById = id => id === 'eleves-body' ? z : o.call(document, id); try { renderStudents(); } finally { document.getElementById = o; } })()`);
+  assert.strictEqual(ev(`eleveSort.col`), 'nom');
+});

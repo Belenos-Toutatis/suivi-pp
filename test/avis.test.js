@@ -577,3 +577,20 @@ test('Démo : trois feuilles d\'avis, dont un point du mois à une seule colonne
   assert.ok(pm.n >= 3);
   assert.deepStrictEqual(r.find(c => c.id === 'demo_av1').cols, ['Travail', 'Participation', 'Comportement']);
 });
+
+test('Onglet Avis des collègues : la liste des récoltes et la grille « qui a écrit sur qui », tout échappé', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'] });
+      window.__c.avis = { s1: { maths: { travail: 'Bien', participation: 'Oui', comportement: 'Calme' }, anglais: { travail: '<img src=x onerror=alert(1)>' } } };
+      window.__c.cibles = ['s1']; _avisCampId = window.__c.id;`);
+  const l = ev(`_avisListeHTML(getCls(), _avisCampagnes('5C'))`);
+  assert.match(l, /＋ Nouvelle feuille d'avis/);
+  assert.match(l, /Conseil de classe · S1/);
+  assert.match(l, /2\/2 disciplines · 2 avis · 1 ⭐/);
+  const g = ev(`_avisGrilleHTML(getCls(), window.__c)`);
+  assert.match(g, /Qui a écrit sur qui/);
+  assert.match(g, /class="ch ch-av3/, 'toutes les colonnes : plein');
+  assert.match(g, /class="ch ch-av1/, 'une colonne sur trois : pâle');
+  assert.ok(!g.includes('<img src=x') && g.includes('&lt;img'), 'l\'avis en infobulle est échappé');
+  assert.match(g, /<td class="ch ch-g0"><strong>2<\/strong><\/td><\/tr>/, 'Léa : deux disciplines');
+});

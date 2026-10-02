@@ -942,9 +942,17 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   dans Collabora Online** même : à regarder une fois dans le Nuage.
 - **Sans File System Access** (Firefox) : télécharger la feuille, la déposer dans le Nuage,
   et relire par « Lire la feuille… » (choix de fichier).
-- **Où on l'ouvre** : 👥 Élèves → *🗣 Avis des collègues…*, et (v1.39.2) le bouton *🗣 Ouvrir
-  les avis des collègues…* de la section Disciplines de 💾 Données — c'est là que
-  l'utilisateur l'a d'abord cherché.
+- **Où on l'ouvre** : ~~👥 Élèves → *🗣 Avis des collègues…*~~ — **depuis la v1.45.0, un
+  ONGLET à lui**, après Vie de classe (l'utilisateur : *« pour récolter et gérer la récolte
+  des avis, un onglet serait utile ; on y verrait les différentes fois où on a récolté les
+  avis »*). La fenêtre `mavis` a disparu : son contenu vit dans l'onglet (`renderAvisTab`,
+  les ids `mavis-*` des champs inchangés, `_avisOnglet()` remplace « la modale est
+  ouverte »). À gauche, les **récoltes** (`_avisListeHTML` : objectif · période, date,
+  fichier, un trait par discipline qui a répondu, n avis, ⭐, les colonnes) et *＋ Nouvelle
+  feuille d'avis* ; à droite, la feuille choisie (tout ce que faisait la modale) puis la
+  grille **« Qui a écrit sur qui »** (`_avisGrilleHTML` : élèves × disciplines, case pleine /
+  pâle selon les colonnes remplies, l'avis en infobulle, totaux en bout de ligne et en pied).
+  `openAvis(campId)` bascule sur l'onglet. Le bouton de 💾 Données y mène toujours.
 - **Où on les lit** : la **fenêtre de bilan** (les avis de la période sous les yeux pendant
   qu'on rédige — `_bilanHint`, qui suit aussi la date), la **fiche** (section 🗣, lecture
   seule : la source est la feuille), la **synthèse de période** (bloc *Avis des collègues*,
@@ -1046,6 +1054,9 @@ officielles, l'utilisateur les règle ou les décoche, et il note la décision p
 
 ## Écrans
 
+**7 onglets depuis la v1.45.0** : 🗣 **Avis des collègues** s'ajoute après Vie de classe (cf.
+*Avis des collègues*, « Où on l'ouvre »).
+
 ⚠️ **Pas de grand titre d'onglet** (v1.44.1, l'utilisateur : *« ça prend trop de place »*) :
 le `.sh` de chaque onglet est retiré de l'écran (gardé pour les lecteurs d'écran) — l'onglet
 actif dit où l'on est. **Seule la grille défile** dans Élèves, Observations et Moyennes
@@ -1100,6 +1111,13 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      **qui ont au moins un bilan** (le conseil du S1 vide n'a pas de colonne au S2) ; le volet
      les range sous *Bilans S1*, *Bilans S2*. On n'ajoute une colonne vide qu'à la période
      courante. Démo au S2 : six colonnes (sept., mi-S1, conseil S1, mars, mi-S2, conseil S2).
+   - **Plus de ligne « Trier »** (v1.45.0, l'utilisateur : *« on clique maintenant sur le
+     titre de colonne pour trier »*) : l'en-tête des élèves porte **Nom · Prénom**, deux tris
+     réversibles (`_elevesThNomHTML`) ; les ordres de place et de ramassage n'ont pas d'usage
+     dans cette liste (ils servent aux SAISIES : carnet, signatures) — un mode resté d'une
+     autre grille retombe sur le nom. Les naissances : une puce *📅 Naissances* avec les
+     colonnes. *🎓 Synthèse de période…* et *🖨 Imprimer la liste* montent dans la barre du
+     haut, à côté d'Ajouter et Importer.
    - **Deux AFFICHAGES, des filtres, des vues** (v1.43.0 — demande de l'utilisateur : *« mieux
      voir les informations essentielles et pouvoir les sélectionner ; voir quand des choses
      sont renseignées, même sans le contenu ; un nombre quand des collègues ont donné leur
@@ -1609,6 +1627,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 83 | **Onglet 🗣 Avis des collègues** (les récoltes à gauche, la feuille à droite, grille « qui a écrit sur qui ») à la place de la fenêtre · **liste des élèves** : plus de ligne de tri (Nom · Prénom en en-tête), puce *Naissances*, impression dans la barre du haut ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.0) |
 | 82 | **Fiche = celle du prototype** : en-tête sur une rangée (moments en boutons), tableau de bord en cartes bornées au moment, chronologie et faits au style du prototype ; ✏️ 🗑 dans la carte Identité, dossier complet replié au pied ; tokens `--pf-card`, `--i-*` ; test mis à jour. Audit 3 vues × 2 moments × 2 thèmes, 1 440 / 2 560 / 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.3) |
 | 81 | **Liste = le tableau du prototype** (cases courtes, carnet avec courbe, contacts à part, bilans en points, remarque sur une ligne, genre devant le nom), **vues en boutons, colonnes en puces**, carte de chaleur alignée (couleurs des paliers, trois niveaux d'avis), suppression depuis la fiche ; tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.2) |
 | 80 | **Bouton** plein écran / à côté dans la fiche (la largeur de l'écran décide par défaut, le choix vaut pour la session) · **titres d'onglet retirés** · **seule la grille défile** dans Élèves, Observations, Moyennes ; test mis à jour. Audit 6 onglets + fiche, 2 thèmes, 1 440 / 2 560 / 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.1) |

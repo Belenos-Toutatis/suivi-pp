@@ -973,6 +973,20 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .ob-leg .ob-chip { font-size: 11px; padding: 0 5px; }
 /* Avis des collègues : la liste des disciplines à cocher, et les avis rendus en blocs. */
 .av-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 4px 12px; }
+/* Onglet 🗣 Avis des collègues (v1.44.4) : les récoltes à gauche, la feuille à droite. */
+.av-tab { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 900px) { .av-tab { grid-template-columns: minmax(0, 1fr); } }
+.av-liste { display: grid; gap: 8px; }
+.av-fcard { display: grid; gap: 3px; text-align: left; border: 1px solid var(--rule-line); background: var(--paper); border-radius: var(--radius-lg); padding: 9px 11px; color: var(--ink-deep); }
+.av-fcard:hover { border-color: var(--g1); }
+.av-fcard.on { box-shadow: inset 4px 0 0 var(--g1); border-color: var(--g1); background: var(--paper-warm); }
+.av-nouv { font-weight: 700; color: var(--link-fg); text-align: center; }
+.av-nouv.on { color: var(--ink-deep); }   /* le bleu de lien tombe à 4,45:1 sur le fond choisi */
+.av-detail { min-width: 0; }
+.av-detail > #mavis-body { max-width: 1100px; }
+.av-titre { margin: 0 0 10px; font-size: 1.15em; color: var(--ink-deep); }
+.av-sous { margin: 18px 0 6px; font-size: 1em; color: var(--ink-deep); }
+.av-grille tfoot td { border-top: 2px solid var(--rule-line); }
 .av-cols { display: grid; gap: 4px; }
 .av-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto auto; gap: 6px; align-items: center; }
 .av-col input[type=text] { width: 100%; min-width: 0; }
@@ -1362,6 +1376,10 @@ body.el-projecting #main { padding-top: 8px; }
 .el-chip.col.on { background: var(--g1); color: var(--g1-on); border-color: var(--g1); }
 .el-bil-add { font-size: .86em; max-width: 14em; }
 .el-ind th { cursor: pointer; white-space: nowrap; user-select: none; }
+.el-th { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
+.el-th.el-sorted::after { content: ' ▾'; color: var(--margin-red); }
+.el-th.el-sorted.up::after { content: ' ▴'; }
+.el-th-nom { cursor: default !important; }
 .el-ind th.el-sorted::after { content: ' ▾'; color: var(--margin-red); }
 .el-ind th.el-sorted.up::after { content: ' ▴'; }
 .el-ind td { white-space: nowrap; vertical-align: middle; }
@@ -1894,6 +1912,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <button class="nb"    onclick="showTab('moyennes',this)"  title="Moyennes par matière importées du bureau numérique : statistiques et évolution d'un import à l'autre">📈 Moyennes</button>
   <button class="nb"    onclick="showTab('documents',this)" title="Les papiers distribués aux familles : qui a rendu quoi, signé quoi, coché quoi — ramassage et vérification">📄 Retours</button>
   <button class="nb"    onclick="showTab('delegues',this)"  title="Heures de vie de classe (ce qu'on y a traité, les décisions, les thèmes à venir) et élections des délégués et des éco-délégués">🏫 Vie de classe</button>
+  <button class="nb"    onclick="showTab('avis',this)"      title="Avis des collègues : préparer les feuilles du Nuage, les relire, voir qui a répondu sur qui">🗣 Avis des collègues</button>
   <button class="nb"    onclick="showTab('donnees',this)"   title="Réglages, options, salles et placements, sauvegarde, export/import, vie privée">💾 Données et réglages</button>
 </nav>
 </div>
@@ -1907,6 +1926,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <button class="btn btn-s btn-sm" onclick="openImportStudents()" title="Coller une liste depuis Pronote ou un tableur, ou charger un fichier CSV">⬆ Importer</button>
       <button class="btn btn-g btn-sm" onclick="openClassesModal()" title="Créer, renommer, réordonner ou supprimer une classe">🏫 Classes…</button>
       <button class="btn btn-g btn-sm" onclick="openTagsModal()" title="Les options suivies : LATIN, BILINGUE, DNL…">🏷 Options…</button>
+      <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
+      <button class="btn btn-g btn-sm" onclick="printEleves()" title="La liste telle qu'elle est à l'écran, en paysage — Ctrl+P fait pareil">🖨 Imprimer la liste</button>
       <input type="search" id="eleve-search" placeholder="🔍 nom, prénom, option…" oninput="setEleveFilter(this.value)" style="margin-left:auto;min-width:180px">
     </div>
     <div id="eleves-body"></div>
@@ -1915,6 +1936,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <div id="tab-moyennes"  class="tab fige"><div class="sh"><h2>📈 Moyennes par matière</h2></div><div id="moyennes-body"></div></div>
   <div id="tab-documents" class="tab"><div class="sh"><h2>📄 Retours de documents</h2></div><div id="documents-body"></div></div>
   <div id="tab-delegues"  class="tab"><div class="sh"><h2>🏫 Vie de classe</h2></div><div id="delegues-body"></div></div>
+  <div id="tab-avis"      class="tab"><div class="sh"><h2>🗣 Avis des collègues</h2></div><div id="avis-body"></div></div>
   <div id="tab-donnees"   class="tab">
     <div class="sh"><h2>💾 Données et réglages</h2></div>
     <div class="tb">
@@ -2341,13 +2363,6 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
-<!-- ═══════════════ AVIS DES COLLÈGUES ═══════════════ -->
-<div id="mavis" class="mo" onclick="closeMod(this,event)">
-  <div class="mb" style="max-width:660px;width:100%">
-    <h2 id="mavis-title">🗣 Avis des collègues</h2>
-    <div id="mavis-body"></div>
-  </div>
-</div>
 
 <!-- ═══════════════ OBSERVATIONS DU CARNET — impression ═══════════════ -->
 <div id="mcarprint" class="mo" onclick="closeMod(this,event)">
@@ -2683,8 +2698,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.44.3';
-const APP_BUILD_DATE = '2026-10-02T20:59:33Z';
+const APP_VERSION    = '1.45.0';
+const APP_BUILD_DATE = '2026-10-02T21:04:20Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3799,6 +3814,7 @@ function renderTab(name) {
     case 'moyennes':  renderMoyennes();  break;
     case 'documents': renderDocuments(); break;
     case 'delegues':  renderDelegues();  break;
+    case 'avis':      renderAvisTab();   break;
     case 'donnees':   renderDonnees();   break;
   }
 }
@@ -4949,7 +4965,11 @@ function _elevesRows(cls) {
   const byName = (a, b) => (a.s.nom + ' ' + a.s.prenom).localeCompare(b.s.nom + ' ' + b.s.prenom, 'fr', { sensitivity: 'base' });
   // Les modes de place et de ramassage n'ont pas de sens « à l'envers » : un ordre de
   // passage dans les rangs se parcourt dans le sens où on le marche.
-  if (col === 'prenom' || col === 'place' || String(col).startsWith('pat-')) {
+  if (col === 'prenom') {
+    const byPrenom = (a, b) => (a.s.prenom + ' ' + a.s.nom).localeCompare(b.s.prenom + ' ' + b.s.nom, 'fr', { sensitivity: 'base' });
+    return rows.sort((a, b) => byPrenom(a, b) * dir);
+  }
+  if (col === 'place' || String(col).startsWith('pat-')) {
     const ordre = _sortStudents(rows.map(x => x.s.id), col, cls);
     return rows.sort((a, b) => ordre.indexOf(a.s.id) - ordre.indexOf(b.s.id));
   }
@@ -5055,6 +5075,12 @@ function _elevesLigneClic(e, sid) {
   if (e && e.target && e.target.closest && e.target.closest('button, a, input, select, label, textarea')) return;
   openFiche(sid);
 }
+// L'en-tête de la colonne des élèves : deux tris, par NOM et par PRÉNOM (v1.44.4).
+function _elevesThNomHTML() {
+  const b = (k, l) => { const on = eleveSort.col === k;
+    return `<button class="el-th${on ? ' el-sorted' + (eleveSort.dir < 0 ? ' up' : '') : ''}" onclick="sortEleves('${k}')" title="Trier par ${l.toLowerCase()}${on ? ' (re-cliquer : à l\'envers)' : ''}">${l}</button>`; };
+  return `${b('nom', 'Nom')} <span class="tb-hint">·</span> ${b('prenom', 'Prénom')}`;
+}
 // La petite courbe du cumul, sur l'année.
 function _elevesSpark(cid, sid) {
   const m = _relMap(cid) || {};
@@ -5159,7 +5185,6 @@ function sortEleves(col) {
   renderStudents();
 }
 function setEleveFilter(v) { _eleveFilter = String(v || ''); renderStudents(); }
-function setEleveSort(v) { eleveSort = { col: v, dir: 1 }; renderStudents(); }
 
 // Saisie des dates de naissance À LA SUITE, dans la liste. Salve d'undo : remplir
 // vingt-cinq dates est UN geste, pas vingt-cinq — sinon la pile de quinze niveaux est
@@ -5427,7 +5452,7 @@ function _elevesChaleurHTML(cls, rowsData, bcols) {
     G.map(g => plis.has(g.key) ? td(g.sum(s.id), true) : g.sub.map((x, i) => td(g.cell(s.id, x.id), i === 0)).join('')).join('')}</tr>`).join('');
   const leg = `<div class="ch-leg tb-hint"><span><i class="ch-sw chob-2"></i><i class="ch-sw chob-5"></i> observations gagnées au relevé</span><span><i class="ch-sw ch-lo"></i> sous 10</span><span><i class="ch-sw ch-av3"></i><i class="ch-sw ch-av2"></i><i class="ch-sw ch-av1"></i> avis : toutes les colonnes, la moitié, moins</span><span>☐ papier à rendre · — non concerné</span><span><i class="ch-sw ch-inc"></i> incidents · <i class="ch-sw ch-ct"></i> contacts du mois</span><span>● bilan écrit · ○ vide</span><span>Survol : le contenu · clic sur le nom : la fiche · ▾ replie un groupe</span></div>`;
   // Le cadre (.rel-wrap frozen) est posé par renderStudents, entre _wrapScrollKeep et keep().
-  return { table: `<table class="dt el-chaleur"><thead><tr class="ch-r1"><th rowspan="2">Élève</th>${head1}</tr><tr class="ch-r2">${head2}</tr></thead><tbody>${body}</tbody></table>`, leg };
+  return { table: `<table class="dt el-chaleur"><thead><tr class="ch-r1"><th rowspan="2" class="el-th-nom">${_elevesThNomHTML()}</th>${head1}</tr><tr class="ch-r2">${head2}</tr></thead><tbody>${body}</tbody></table>`, leg };
 }
 function renderStudents() {
   const el = document.getElementById('eleves-body');
@@ -5471,19 +5496,14 @@ function renderStudents() {
       <span class="el-sl">Vue</span><span class="el-aff" role="group" aria-label="Vue">${ELEVES_VUES.map(v => `<button class="${v.key === vueCour ? 'on' : ''}" aria-pressed="${v.key === vueCour}" onclick="elevesVueUI('${v.key}')">${_escName(v.label)}</button>`).join('')}</span>
       <span class="el-sl">Colonnes</span><span class="el-filtres">${ELEVES_COLS.map(c => { const on = _elevesColVue(c.key);
         return `<button class="el-chip col${on ? ' on' : ''}" aria-pressed="${on}" onclick="elevesColToggle('${c.key}',${!on})" title="${on ? 'Masquer' : 'Afficher'} la colonne (écran et papier)">${_escName(c.label)}</button>`; }).join('')}</span>
+      <button class="el-chip col${_elevesNais ? ' on' : ''}" aria-pressed="${_elevesNais}" onclick="_elevesNais=!_elevesNais;renderStudents()" title="La colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée">📅 Naissances</button>
       ${prop.length && _elevesColVue('bilans') ? `<select class="el-bil-add" onchange="elevesBilanColAjout(this.value)" title="Un moment de bilan de plus (un point par élève dans la colonne Bilans)"><option value="">＋ moment de bilan…</option>${prop.map(o => `<option value="${_escAttr(o.key)}">${_escName(o.label)}</option>`).join('')}</select>` : ''}
       ${compte}</div>`;
-  const per = _periods(cls)[pCour]?.label || 'période';
-  const tri = `<div class="tb">${_sortPickerHTML(eleveSort.col, 'setEleveSort(this.value)', cls,
-    [{ key: 'grp', label: 'par groupe' }, { key: 'delta', label: 'par Δ du dernier relevé' }, { key: 'cumul', label: 'par total d\'observations' },
-     { key: 'periode', label: `par total ${per}` }, { key: 'moy', label: 'par moyenne générale — la plus basse d\'abord' },
-     { key: 'docs', label: 'par papiers à rendre' }, { key: 'incidents', label: 'par incidents' }, { key: 'contacts', label: 'par contacts avec la famille' },
-     { key: 'avis', label: 'par avis des collègues (demandés d\'abord)' }, { key: 'bilans', label: 'par bilans écrits' },
-     ...bcols.map(c => ({ key: c.key, label: `par ${c.long.charAt(0).toLowerCase() + c.long.slice(1)} (rédigé d'abord)` }))])}
-    <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Afficher la colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée"><input type="checkbox"${_elevesNais ? ' checked' : ''} onchange="_elevesNais=this.checked;renderStudents()"> 📅 naissances</label>
-    <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="openAvis()" title="Demander l'avis des collègues sur les élèves — une feuille du Nuage, un onglet par discipline — puis relire leurs réponses">🗣 Avis des collègues…</button>
-    <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
-    <button class="btn btn-g btn-sm" onclick="printEleves()" title="La liste telle qu'elle est à l'écran, en paysage — Ctrl+P fait pareil">🖨 Imprimer la liste</button></div>`;
+  // ⚠️ Plus de ligne « Trier » (v1.44.4, l'utilisateur : « on clique maintenant sur le titre
+  // de colonne pour trier ») ; les ordres de place et de ramassage servent aux SAISIES (carnet,
+  // signatures), pas à cette liste : un mode resté d'une autre grille retombe sur le nom.
+  if (eleveSort.col === 'place' || String(eleveSort.col).startsWith('pat-')) eleveSort = { col: 'nom', dir: 1 };
+  const tri = '';
   const keep = _wrapScrollKeep(el);
   const vide = _emptyStateHTML('🔍', 'Aucun élève ne correspond',
       `${_eleveFilter ? `Le filtre « ${_escName(_eleveFilter)} » ne trouve personne. ` : ''}${_elevesFiltres.size ? 'Les filtres choisis ne gardent personne. ' : ''}<button class="btn btn-g btn-sm" onclick="document.getElementById('eleve-search').value='';_elevesFiltres.clear();setEleveFilter('')">Tout afficher</button>`);
@@ -5513,7 +5533,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     avis: campCour ? `Avis des collègues — feuille pour ${_avisObjectif(cls, campCour).long} : un trait par discipline, ⭐ demandé en particulier` : 'Aucune feuille d\'avis pour cette période',
     bilans: `Un point par moment de bilan (${bcols.map(c => c.court).join(', ')}) : plein = écrit — clic : écrire celui-là`, rem: 'La remarque libre — clic : la modifier',
   };
-  const head = `<tr><th class="${eleveSort.col === 'nom' ? 'el-sorted' + (eleveSort.dir < 0 ? ' up' : '') : ''}" onclick="sortEleves('nom')">Élève</th>${
+  const head = `<tr><th class="el-th-nom">${_elevesThNomHTML()}</th>${
     _elevesNais ? `<th onclick="sortEleves('nais')" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance</th>` : ''}${
     cols.map(c => th(c.key, _escName(c.label), TITRES[c.key])).join('')}</tr>`;
   const dot = (titre, onclick) => `<button class="el-0" ${onclick ? `onclick="${onclick}"` : ''} title="${_escAttr(titre)}" aria-label="${_escAttr(titre)}">·</button>`;
@@ -13785,14 +13805,35 @@ async function _avisLireOctets(bytes) {
 function _avisCls() { return getCls(); }
 function _avisCamp() { const cls = _avisCls(); return cls && _avisCampId ? _avisMap(cls.id)?.[_avisCampId] || null : null; }
 
+// v1.44.4 (l'utilisateur : « pour récolter et gérer la récolte des avis des collègues, un
+// onglet serait utile, après Vie de classe ; on y verrait les différentes fois où on a
+// récolté les avis, et tout ce qui est utile ») : la fenêtre `mavis` est devenue l'onglet
+// 🗣 Avis des collègues. À gauche, les feuilles (une par récolte) ; à droite, la feuille
+// choisie — préparer, relire, le message, les colonnes, les disciplines — et la grille
+// « qui a écrit sur qui ». Les ids `mavis-*` des champs restent : seul le cadre a changé.
+const _avisOnglet = () => !!document.getElementById('tab-avis')?.classList.contains('on');
+function renderAvisTab() {
+  const el = document.getElementById('avis-body');
+  if (!el) return;
+  const cls = getCls();
+  if (!cls) { el.innerHTML = _needClassHTML('récolter les avis des collègues'); return; }
+  if (!document.getElementById('mavis-body')) el.innerHTML = `<div class="av-tab"><aside class="av-liste" id="avis-liste" aria-label="Les feuilles d'avis"></aside><section class="av-detail"><div id="mavis-body"></div></section></div>`;
+  if (_avisCampId === undefined || (_avisCampId && !_avisMap(cls.id)?.[_avisCampId])) _avisCampId = _avisCampagnes(cls.id)[0]?.id || null;
+  _avisRender();
+}
+function avisChoisirFeuille(id) {
+  _avisCampId = id || null;
+  if (_avisRevue && _avisRevue.campId !== _avisCampId) _avisRevue = null;
+  _avisRender();
+  if (_avisCampId) avisRelire(_avisCampId, { demander: false, silencieux: true });
+}
 function openAvis(campId) {
   _avisRevue = null;
   const cls = getCls();
   if (!cls) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
   const camps = _avisCampagnes(cls.id);
   _avisCampId = campId !== undefined ? campId : (camps[0]?.id || null);
-  openMod('mavis');
-  _avisRender();
+  if (_avisOnglet()) _avisRender(); else switchTab('avis');
   // Relecture SILENCIEUSE à l'ouverture, si le navigateur a gardé la permission : on vient
   // presque toujours voir où en sont les collègues.
   if (_avisCampId) avisRelire(_avisCampId, { demander: false, silencieux: true });
@@ -13804,16 +13845,56 @@ function _avisRender() {
   const camps = _avisCampagnes(cls.id);
   const camp = _avisCamp();
   if (_avisCampId && !camp) _avisCampId = null;
-  const t = document.getElementById('mavis-title');
-  if (t) t.textContent = `🗣 Avis des collègues — ${cls.nom}`;
-  const choix = `<div class="fg"><label for="mavis-camp">Feuille</label>
-    <select id="mavis-camp" onchange="_avisCampId=this.value||null;_avisRender();if(_avisCampId)avisRelire(_avisCampId,{demander:false,silencieux:true})" style="max-width:100%">
-      ${camps.map(c => { const p = _avisPeriode(cls, c); return `<option value="${_escAttr(c.id)}"${c.id === _avisCampId ? ' selected' : ''}>${_escName(p ? p.label : '?')} · ${_escName(_avisObjectif(cls, c).court)} — préparée le ${_escName(_fmtDateFr(c.date))}${c.fichier ? ' · ' + _escName(c.fichier) : ''}</option>`; }).join('')}
-      <option value=""${!_avisCampId ? ' selected' : ''}>＋ Nouvelle feuille…</option>
-    </select></div>`;
+  const liste = document.getElementById('avis-liste');
+  if (liste) liste.innerHTML = _avisListeHTML(cls, camps);
   if (_avisRevue && camp && _avisRevue.campId === camp.id) { box.innerHTML = _avisRevueHTML(cls, camp); return; }
   if (_avisRevue && (!camp || _avisRevue.campId !== camp.id)) _avisRevue = null;
-  box.innerHTML = (camps.length ? choix : '') + (camp ? _avisCampHTML(cls, camp) : _avisNouvelleHTML(cls));
+  box.innerHTML = camp ? `<h3 class="av-titre">${_escName(_avisTitreFeuille(cls, camp))}</h3>${_avisCampHTML(cls, camp)}${_avisGrilleHTML(cls, camp)}`
+    : `<h3 class="av-titre">＋ Nouvelle feuille d'avis</h3>${_avisNouvelleHTML(cls)}`;
+}
+// « Conseil de classe · S1 » : le nom d'une récolte, dans la liste et en tête.
+function _avisTitreFeuille(cls, c) {
+  const p = _avisPeriode(cls, c), o = _avisObjectif(cls, c).court;
+  return `${o.charAt(0).toUpperCase() + o.slice(1)}${p ? ' · ' + p.label : ''}`;
+}
+// Les récoltes, de la plus récente à la plus ancienne : objectif, période, date, fichier,
+// combien d'avis, combien de disciplines ont répondu (un trait par discipline), les ⭐.
+function _avisListeHTML(cls, camps) {
+  const nouv = `<button class="av-fcard av-nouv${!_avisCampId ? ' on' : ''}" onclick="avisChoisirFeuille(null)">＋ Nouvelle feuille d'avis</button>`;
+  if (!camps.length) return nouv + '<p class="tb-hint">Aucune feuille encore. Une feuille = une récolte : avant un conseil, un point du mois, une rencontre avec une famille.</p>';
+  return nouv + camps.map(c => {
+    const cpt = _avisCompte(c), nD = c.disciplines.length, rep = c.disciplines.filter(d => cpt.parDisc[d.id]).length;
+    const nc = _avisCibles(cls, c).length;
+    return `<button class="av-fcard${c.id === _avisCampId ? ' on' : ''}" onclick="avisChoisirFeuille('${_escJsAttr(c.id)}')" aria-pressed="${c.id === _avisCampId}">
+      <strong>${_escName(_avisTitreFeuille(cls, c))}</strong>
+      <span class="tb-hint">préparée le ${_escName(_fmtDateFr(c.date))}${c.fichier ? ' · ' + _escName(c.fichier) : ''}</span>
+      <span><span class="el-avbar" aria-hidden="true">${c.disciplines.map(d => `<i class="${cpt.parDisc[d.id] ? 'f' : ''}"></i>`).join('')}</span> ${rep}/${nD} disciplines · ${cpt.n} avis${nc ? ` · ${nc} ⭐` : ''}</span>
+      <span class="tb-hint">${_escName(_avisCols(c).map(x => x.label).join(' · '))}</span></button>`;
+  }).join('');
+}
+// QUI A ÉCRIT SUR QUI : les élèves de la feuille en lignes, les disciplines en colonnes ;
+// une case pleine quand toutes les colonnes sont remplies, pâle pour une partie ; le texte
+// au survol, la fiche au clic sur le nom. Les totaux en bout de ligne et en pied.
+function _avisGrilleHTML(cls, camp) {
+  const eleves = _avisEleves(cls, camp), cols = _avisCols(camp), cibles = new Set(_avisCibles(cls, camp));
+  if (!eleves.length || !camp.disciplines.length) return '';
+  const head = `<tr><th class="el-th-nom">Élève</th>${camp.disciplines.map((d, i) => `<th class="ch-sh${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + (d.profs ? ' — ' + d.profs : ''))}"><span>${_escName(d.onglet)}</span></th>`).join('')}<th class="ch-sh ch-g0"><span>disciplines</span></th></tr>`;
+  const parDisc = Object.fromEntries(camp.disciplines.map(d => [d.id, 0]));
+  const body = eleves.map(s => {
+    let n = 0;
+    const cells = camp.disciplines.map((d, i) => {
+      const a = camp.avis?.[s.id]?.[d.id], pleins = a ? cols.filter(c => a[c.key]) : [];
+      if (!pleins.length) return `<td class="ch ch-no${i === 0 ? ' ch-g0' : ''}">·</td>`;
+      n++; parDisc[d.id]++;
+      const niv = pleins.length >= cols.length ? 3 : pleins.length * 2 >= cols.length ? 2 : 1;
+      return `<td class="ch ch-av${niv}${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + '\n' + pleins.map(c => (cols.length > 1 ? c.label + ' : ' : '') + String(a[c.key]).slice(0, 400)).join('\n'))}">${cols.length > 1 ? pleins.length : '✓'}</td>`;
+    }).join('');
+    return `<tr><td><a href="#" class="el-nom" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche">${_nomHTML(s.id, s.nom, s.prenom)}</a>${cibles.has(s.id) ? ' <span title="Demandé en particulier">⭐</span>' : ''}</td>${cells}<td class="ch ch-g0"><strong>${n}</strong></td></tr>`;
+  }).join('');
+  const pied = `<tr><td class="tb-hint">élèves</td>${camp.disciplines.map((d, i) => `<td class="ch${i === 0 ? ' ch-g0' : ''}"><strong>${parDisc[d.id]}</strong></td>`).join('')}<td class="ch ch-g0"></td></tr>`;
+  return `<h4 class="av-sous">Qui a écrit sur qui <span class="tb-hint">— survol : l'avis · clic sur un nom : la fiche</span></h4>
+    <div class="rel-wrap"><table class="dt el-chaleur av-grille"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${pied}</tfoot></table></div>
+    <div class="ch-leg tb-hint"><span><i class="ch-sw ch-av3"></i><i class="ch-sw ch-av2"></i><i class="ch-sw ch-av1"></i> toutes les colonnes · la moitié · moins</span><span>· rien d'écrit</span>${cibles.size ? '<span>⭐ demandé en particulier</span>' : ''}</div>`;
 }
 // Les matières des moyennes qu'aucune discipline ne reconnaît : on DEMANDE où les ranger.
 function _avisRattacherHTML(cls) {
@@ -13884,7 +13965,6 @@ function _avisNouvelleHTML(cls) {
     <div class="fg"><label for="mavis-lien">Lien de partage de la feuille <span class="tb-hint">(facultatif — il ira dans le message aux collègues)</span></label>
       <input id="mavis-lien" type="text" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%"></div>
     <div class="ma" style="flex-wrap:wrap">
-      <button class="btn btn-g" onclick="closeMod2('mavis')">Fermer</button>
       ${_AVIS_FS() ? '' : '<button class="btn btn-s" onclick="avisPreparerUI(true)" title="Ton navigateur ne sait pas écrire dans un fichier : la feuille se télécharge, à déposer ensuite dans le Nuage à la place de la feuille vide">⬇ Télécharger la feuille</button>'}
       ${_AVIS_FS() ? '<button class="btn btn-p" onclick="avisPreparerUI(false)" title="Choisis la copie locale de la feuille vide (dans ton dossier Nextcloud) : l\'app y écrit les onglets et les élèves">📝 Choisir la feuille et la préparer…</button>' : ''}
     </div>`;
@@ -13943,7 +14023,7 @@ function _avisCampHTML(cls, camp) {
       </div>
     </details>
     <div class="ma"><button class="btn btn-d btn-sm" onclick="avisSupprimerUI('${_escJsAttr(camp.id)}')" title="Oublier cette feuille et les avis rangés (la feuille du Nuage, elle, reste)">🗑</button>
-      <button class="btn btn-g" onclick="closeMod2('mavis')">Fermer</button></div>`;
+      </div>`;
 }
 // ── Mes bilans, pour l'objectif de la feuille ── un bilan par élève, du TYPE de la feuille
 // (conseil, mi-période, point du mois), daté DANS son moment — le conseil du S1 préparé en
@@ -13970,7 +14050,6 @@ function avisBilansUI(campId) {
   if (!camp) return;
   const ordre = _avisEleves(cls, camp).map(s => s.id);
   if (!ordre.length) return toast('⚠️ Aucun élève sur cette feuille.', 'warn');
-  closeMod2('mavis');
   openBilan(ordre[0], null, { mode: _avisBilanMode(cls, camp), ordre });
 }
 // ── Le message aux collègues : des PARTIES, chacune à garder ou non, au texte modifiable ──
@@ -14608,7 +14687,7 @@ function _avisAppliquer(cls, camp, sheets, silencieux) {
   if (!lec.lus.length) { if (!silencieux) toast('⚠️ Aucun onglet de cette feuille n\'a été reconnu — est-ce la bonne feuille ?', 'warn'); }
   else if (!changes.length) { if (!silencieux) toast('✓ Rien de nouveau dans la feuille.'); }
   else return _avisRevueOuvrir({ campId: camp.id, mode: 'relire', changes, lec });
-  if (document.getElementById('mavis')?.classList.contains('on')) _avisRender();
+  if (_avisOnglet()) _avisRender();
 }
 
 // ── La revue : avant / après, case par case ──
@@ -14622,8 +14701,7 @@ function _avisRevueOuvrir(r) {
   r.coches = new Set(_avisCochesDefaut(r.mode, r.changes));
   _avisRevue = r;
   _avisCampId = r.campId;
-  if (!document.getElementById('mavis')?.classList.contains('on')) openMod('mavis');
-  _avisRender();
+  if (_avisOnglet()) _avisRender(); else switchTab('avis');
 }
 function _avisRevueHTML(cls, camp) {
   const r = _avisRevue;
