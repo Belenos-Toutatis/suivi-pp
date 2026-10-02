@@ -206,13 +206,14 @@ test('Import JSON : la section avis passe la liste blanche, une clé piégée es
 test('Démo : une feuille du S1 déjà relue, et une matière que l\'app demande où ranger', () => {
   ev(`S = _emptyState(); createDemo({ force: true }); postLoadHook();`);
   const cid = ev(`S.cur`);
-  const c = evObj(`_avisCampagnes(S.cur)[0]`);
+  // Désignée par son id : la plus récente est désormais le point de mars (v1.42.0).
+  const c = evObj(`_avisMap(S.cur).demo_av1`);
   assert.ok(c, 'une feuille d\'avis dans la démo');
-  assert.ok(ev(`_avisCompte(_avisCampagnes(S.cur)[0]).n`) >= 10);
-  assert.strictEqual(ev(`_avisPeriode(getCls(), _avisCampagnes(S.cur)[0]).label`), 'S1');
+  assert.ok(ev(`_avisCompte(_avisMap(S.cur).demo_av1).n`) >= 10);
+  assert.strictEqual(ev(`_avisPeriode(getCls(), _avisMap(S.cur).demo_av1).label`), 'S1');
   assert.deepStrictEqual(evObj(`_avisMatieresARattacher(S.cur).map(m => m.nom)`), ['ESPAGNOL LV2']);
-  assert.strictEqual(evObj(`_avisCibles(getCls(), _avisCampagnes(S.cur)[0])`).length, 2, 'deux élèves demandés en particulier');
-  assert.match(ev(`_avisMessage(getCls(), _avisCampagnes(S.cur)[0])`), /avant le /);
+  assert.strictEqual(evObj(`_avisCibles(getCls(), _avisMap(S.cur).demo_av1)`).length, 2, 'deux élèves demandés en particulier');
+  assert.match(ev(`_avisMessage(getCls(), _avisMap(S.cur).demo_av1)`), /avant le /);
   assert.ok(cid);
 });
 
@@ -406,7 +407,8 @@ test('Feuille d\'avis : hauteurs FIXES (mesurées en Andika) pour les quatre lig
   assert.ok(r.h.every(h => h > 0.4 && h < 3), JSON.stringify(r.h));
   assert.ok(r.h[1] > r.h[3], 'le mode d\'emploi (plusieurs lignes) est plus haut que la ligne des en-têtes');
   const rows = [...r.xml.matchAll(/<table:table-row table:style-name="(ro[h0-9]*)"/g)].map(m => m[1]);
-  assert.deepStrictEqual(rows.slice(0, 4), ['roh1', 'roh2', 'roh3', 'roh4']);
+  // Deux lignes de même hauteur partagent leur style (roh2, roh2) : on vérifie qu'elles sont FIXES.
+  assert.ok(rows.slice(0, 4).every(x => /^roh\d+$/.test(x)), rows.slice(0, 4).join(' '));
   assert.ok(rows.slice(4).every(s => s === 'ro1'), 'les lignes d\'élèves restent à hauteur automatique');
   assert.match(r.xml, /style:name="roh1"[^>]*>[^<]*<style:table-row-properties style:row-height="[\d.]+cm" style:use-optimal-row-height="false"/);
   assert.match(r.xml, /style:name="ro1"[^>]*>[^<]*<style:table-row-properties style:use-optimal-row-height="true"\/>/);
@@ -487,4 +489,91 @@ test('Signature HTML collée : filtrée (ni script, ni image, ni lien douteux), 
   assert.match(riche, /<div style="margin-top:\.4em"><table cellpadding="0"[^]*<\/table><\/div>$/);
   ev(`avisSignatureUI('avisSignatureHtml', '')`);
   assert.match(ev(`_avisMessage(getCls(), window.__c)`), /M\. TEXTE\nProfesseur principal de la 5e C\n$/, 'retirée, la signature texte revient');
+});
+
+// ── Colonnes réglables (v1.42.0) : « des appréciations de bulletin, une seule remarque par
+// élève — gérer depuis l'app le nombre de colonnes et leurs titres, avec des modèles ». ──
+test('Colonnes : modèle proposé selon l\'objectif, une feuille d\'avant garde ses trois colonnes', () => {
+  ev(FIXTURE);
+  const c = evObj(`(() => { const cls = getCls();
+    const a = avisCampagneCreer(cls, { pIdx: 0, disciplines: ['maths'] });
+    const b = avisCampagneCreer(cls, { pIdx: 0, disciplines: ['maths'], objectif: 'mois', mois: 11 });
+    const old = avisCampagneCreer(cls, { pIdx: 0, disciplines: ['maths'] }); delete old.colonnes;
+    return { a: _avisCols(a).map(x => x.key), b: _avisCols(b).map(x => x.label), old: _avisCols(old).map(x => x.label),
+      modeles: AVIS_MODELES.map(m => m.colonnes.length) }; })()`);
+  assert.deepStrictEqual(c.a, ['travail', 'participation', 'comportement']);
+  assert.deepStrictEqual(c.b, ['Remarque'], 'point du mois : une remarque libre');
+  assert.deepStrictEqual(c.old, ['Travail', 'Participation', 'Comportement'], 'sans colonnes : les trois d\'origine');
+  assert.ok(c.modeles.includes(1), 'un modèle à une seule colonne (appréciation de bulletin)');
+});
+
+test('Colonnes : une seule colonne d\'appréciation — feuille, lecture, message, affichage', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'], colonnes: AVIS_MODELES.find(m => m.key === 'bulletin').colonnes })`);
+  const f = evObj(`_avisFeuilles(getCls(), window.__c)`);
+  const m = f.find(x => x.name === 'Maths');
+  assert.strictEqual(m.colWidthsCm.length, 2, 'les noms et UNE colonne');
+  assert.ok(m.colWidthsCm[1] > 10, 'la colonne seule prend la place des trois');
+  assert.deepStrictEqual(m.rows[3].map(x => x.text), ['Élève', 'Appréciation']);
+  assert.strictEqual(m.rows[0][0].span, 2);
+  assert.match(m.rows[1][0].text, /Écrivez dans la colonne de droite/);
+  assert.match(m.rows[1][0].text, /Seule cette colonne s'écrit/);
+  // Relue : rangée sous la clé de la colonne.
+  const lec = evObj(`(() => { const f = _avisFeuilles(getCls(), window.__c).map(sh => ({ name: sh.name, rows: sh.rows.map(r => r.map(c => c.text)) }));
+    f[0].rows[4][1] = 'Bon trimestre, travail régulier.'; return _avisLire(getCls(), window.__c, f); })()`);
+  assert.deepStrictEqual(Object.values(lec.avis)[0], { [f[0].name === 'Maths' ? 'maths' : 'anglais']: { appreciation: 'Bon trimestre, travail régulier.' } });
+  // Le message dit UNE colonne, et la nomme.
+  assert.match(ev(`_avisMessage(getCls(), window.__c)`), /Une seule colonne, Appréciation : l'appréciation portée au bulletin/);
+  // L'affichage n'annonce pas le titre d'une colonne seule.
+  const h = ev(`_avisItemsHTML([{ disc: { nom: 'Maths' }, appreciation: 'Bien' }], _avisCols(window.__c))`);
+  assert.ok(!/av-k/.test(h) && /Bien/.test(h));
+  // Une feuille préparée avec d'AUTRES colonnes : l'onglet n'est pas lu (rien à effacer).
+  const autre = evObj(`_avisLire(getCls(), window.__c, [{ name: 'Maths', rows: [['Élève', 'Travail'], ['DURAND Léa', 'x']] }])`);
+  assert.deepStrictEqual(autre.lus, []);
+  assert.deepStrictEqual(autre.inconnus, ['Maths']);
+});
+
+test('Colonnes : renommer garde les avis (et l\'ancien titre se relit), retirer une colonne remplie est refusé', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }); window.__c.avis = { s1: { maths: { travail: 'Sérieuse', comportement: 'Calme' } } }`);
+  // Renommer « Travail » en « Travail personnel », retirer « Participation » (vide), ajouter une colonne.
+  const r = evObj(`avisColonnesSet(window.__c, [{ key: 'travail', label: 'Travail personnel', aide: 'devoirs' }, { key: 'comportement', label: 'Comportement' }, { label: 'Orientation', aide: 'vœux, projet' }])`);
+  assert.deepStrictEqual(r, { ok: true });
+  const cols = evObj(`window.__c.colonnes`);
+  assert.deepStrictEqual(cols.map(c => c.key), ['travail', 'comportement', 'c_orientation']);
+  assert.ok(cols[0].alias.includes('Travail'), 'l\'ancien titre devient un alias');
+  assert.strictEqual(ev(`_avisLire(getCls(), window.__c, [{ name: 'Maths', rows: [['Élève', 'Travail'], ['DURAND Léa', 'Lu sous l\\'ancien titre']] }]).avis.s1.maths.travail`), 'Lu sous l\'ancien titre');
+  // Retirer une colonne qui porte des avis : refusé, rien ne bouge.
+  const avant = ev(`JSON.stringify(window.__c.colonnes)`);
+  const ko = evObj(`avisColonnesSet(window.__c, [{ key: 'travail', label: 'Travail personnel' }])`);
+  assert.strictEqual(ko.ok, false);
+  assert.match(ko.err, /Comportement.*1 avis/);
+  assert.strictEqual(ev(`JSON.stringify(window.__c.colonnes)`), avant);
+  // Les autres refus : aucune, trop, titre vide, doublon, « Élève ».
+  for (const cols2 of ['[]', '[1,2,3,4,5,6].map(i => ({ label: "C" + i }))', '[{ label: "  " }]', '[{ label: "Avis" }, { label: "avis" }]', '[{ label: "Élève" }]'])
+    assert.strictEqual(ev(`avisColonnesSet({ avis: {} }, ${cols2}).ok`), false, cols2);
+  // Le nettoyage au chargement : colonnes invalides écartées, aucune valide = retour au défaut.
+  ev(`window.__c.colonnes = [{ key: 'x', label: 'X' }, { key: 'x', label: 'Doublon' }, 'mauvais', { label: 'sans clé' }]; window.__d = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }); window.__d.colonnes = 'n\\'importe quoi'; postLoadHook()`);
+  assert.deepStrictEqual(evObj(`S.avis['5C'][window.__c.id].colonnes.map(c => c.label)`), ['X']);
+  assert.strictEqual(ev(`S.avis['5C'][window.__d.id].colonnes`), undefined);
+});
+
+test('Colonnes : la synthèse de période imprime les titres de la feuille', () => {
+  ev(FIXTURE);
+  ev(`const c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }); avisColonnesSet(c, [{ label: 'Points forts' }, { label: 'À travailler' }]);
+    c.avis = { s1: { maths: { forts: 'Curieuse', atravailler: 'Méthode' } } }`);   // titres d'un modèle : ses clés
+  const row = evObj(`_periodeSynthese(getCls(), 0, { type: 'conseil' }).rows.find(r => r.sid === 's1')`);
+  assert.deepStrictEqual(row.avis[0].cols.map(c => c.label), ['Points forts', 'À travailler']);
+  const html = ev(`_periodePrintHTML(getCls(), 0, { blocs: ['avis'], type: 'conseil', forme: 'fiches' }).html`);
+  assert.match(html, /<em>Points forts<\/em> Curieuse · <em>À travailler<\/em> Méthode/);
+});
+
+test('Démo : trois feuilles d\'avis, dont un point du mois à une seule colonne', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true })`);
+  const r = evObj(`(() => { const cls = getCls(); return _avisCampagnes(cls.id).map(c => ({ id: c.id, cols: _avisCols(c).map(x => x.label), n: _avisCompte(c).n })); })()`);
+  const pm = r.find(c => c.id === 'demo_av2');
+  assert.ok(pm, JSON.stringify(r));
+  assert.deepStrictEqual(pm.cols, ['Remarque']);
+  assert.ok(pm.n >= 3);
+  assert.deepStrictEqual(r.find(c => c.id === 'demo_av1').cols, ['Travail', 'Participation', 'Comportement']);
 });

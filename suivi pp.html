@@ -953,6 +953,10 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .ob-leg .ob-chip { font-size: 11px; padding: 0 5px; }
 /* Avis des collègues : la liste des disciplines à cocher, et les avis rendus en blocs. */
 .av-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 4px 12px; }
+.av-cols { display: grid; gap: 4px; }
+.av-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto auto; gap: 6px; align-items: center; }
+.av-col input[type=text] { width: 100%; min-width: 0; }
+@media (max-width: 520px) { .av-col { grid-template-columns: minmax(0, 1fr) auto auto; } .av-col input[type=text]:nth-child(2) { grid-column: 1 / -1; grid-row: 2; } }
 .fg .av-pick-i, .av-pick-i { display: flex; gap: 8px; align-items: flex-start; color: var(--ink-deep); font-weight: 400; font-size: .92em; margin: 0; min-width: 0; }
 .fg .av-pick-i > input[type="checkbox"], .av-pick-i > input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; flex: none; cursor: pointer; }
 .fg .av-pick-i label, .av-pick-i label { display: inline; margin: 0; color: var(--ink-deep); font-size: 1em; cursor: pointer; }
@@ -2422,8 +2426,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.41.1';
-const APP_BUILD_DATE = '2026-10-02T16:32:10Z';
+const APP_VERSION    = '1.42.0';
+const APP_BUILD_DATE = '2026-10-02T20:09:41Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3247,6 +3251,13 @@ function _sanitizeCoreSections() {
         }
       }
       if (c.msg !== undefined && !_isPlainObj(c.msg)) delete c.msg;
+      // Les colonnes de la feuille (v1.42.0) : absentes = les trois d'origine.
+      if (c.colonnes !== undefined) {
+        const vus = new Set();
+        const ok = Array.isArray(c.colonnes) ? c.colonnes.filter(x => _isPlainObj(x) && typeof x.key === 'string' && x.key && typeof x.label === 'string' && x.label.trim() && !vus.has(x.key) && vus.add(x.key))
+          .slice(0, AVIS_COLS_MAX).map(x => ({ key: x.key, label: x.label, aide: typeof x.aide === 'string' ? x.aide : '', ...(Array.isArray(x.alias) ? { alias: x.alias.filter(a => typeof a === 'string') } : {}) })) : [];
+        if (ok.length) c.colonnes = ok; else delete c.colonnes;
+      }
       if (!Array.isArray(c.cibles)) c.cibles = [];
       c.cibles = c.cibles.filter(x => typeof x === 'string');
       if (typeof c.cible !== 'string') c.cible = typeof c.date === 'string' ? c.date : '';
@@ -5525,7 +5536,7 @@ function _ficheRender() {
   const avisFiche = cls ? _avisCampagnes(cls.id).filter(c => c.avis?.[stu.id]).map(c => ({ c, p: _avisPeriode(cls, c),
     items: c.disciplines.filter(d => c.avis[stu.id][d.id]).map(d => ({ disc: d, ...c.avis[stu.id][d.id] })) })).filter(x => x.items.length) : [];
   const avisFicheHTML = avisFiche.length
-    ? avisFiche.map(x => `<div class="fi-j"><div class="fi-j-h">${_escName(x.p ? x.p.label : '?')} · ${_escName(_avisObjectif(cls, x.c).court)} · feuille du ${_escName(_fmtDateFr(x.c.date))}</div>${_avisItemsHTML(x.items)}</div>`).join('')
+    ? avisFiche.map(x => `<div class="fi-j"><div class="fi-j-h">${_escName(x.p ? x.p.label : '?')} · ${_escName(_avisObjectif(cls, x.c).court)} · feuille du ${_escName(_fmtDateFr(x.c.date))}</div>${_avisItemsHTML(x.items, _avisCols(x.c))}</div>`).join('')
     : vide('Aucun avis de collègue — 🗣 Avis des collègues, dans la liste des élèves, pour en demander.');
   const remHTML = _ficheEdit === 'remarque'
     ? `<textarea id="fi-rem-edit" data-fi-focus rows="4" style="width:100%" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral.">${_escName(stu.remarque || '')}</textarea>
@@ -5803,7 +5814,7 @@ function _bilanHint() {
     const items = camp && camp.avis?.[_bilanSid] ? camp.disciplines.filter(x => camp.avis[_bilanSid][x.id]).map(x => ({ disc: x, ...camp.avis[_bilanSid][x.id] })) : [];
     const a = items.length ? { camp, items } : (camp ? null : (p ? _avisEleve(cls, _bilanSid, p.n - 1, document.getElementById('mbilan-type')?.value) : null));
     av.innerHTML = a ? `<details class="av-det av-bil" open><summary><strong>🗣 Avis des collègues — ${_escName(_avisObjectif(cls, a.camp).long)}</strong> <span class="tb-hint">${a.items.length} discipline${a.items.length > 1 ? 's' : ''}</span></summary>
-      <div class="av-scroll">${_avisItemsHTML(a.items)}</div></details>` : '';
+      <div class="av-scroll">${_avisItemsHTML(a.items, _avisCols(a.camp))}</div></details>` : '';
   }
 }
 // L'ordre de la liste des élèves à l'écran (tri et filtre compris) — celui qu'on avait
@@ -12339,6 +12350,84 @@ const AVIS_CRITERES = [
 ];
 // Les avis rangés avant le changement de colonnes (v1.39.0 → v1.39.3) : migrés au chargement.
 const AVIS_CLES_ANCIENNES = { investissement: 'travail', implication: 'participation' };
+// ── Les COLONNES d'une feuille (v1.42.0) ── demandé le 2026-10-02 : « pour la synthèse des
+// bulletins, je me servirais des appréciations de bulletin, qui ne sont pas en plusieurs
+// colonnes — chaque élève n'a qu'une remarque. Gérer depuis l'app le nombre de colonnes et
+// leurs titres, avec des choix préréglés selon les situations. » Chaque feuille porte SES
+// colonnes (`camp.colonnes`, figées comme ses disciplines) ; une feuille d'avant n'en a pas et
+// garde les trois d'origine. La CLÉ d'une colonne ne change jamais (c'est sous elle que les
+// avis sont rangés) ; renommer la garde, et l'ancien titre passe en `alias` pour qu'une
+// feuille déjà préparée se relise.
+const AVIS_COLS_MAX = 5;
+const AVIS_MODELES = [
+  { key: 'conseil3', label: 'Travail · Participation · Comportement', quand: 'avant un conseil de classe ou de mi-période', colonnes: AVIS_CRITERES },
+  { key: 'bulletin', label: 'Appréciation de bulletin', quand: 'pour faire la synthèse des bulletins : une appréciation par élève',
+    colonnes: [{ key: 'appreciation', label: 'Appréciation', aide: 'l\'appréciation portée au bulletin, ou ce que vous en retenez' }] },
+  { key: 'remarque', label: 'Une remarque libre', quand: 'pour un point du mois, ou une question rapide',
+    colonnes: [{ key: 'remarque', label: 'Remarque', aide: 'ce que vous voulez me signaler sur l\'élève' }] },
+  { key: 'famille', label: 'Points forts · À travailler', quand: 'avant une rencontre avec une famille',
+    colonnes: [{ key: 'forts', label: 'Points forts', aide: 'ce qui va bien, sur quoi l\'élève peut s\'appuyer' },
+               { key: 'atravailler', label: 'À travailler', aide: 'ce qui doit progresser, et comment l\'aider' }] },
+];
+// Le modèle proposé d'office selon l'objectif : trois colonnes pour un conseil, une remarque
+// pour le point du mois. On en change dans la modale.
+function _avisModeleDefaut(objectif) { return AVIS_MODELES.find(m => m.key === (objectif === 'mois' ? 'remarque' : 'conseil3')); }
+const _avisColsCopie = cols => cols.map(c => ({ key: c.key, label: c.label, aide: c.aide || '', ...(c.alias && c.alias.length ? { alias: [...c.alias] } : {}) }));
+function _avisCols(camp) {
+  return camp && Array.isArray(camp.colonnes) && camp.colonnes.length ? camp.colonnes : AVIS_CRITERES;
+}
+// Le modèle dont les colonnes portent EXACTEMENT ces titres, ou null (colonnes personnalisées).
+function _avisModeleDe(cols) {
+  const t = cols.map(c => _moyNorm(c.label)).join('|');
+  return AVIS_MODELES.find(m => m.colonnes.map(c => _moyNorm(c.label)).join('|') === t) || null;
+}
+// Une clé neuve, tirée du titre, jamais déjà prise. PUR.
+function _avisColKey(label, prises) {
+  const base = 'c_' + (_moyNorm(label).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 24) || 'colonne');
+  let k = base, i = 2;
+  while (prises.has(k)) k = base + '_' + (i++);
+  return k;
+}
+// Valide puis pose les colonnes d'une feuille. PUR sur `camp` (aucun pushUndo ici).
+// `cols` = [{ key?, label, aide }] : une clé connue est gardée (renommer garde les avis),
+// une colonne sans clé en reçoit une. Refus : aucune colonne, plus de AVIS_COLS_MAX, un titre
+// vide ou en double, ou une colonne RETIRÉE qui porte des avis — ils seraient perdus sans un
+// mot (même règle que la salle qu'on rétrécit : l'app refuse, elle n'efface pas).
+function avisColonnesSet(camp, cols) {
+  const list = (Array.isArray(cols) ? cols : []).map(c => ({ key: typeof c?.key === 'string' ? c.key : '', label: String(c?.label || '').replace(/\s+/g, ' ').trim().slice(0, 40), aide: String(c?.aide || '').replace(/\s+/g, ' ').trim().slice(0, 200) }));
+  if (!list.length) return { ok: false, err: 'Il faut au moins une colonne.' };
+  if (list.length > AVIS_COLS_MAX) return { ok: false, err: `${AVIS_COLS_MAX} colonnes au plus : au-delà, l'onglet ne tient plus sur une page.` };
+  if (list.some(c => !c.label)) return { ok: false, err: 'Chaque colonne a besoin d\'un titre.' };
+  if (list.some(c => _moyNorm(c.label) === 'ELEVE')) return { ok: false, err: '« Élève » est le titre de la colonne des noms.' };
+  const norms = list.map(c => _moyNorm(c.label));
+  if (new Set(norms).size !== norms.length) return { ok: false, err: 'Deux colonnes portent le même titre.' };
+  const avant = _avisCols(camp);
+  const connues = new Map(avant.map(c => [c.key, c]));
+  const prises = new Set();
+  const out = list.map(c => {
+    const old = c.key && connues.has(c.key) && !prises.has(c.key) ? connues.get(c.key) : null;
+    const key = old ? old.key : (AVIS_MODELES.flatMap(m => m.colonnes).find(x => _moyNorm(x.label) === _moyNorm(c.label) && !prises.has(x.key))?.key || _avisColKey(c.label, prises));
+    prises.add(key);
+    const alias = old ? [...new Set([...(old.alias || []), ...(_moyNorm(old.label) !== _moyNorm(c.label) ? [old.label] : [])])].filter(a => _moyNorm(a) !== _moyNorm(c.label)).slice(-5) : [];
+    return { key, label: c.label, aide: c.aide, ...(alias.length ? { alias } : {}) };
+  });
+  const gardees = new Set(out.map(c => c.key));
+  const perdues = avant.filter(c => !gardees.has(c.key)).map(c => {
+    let n = 0;
+    for (const parSid of Object.values(camp.avis || {})) for (const a of Object.values(parSid || {})) if (a && a[c.key]) n++;
+    return { label: c.label, n };
+  }).filter(x => x.n);
+  if (perdues.length) return { ok: false, err: perdues.map(x => `La colonne « ${x.label} » porte ${x.n} avis`).join(' ; ') + ' : on ne la retire pas, ils seraient perdus.' };
+  camp.colonnes = out;
+  return { ok: true };
+}
+// Les colonnes expliquées, pour le message aux collègues (le repère {colonnes}). PUR.
+function _avisColsTexte(cols) {
+  const un = c => `**${c.label}**${c.aide ? ' : ' + c.aide : ''}`;
+  if (cols.length === 1) return `Une seule colonne, ${un(cols[0])}.`;
+  const n = ['', 'Une', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six'][cols.length] || String(cols.length);
+  return `${n} colonnes :\n` + cols.map(c => '– ' + un(c)).join(' ;\n') + '.';
+}
 // Les disciplines d'office (liste donnée par l'utilisateur). [id, nom, onglet, motif] — le
 // motif reconnaît, sur le nom NORMALISÉ (_moyNorm), les matières de l'export du bureau
 // numérique : « ÉD.PHYSIQUE & SPORT. », « SCIENCES VIE & TERRE », « HISTOIRE-GEOGRAPHIE
@@ -12553,7 +12642,7 @@ function _avisOngletsUniques(list) {
   });
 }
 function _avisDidsOrdonnes(dids) { const ordre = _disciplinesAll().map(d => d.id); return [...dids].sort((a, b) => ordre.indexOf(a) - ordre.indexOf(b)); }
-function avisCampagneCreer(cls, { pIdx, disciplines, lien, cibles, objectif, mois }) {
+function avisCampagneCreer(cls, { pIdx, disciplines, lien, cibles, objectif, mois, colonnes }) {
   const p = _periods(cls)[pIdx];
   const dids = (disciplines || []).filter(did => S.disciplines[did]);
   if (!p || !dids.length) return null;
@@ -12566,6 +12655,9 @@ function avisCampagneCreer(cls, { pIdx, disciplines, lien, cibles, objectif, moi
     msg: { moment: AVIS_MOMENTS.some(m => m.key === objectif) ? objectif : 'conseil',
            mois: Number.isInteger(mois) && mois >= 1 && mois <= 12 ? mois : +_todayYmd().slice(5, 7), echeance: '', off: [] },
     disciplines: _avisOngletsUniques(_avisDidsOrdonnes(dids).map(did => _avisDisc(cls, did))), avis: {} };
+  // Les colonnes : celles données (validées), sinon le modèle de l'objectif.
+  const cols = Array.isArray(colonnes) && colonnes.length ? colonnes : _avisModeleDefaut(camp.msg.moment).colonnes;
+  if (!avisColonnesSet(camp, cols).ok) camp.colonnes = _avisColsCopie(_avisModeleDefaut(camp.msg.moment).colonnes);
   S.avis[cls.id][id] = camp;
   return camp;
 }
@@ -12601,7 +12693,7 @@ function _avisCompte(camp) {
   let n = 0;
   for (const d of camp.disciplines || []) parDisc[d.id] = 0;
   for (const parSid of Object.values(camp.avis || {})) for (const [did, a] of Object.entries(parSid)) {
-    if (AVIS_CRITERES.some(c => a?.[c.key])) { parDisc[did] = (parDisc[did] || 0) + 1; n++; }
+    if (_avisCols(camp).some(c => a?.[c.key])) { parDisc[did] = (parDisc[did] || 0) + 1; n++; }
   }
   return { parDisc, n };
 }
@@ -12617,8 +12709,14 @@ function _avisFeuilles(cls, camp) {
   // En **gras** dans la feuille : ce qu'il ne faut pas manquer (demande de l'utilisateur).
   const surligne = cibles.size ? ` Les élèves **SURLIGNÉS EN JAUNE** : j'ai besoin de votre avis en particulier (je rencontre bientôt leur famille).` : '';
   const largeurNoms = _avisLargeurNoms(eleves.map(s => `${s.nom} ${s.prenom}`));
-  const COL = 7.2, total = largeurNoms + 3 * COL, MARGE = 0.25;
-  const aide = `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « **rien à signaler** ». **Nouveau paragraphe dans la même case : Ctrl+Entrée.** Seules ces trois colonnes s'écrivent : les noms et les titres sont verrouillés.${surligne}`;
+  // Les colonnes de CETTE feuille : la place des trois colonnes d'origine (21,6 cm) se
+  // partage entre elles — une seule colonne d'appréciation est large, cinq restent lisibles.
+  const cols = _avisCols(camp), nc = cols.length;
+  const COL = Math.round(Math.min(14, Math.max(5.6, 21.6 / nc)) * 10) / 10, total = largeurNoms + nc * COL, MARGE = 0.25;
+  const NB = ['', '', 'deux', 'trois', 'quatre', 'cinq'][nc] || String(nc);
+  const ecrire = nc === 1 ? 'Écrivez dans la colonne de droite' : `Écrivez dans les ${NB} colonnes de droite`;
+  const seules = nc === 1 ? 'Seule cette colonne s\'écrit' : 'Seules ces colonnes s\'écrivent';
+  const aide = `${pour}. ${ecrire}, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « **rien à signaler** ». **Nouveau paragraphe dans la même case : Ctrl+Entrée.** ${seules} : les noms et les titres sont verrouillés.${surligne}`;
   // ⚠️ Les QUATRE lignes d'en-tête ont une hauteur FIXÉE, mesurée ici en Andika : le tableur
   // calcule les hauteurs automatiques avant d'avoir chargé la police incluse (lignes trop
   // hautes ou rognées). Les lignes des élèves, elles, restent automatiques : elles grandissent
@@ -12626,19 +12724,19 @@ function _avisFeuilles(cls, camp) {
   const hEntete = titre => [
     _odsHauteurCm(_odsLignes(titre, total - MARGE, 13, false), 13),
     _odsHauteurCm(_odsLignes(aide, total - MARGE, 10, true), 10),
-    _odsHauteurCm(Math.max(...AVIS_CRITERES.map(c => _odsLignes(c.aide, COL - MARGE, 10, true))), 10),
+    _odsHauteurCm(Math.max(1, ...cols.map(c => _odsLignes(c.aide || '', COL - MARGE, 10, true))), 10),
     _odsHauteurCm(1, 10),
   ];
   return camp.disciplines.map(d => ({
-    name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [largeurNoms, COL, COL, COL], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 }, protege: true,
+    name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [largeurNoms, ...cols.map(() => COL)], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 }, protege: true,
     rowHeightsCm: hEntete(`${d.nom}${d.profs ? ' — ' + d.profs : ''}`),
     rows: [
-      [{ text: `${d.nom}${d.profs ? ' — ' + d.profs : ''}`, style: 'titre', span: 4 }],
-      [{ text: aide, style: 'aide', span: 4, gras: true }],
-      [{ text: '', style: 'consigne' }, ...AVIS_CRITERES.map(c => ({ text: c.aide, style: 'consigne' }))],
-      [{ text: 'Élève', style: 'entete' }, ...AVIS_CRITERES.map(c => ({ text: c.label, style: 'entete' }))],
+      [{ text: `${d.nom}${d.profs ? ' — ' + d.profs : ''}`, style: 'titre', span: nc + 1 }],
+      [{ text: aide, style: 'aide', span: nc + 1, gras: true }],
+      [{ text: '', style: 'consigne' }, ...cols.map(c => ({ text: c.aide || '', style: 'consigne' }))],
+      [{ text: 'Élève', style: 'entete' }, ...cols.map(c => ({ text: c.label, style: 'entete' }))],
       ...eleves.map(s => [{ text: `${s.nom} ${s.prenom}`, style: cibles.has(s.id) ? 'vif' : 'nom' },
-        ...AVIS_CRITERES.map(c => ({ text: camp.avis?.[s.id]?.[d.id]?.[c.key] || '', style: 'saisie' }))]),
+        ...cols.map(c => ({ text: camp.avis?.[s.id]?.[d.id]?.[c.key] || '', style: 'saisie' }))]),
     ],
   }));
 }
@@ -12691,13 +12789,16 @@ function _avisLire(cls, camp, sheets) {
     if (!d || lus.includes(d.id)) { if (plein) inconnus.push(String(sh.name || '?')); continue; }
     const h = rows.findIndex(r => _moyNorm((r || [])[0]) === 'ELEVE');
     if (h < 0) { if (plein) inconnus.push(String(sh.name)); continue; }
-    const col = {};
-    for (const c of AVIS_CRITERES) col[c.key] = rows[h].findIndex(x => [c.label, ...(c.alias || [])].some(l => _moyNorm(x) === _moyNorm(l)));
+    const col = {}, cols = _avisCols(camp);
+    for (const c of cols) col[c.key] = rows[h].findIndex(x => [c.label, ...(c.alias || [])].some(l => _moyNorm(x) === _moyNorm(l)));
+    // ⚠️ Aucune colonne reconnue (feuille préparée avec d'autres colonnes) : l'onglet n'est
+    // PAS lu — sinon il ferait foi, vide, et proposerait d'effacer tout ce que l'app a rangé.
+    if (cols.every(c => col[c.key] < 0)) { if (plein) inconnus.push(String(sh.name)); continue; }
     lus.push(d.id);
     for (const r of rows.slice(h + 1)) {
       const nom = String((r || [])[0] || '').trim();
       const vals = {};
-      for (const c of AVIS_CRITERES) { const v = col[c.key] >= 0 ? String(r[col[c.key]] || '').trim() : ''; if (v) vals[c.key] = v.slice(0, 4000); }
+      for (const c of cols) { const v = col[c.key] >= 0 ? String(r[col[c.key]] || '').trim() : ''; if (v) vals[c.key] = v.slice(0, 4000); }
       if (!Object.keys(vals).length) continue;
       const k = _moyNameKey(nom);
       const sid = doublons.has(k) ? null : parCle.get(k);
@@ -12721,7 +12822,7 @@ function _avisChangements(cls, camp, lecture) {
   for (const sid of sids) for (const d of camp.disciplines || []) {
     if (!lus.has(d.id)) continue;
     const a = camp.avis?.[sid]?.[d.id] || {}, b = lecture.avis?.[sid]?.[d.id] || {};
-    for (const c of AVIS_CRITERES) {
+    for (const c of _avisCols(camp)) {
       const avant = a[c.key] || '', apres = b[c.key] || '';
       if (avant !== apres) out.push({ sid, did: d.id, key: c.key, avant, apres, type: !avant ? 'ajout' : !apres ? 'suppr' : 'modif' });
     }
@@ -12767,9 +12868,11 @@ function _avisEleve(cls, sid, pIdx, prefere) {
 }
 
 // ── Affichage partagé : les avis d'un élève, en blocs (fiche, bilan, feuilles) ──
-function _avisItemsHTML(items) {
+function _avisItemsHTML(items, cols) {
+  const cs = cols || AVIS_CRITERES;
+  // Une seule colonne : son titre n'apprend rien, on montre l'appréciation telle quelle.
   return items.map(it => `<div class="av-it"><div class="av-d">${_escName(it.disc.nom)}${it.disc.profs ? ` <span class="fi-vide">${_escName(it.disc.profs)}</span>` : ''}</div>${
-    AVIS_CRITERES.filter(c => it[c.key]).map(c => `<div class="av-c"><span class="av-k">${_escName(c.label)}</span> ${_escName(it[c.key])}</div>`).join('')}</div>`).join('');
+    cs.filter(c => it[c.key]).map(c => `<div class="av-c">${cs.length > 1 ? `<span class="av-k">${_escName(c.label)}</span> ` : ''}${_escName(it[c.key])}</div>`).join('')}</div>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -12900,6 +13003,7 @@ function _avisNouvelleHTML(cls) {
     <div class="fg"><label for="mavis-per">Pour la période</label>
       <select id="mavis-per" style="max-width:100%">${ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('')}</select></div>
     ${_avisObjectifHTML(cls, null)}
+    <div class="fg"><label>Colonnes de la feuille</label><div id="mavis-cols-new">${_avisColsEditHTML(null)}</div></div>
     ${_avisRattacherHTML(cls)}
     <div class="fg"><label>Disciplines</label>${_avisDiscPickHTML(cls, _disciplinesActives().map(d => d.id))}</div>
     ${_avisDetails('cibles-new', `<strong>⭐ Élèves sur qui je veux un avis en particulier</strong> <span class="tb-hint">— ${_avisCiblesDraft.size || 'aucun'} · surlignés en jaune dans la feuille</span>`,
@@ -12919,7 +13023,7 @@ function _avisObjectifHTML(cls, camp) {
   const surCamp = (champ, conv) => camp ? `onchange="avisMsgReglageUI('${_escJsAttr(camp.id)}','${champ}',${conv})"` : '';
   const moisVis = r.moment === 'mois' ? '' : ' style="display:none"';
   return `<div class="fi-form" style="margin-bottom:8px">
-      <label>Objectif <select id="mavis-obj" ${camp ? surCamp('moment', 'this.value') : `onchange="document.getElementById('mavis-mois-w').style.display=this.value==='mois'?'':'none'"`}>${
+      <label>Objectif <select id="mavis-obj" ${camp ? surCamp('moment', 'this.value') : `onchange="avisObjectifNouvelleUI(this.value)"`}>${
         AVIS_MOMENTS.map(m => `<option value="${m.key}"${m.key === r.moment ? ' selected' : ''}>${_escName(m.label)}</option>`).join('')}</select></label>
       <label id="mavis-mois-w"${moisVis}>Mois <select id="mavis-mois" ${surCamp('mois', '+this.value')}>${AVIS_MOIS.map((m, i) => `<option value="${i + 1}"${i + 1 === r.mois ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
       ${camp ? '<span class="tb-hint">Changé ici, il arrive dans la feuille par <strong>📝 Mettre la feuille à jour</strong>.</span>' : ''}</div>`;
@@ -12951,6 +13055,10 @@ function _avisCampHTML(cls, camp) {
     ${_avisDetails('cibles', `<strong>⭐ Élèves sur qui je veux un avis en particulier</strong> <span class="tb-hint">— ${_avisCibles(cls, camp).length || 'aucun'}${_avisCibles(cls, camp).length ? ' · surlignés en jaune dans la feuille' : ''}</span>`,
       `<div class="tb-hint" style="margin:6px 0">Par exemple avant une rencontre avec la famille. Leur nom est surligné en jaune dans chaque onglet, et le message aux collègues les cite. ⚠️ Pour que le surlignage arrive dans la feuille : <strong>📝 Mettre la feuille à jour</strong>, plus bas.</div>
       ${_avisCiblesPickHTML(cls, camp)}`)}
+    ${_avisDetails('cols', `<strong>🧱 Colonnes de la feuille</strong> <span class="tb-hint">— ${_escName(_avisCols(camp).map(c => c.label).join(' · '))}</span>`,
+      `<div class="tb-hint" style="margin:6px 0">Leur nombre et leurs titres : trois pour un conseil, une seule pour des appréciations de bulletin… Renommer une colonne garde ses avis ; une colonne qui en porte ne se retire pas. ⚠️ Pour que le changement arrive dans la feuille : <strong>📝 Mettre la feuille à jour</strong>.</div>
+      ${_avisColsEditHTML(camp)}
+      <div style="margin-top:8px"><button class="btn btn-s btn-sm" onclick="avisColonnesUI('${_escJsAttr(camp.id)}')">✓ Enregistrer les colonnes</button></div>`)}
     ${_avisDetails('message', '<strong>✉️ Le message aux collègues</strong>', _avisMessageHTML(cls, camp))}
     <details class="av-det" style="margin-top:8px" data-det="disc" ontoggle="_avisDetToggle(this)"${_avisOuverts.has('disc') ? ' open' : ''}><summary><strong>🗂 Disciplines de la feuille</strong> <span class="tb-hint">— en ajouter, en retirer, puis mettre la feuille à jour</span></summary>
       ${_avisRattacherHTML(cls)}
@@ -13031,7 +13139,8 @@ const AVIS_MSG_PARTIES = [
   // Une partie À PART (demande de l'utilisateur, v1.40.10) : on la garde ou non selon le
   // moment — au point du mois, on ne veut que ceux qui posent question ; au conseil, parfois tous.
   { key: 'besoin',   label: 'Seulement si besoin',   texte: '(Vous pouvez ne compléter que pour les élèves dont vous en ressentez le besoin : une case vide veut dire « **rien à signaler** ».)' },
-  { key: 'colonnes', label: 'Les colonnes',          texte: 'Trois colonnes :\n' + AVIS_CRITERES.map(c => `– **${c.label}** : ${c.aide}`).join(' ;\n') + '.' },
+  // Les colonnes de LA feuille (v1.42.0) : une, trois, ou d'autres titres — le repère les dit.
+  { key: 'colonnes', label: 'Les colonnes',          texte: '{colonnes}' },
   { key: 'cibles',   label: 'Élèves en particulier', texte: 'J\'ai besoin de votre avis en particulier sur ces élèves, **surlignés en jaune** dans la feuille, car je rencontre bientôt leur famille :\n{eleves}' },
   { key: 'echeance', label: 'Échéance',              texte: 'Merci de compléter la feuille **avant le {echeance}**.' },
   { key: 'fin',      label: 'Formule de politesse',  texte: 'Merci d\'avance pour votre aide.\n\nBien cordialement,' },
@@ -13039,7 +13148,7 @@ const AVIS_MSG_PARTIES = [
   // (pas d'établissement) disparaît, au lieu de laisser un trou.
   { key: 'signature', label: 'Signature',            texte: '{nom}\nProfesseur principal de la {classe}\n{etablissement}' },
 ];
-const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {lien} {eleves} {echeance} {nom} {etablissement}';
+const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {colonnes} {lien} {eleves} {echeance} {nom} {etablissement}';
 // L'OBJET du courriel (v1.40.12, demande de l'utilisateur) : un modèle comme les parties,
 // réécrit = gardé dans S.prefs.avisMsg.objet. Pas une partie du message : il se copie à part.
 const AVIS_MSG_OBJET = 'Votre avis sur les élèves de la {classe} pour {objectif}';
@@ -13135,7 +13244,7 @@ function _avisSignatureHtml() {
 // Les parties du message, repères remplacés. PUR. Chaque partie est une liste de morceaux :
 // du texte (où **…** marque le gras), le lien, la liste des élèves — pour que le texte brut
 // et le texte riche sortent du MÊME assemblage et ne divergent jamais.
-const _AVIS_REPERE_RE = /\{(objectif|classe|periode|mois|lien|eleves|echeance|nom|etablissement)\}/g;
+const _AVIS_REPERE_RE = /\{(objectif|classe|periode|mois|colonnes|lien|eleves|echeance|nom|etablissement)\}/g;
 function _avisMsgVals(cls, camp) {
   const r = _avisMsgReglages(camp);
   const p = _avisPeriode(cls, camp);
@@ -13143,6 +13252,7 @@ function _avisMsgVals(cls, camp) {
   const nom = typeof _prefs().avisNom === 'string' ? _prefs().avisNom.trim() : '';
   const etab = typeof _prefs().etablissement === 'string' ? _prefs().etablissement.trim() : '';
   return { objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], echeance: ech,
+    colonnes: _avisColsTexte(_avisCols(camp)),
     nom: nom || '[votre nom]', etablissement: etab };
 }
 // L'objet du courriel, sur une ligne, sans gras. PUR. {lien} et {eleves} n'y ont pas de sens.
@@ -13328,6 +13438,108 @@ function _avisCiblesPickHTML(cls, camp) {
       onchange="avisCibleUI(${camp ? `'${_escJsAttr(camp.id)}'` : 'null'},'${_escJsAttr(s.id)}',this.checked)"> ${_escName(s.nom)} ${_escName(s.prenom)}</label>`).join('')}</div>`;
 }
 let _avisCiblesDraft = new Set();
+// ── Les colonnes, en cours de réglage (session) ── `pour` : l'id de la feuille, ou 'new'.
+// `touche` : l'utilisateur a choisi ou retouché les colonnes — changer l'objectif d'une
+// nouvelle feuille ne les remplace alors plus par le modèle proposé.
+let _avisColsDraft = null;
+function _avisColsDraftPour(camp) {
+  const pour = camp ? camp.id : 'new';
+  if (!_avisColsDraft || _avisColsDraft.pour !== pour) {
+    const obj = camp ? null : (document.getElementById('mavis-obj')?.value || 'conseil');
+    _avisColsDraft = { pour, touche: false, cols: _avisColsCopie(camp ? _avisCols(camp) : _avisModeleDefaut(obj).colonnes) };
+  }
+  return _avisColsDraft;
+}
+function _avisColsEditHTML(camp) {
+  const d = _avisColsDraftPour(camp);
+  const mod = _avisModeleDe(d.cols);
+  const n = d.cols.length;
+  const lignes = d.cols.map((c, i) => `<div class="av-col">
+      <input type="text" value="${_escAttr(c.label)}" maxlength="40" placeholder="Titre de la colonne" aria-label="Titre de la colonne ${i + 1}" oninput="avisColsDraftSet(${i},'label',this.value)">
+      <input type="text" value="${_escAttr(c.aide || '')}" maxlength="200" placeholder="Consigne, sous le titre (facultative)" aria-label="Consigne de la colonne ${i + 1}" oninput="avisColsDraftSet(${i},'aide',this.value)">
+      <button class="btn btn-g btn-sm" onclick="avisColsBouger(${i},-1)" ${i === 0 ? 'disabled' : ''} title="Monter">↑</button>
+      <button class="btn btn-g btn-sm" onclick="avisColsRetirer(${i})" ${n === 1 ? 'disabled' : ''} title="Retirer cette colonne">✕</button></div>`).join('');
+  return `<div class="fg"><label for="mavis-mod">Modèle</label>
+      <select id="mavis-mod" onchange="avisColsModeleUI(this.value)" style="max-width:100%">${AVIS_MODELES.map(m => `<option value="${m.key}"${mod && mod.key === m.key ? ' selected' : ''}>${_escName(m.label)} — ${_escName(m.quand)}</option>`).join('')}
+        ${mod ? '' : '<option value="" selected>Colonnes personnalisées</option>'}</select></div>
+    <div class="av-cols">${lignes}</div>
+    <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-g btn-sm" onclick="avisColsAjouter()" ${n >= AVIS_COLS_MAX ? 'disabled' : ''}>＋ Ajouter une colonne</button>
+      <span class="tb-hint">${n} colonne${n > 1 ? 's' : ''} sur ${AVIS_COLS_MAX} au plus · la consigne s'écrit sous le titre, dans la feuille et dans le message</span></div>`;
+}
+function avisColsDraftSet(i, champ, val) {
+  const d = _avisColsDraft;
+  if (!d || !d.cols[i]) return;
+  d.cols[i][champ] = String(val);
+  d.touche = true;
+  const sel = document.getElementById('mavis-mod');
+  if (sel && champ === 'label') {
+    const mod = _avisModeleDe(d.cols.filter(c => c.label.trim()));
+    if (!mod && ![...sel.options].some(o => !o.value)) sel.insertAdjacentHTML('beforeend', '<option value="">Colonnes personnalisées</option>');
+    sel.value = mod ? mod.key : '';
+  }
+}
+function _avisColsRerender() { _avisRender(); }
+function avisColsModeleUI(key) {
+  const m = AVIS_MODELES.find(x => x.key === key);
+  if (!m || !_avisColsDraft) return;
+  _avisColsDraft.cols = _avisColsCopie(m.colonnes);
+  _avisColsDraft.touche = true;
+  _avisColsRerender();
+}
+function avisColsAjouter() {
+  const d = _avisColsDraft;
+  if (!d || d.cols.length >= AVIS_COLS_MAX) return;
+  d.cols.push({ key: '', label: '', aide: '' });
+  d.touche = true;
+  _avisColsRerender();
+  const ins = document.querySelectorAll('#mavis-body .av-col input[type=text]');
+  const last = ins[ins.length - 2];
+  if (last) last.focus();
+}
+function avisColsRetirer(i) {
+  const d = _avisColsDraft;
+  if (!d || d.cols.length <= 1) return;
+  d.cols.splice(i, 1);
+  d.touche = true;
+  _avisColsRerender();
+}
+function avisColsBouger(i, k) {
+  const d = _avisColsDraft;
+  if (!d || !d.cols[i] || !d.cols[i + k]) return;
+  [d.cols[i], d.cols[i + k]] = [d.cols[i + k], d.cols[i]];
+  d.touche = true;
+  _avisColsRerender();
+}
+// L'objectif d'une NOUVELLE feuille change : le modèle proposé suit, sauf si l'utilisateur a
+// déjà choisi ses colonnes.
+function avisObjectifNouvelleUI(val) {
+  const w = document.getElementById('mavis-mois-w');
+  if (w) w.style.display = val === 'mois' ? '' : 'none';
+  const d = _avisColsDraftPour(null);
+  if (d.touche) return;
+  d.cols = _avisColsCopie(_avisModeleDefaut(val).colonnes);
+  const box = document.getElementById('mavis-cols-new');
+  if (box) box.innerHTML = _avisColsEditHTML(null);
+}
+// Enregistrer les colonnes d'une feuille existante.
+function avisColonnesUI(campId) {
+  const cls = getCls();
+  const camp = _avisMap(cls?.id)?.[campId];
+  const d = _avisColsDraft;
+  if (!camp || !d || d.pour !== campId) return;
+  const avant = JSON.stringify(_avisCols(camp));
+  const essai = JSON.parse(JSON.stringify(camp));
+  const r = avisColonnesSet(essai, d.cols);
+  if (!r.ok) return toast('⚠️ ' + r.err, 'warn');
+  if (JSON.stringify(essai.colonnes) === avant) return toast('Rien à changer.');
+  pushUndo();
+  avisColonnesSet(camp, d.cols);
+  save();
+  _avisColsDraft = null;
+  _avisRender();
+  toast('✓ Colonnes enregistrées — 📝 Mettre la feuille à jour pour qu\'elles y arrivent.');
+}
 function avisCibleUI(campId, sid, on) {
   if (!campId) { if (on) _avisCiblesDraft.add(sid); else _avisCiblesDraft.delete(sid); return _avisRender(); }
   const cls = getCls();
@@ -13405,9 +13617,13 @@ async function avisPreparerUI(telecharger) {
   pushUndo();
   const objectif = document.getElementById('mavis-obj')?.value || 'conseil';
   const mois = +(document.getElementById('mavis-mois')?.value || _todayYmd().slice(5, 7));
-  const camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, lien, cibles: [..._avisCiblesDraft], objectif, mois });
+  const cd = _avisColsDraftPour(null);
+  const essai = avisColonnesSet({ avis: {} }, cd.cols);
+  if (!essai.ok) { undoLast(); return toast('⚠️ Colonnes : ' + essai.err, 'warn'); }
+  const camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, lien, cibles: [..._avisCiblesDraft], objectif, mois, colonnes: cd.cols });
   if (!camp) { undoLast(); return toast('⚠️ Période ou disciplines invalides.', 'warn'); }
   _avisCiblesDraft = new Set();
+  _avisColsDraft = null;
   if (h) { camp.fichier = h.name; _avisHandles[camp.id] = h; await idbSaveHandleKey(h, 'avis_' + camp.id); }
   save();
   _avisCampId = camp.id;
@@ -13540,7 +13756,7 @@ function _avisRevueHTML(cls, camp) {
   const r = _avisRevue;
   const n = r.changes.length;
   const disc = did => camp.disciplines.find(d => d.id === did) || { nom: did };
-  const crit = key => AVIS_CRITERES.find(c => c.key === key)?.label || key;
+  const crit = key => _avisCols(camp).find(c => c.key === key)?.label || key;
   const intro = {
     relire: `<strong>${n} changement${n > 1 ? 's' : ''} dans la feuille</strong> depuis ce que l'app a rangé. Coche ce que tu reprends ; ce que tu ne coches pas reste dans la feuille et te sera reproposé à la prochaine relecture.`,
     ecrire: `<strong>La feuille porte ${n} différence${n > 1 ? 's' : ''}</strong> avec ce que l'app a rangé. Coche ce que tu gardes ; ce que tu ne coches pas sera <strong>remplacé dans la feuille</strong> par la version de l'app quand elle la mettra à jour.`,
@@ -13731,8 +13947,10 @@ function _periodeSynthese(cls, periodIdx, opts) {
       moyennes: _moyPeriodeEleve(mp, stu.id),
       bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
       // Avis des collègues (v1.39.0) : la dernière feuille de CETTE période.
-      avis: (_avisEleve(cls, stu.id, periodIdx, o.type || 'conseil')?.items || []).map(it => ({ nom: it.disc.nom, onglet: it.disc.onglet,
-        ...Object.fromEntries(AVIS_CRITERES.map(c => [c.key, it[c.key] || ''])) })),
+      avis: (() => { const a = _avisEleve(cls, stu.id, periodIdx, o.type || 'conseil'); if (!a) return [];
+        const cols = _avisCols(a.camp);
+        return a.items.map(it => ({ nom: it.disc.nom, onglet: it.disc.onglet, cols: cols.map(c => ({ key: c.key, label: c.label })),
+          ...Object.fromEntries(cols.map(c => [c.key, it[c.key] || ''])) })); })(),
     };
   });
   return { periode: p, nbReleves: dates.length, rows,
@@ -13799,7 +14017,10 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const incCell = r => r.incidents.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_instanceOf(e.type).label)} : ${_escName(e.objet)}</div>`).join('');
   const conCell = r => r.contacts.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_journalType(e.type).label)}${o.forme === 'fiches' ? ' : ' + _escName(e.texte) : ''}</div>`).join('');
   const AV_ABR = { travail: 'trav.', participation: 'partic.', comportement: 'comport.' };
-  const avisLigne = a => AVIS_CRITERES.filter(c => a[c.key]).map(c => `<em>${AV_ABR[c.key]}</em> ${_escName(a[c.key])}`).join(' · ');
+  // Une colonne nommée autrement garde son titre (une abréviation automatique le rendrait
+  // illisible : « À trava. ») ; une colonne seule ne s'annonce pas.
+  const abr = c => AV_ABR[c.key] || c.label;
+  const avisLigne = a => { const cs = a.cols || AVIS_CRITERES; return cs.filter(c => a[c.key]).map(c => `${cs.length > 1 ? `<em>${_escName(abr(c))}</em> ` : ''}${_escName(a[c.key])}`).join(' · '); };
   const avisFiche = r => r.avis.map(a => `<div><strong>${_escName(a.nom)}</strong> — ${avisLigne(a)}</div>`).join('');
   const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanLabel(r.bilan))} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
   if (o.forme === 'fiches') {
@@ -15937,6 +16158,20 @@ function createDemo(opts) {
       M(9, 'eps', { comportement: 'Deux exclusions de cours ce mois-ci : bavardages, provocations.' });
       M(9, 'francais', { participation: 'Ne participe pas, se met au fond.', comportement: 'Bavarde beaucoup.' });
       M(12, 'maths', { travail: 'Les devoirs ne sont plus faits depuis octobre.' });
+    }
+    // Un point du mois au S2 (v1.42.0) : une feuille à UNE SEULE colonne, « Remarque » — les
+    // colonnes se règlent feuille par feuille (le modèle « point du mois » d'office).
+    const pm = avisCampagneCreer(cls, { pIdx: 1, disciplines: ['maths', 'francais', 'anglais', 'physique_chimie'], objectif: 'mois', mois: 3 });
+    if (pm) {
+      delete S.avis[cls.id][pm.id];
+      pm.id = 'demo_av2'; pm.date = D('03-09'); pm.ts = Date.parse(D('03-09') + 'T18:00:00');
+      pm.fichier = 'Point de mars 5e C.ods'; pm.lu = Date.parse(D('03-16') + 'T07:30:00');
+      S.avis[cls.id][pm.id] = pm;
+      const P = (i, did, t) => { if (sids[i] && pm.disciplines.some(d => d.id === did)) (pm.avis[sids[i]] = pm.avis[sids[i]] || {})[did] = { remarque: t }; };
+      P(0, 'maths', 'Reprend pied depuis la rencontre avec la famille : les devoirs sont faits.');
+      P(0, 'francais', 'Mieux, à encourager.');
+      P(12, 'anglais', 'Toujours très discret à l\'oral.');
+      P(9, 'physique_chimie', 'Bavardages en TP : à séparer de son binôme.');
     }
   }
 

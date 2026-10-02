@@ -724,6 +724,30 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   **consigne** (`aide`), écrite sous l'en-tête dans la feuille et dans le message. ⚠️ **Pas de
   colonne « à dire au conseil »** (refusée par l'utilisateur). Migration : `AVIS_CLES_ANCIENNES`
   (au chargement) et `alias` (les anciens en-têtes restent lus dans une feuille déjà préparée).
+- **Colonnes réglables par feuille** (v1.42.0, demande de l'utilisateur : *« pour la synthèse
+  des bulletins, je me servirais des appréciations de bulletin, qui ne sont pas en plusieurs
+  colonnes — chaque élève n'a qu'une remarque ; gérer depuis l'app le nombre de colonnes et
+  leurs titres, avec des choix préréglés selon les situations »*) : `camp.colonnes = [{ key,
+  label, aide, alias? }]`, figées avec la feuille comme ses disciplines ; **absentes = les
+  trois d'origine** (`_avisCols`, les feuilles d'avant n'ont rien à migrer). Modèles
+  (`AVIS_MODELES`) : *Travail · Participation · Comportement* (conseil), *Appréciation de
+  bulletin* (une colonne), *Une remarque libre* (une colonne — proposé d'office pour le point
+  du mois, `_avisModeleDefaut`), *Points forts · À travailler* (rencontre avec une famille) ;
+  ou personnalisées, de 1 à `AVIS_COLS_MAX` = 5. Réglées dans la modale : à la création
+  (le modèle suit l'objectif tant qu'on n'y a pas touché) et dans le volet *🧱 Colonnes de la
+  feuille* d'une feuille existante (puis *Mettre la feuille à jour*). `avisColonnesSet` (pur)
+  : ⚠️ **la CLÉ d'une colonne ne change jamais** — c'est sous elle que les avis sont rangés ;
+  renommer garde la clé et l'ancien titre passe en `alias` (une feuille déjà préparée se
+  relit) ; une colonne neuve reçoit la clé de son modèle ou `c_<titre>` ; **refus** d'une
+  colonne retirée qui porte des avis (on ne perd rien sans le dire), d'un titre vide, en
+  double ou « Élève », de zéro ou plus de cinq colonnes. Tout suit les colonnes de la feuille :
+  l'.ods (la largeur des trois colonnes d'origine, 21,6 cm, se partage — une colonne seule
+  fait 14 cm ; « Écrivez dans la colonne de droite »), la lecture (⚠️ un onglet dont AUCUN
+  en-tête n'est reconnu n'est pas lu : vide, il ferait foi et proposerait d'effacer), la
+  revue, le compte, le message (repère `{colonnes}` — « Une seule colonne, **Appréciation** :
+  … »), la fiche, le bilan, la synthèse de période (titres de la feuille, une colonne seule ne
+  s'annonce pas). Démo : un **point de mars** à une seule colonne *Remarque* (`demo_av2`).
+  Vue dans LibreOffice.
 - **Élèves demandés en particulier** (`camp.cibles`, v1.40.0 — *« je compte en discuter avec
   leurs parents prochainement »*) : leur nom est **surligné en jaune** (style `vif`) dans chaque
   onglet, le mode d'emploi le dit, le message les cite. Choisis dans la modale (⭐), purgés
@@ -1461,6 +1485,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 77 | **Avis des collègues : colonnes réglables par feuille** (nombre et titres, modèles : conseil à trois colonnes, appréciation de bulletin, remarque libre, points forts / à travailler ; renommer garde les avis, retirer une colonne remplie est refusé), `{colonnes}` dans le message ; démo : point de mars à une colonne ; 5 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; feuille vue dans LibreOffice | ✅ **fait** (2026-10-02, v1.42.0) |
 | 76 | **Import Plan de classe : une case vide là-bas ne vide plus naissance, dates, civilité d'ici** (`stats.gardes`), point nommé avant l'import, outil *🩹 Récupérer des dates…* (`_recupChamps`) · **colonnes des bilans des périodes précédentes** (`_bilanColonnesListe`) ; 3 tests | ✅ **fait** (2026-10-02, v1.41.1) |
 | 75 | **Liste des élèves : colonnes à masquer** (volet ☰ Colonnes, « vide » signalé, masquer les vides, écran et papier, `S.prefs.elevesColsOff`) · **une colonne par moment de bilan** (conseil, mi-période, point du mois ; ajout d'une colonne vide) ; démo : point de mars ; 2 tests. Audit 2 thèmes, 1 570 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.41.0) |
 | 74 | **Formule de politesse et signature** du message aux collègues (nom, établissement, ou signature HTML de la messagerie collée et filtrée par `_htmlSur`), aperçu sur fond courriel blanc ; 2 tests. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.13) |
