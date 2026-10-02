@@ -753,8 +753,10 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
 - **Le message aux collègues, en PARTIES** (v1.40.0 — *« pour différents moments de l'année :
   un mois, la fin du semestre ou du trimestre, les bilans intermédiaires ; des parties déjà
   écrites, faciles à remplacer, ou ne garder que la partie nécessaire »*) : `AVIS_MSG_PARTIES`
-  (salutation · le moment · la demande · les colonnes · élèves en particulier · échéance ·
-  formule finale), `AVIS_MOMENTS` (conseil · mi-période · point du mois, avec le mois). Chaque
+  (salutation · le moment · la demande · **seulement si besoin** · les colonnes · élèves en
+  particulier · échéance · formule finale — la parenthèse « vous pouvez ne compléter que pour
+  les élèves dont vous en ressentez le besoin » est une partie À PART depuis la v1.40.10,
+  demande de l'utilisateur : on la garde ou non selon le moment), `AVIS_MOMENTS` (conseil · mi-période · point du mois, avec le mois). Chaque
   partie se coche ou non (`camp.msg.off`), une partie sans objet (pas d'élève choisi, pas
   d'échéance) se retire d'elle-même. Les **textes** sont des modèles partagés par toutes les
   feuilles : `S.prefs.avisMsg` ne garde que ce que l'utilisateur a RÉÉCRIT (↺ revient au texte
@@ -1380,6 +1382,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 71 | **Message aux collègues** : la parenthèse « ne compléter que pour les élèves dont vous en ressentez le besoin » devient une partie à part, cochable (`besoin`) ; test étendu | ✅ **fait** (2026-10-02, v1.40.10) |
 | 70 | **Hauteurs des lignes de la feuille d'avis** : fixes et mesurées en Andika pour les quatre lignes de tête (`_odsLignes`, `_odsHauteurCm`, chasses exportées par `gen_fonts.py`), automatiques pour les élèves ; police incluse renommée « Andika SuiviPP » ; 1 test. Vu dans LibreOffice avec et sans Andika installée | ✅ **fait** (2026-10-02, v1.40.9) |
 | 69 | **Bilans pour l'objectif d'une feuille d'avis** (bouton ✍️, mode feuille de la modale de bilan, type « Point du mois », reprise du bilan existant) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.8) |
 | 68 | **Andika incluse dans la feuille .ods** (TTF déjà compressés, `EmbedFonts`, métriques resserrées) ; 1 test. Vu dans un LibreOffice sans Andika installée | ✅ **fait** (2026-10-02, v1.40.7) |

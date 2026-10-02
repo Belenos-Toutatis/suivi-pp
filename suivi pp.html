@@ -2390,8 +2390,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.9';
-const APP_BUILD_DATE = '2026-10-02T11:37:40Z';
+const APP_VERSION    = '1.40.10';
+const APP_BUILD_DATE = '2026-10-02T11:53:55Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12781,7 +12781,10 @@ const AVIS_MSG_PARTIES = [
       conseil:   'Je prépare {objectif} de la {classe}.',
       miperiode: 'Je prépare {objectif} de la {classe}.',
       mois:      'Je fais le point sur les élèves de la {classe} pour le mois de {mois}.' } },
-  { key: 'demande',  label: 'La demande',            texte: 'Pourriez-vous me donner votre avis sur les élèves, dans l\'onglet de votre discipline de cette feuille :\n{lien}\n\nLe lien ouvre la feuille dans le navigateur, sans compte à créer. Écrivez seulement sur les élèves dont vous avez quelque chose à dire : une case vide veut dire « rien à signaler ».' },
+  { key: 'demande',  label: 'La demande',            texte: 'Pourriez-vous me donner votre avis sur les élèves, dans l\'onglet de votre discipline de cette feuille :\n{lien}\n\nLe lien ouvre la feuille dans le navigateur, sans compte à créer.' },
+  // Une partie À PART (demande de l'utilisateur, v1.40.10) : on la garde ou non selon le
+  // moment — au point du mois, on ne veut que ceux qui posent question ; au conseil, parfois tous.
+  { key: 'besoin',   label: 'Seulement si besoin',   texte: '(Vous pouvez ne compléter que pour les élèves dont vous en ressentez le besoin : une case vide veut dire « rien à signaler ».)' },
   { key: 'colonnes', label: 'Les colonnes',          texte: 'Trois colonnes :\n' + AVIS_CRITERES.map(c => `– ${c.label} : ${c.aide}`).join(' ;\n') + '.' },
   { key: 'cibles',   label: 'Élèves en particulier', texte: 'J\'ai besoin de votre avis en particulier sur ces élèves, surlignés en jaune dans la feuille, car je rencontre bientôt leur famille :\n{eleves}' },
   { key: 'echeance', label: 'Échéance',              texte: 'Merci de compléter la feuille avant le {echeance}.' },

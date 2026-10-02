@@ -290,6 +290,11 @@ test('Message aux collègues : un moment au choix, des parties à garder ou non,
   assert.match(m(), /\[lien de partage de la feuille\]/, 'sans lien, un repère à remplacer');
   assert.match(m(), /– Travail : travail personnel/, 'les colonnes expliquées');
   assert.ok(!/avant le/.test(m()), 'pas d\'échéance, pas de phrase d\'échéance');
+  assert.match(m(), /sans compte à créer\.\n\n\(Vous pouvez ne compléter que pour les élèves dont vous en ressentez le besoin : une case vide veut dire « rien à signaler »\.\)\n/,
+    'la phrase « seulement si besoin » est une partie à part, entre parenthèses, juste après la demande');
+  ev(`window.__c.msg = { off: ['besoin'] }`);
+  assert.ok(!/ressentez le besoin/.test(m()), 'décochée, elle disparaît');
+  assert.match(m(), /sans compte à créer\./, 'la demande reste');
   ev(`window.__c.msg = { moment: 'mois', mois: 11, echeance: '2025-11-14', off: ['colonnes'] }`);
   assert.match(m(), /pour le mois de novembre\./);
   assert.match(m(), /avant le vendredi 14 novembre\./);
