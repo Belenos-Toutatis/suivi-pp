@@ -725,6 +725,17 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   éducation musicale, EPS, enseignement des religions, français, histoire-géographie,
   mathématiques, physique-chimie, SVT, technologie. Réglables dans 💾 Données (nom, nom
   d'onglet ≤ 31 caractères sans `[]*?:/\`, actif), complétables (Allemand, Latin…).
+- **Domaines et couleurs d'onglets** (v1.39.3, demande de l'utilisateur : *« une couleur par
+  domaine disciplinaire, des nuances pour chaque discipline »*) : `DOMAINES` (langues bleu ·
+  lettres et humanités brique · sciences vert · arts violet · EPS orange · autre gris),
+  `S.disciplines[did].domaine` (d'office par `DISCIPLINES_DOMAINE`, réglable dans 💾 Données ;
+  une discipline ajoutée va dans « autre »), `_discCouleur` : la teinte du domaine éclaircie
+  vers le blanc selon le rang dans le domaine (la première a la teinte franche). Le catalogue
+  et les onglets sont **rangés par domaine** (`_disciplinesAll`, `_avisDidsOrdonnes`) : les
+  nuances se suivent. Dans l'.ods, la couleur s'écrit deux fois — `tableooo:tab-color` dans le
+  style de la table et `TabColor` dans `settings.xml`, comme LibreOffice — ; vérifiée dans un
+  LibreOffice affiché (Xvfb, `SAL_USE_VCLPLUGIN=gen` : ⚠️ sans `env -u WAYLAND_DISPLAY`,
+  LibreOffice s'ouvre sur l'écran de l'utilisateur et non dans Xvfb).
 - **Matières des moyennes → disciplines** (*« tu les identifies en commun avec le relevé des
   moyennes ; si tu as un doute, le logiciel peut me demander »*) : `_matiereDisc(mid)` —
   `m.disc` posé à la main (un id, ou `''` = ignorée), sinon reconnaissance par les motifs de
@@ -1281,6 +1292,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 60 | **Onglets colorés** : une couleur par domaine disciplinaire, une nuance par discipline (`DOMAINES`, `_discCouleur`, `tableooo:tab-color`), domaine réglable dans Données, catalogue et onglets rangés par domaine ; tests mis à jour | ✅ **fait** (2026-10-02, v1.39.3) |
 | 59 | **Allemand** parmi les disciplines d'office (en tête ; la LCE reste à rattacher) · bouton *Ouvrir les avis des collègues* dans 💾 Données ; tests mis à jour | ✅ **fait** (2026-10-02, v1.39.2) |
 | 58 | **Avis des collègues : revue avant / après** (rien repris d'office, effacements jamais cochés, nouvelle feuille sur un fichier déjà rempli = rien coché) · **professeur tapé à la main** (modale et Données) ; 2 tests. Audit : revue, nouvelle feuille, Données, 2 thèmes, 710 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.39.1) |
 | 57 | **Avis des collègues** : feuille .ods du Nuage préparée et relue par l'app (un onglet par discipline, réponses libres), catalogue des disciplines réglable, matières des moyennes rattachées (demande quand elle ne sait pas), professeur repris des moyennes ; bilan, fiche, synthèse de période ; module .ods sans dépendance ; démo ; 10 tests · **réglages en une colonne sur téléphone** (débordement de 39 px) et **auditeur corrigé** (cf. défaut 29) | ✅ **fait** (2026-10-02, v1.39.0) |

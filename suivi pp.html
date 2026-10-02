@@ -969,6 +969,9 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .av-rv-modif { background: var(--caution-bg); color: var(--caution-fg); }
 .av-rv-suppr { background: var(--alert-bg); color: var(--alert-fg); }
 .av-det > summary { cursor: pointer; }
+/* La pastille de couleur d'une discipline : celle de son onglet dans la feuille. Couleur
+   de DONNÉE (le domaine), identique dans les deux thèmes — un liseré la détache du fond. */
+.av-sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; border: 1px solid var(--rule-line); }
 .av-it { margin: 0 0 8px; }
 .av-d { font-weight: 700; color: var(--ink-blue); }
 .av-c { white-space: pre-line; font-size: .93em; margin-left: 10px; overflow-wrap: anywhere; }
@@ -2379,8 +2382,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.39.2';
-const APP_BUILD_DATE = '2026-10-02T09:43:44Z';
+const APP_VERSION    = '1.39.3';
+const APP_BUILD_DATE = '2026-10-02T09:50:04Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -11660,7 +11663,8 @@ var _ODS_NS = 'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
   'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" ' +
   'xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" ' +
   'xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" ' +
-  'xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" ';
+  'xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" ' +
+  'xmlns:tableooo="http://openoffice.org/2009/table" ';
 
 var _ODS_BORD = ' fo:border="0.5pt solid #000000"';
 // Propriétés des cinq styles de cellule, par nom (le fond est posé en `fo:background-color`).
@@ -11684,13 +11688,15 @@ function _odsSettings(sheets) {
   var ents = '';
   sheets.forEach(function (sh, i) {
     var f = sh.freeze || {}, r = Math.max(0, f.rows | 0), c = Math.max(0, f.cols | 0);
-    if (!r && !c) return;
+    var tc = _odsCouleur(sh.tabColor);
+    if (!r && !c && !tc) return;
     ents += '<config:config-item-map-entry config:name="' + _odsEsc(sh.name || 'Feuille' + (i + 1)) + '">' +
       item('HorizontalSplitMode', 'short', c ? 2 : 0) + item('VerticalSplitMode', 'short', r ? 2 : 0) +
       item('HorizontalSplitPosition', 'int', c) + item('VerticalSplitPosition', 'int', r) +
       item('ActiveSplitRange', 'short', c && r ? 3 : r ? 2 : 1) +
       item('PositionLeft', 'int', 0) + item('PositionRight', 'int', c) +
       item('PositionTop', 'int', 0) + item('PositionBottom', 'int', r) +
+      (tc ? item('TabColor', 'int', parseInt(tc.slice(1), 16)) : '') +
       '</config:config-item-map-entry>';
   });
   return '<?xml version="1.0" encoding="UTF-8"?><office:document-settings ' + _ODS_NS + 'xmlns:ooo="http://openoffice.org/2004/office" office:version="1.3"><office:settings>' +
@@ -11702,8 +11708,13 @@ function _odsSettings(sheets) {
     '</office:settings></office:document-settings>';
 }
 
+// Une couleur d'onglet acceptable : « #rrggbb », sinon rien.
+function _odsCouleur(c) { return typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c.toLowerCase() : ''; }
+// ⚠️ La couleur d'un onglet s'écrit DEUX fois : dans le style de la table
+// (tableooo:tab-color, ce que LibreOffice et Collabora relisent à l'ouverture) et dans
+// settings.xml (TabColor, l'ancienne forme) — comme LibreOffice l'écrit lui-même.
 function _odsBuild(sheets) {
-  var colStyles = {}, colXml = '';                    // largeur → nom de style de colonne
+  var colStyles = {}, colXml = '', tabXml = '';                    // largeur → nom de style de colonne
   function colStyle(w) {
     var cm = _odsCm(w);
     if (!colStyles[cm]) {
@@ -11734,7 +11745,12 @@ function _odsBuild(sheets) {
     var cols = '';
     for (var c = 0; c < ncol; c++)
       cols += c < widths.length ? '<table:table-column table:style-name="' + colStyle(widths[c]) + '"/>' : '<table:table-column/>';
-    return '<table:table table:name="' + _odsEsc(sh.name || 'Feuille' + (si + 1)) + '" table:style-name="ta1">' + cols + (body || '<table:table-row><table:table-cell/></table:table-row>') + '</table:table>';
+    var tc = _odsCouleur(sh.tabColor), ta = 'ta1';
+    if (tc) {
+      ta = 'ta' + (si + 2);
+      tabXml += '<style:style style:name="' + ta + '" style:family="table" style:master-page-name="Default"><style:table-properties table:display="true" style:writing-mode="lr-tb" tableooo:tab-color="' + tc + '"/></style:style>';
+    }
+    return '<table:table table:name="' + _odsEsc(sh.name || 'Feuille' + (si + 1)) + '" table:style-name="' + ta + '">' + cols + (body || '<table:table-row><table:table-cell/></table:table-row>') + '</table:table>';
   }).join('');
   var cellStyles = Object.keys(_ODS_STYLES).map(function (k) {
     var s = _ODS_STYLES[k];
@@ -11744,7 +11760,7 @@ function _odsBuild(sheets) {
   var content = '<?xml version="1.0" encoding="UTF-8"?><office:document-content ' + _ODS_NS + 'office:version="1.3">' +
     '<office:automatic-styles>' + colXml +
     '<style:style style:name="ro1" style:family="table-row"><style:table-row-properties style:row-height="0.5cm" style:use-optimal-row-height="true"/></style:style>' +
-    '<style:style style:name="ta1" style:family="table" style:master-page-name="Default"><style:table-properties table:display="true" style:writing-mode="lr-tb"/></style:style>' +
+    '<style:style style:name="ta1" style:family="table" style:master-page-name="Default"><style:table-properties table:display="true" style:writing-mode="lr-tb"/></style:style>' + tabXml +
     cellStyles + '</office:automatic-styles><office:body><office:spreadsheet>' + tabs + '</office:spreadsheet></office:body></office:document-content>';
   var styles = '<?xml version="1.0" encoding="UTF-8"?><office:document-styles ' + _ODS_NS + 'office:version="1.3">' +
     '<office:styles><style:style style:name="Default" style:family="table-cell"/></office:styles>' +
@@ -11915,26 +11931,60 @@ const AVIS_CRITERES = [
 // motif reconnaît, sur le nom NORMALISÉ (_moyNorm), les matières de l'export du bureau
 // numérique : « ÉD.PHYSIQUE & SPORT. », « SCIENCES VIE & TERRE », « HISTOIRE-GEOGRAPHIE
 // EMC », « ANGLAIS LV2 », « SVT BILINGUE »… (relevés sur les vrais exports, 2025-26).
-// ⚠️ L'EPS avant la physique-chimie : « ÉD. PHYSIQUE » contient PHYSIQUE — le motif de la
-// physique-chimie exige CHIMIE (ou « SCIENCES PHYSIQUES »), jamais PHYSIQUE seul.
+// ⚠️ « ÉD. PHYSIQUE » contient PHYSIQUE : le motif de la physique-chimie exige donc CHIMIE
+// (ou « SCIENCES PHYSIQUES »), jamais PHYSIQUE seul — l'ordre du tableau n'y joue pas.
 // ⚠️ Ce qui n'est reconnu par AUCUN motif n'est pas deviné (le latin, la LCE, l'espagnol…) :
 // l'app le dit et demande où le ranger (« si tu as un doute, demande-moi »).
 const DISCIPLINES_DEFAUT = [
   // Allemand ajouté le 2026-10-02 (oubli de la liste d'origine). « LANGU.CULT EU ALLEM »
   // (LCE) n'est PAS reconnue d'office : c'est un autre enseignement, l'app demande.
+  // Rangées PAR DOMAINE (langues, lettres, sciences, arts, EPS) : c'est l'ordre des onglets,
+  // et les nuances d'un même domaine se suivent dans la feuille.
   ['allemand',           'Allemand',                            'Allemand',         /\bALLEMAND\b/],
   ['anglais',            'Anglais',                             'Anglais',          /\bANGLAIS\b/],
-  ['arts_plastiques',    'Arts plastiques',                     'Arts plastiques',  /\bARTS? PLASTIQUES?\b/],
-  ['education_musicale', 'Éducation musicale',                  'Éd. musicale',     /\bMUSI(QUE|CALE)\b/],
-  ['eps',                'Éducation physique et sportive',      'EPS',              /\bEPS\b|\bED(UCATION)? PHYSIQUE\b|\bSPORT/],
-  ['religions',          'Enseignement des religions',          'Religions',        /RELIGI|CATECH|PASTORAL|CULTURE CHRETIENNE/],
   ['francais',           'Français',                            'Français',         /\bFRANCAIS\b/],
   ['histoire_geo',       'Histoire-géographie',                 'Hist.-géo.',       /\bHISTOIRE\b|\bGEOGRAPHIE\b|\bEMC\b/],
+  ['religions',          'Enseignement des religions',          'Religions',        /RELIGI|CATECH|PASTORAL|CULTURE CHRETIENNE/],
   ['maths',              'Mathématiques',                       'Maths',            /\bMATH/],
   ['physique_chimie',    'Physique-chimie',                     'Physique-chimie',  /\bCHIMIE\b|\bSCIENCES? PHYSIQUES?\b/],
   ['svt',                'Sciences de la vie et de la Terre',   'SVT',              /\bSVT\b|\bSCIENCES? (DE LA )?VIE\b/],
   ['technologie',        'Technologie',                         'Technologie',      /\bTECHNO/],
+  ['arts_plastiques',    'Arts plastiques',                     'Arts plastiques',  /\bARTS? PLASTIQUES?\b/],
+  ['education_musicale', 'Éducation musicale',                  'Éd. musicale',     /\bMUSI(QUE|CALE)\b/],
+  ['eps',                'Éducation physique et sportive',      'EPS',              /\bEPS\b|\bED(UCATION)? PHYSIQUE\b|\bSPORT/],
 ];
+// Domaines disciplinaires (2026-10-02, demande de l'utilisateur) : UNE couleur par domaine,
+// une NUANCE par discipline — c'est la couleur de l'onglet dans la feuille. Les teintes
+// de base sont assez soutenues pour qu'un onglet se distingue ; les nuances éclaircissent
+// vers le blanc. Une discipline ajoutée par l'utilisateur va dans « Autre » (gris), et son
+// domaine se règle dans 💾 Données.
+const DOMAINES = {
+  langues:  { label: 'Langues',               couleur: '#2f6db3' },
+  lettres:  { label: 'Lettres et humanités',  couleur: '#b4472f' },
+  sciences: { label: 'Sciences',              couleur: '#2e8752' },
+  arts:     { label: 'Arts',                  couleur: '#7a4bb0' },
+  eps:      { label: 'EPS',                   couleur: '#d9801a' },
+  autre:    { label: 'Autre',                 couleur: '#6f6f6f' },
+};
+const DISCIPLINES_DOMAINE = { allemand: 'langues', anglais: 'langues', francais: 'lettres', histoire_geo: 'lettres',
+  religions: 'lettres', maths: 'sciences', physique_chimie: 'sciences', svt: 'sciences', technologie: 'sciences',
+  arts_plastiques: 'arts', education_musicale: 'arts', eps: 'eps' };
+function _discDomaine(did) {
+  const d = S.disciplines?.[did];
+  const k = d && DOMAINES[d.domaine] ? d.domaine : (DISCIPLINES_DOMAINE[did] || 'autre');
+  return k;
+}
+// La nuance d'une discipline : la couleur du domaine, éclaircie selon son rang parmi les
+// disciplines du même domaine (la première a la teinte franche). PUR.
+function _discCouleur(did) {
+  const dom = _discDomaine(did);
+  const freres = _disciplinesAll().filter(d => _discDomaine(d.id) === dom);
+  const i = Math.max(0, freres.findIndex(d => d.id === did));
+  const t = freres.length > 1 ? 0.55 * i / (freres.length - 1) : 0;
+  const base = DOMAINES[dom].couleur;
+  const mix = k => Math.round(parseInt(base.slice(k, k + 2), 16) * (1 - t) + 255 * t).toString(16).padStart(2, '0');
+  return '#' + mix(1) + mix(3) + mix(5);
+}
 // Un nom d'onglet que Collabora, LibreOffice et Excel acceptent : ni [ ] * ? : / \, au
 // plus 31 caractères, jamais vide.
 function _discOngletSur(nom) {
@@ -11959,6 +12009,7 @@ function _disciplinesSeed() {
     if (typeof cur.onglet !== 'string' || !cur.onglet.trim()) cur.onglet = onglet;
     if (typeof cur.actif !== 'boolean') cur.actif = true;
     if (cur.profs !== undefined && typeof cur.profs !== 'string') delete cur.profs;
+    if (!DOMAINES[cur.domaine]) cur.domaine = DISCIPLINES_DOMAINE[id] || 'autre';
   });
   for (const [id, d] of Object.entries(S.disciplines)) {
     if (DISCIPLINES_DEFAUT.some(x => x[0] === id)) continue;
@@ -11968,9 +12019,16 @@ function _disciplinesSeed() {
     if (typeof d.actif !== 'boolean') d.actif = true;
     if (typeof d.ord !== 'number') d.ord = 1000;
     if (d.profs !== undefined && typeof d.profs !== 'string') delete d.profs;
+    if (!DOMAINES[d.domaine]) d.domaine = 'autre';
   }
 }
-function _disciplinesAll() { return Object.values(S.disciplines || {}).sort((a, b) => (a.ord - b.ord) || String(a.nom).localeCompare(String(b.nom), 'fr')); }
+// Par DOMAINE d'abord (l'ordre de DOMAINES), puis dans l'ordre du catalogue : les onglets
+// d'un même domaine se suivent, leurs couleurs aussi.
+function _disciplinesAll() {
+  const rang = Object.keys(DOMAINES);
+  return Object.values(S.disciplines || {}).sort((a, b) => (rang.indexOf(_discDomaine(a.id)) - rang.indexOf(_discDomaine(b.id)))
+    || (a.ord - b.ord) || String(a.nom).localeCompare(String(b.nom), 'fr'));
+}
 function _disciplinesActives() { return _disciplinesAll().filter(d => d.actif); }
 function disciplineAdd(nom) {
   const n = String(nom || '').trim().slice(0, 60);
@@ -11978,7 +12036,7 @@ function disciplineAdd(nom) {
   if (_disciplinesAll().some(d => _moyNorm(d.nom) === _moyNorm(n))) return null;
   const id = uid('disc');
   const ord = Math.max(0, ..._disciplinesAll().map(d => d.ord)) + 1;
-  S.disciplines[id] = { id, nom: n, onglet: _discOngletSur(n), actif: true, ord, builtin: false };
+  S.disciplines[id] = { id, nom: n, onglet: _discOngletSur(n), actif: true, ord, builtin: false, domaine: 'autre' };
   return S.disciplines[id];
 }
 function disciplineSet(id, patch) {
@@ -11988,6 +12046,7 @@ function disciplineSet(id, patch) {
   if ('nom' in patch) { const n = String(patch.nom || '').trim().slice(0, 60); if (!n) return false; d.nom = n; }
   if ('onglet' in patch) d.onglet = _discOngletSur(patch.onglet || d.nom);
   if ('actif' in patch) d.actif = !!patch.actif;
+  if ('domaine' in patch && DOMAINES[patch.domaine]) d.domaine = patch.domaine;
   return true;
 }
 // Une discipline d'office se DÉCOCHE, ne se supprime pas ; une discipline ajoutée se
@@ -12080,6 +12139,7 @@ function _avisOngletsUniques(list) {
     return { ...d, onglet: o };
   });
 }
+function _avisDidsOrdonnes(dids) { const ordre = _disciplinesAll().map(d => d.id); return [...dids].sort((a, b) => ordre.indexOf(a) - ordre.indexOf(b)); }
 function avisCampagneCreer(cls, { pIdx, disciplines, lien }) {
   const p = _periods(cls)[pIdx];
   const dids = (disciplines || []).filter(did => S.disciplines[did]);
@@ -12089,7 +12149,7 @@ function avisCampagneCreer(cls, { pIdx, disciplines, lien }) {
   const id = uid('av');
   const camp = { id, date: _ymdClampAnnee(cls, _todayYmd()), ts: Date.now(), cible: p.end,
     label: `Avis des collègues — ${p.label}`, fichier: '', lien: _avisLienSur(lien), lu: null,
-    disciplines: _avisOngletsUniques(dids.map(did => _avisDisc(cls, did))), avis: {} };
+    disciplines: _avisOngletsUniques(_avisDidsOrdonnes(dids).map(did => _avisDisc(cls, did))), avis: {} };
   S.avis[cls.id][id] = camp;
   return camp;
 }
@@ -12099,7 +12159,7 @@ function avisCampagneDisciplines(cls, campId, dids) {
   const camp = _avisMap(cls.id)?.[campId];
   const list = (dids || []).filter(did => S.disciplines[did]);
   if (!camp || !list.length) return false;
-  camp.disciplines = _avisOngletsUniques(list.map(did => _avisDisc(cls, did)));
+  camp.disciplines = _avisOngletsUniques(_avisDidsOrdonnes(list).map(did => _avisDisc(cls, did)));
   for (const parSid of Object.values(camp.avis || {})) for (const did of Object.keys(parSid)) if (!list.includes(did)) delete parSid[did];
   return true;
 }
@@ -12137,7 +12197,7 @@ function _avisFeuilles(cls, camp) {
   const eleves = _avisEleves(cls, camp);
   const pour = `${cls.nom}${cls.annee ? ' (' + cls.annee + ')' : ''} — avis pour ${p ? 'le conseil du ' + p.label : 'le conseil de classe'}`;
   return camp.disciplines.map(d => ({
-    name: d.onglet, colWidthsCm: [4.6, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 },
+    name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [4.6, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 },
     rows: [
       [{ text: `${d.nom}${d.profs ? ' — ' + d.profs : ''}`, style: 'titre', span: 4 }],
       [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « rien à signaler ». Merci de ne modifier ni les noms ni les titres de colonnes.`, style: 'aide', span: 4 }],
@@ -12351,7 +12411,7 @@ function _avisDiscPickHTML(cls, coches) {
     const mats = _discMatieres(cls.id, d.id).map(m => m.nom);
     const auto = _discProfsAuto(cls.id, d.id);
     return `<div class="av-pick-i"><input type="checkbox" id="avd-${_escAttr(d.id)}" data-disc="${_escAttr(d.id)}"${coches.includes(d.id) ? ' checked' : ''}>
-      <span style="min-width:0;flex:1"><label for="avd-${_escAttr(d.id)}"><strong>${_escName(d.nom)}</strong></label>${mats.length ? `<small>${_escName(mats.join(', '))}</small>` : ''}
+      <span style="min-width:0;flex:1"><label for="avd-${_escAttr(d.id)}"><span class="av-sw" style="background:${_discCouleur(d.id)}"></span><strong>${_escName(d.nom)}</strong></label>${mats.length ? `<small>${_escName(mats.join(', '))}</small>` : ''}
         <input type="text" class="av-prof" value="${_escAttr(_discProfs(cls.id, d.id))}" maxlength="120" placeholder="${auto ? _escAttr(auto) : 'professeur(s) — à saisir'}"
           title="Le ou les professeurs, en tête de l'onglet. Repris des moyennes quand elles le donnent ; ce que tu tapes passe avant." onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)"></span></div>`;
   }).join('')}</div>
@@ -12515,7 +12575,7 @@ async function avisMettreAJourUI(campId) {
   if (!camp) return;
   const dids = _avisDiscCoches();
   if (!dids.length) return toast('⚠️ Coche au moins une discipline.', 'warn');
-  const neuves = _avisOngletsUniques(dids.filter(did => S.disciplines[did]).map(did => _avisDisc(cls, did)));
+  const neuves = _avisOngletsUniques(_avisDidsOrdonnes(dids.filter(did => S.disciplines[did])).map(did => _avisDisc(cls, did)));
   if (JSON.stringify(neuves) !== JSON.stringify(camp.disciplines)) { pushUndo(); avisCampagneDisciplines(cls, campId, dids); save(); }
   if (!_AVIS_FS()) return avisTelecharger(campId);
   let h = await _avisHandle(campId);
@@ -12679,7 +12739,8 @@ function _disciplinesTableHTML() {
     const ms = mats.filter(m => _matiereDisc(m.id) === d.id).map(m => m.nom);
     return `<tr${d.actif ? '' : ' class="inactive"'}>
       <td style="text-align:center"><input type="checkbox"${d.actif ? ' checked' : ''} onchange="disciplineSetUI('${_escJsAttr(d.id)}',{actif:this.checked})" title="${d.actif ? 'Proposée pour les feuilles d\'avis — décocher pour la retirer' : 'Retirée des feuilles d\'avis'}"></td>
-      <td style="min-width:170px"><input type="text" value="${_escAttr(d.nom)}" maxlength="60" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{nom:this.value})"></td>
+      <td style="min-width:190px;white-space:nowrap"><span class="av-sw" style="background:${_discCouleur(d.id)}" title="La couleur de son onglet dans la feuille"></span><input type="text" value="${_escAttr(d.nom)}" maxlength="60" style="width:calc(100% - 22px)" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{nom:this.value})"></td>
+      <td><select onchange="disciplineSetUI('${_escJsAttr(d.id)}',{domaine:this.value})" title="Le domaine donne la couleur de l'onglet ; chaque discipline en prend une nuance">${Object.entries(DOMAINES).map(([k, v]) => `<option value="${k}"${_discDomaine(d.id) === k ? ' selected' : ''}>${_escName(v.label)}</option>`).join('')}</select></td>
       <td style="min-width:120px"><input type="text" value="${_escAttr(d.onglet)}" maxlength="31" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{onglet:this.value})" title="Le nom de l'onglet dans la feuille (31 caractères au plus)"></td>
       <td style="min-width:150px"><input type="text" value="${_escAttr(cls ? _discProfs(cls.id, d.id) : (d.profs || ''))}" maxlength="120" placeholder="${_escAttr(cls && _discProfsAuto(cls.id, d.id) || 'à saisir')}" onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)" title="Repris des moyennes quand elles le donnent ; ce que tu tapes passe avant"></td>
       <td class="tb-hint" style="width:99%">${ms.length ? _escName(ms.join(' · ')) : '—'}</td>
@@ -12694,7 +12755,7 @@ function _disciplinesTableHTML() {
         ${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}"${val === d.id ? ' selected' : ''}>${_escName(d.nom)}</option>`).join('')}
         <option value=""${val === '' ? ' selected' : ''}>aucune — pas d'avis à demander</option></select></td></tr>`;
   }).join('');
-  return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th>Onglet</th><th>Professeur(s)</th><th>Matières des moyennes rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th>Domaine</th><th>Onglet</th><th>Professeur(s)</th><th>Matières des moyennes rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="tb" style="max-width:900px;margin-bottom:12px"><input type="text" id="disc-new" placeholder="Nouvelle discipline (ex. : Latin, Espagnol…)" maxlength="60" style="flex:1;min-width:200px"
          onkeydown="if(event.key==='Enter'){event.preventDefault();disciplineAddUI()}"> <button class="btn btn-s btn-sm" onclick="disciplineAddUI()">+ Ajouter</button></div>
     ${mats.length ? `<div class="pref-help" style="margin-bottom:6px">Chaque matière des imports de moyennes se range dans une discipline — c'est ce qui donne le professeur de l'onglet, et regroupe par exemple « ANGLAIS » et « ANGLAIS LV2 ».</div>

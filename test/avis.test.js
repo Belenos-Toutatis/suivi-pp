@@ -33,9 +33,10 @@ const mid = nom => ev(`_moyMatieresSorted().find(m => m.nom === ${JSON.stringify
 
 test('Catalogue des disciplines : les douze d\'office, réglages gardés, une d\'office supprimée revient', () => {
   ev(FIXTURE);
-  assert.deepStrictEqual(evObj(`_disciplinesAll().map(d => d.nom)`), ['Allemand', 'Anglais', 'Arts plastiques', 'Éducation musicale',
-    'Éducation physique et sportive', 'Enseignement des religions', 'Français', 'Histoire-géographie', 'Mathématiques',
-    'Physique-chimie', 'Sciences de la vie et de la Terre', 'Technologie']);
+  // Rangées par DOMAINE (langues, lettres, sciences, arts, EPS) : l'ordre des onglets.
+  assert.deepStrictEqual(evObj(`_disciplinesAll().map(d => d.nom)`), ['Allemand', 'Anglais', 'Français', 'Histoire-géographie',
+    'Enseignement des religions', 'Mathématiques', 'Physique-chimie', 'Sciences de la vie et de la Terre', 'Technologie',
+    'Arts plastiques', 'Éducation musicale', 'Éducation physique et sportive']);
   ev(`disciplineSet('maths', { nom: 'Maths', actif: false }); delete S.disciplines.svt; const d = disciplineAdd('Latin'); window.__did = d.id; _disciplinesSeed()`);
   assert.strictEqual(ev(`S.disciplines.maths.nom`), 'Maths', 'un nom changé survit au semis');
   assert.strictEqual(ev(`S.disciplines.maths.actif`), false);
@@ -95,11 +96,15 @@ test('La feuille préparée : un onglet par discipline, les élèves PRÉSENTS d
   const c = evObj(`window.__c`);
   assert.strictEqual(c.cible, '2026-01-31', 'S1 : la fin de la période');
   assert.strictEqual(c.lien, '', 'un lien qui n\'est pas https est refusé');
-  assert.deepStrictEqual(c.disciplines.map(d => d.onglet), ['Maths', 'Anglais', 'Religions']);
+  assert.deepStrictEqual(c.disciplines.map(d => d.onglet), ['Anglais', 'Religions', 'Maths'], 'dans l\'ordre du catalogue, pas du clic');
   const f = evObj(`_avisFeuilles(getCls(), window.__c)`);
   assert.strictEqual(f.length, 3);
-  assert.strictEqual(f[0].name, 'Maths');
-  assert.strictEqual(f[0].rows[0][0].text, 'Mathématiques — M. E, Mme F');
+  assert.strictEqual(f[2].name, 'Maths');
+  assert.strictEqual(f[2].rows[0][0].text, 'Mathématiques — M. E, Mme F');
+  // Une couleur par domaine, une nuance par discipline : l'anglais (2e langue) est plus clair que l'allemand.
+  assert.match(f[0].tabColor, /^#[0-9a-f]{6}$/);
+  assert.notStrictEqual(ev(`_discCouleur('anglais')`), ev(`_discCouleur('allemand')`));
+  assert.strictEqual(ev(`_discCouleur('allemand')`), ev(`DOMAINES.langues.couleur`), 'la première du domaine a la teinte franche');
   assert.deepStrictEqual(f[0].rows[2].map(x => x.text), ['Élève', 'Investissement', 'Comportement', 'Implication']);
   // S1 : PETIT est parti le 15/09 (après le 1er août, donc présent au S1) ; ARRIVE arrive en mars → pas au S1.
   assert.deepStrictEqual(f[0].rows.slice(3).map(r => r[0].text), ['<b>BOLD</b> Zoé', 'DURAND Léa', 'MARTIN Noé', 'PETIT Inès']);
@@ -116,10 +121,10 @@ test('Lecture : par nom d\'onglet et d\'en-tête, élèves par leur nom — rien
   // « Prénom NOM » ; un onglet ajouté par erreur ; la SVT n'a rien écrit.
   const lec = evObj(`(() => {
     const f = _avisFeuilles(getCls(), window.__c).map(sh => ({ name: sh.name, rows: sh.rows.map(r => r.map(c => c.text)) }));
-    const m = f[0]; m.rows[2] = ['Élève', 'Implication', 'Investissement', 'Comportement'];
+    const m = f.find(x => x.name === 'Maths'); m.rows[2] = ['Élève', 'Implication', 'Investissement', 'Comportement'];
     m.rows[4][1] = 'Très impliquée'; m.rows[4][2] = 'Sérieuse.\\nRégulière.';
     m.rows.push(['DURANT Léo', 'Bavard', '', '']);
-    const a = f[1]; a.name = 'Feuille2'; a.rows[5] = ['Noé Martin', '', 'Agité', ''];
+    const a = f.find(x => x.name === 'Anglais'); a.name = 'Feuille2'; a.rows[5] = ['Noé Martin', '', 'Agité', ''];
     f.push({ name: 'Brouillon', rows: [['notes perso']] });
     return _avisLire(getCls(), window.__c, f);
   })()`);
@@ -172,7 +177,7 @@ test('Les avis d\'un élève pour une période, et sur la synthèse de période 
   ev(`const c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'] });
       c.avis = { s5: { anglais: { investissement: '<img src=x onerror=alert(1)>' }, maths: { comportement: 'Calme' } } };`);
   const a = evObj(`_avisEleve(getCls(), 's5', 0)`);
-  assert.deepStrictEqual(a.items.map(x => x.disc.id), ['maths', 'anglais'], 'dans l\'ordre des onglets');
+  assert.deepStrictEqual(a.items.map(x => x.disc.id), ['anglais', 'maths'], 'dans l\'ordre des onglets');
   assert.strictEqual(ev(`_avisEleve(getCls(), 's5', 1)`), null, 'rien au S2');
   const t = evObj(`_periodePrintHTML(getCls(), 0, { blocs: ['avis'], type: 'conseil', forme: 'tableau' })`).html;
   assert.match(t, /Avis des collègues/);
