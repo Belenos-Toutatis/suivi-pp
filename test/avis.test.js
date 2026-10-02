@@ -315,4 +315,5 @@ test('.ods : quadrillage masqué, le tableau dessiné par ses bordures, consigne
   assert.ok(!/ShowGrid" config:type="boolean">true/.test(set));
   const f = evObj(`_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }))`)[0];
   assert.ok(f.rows[2].every(c => c.style === 'consigne'), 'la ligne des consignes a des bordures, comme le tableau');
+  assert.match(f.rows[1][0].text, /nouveau paragraphe dans la même case : Ctrl\+Entrée/, 'rappelé sur chaque onglet');
 });

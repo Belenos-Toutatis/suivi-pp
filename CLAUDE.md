@@ -813,7 +813,9 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   pas afficher les lignes de la grille »*) : ce sont les bordures des cellules qui dessinent
   le tableau. (La v1.40.1 l'avait affiché par erreur d'interprétation.) La ligne des consignes est
   **encadrée** (style `consigne`) : sans bordure, elle flottait entre le mode d'emploi et les
-  en-têtes. Validé par LibreOffice (réenregistrement,
+  en-têtes. Le mode d'emploi de chaque onglet rappelle **Ctrl+Entrée** pour un nouveau
+  paragraphe dans la même case (v1.40.3, demande de l'utilisateur) — Entrée seule change de
+  case dans Collabora comme dans LibreOffice. Validé par LibreOffice (réenregistrement,
   export CSV, gel vérifié sous python-uno) ; une feuille réenregistrée par LibreOffice est
   gardée en fixture (`test/fixtures/avis-libreoffice.ods`, noms inventés). ⚠️ **Non vérifié
   dans Collabora Online** même : à regarder une fois dans le Nuage.
@@ -1319,6 +1321,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 64 | **Ctrl+Entrée rappelé** dans le mode d'emploi de chaque onglet ; test mis à jour | ✅ **fait** (2026-10-02, v1.40.3) |
 | 63 | **Quadrillage masqué** (`ShowGrid` false) : le tableau n'est dessiné que par ses bordures ; test mis à jour | ✅ **fait** (2026-10-02, v1.40.2) |
 | 62 | **Feuille plus lisible** : quadrillage affiché (`ShowGrid`), consignes des colonnes encadrées ; 1 test. Vu dans LibreOffice | ✅ **fait** (2026-10-02, v1.40.1) |
 | 61 | **Colonnes Travail · Participation · Comportement** avec leur consigne (migration des anciennes) · **élèves demandés en particulier**, surlignés en jaune · **message en parties** (moment, mois, échéance, parties à garder, textes réécrits devenus modèles) ; 3 tests. Feuille vue dans LibreOffice ; audit 2 thèmes, 1 024 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.40.0) |

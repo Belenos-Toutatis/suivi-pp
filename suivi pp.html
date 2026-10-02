@@ -2390,8 +2390,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.2';
-const APP_BUILD_DATE = '2026-10-02T10:17:36Z';
+const APP_VERSION    = '1.40.3';
+const APP_BUILD_DATE = '2026-10-02T10:17:59Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12241,7 +12241,7 @@ function _avisFeuilles(cls, camp) {
     name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [4.6, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 },
     rows: [
       [{ text: `${d.nom}${d.profs ? ' — ' + d.profs : ''}`, style: 'titre', span: 4 }],
-      [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « rien à signaler ». Merci de ne modifier ni les noms ni les titres de colonnes.${surligne}`, style: 'aide', span: 4 }],
+      [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « rien à signaler ». Pour commencer un nouveau paragraphe dans la même case : Ctrl+Entrée. Merci de ne modifier ni les noms ni les titres de colonnes.${surligne}`, style: 'aide', span: 4 }],
       [{ text: '', style: 'consigne' }, ...AVIS_CRITERES.map(c => ({ text: c.aide, style: 'consigne' }))],
       [{ text: 'Élève', style: 'entete' }, ...AVIS_CRITERES.map(c => ({ text: c.label, style: 'entete' }))],
       ...eleves.map(s => [{ text: `${s.nom} ${s.prenom}`, style: cibles.has(s.id) ? 'vif' : 'nom' },
