@@ -327,3 +327,14 @@ test('.ods : quadrillage masqué, le tableau dessiné par ses bordures, consigne
   assert.match(xml, /<text:span text:style-name="T1">rien à signaler<\/text:span>/, 'le gras arrive dans le fichier');
   assert.ok(!xml.includes('**'), 'les repères de gras ne s\'écrivent pas');
 });
+
+test('Colonne des noms à la largeur du plus long', () => {
+  ev(FIXTURE);
+  assert.strictEqual(ev(`_avisLargeurNoms(['DURAND Léa'])`), 4.6, 'jamais sous le minimum');
+  const long = ev(`_avisLargeurNoms(['DURAND Léa', 'DE LA FONTAINE-SAINT-MARTIN Marie-Charlotte'])`);
+  assert.ok(long > 10, `nom long : ${long} cm`);
+  assert.ok(ev(`_avisLargeurNoms(['W'.repeat(80)])`) <= 12, 'plafonnée');
+  ev(`S.eleves.s1.nom = 'DE LA FONTAINE-SAINT-MARTIN'; S.eleves.s1.prenom = 'Marie-Charlotte'`);
+  const f = evObj(`_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }))`)[0];
+  assert.strictEqual(f.colWidthsCm[0], long);
+});

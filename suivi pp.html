@@ -2390,8 +2390,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.4';
-const APP_BUILD_DATE = '2026-10-02T10:26:27Z';
+const APP_VERSION    = '1.40.5';
+const APP_BUILD_DATE = '2026-10-02T10:31:17Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12247,8 +12247,9 @@ function _avisFeuilles(cls, camp) {
   const pour = `${cls.nom}${cls.annee ? ' (' + cls.annee + ')' : ''} — avis pour ${p ? 'le conseil du ' + p.label : 'le conseil de classe'}`;
   // En **gras** dans la feuille : ce qu'il ne faut pas manquer (demande de l'utilisateur).
   const surligne = cibles.size ? ` Les élèves **SURLIGNÉS EN JAUNE** : j'ai besoin de votre avis en particulier (je rencontre bientôt leur famille).` : '';
+  const largeurNoms = _avisLargeurNoms(eleves.map(s => `${s.nom} ${s.prenom}`));
   return camp.disciplines.map(d => ({
-    name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [4.6, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 }, protege: true,
+    name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [largeurNoms, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 }, protege: true,
     rows: [
       [{ text: `${d.nom}${d.profs ? ' — ' + d.profs : ''}`, style: 'titre', span: 4 }],
       [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « **rien à signaler** ». **Nouveau paragraphe dans la même case : Ctrl+Entrée.** Seules ces trois colonnes s'écrivent : les noms et les titres sont verrouillés.${surligne}`, style: 'aide', span: 4, gras: true }],
@@ -12258,6 +12259,15 @@ function _avisFeuilles(cls, camp) {
         ...AVIS_CRITERES.map(c => ({ text: camp.avis?.[s.id]?.[d.id]?.[c.key] || '', style: 'saisie' }))]),
     ],
   }));
+}
+// La largeur de la colonne des noms, À LA MESURE du plus long (« des noms-prénoms qui
+// dépassent de leurs cellules », remarque de l'utilisateur). Un tableur ne recalcule pas
+// une largeur « optimale » à l'ouverture : on l'estime donc ici, en gras 10 pt (Liberation
+// Sans / Carlito), majuscules plus larges que minuscules, avec un peu de marge. PUR.
+function _avisLargeurNoms(noms) {
+  const cm = t => [...String(t)].reduce((n, ch) => n + (ch === ' ' ? 0.11 : /[A-ZÀ-ÖØ-Þ]/.test(ch) ? (/[MW]/.test(ch) ? 0.34 : 0.27) : /[mw]/.test(ch) ? 0.33 : /[iljft'.,-]/.test(ch) ? 0.11 : 0.22), 0);
+  const plus = Math.max(cm('Élève'), ...noms.map(cm));
+  return Math.round(Math.min(12, Math.max(4.6, plus + 0.5)) * 10) / 10;
 }
 // Les élèves demandés EN PARTICULIER, encore dans la classe, par ordre alphabétique.
 function _avisCibles(cls, camp) {
