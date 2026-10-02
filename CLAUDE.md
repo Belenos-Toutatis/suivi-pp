@@ -161,6 +161,8 @@ stu = {
   agrandissement, tiers_temps,
   arrivalDate, departureDate,   // 'YYYY-MM-DD' | null — départ = 1er jour d'absence
   remarque,                // texte libre du PP (la colonne « Remarque » du tableur)
+  regime,                  // 'DP' | 'EXT' | 'INT' | absent — demi-pensionnaire, externe, interne (v1.45.1)
+  sortie,                  // code du régime de sortie de l'établissement ('A1'…'D3') | absent (v1.45.1)
   // Journal des contacts avec la famille — DATÉ et qualifié, à côté du texte libre.
   journal: [ { id, date: 'YYYY-MM-DD', ts, type: 'appel'|'rencontre'|'courriel'|'mot'|'autre', texte } ],
   // Incidents et instances (2026-09-11) : fiche incident, punition, commission éducative…
@@ -1111,6 +1113,25 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      **qui ont au moins un bilan** (le conseil du S1 vide n'a pas de colonne au S2) ; le volet
      les range sous *Bilans S1*, *Bilans S2*. On n'ajoute une colonne vide qu'à la période
      courante. Démo au S2 : six colonnes (sept., mi-S1, conseil S1, mars, mi-S2, conseil S2).
+   - **Régime et régime de sortie** (v1.45.1, demande de l'utilisateur : *« dans la colonne
+     groupe · options, le régime d'entrée et de sortie — chez nous A1 A2 D1 D2 D3 — et s'ils
+     sont demi-pensionnaires ou externes »*). `stu.regime` (`REGIMES` : DP · Ext. · Int.) et
+     `stu.sortie` (un code). Les codes sont ceux de l'ÉTABLISSEMENT : catalogue
+     `S.prefs.regimesSortie = [{ code, label }]`, d'office A1 A2 D1 D2 D3 sans signification,
+     réglé dans 💾 Données (« D1 = … », une ligne par code, `regimesSortieUI`) ; un code
+     inconnu du catalogue reste affiché tel quel. Affichés en petites étiquettes dans la
+     colonne Groupe · options (le code de sortie en pointillés, sa signification en
+     infobulle), dans la fiche (Identité, en-tête) et sur la liste imprimée. Saisis dans ✏️,
+     ou **en série** par la puce *🍽 Régimes* (deux colonnes de menus, une salve d'undo comme
+     les naissances). **Import** : colonnes « Régime » et « Autorisation de sortie » /
+     « Régime de sortie » reconnues (`_impNormRegime` lit DEMI-PENSIONNAIRE, DP4, Externe…) ;
+     ⚠️ « Date de sortie » reste la date de DÉPART. Un code lu et inconnu entre au catalogue.
+     ⚠️ Et l'import **complète les élèves déjà présents** (lignes écartées comme doublons) :
+     naissance, régime, sortie VIDES chez eux sont remplis, rien n'est remplacé
+     (`_impACompleter`, `_impCompleter`) — sans cela, une classe déjà importée n'aurait jamais
+     reçu ces champs. ⚠️ Corrigé au passage : la colonne « Date de naissance » de l'import
+     était reconnue mais **jamais lue** (aucun `rec.naissance`) — la documentation l'annonçait
+     depuis le 2026-09-09. Démo : demi-pensionnaires et externes, codes de sortie.
    - **Plus de ligne « Trier »** (v1.45.0, l'utilisateur : *« on clique maintenant sur le
      titre de colonne pour trier »*) : l'en-tête des élèves porte **Nom · Prénom**, deux tris
      réversibles (`_elevesThNomHTML`) ; les ordres de place et de ramassage n'ont pas d'usage
@@ -1627,6 +1648,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 84 | **Régime** (demi-pensionnaire, externe, interne) et **régime de sortie** (codes de l'établissement, réglables) : colonne Groupe · options, fiche, ✏️, saisie en série (🍽 Régimes), papier, import (qui complète aussi les élèves déjà présents) ; naissance enfin lue à l'import ; démo ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.1) |
 | 83 | **Onglet 🗣 Avis des collègues** (les récoltes à gauche, la feuille à droite, grille « qui a écrit sur qui ») à la place de la fenêtre · **liste des élèves** : plus de ligne de tri (Nom · Prénom en en-tête), puce *Naissances*, impression dans la barre du haut ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.0) |
 | 82 | **Fiche = celle du prototype** : en-tête sur une rangée (moments en boutons), tableau de bord en cartes bornées au moment, chronologie et faits au style du prototype ; ✏️ 🗑 dans la carte Identité, dossier complet replié au pied ; tokens `--pf-card`, `--i-*` ; test mis à jour. Audit 3 vues × 2 moments × 2 thèmes, 1 440 / 2 560 / 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.3) |
 | 81 | **Liste = le tableau du prototype** (cases courtes, carnet avec courbe, contacts à part, bilans en points, remarque sur une ligne, genre devant le nom), **vues en boutons, colonnes en puces**, carte de chaleur alignée (couleurs des paliers, trois niveaux d'avis), suppression depuis la fiche ; tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.2) |

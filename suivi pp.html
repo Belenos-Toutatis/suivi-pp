@@ -1375,6 +1375,9 @@ body.el-projecting #main { padding-top: 8px; }
 .el-sl { font-size: .74em; text-transform: uppercase; letter-spacing: .06em; color: var(--pencil); }
 .el-chip.col.on { background: var(--g1); color: var(--g1-on); border-color: var(--g1); }
 .el-bil-add { font-size: .86em; max-width: 14em; }
+.el-reg { display: inline-block; font: 600 .78em var(--font-mono); padding: 0 5px; border-radius: 4px; border: 1px solid var(--rule-line); color: var(--ink-deep); margin-left: 2px; }
+.el-reg.el-sortie { border-style: dashed; }
+.el-reg-sel { font-size: .86em; max-width: 12em; }
 .el-ind th { cursor: pointer; white-space: nowrap; user-select: none; }
 .el-th { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
 .el-th.el-sorted::after { content: ' ▾'; color: var(--margin-red); }
@@ -2129,6 +2132,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <select id="es-cls"></select>
     </div>
     <div class="fg"><label>Options suivies</label><div id="es-tags"></div></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:160px"><label for="es-regime">🍽 Régime</label><select id="es-regime"></select></div>
+      <div class="fg" style="flex:1;min-width:160px"><label for="es-sortie">🚸 Régime de sortie</label><select id="es-sortie"></select></div>
+    </div>
     <div class="st-hint">Scolarité — 1 au maximum (PPRE / PAP / PPS / ULIS exclusifs entre eux)</div>
     <div class="st-group">
       <label style="color:var(--st-ppre-fg)"><input type="checkbox" id="es-ppre" onchange="esStatusChange(this)"> PPRE</label>
@@ -2698,8 +2705,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.45.0';
-const APP_BUILD_DATE = '2026-10-02T21:04:20Z';
+const APP_VERSION    = '1.45.1';
+const APP_BUILD_DATE = '2026-10-02T21:30:10Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2800,6 +2807,9 @@ const DEFAULT_PREFS = {
   avisSignatureHtml: '',
   // Les colonnes MASQUÉES de la liste des élèves (v1.41.0) — des clés ; écran et papier.
   elevesColsOff: [],
+  // Les RÉGIMES DE SORTIE de l'établissement (v1.45.1) — ceux de l'utilisateur : A1 A2 D1
+  // D2 D3. Leur signification (`label`) se règle dans 💾 Données ; remplacé, jamais modifié en place.
+  regimesSortie: [{ code: 'A1', label: '' }, { code: 'A2', label: '' }, { code: 'D1', label: '' }, { code: 'D2', label: '' }, { code: 'D3', label: '' }],
 };
 function _prefs() { return (S.prefs && typeof S.prefs === 'object') ? S.prefs : (S.prefs = {}); }
 function _codeA() { const c = _prefs().codeAbsent; return (typeof c === 'string' && c.trim()) ? c.trim() : DEFAULT_PREFS.codeAbsent; }
@@ -3510,6 +3520,12 @@ function _sanitizeCoreSections() {
     if (typeof m.norm !== 'string' || !m.norm) m.norm = _moyNorm(m.nom);
     if (m.disc !== undefined && typeof m.disc !== 'string') delete m.disc;
   }
+  // Régime et régime de sortie (v1.45.1) : une valeur inconnue s'efface, un code reste du texte court.
+  for (const st of Object.values(S.eleves)) {
+    if (!_isPlainObj(st)) continue;
+    if (st.regime !== undefined && !_regimeOf(st.regime)) delete st.regime;
+    if (st.sortie !== undefined) { if (typeof st.sortie === 'string' && st.sortie.trim()) st.sortie = st.sortie.trim().slice(0, 12); else delete st.sortie; }
+  }
   for (const byId of Object.values(S.avis)) {
     for (const c of Object.values(byId)) {
       if (!Array.isArray(c.disciplines)) c.disciplines = [];
@@ -3847,6 +3863,9 @@ function _renderDonneesInner(el) {
       <label for="pref-obs-palier">Couleurs du carnet</label>
       <div class="prefs-row"><span>tous les</span> <input id="pref-obs-palier" type="number" min="0" max="100" step="1" value="${_obsPalier()}" style="max-width:80px;font-family:var(--font-mono)" onchange="setPref('obsPalier', this.value)"> <span>observations</span></div>
       <div class="pref-help">Le fond d'un cumul change de couleur à chaque multiple de cette valeur — dans la grille des observations, sa feuille imprimée, la liste des élèves et la fiche. ${_obsPalier() ? _obsLegendeHTML(_obsPalier() * OBS_BANDES) : '<strong>0 : sans couleurs.</strong>'} ${_obsPalier() ? '· 0 = sans couleurs.' : ''}</div>
+      <label for="pref-sorties">Régimes de sortie</label>
+      <textarea id="pref-sorties" rows="5" style="max-width:420px;font-family:var(--font-mono)" onchange="regimesSortieUI(this.value)">${_escName(_sortieCodes().map(c => c.code + (c.label ? ' = ' + c.label : '')).join('\n'))}</textarea>
+      <div class="pref-help">Les codes de l'établissement, un par ligne, avec leur signification après « = » (par exemple <code>D1 = sortie après la dernière heure de cours</code>). Ils se choisissent sur chaque élève (✏️, fiche, ou la puce 🍽 Régimes de la liste) et s'affichent dans la colonne Groupe · options.</div>
       <label for="pref-police-ecran">Police de l'écran</label>
       <select id="pref-police-ecran" onchange="setPref('policeEcran', this.value)" style="max-width:220px">
         ${Object.entries(_POLICES).map(([k, v]) => `<option value="${k}"${_applyPolices().ecran === k ? ' selected' : ''}>${_escName(v.label)}${k === 'andika' ? ' (par défaut)' : ''}</option>`).join('')}
@@ -5075,6 +5094,76 @@ function _elevesLigneClic(e, sid) {
   if (e && e.target && e.target.closest && e.target.closest('button, a, input, select, label, textarea')) return;
   openFiche(sid);
 }
+// ── Régime et régime de sortie (v1.45.1) ── demandé par l'utilisateur : *« dans la colonne
+// groupe · options, le régime d'entrée et de sortie — chez nous A1 A2 D1 D2 D3 — et s'ils
+// sont demi-pensionnaires ou externes »*. `stu.regime` ∈ 'DP' | 'EXT' | 'INT' (la cantine) ;
+// `stu.sortie` = un code de l'établissement (catalogue `prefs.regimesSortie`, signification
+// réglable). Un code inconnu du catalogue reste affiché tel quel : rien ne se perd.
+const REGIMES = [{ key: 'DP', label: 'Demi-pensionnaire', court: 'DP' }, { key: 'EXT', label: 'Externe', court: 'Ext.' }, { key: 'INT', label: 'Interne', court: 'Int.' }];
+function _regimeOf(k) { return REGIMES.find(r => r.key === k) || null; }
+function _sortieCodes() {
+  const a = _prefs().regimesSortie, vus = new Set();
+  const ok = Array.isArray(a) ? a.filter(x => _isPlainObj(x) && typeof x.code === 'string' && x.code.trim() && !vus.has(x.code.trim()) && vus.add(x.code.trim()))
+    .map(x => ({ code: x.code.trim().slice(0, 12), label: typeof x.label === 'string' ? x.label.trim().slice(0, 120) : '' })) : null;
+  return ok && ok.length ? ok : DEFAULT_PREFS.regimesSortie;
+}
+function _sortieLabel(code) { return _sortieCodes().find(x => x.code === code)?.label || ''; }
+// PUR : ce qu'on lit dans un export (« DEMI-PENSIONNAIRE », « DP4 », « Externe libre »…).
+function _impNormRegime(v) {
+  const u = String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+  if (!u) return null;
+  if (/DEMI|^D\.?P\.?\d*\b|RESTAUR|CANTINE/.test(u)) return 'DP';
+  if (/INTERN|^INT\b/.test(u)) return 'INT';
+  if (/EXTERN|^EXT\b/.test(u)) return 'EXT';
+  return null;
+}
+function _impNormSortie(v) { const t = String(v || '').trim().toUpperCase().replace(/\s+/g, ' '); return t ? t.slice(0, 12) : null; }
+// Les deux repères, en petites étiquettes (colonne Groupe · options, fiche).
+function _regimeBadgesHTML(stu) {
+  const r = _regimeOf(stu.regime), so = stu.sortie;
+  return `${r ? `<span class="el-reg" title="${_escAttr(r.label)}">${_escName(r.court)}</span>` : ''}${so ? `<span class="el-reg el-sortie" title="${_escAttr(`Régime de sortie ${so}${_sortieLabel(so) ? ' — ' + _sortieLabel(so) : ''}`)}">${_escName(so)}</span>` : ''}`;
+}
+function _regimeTexte(stu) {
+  const r = _regimeOf(stu.regime), so = stu.sortie;
+  return [r ? r.label : '', so ? `sortie ${so}${_sortieLabel(so) ? ' (' + _sortieLabel(so) + ')' : ''}` : ''].filter(Boolean).join(' · ');
+}
+// Saisie en série dans la liste (puce 🍽 Régimes) : une salve d'undo, comme les naissances.
+let _elevesReg = false;
+function eleveRegimeSet(sel) {
+  const s = S.eleves[sel.dataset.sid], champ = sel.dataset.champ;
+  if (!s || (champ !== 'regime' && champ !== 'sortie')) return;
+  const v = sel.value || null;
+  if ((s[champ] || null) === v) return;
+  if (champ === 'regime' && v && !_regimeOf(v)) return;
+  _elevesArmUndo();
+  if (v) s[champ] = v; else delete s[champ];
+  save();
+  const td = document.querySelector(`.el-c-grp[data-sid="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s.id) : s.id}"] .el-regs`);
+  if (td) td.innerHTML = _regimeBadgesHTML(s);
+}
+function _regimeSelectsHTML(stu) {
+  const j = _escAttr(stu.id);
+  const codes = _sortieCodes(), cur = stu.sortie;
+  return `<td><select class="el-reg-sel" data-sid="${j}" data-champ="regime" onchange="eleveRegimeSet(this)" aria-label="Régime"><option value="">—</option>${REGIMES.map(r => `<option value="${r.key}"${stu.regime === r.key ? ' selected' : ''}>${_escName(r.label)}</option>`).join('')}</select></td>
+    <td><select class="el-reg-sel" data-sid="${j}" data-champ="sortie" onchange="eleveRegimeSet(this)" aria-label="Régime de sortie"><option value="">—</option>${codes.map(c => `<option value="${_escAttr(c.code)}"${cur === c.code ? ' selected' : ''}>${_escName(c.code)}${c.label ? ' — ' + _escName(c.label) : ''}</option>`).join('')}${cur && !codes.some(c => c.code === cur) ? `<option value="${_escAttr(cur)}" selected>${_escName(cur)}</option>` : ''}</select></td>`;
+}
+// Le catalogue des codes de sortie, réglé dans 💾 Données : « A1 = … », une ligne par code.
+function regimesSortieUI(txt) {
+  const vus = new Set(), out = [];
+  for (const l of String(txt || '').split('\n')) {
+    const m = l.match(/^\s*([^=:—–-]+?)\s*(?:[=:—–-]\s*(.*))?$/);
+    if (!m || !m[1].trim()) continue;
+    const code = m[1].trim().toUpperCase().slice(0, 12);
+    if (vus.has(code)) continue;
+    vus.add(code); out.push({ code, label: (m[2] || '').trim().slice(0, 120) });
+  }
+  if (!out.length) { toast('⚠️ Il faut au moins un code.', 'warn'); renderDonnees(); return; }
+  if (JSON.stringify(out) === JSON.stringify(_sortieCodes())) return;
+  pushUndo();
+  _prefs().regimesSortie = out;   // ⚠️ remplacé, jamais modifié en place
+  save(); renderDonnees();
+  toast('✓ Régimes de sortie enregistrés.');
+}
 // L'en-tête de la colonne des élèves : deux tris, par NOM et par PRÉNOM (v1.44.4).
 function _elevesThNomHTML() {
   const b = (k, l) => { const on = eleveSort.col === k;
@@ -5497,6 +5586,7 @@ function renderStudents() {
       <span class="el-sl">Colonnes</span><span class="el-filtres">${ELEVES_COLS.map(c => { const on = _elevesColVue(c.key);
         return `<button class="el-chip col${on ? ' on' : ''}" aria-pressed="${on}" onclick="elevesColToggle('${c.key}',${!on})" title="${on ? 'Masquer' : 'Afficher'} la colonne (écran et papier)">${_escName(c.label)}</button>`; }).join('')}</span>
       <button class="el-chip col${_elevesNais ? ' on' : ''}" aria-pressed="${_elevesNais}" onclick="_elevesNais=!_elevesNais;renderStudents()" title="La colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée">📅 Naissances</button>
+      <button class="el-chip col${_elevesReg ? ' on' : ''}" aria-pressed="${_elevesReg}" onclick="_elevesReg=!_elevesReg;renderStudents()" title="Deux colonnes pour saisir en série le régime (demi-pensionnaire, externe) et le régime de sortie">🍽 Régimes</button>
       ${prop.length && _elevesColVue('bilans') ? `<select class="el-bil-add" onchange="elevesBilanColAjout(this.value)" title="Un moment de bilan de plus (un point par élève dans la colonne Bilans)"><option value="">＋ moment de bilan…</option>${prop.map(o => `<option value="${_escAttr(o.key)}">${_escName(o.label)}</option>`).join('')}</select>` : ''}
       ${compte}</div>`;
   // ⚠️ Plus de ligne « Trier » (v1.44.4, l'utilisateur : « on clique maintenant sur le titre
@@ -5535,6 +5625,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   };
   const head = `<tr><th class="el-th-nom">${_elevesThNomHTML()}</th>${
     _elevesNais ? `<th onclick="sortEleves('nais')" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance</th>` : ''}${
+    _elevesReg ? `<th title="Demi-pensionnaire, externe, interne">Régime</th><th title="Le régime de sortie de l'établissement — codes réglables dans 💾 Données">Sortie</th>` : ''}${
     cols.map(c => th(c.key, _escName(c.label), TITRES[c.key])).join('')}</tr>`;
   const dot = (titre, onclick) => `<button class="el-0" ${onclick ? `onclick="${onclick}"` : ''} title="${_escAttr(titre)}" aria-label="${_escAttr(titre)}">·</button>`;
   const body = rowsData.map(({ s, r }) => {
@@ -5545,7 +5636,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     const civ = `<span class="el-civ${s.civilite === 'M' ? ' m' : s.civilite === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(s.civilite))}">${s.civilite ? civiliteLabel(s.civilite) : '·'}</span>`;
     const cible = campCour && (campCour.cibles || []).includes(sid);
     const td = {};
-    td.grp = () => `${s.groupe ? `<span class="gbdg g${s.groupe}">G${s.groupe}</span>` : ''} ${_studentTags(s).map(_tagBadgeHTML).join('')} ${_amenBadgesHTML(s)}`;
+    td.grp = () => `${s.groupe ? `<span class="gbdg g${s.groupe}">G${s.groupe}</span>` : ''} ${_studentTags(s).map(_tagBadgeHTML).join('')} ${_amenBadgesHTML(s)} <span class="el-regs">${_regimeBadgesHTML(s)}</span>`;
     td.carnet = () => {
       if (r.cumul === null) return '<span class="el-0">·</span>';
       const m = _relMap(cid) || {};
@@ -5579,7 +5670,8 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     return `<tr class="${isFuture || isGone ? 'inactive' : ''}${fiche === sid ? ' el-cur' : ''}" onclick="_elevesLigneClic(event,'${j}')">
       <td>${civ}<a href="#" onclick="openFiche('${j}');return false" title="Ouvrir la fiche" class="el-nom">${_nomHTML(sid, s.nom, s.prenom)}</a>${cible ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}${_ageSubHTML(s, 'age-' + sid)}${life}</td>
       ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(sid)}" max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)" title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
-      ${cols.map(c => `<td class="el-c-${c.key}">${td[c.key]()}</td>`).join('')}</tr>`;
+      ${_elevesReg ? _regimeSelectsHTML(s) : ''}
+      ${cols.map(c => `<td class="el-c-${c.key}"${c.key === 'grp' ? ` data-sid="${_escAttr(sid)}"` : ''}>${td[c.key]()}</td>`).join('')}</tr>`;
   }).join('');
   // Dans le cadre .rel-wrap frozen de renderStudents.
   return `<table class="dt eleves-table el-ind"><thead>${head}</thead><tbody>${body}</tbody></table>`;
@@ -5798,7 +5890,7 @@ function _ficheRender() {
     : `${_nomHTML(stu.id, stu.nom, stu.prenom)}${cls && _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls))?.cibles?.includes(stu.id) ? ' <span class="pf-star" title="Avis demandés en particulier">⭐</span>' : ''} <button class="fi-plus" onclick="ficheEdit('nom')" title="Corriger le nom ou le prénom">✎</button>`;
   const meta = document.getElementById('mfiche-meta');
   if (meta) { const age = _ficheAge(stu.naissance), dl = _delegueOf(stu.id);
-    meta.textContent = [age !== null ? age + ' ans' : '', stu.groupe ? 'G' + stu.groupe : '', _studentTags(stu).map(x => x.abbr).join(', '), _amenLabel(stu, false), dl ? 'délégué ' + (dl === 'titulaire' ? 'titulaire' : 'suppléant') : ''].filter(Boolean).join(' · '); }
+    meta.textContent = [age !== null ? age + ' ans' : '', stu.groupe ? 'G' + stu.groupe : '', _studentTags(stu).map(x => x.abbr).join(', '), _amenLabel(stu, false), _regimeOf(stu.regime)?.court || '', stu.sortie || '', dl ? 'délégué ' + (dl === 'titulaire' ? 'titulaire' : 'suppléant') : ''].filter(Boolean).join(' · '); }
 
   const vide = txt => `<span class="fi-vide">${txt}</span>`;
   // `plus` : { onclick, title, icone } — la pastille à côté du titre, pour ajouter sans quitter la fiche.
@@ -6397,7 +6489,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const card = (k, titre, k2, corps, plus) => `<section class="pf-card"><h3>${k ? _pfSw(k) : ''}${titre}${k2 !== '' && k2 !== null ? `<span class="pf-k">${k2}</span>` : ''}${plus || ''}</h3>${corps}</section>`;
   const add = (onclick, title, ic) => `<button class="pf-add" onclick="${onclick}" title="${_escAttr(title)}">${ic || '+'}</button>`;
   const dlg = _delegueOf(sid);
-  const ident = `<dl class="pf-kv"><dt>Né(e) le</dt><dd>${stu.naissance ? _escName(_fmtDateFr(stu.naissance)) : '–'}</dd><dt>Groupe</dt><dd>${stu.groupe ? 'G' + stu.groupe : '–'}</dd><dt>Options</dt><dd>${_escName(_studentTags(stu).map(x => x.abbr).join(', ')) || '–'}</dd><dt>Aménagements</dt><dd>${_escName(_amenLabel(stu, false)) || '–'}</dd><dt>Délégué</dt><dd>${dlg ? (dlg === 'titulaire' ? 'titulaire' : 'suppléant') : '–'}</dd></dl>
+  const ident = `<dl class="pf-kv"><dt>Né(e) le</dt><dd>${stu.naissance ? _escName(_fmtDateFr(stu.naissance)) : '–'}</dd><dt>Groupe</dt><dd>${stu.groupe ? 'G' + stu.groupe : '–'}</dd><dt>Options</dt><dd>${_escName(_studentTags(stu).map(x => x.abbr).join(', ')) || '–'}</dd><dt>Aménagements</dt><dd>${_escName(_amenLabel(stu, false)) || '–'}</dd><dt>Régime</dt><dd>${_escName(_regimeOf(stu.regime)?.label || '') || '–'}</dd><dt>Sortie</dt><dd>${stu.sortie ? _escName(stu.sortie + (_sortieLabel(stu.sortie) ? ' — ' + _sortieLabel(stu.sortie) : '')) : '–'}</dd><dt>Délégué</dt><dd>${dlg ? (dlg === 'titulaire' ? 'titulaire' : 'suppléant') : '–'}</dd></dl>
     <h3 class="pf-h3b">Remarque ${add("ficheEdit('remarque')", stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', '✎')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<p class="pf-p">${_escName(stu.remarque)}</p>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
   return `<div class="pf-grid">
     ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="pf-add" onclick="ficheVersEdition()" title="Modifier l'élève : nom, civilité, groupe, options, aménagements, dates">✏️</button><button class="pf-add pf-del" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑</button>`)}
@@ -6831,6 +6923,10 @@ function openEdit(sid) {
   document.getElementById('es-naissance').value = s.naissance || '';
   document.getElementById('es-arrival').value = s.arrivalDate || '';
   document.getElementById('es-departure').value = s.departureDate || '';
+  const reg = document.getElementById('es-regime');
+  if (reg) reg.innerHTML = `<option value="">— Non renseigné —</option>${REGIMES.map(r => `<option value="${r.key}"${s.regime === r.key ? ' selected' : ''}>${_escName(r.label)}</option>`).join('')}`;
+  const so = document.getElementById('es-sortie'), codes = _sortieCodes();
+  if (so) so.innerHTML = `<option value="">— Non renseigné —</option>${codes.map(c => `<option value="${_escAttr(c.code)}"${s.sortie === c.code ? ' selected' : ''}>${_escName(c.code)}${c.label ? ' — ' + _escName(c.label) : ''}</option>`).join('')}${s.sortie && !codes.some(c => c.code === s.sortie) ? `<option value="${_escAttr(s.sortie)}" selected>${_escName(s.sortie)}</option>` : ''}`;
   document.getElementById('es-cls').innerHTML = _classList()
     .map(c => `<option value="${_escAttr(c.id)}"${c.id === s.classe_id ? ' selected' : ''}>${_escName(c.nom)}</option>`).join('');
   for (const k of STUDENT_STATUSES) {
@@ -6907,6 +7003,9 @@ function saveEdit() {
   s.naissance = nai;
   s.arrivalDate = arr;
   s.departureDate = dep;
+  const regV = document.getElementById('es-regime')?.value || '', soV = document.getElementById('es-sortie')?.value || '';
+  if (_regimeOf(regV)) s.regime = regV; else delete s.regime;
+  if (soV) s.sortie = soV; else delete s.sortie;
   for (const k of STUDENT_STATUSES) {
     const cb = document.getElementById('es-' + _statusDomId(k));
     s[k] = !!(cb && cb.checked);
@@ -7198,6 +7297,10 @@ const _IMP_FIELDS = [
     syn: ['arrivee','date arrivee','date d arrivee','entree','date entree','date d entree','arrival','arrivee le'] },
   { key: 'depart',   label: 'Date de départ (1er jour d\'absence)',
     syn: ['depart','date depart','date de depart','sortie','date sortie','date de sortie','radiation','date radiation'] },
+  { key: 'regime',   label: 'Régime (demi-pensionnaire, externe…)',
+    syn: ['regime','regime scolaire','regime de restauration','restauration','demi pension','demi-pension','qualite','statut restauration'] },
+  { key: 'sortie',   label: 'Régime de sortie (A1, D2…)',
+    syn: ['regime de sortie','regime sortie','autorisation de sortie','autorisations de sortie','autorisation sortie','sortie autorisee','code sortie','sorties'] },
   { key: 'remarque', label: 'Remarque du PP',
     syn: ['remarque','remarques','notes','note','commentaire','commentaires','observation','observations'] },
 ];
@@ -7490,14 +7593,15 @@ function _impAnalyze(text, opts) {
   const defaultClassId = opts.defaultClassId || null;
   const seen = new Map(); // dédoublonnage interne au fichier : "classe|nom|prenom"
   const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const existing = new Set(Object.values(S.eleves || {}).map(e => `${e.classe_id}|${norm(e.nom)}|${norm(e.prenom)}`));
+  const existingSid = new Map(Object.values(S.eleves || {}).map(e => [`${e.classe_id}|${norm(e.nom)}|${norm(e.prenom)}`, e.id]));
+  const existing = new Set(existingSid.keys());
   const records = [];
   const body = det.mode === 'table' && det.header ? det.rows.slice(1) : det.rows;
   body.forEach((row, i) => {
     const lineNo = i + 1 + (det.header ? 1 : 0);
     if (row.every(c => !String(c || '').trim())) return; // ligne vide
     const rec = { line: lineNo, nom: '', prenom: '', groupe: null, classeId: null, classeRaw: '', civilite: null,
-                  tagAbbrs: [], statuses: {}, arrivalDate: null, departureDate: null, remarque: '',
+                  tagAbbrs: [], statuses: {}, arrivalDate: null, departureDate: null, remarque: '', naissance: null, regime: null, sortie: null,
                   warnings: [], ok: true, dup: false };
     if (det.mode === 'table') {
       // 1) nom complet d'abord, 2) Nom / Prénom explicites par-dessus
@@ -7545,6 +7649,9 @@ function _impAnalyze(text, opts) {
         if (k === 'arrivee')  { const d = _impNormDate(v); if (String(v || '').trim() && !d) rec.warnings.push(`date « ${String(v).trim()} » non reconnue`); rec.arrivalDate = d; return; }
         if (k === 'depart')   { const d = _impNormDate(v); if (String(v || '').trim() && !d) rec.warnings.push(`date « ${String(v).trim()} » non reconnue`); rec.departureDate = d; return; }
         if (k === 'remarque') { rec.remarque = String(v || '').trim(); return; }
+        if (k === 'naissance') { const d = _impNormDate(v); if (String(v || '').trim() && !d) rec.warnings.push(`naissance « ${String(v).trim()} » non reconnue`); rec.naissance = d; return; }
+        if (k === 'regime')   { const r = _impNormRegime(v); if (String(v || '').trim() && !r) rec.warnings.push(`régime « ${String(v).trim()} » non reconnu`); rec.regime = r; return; }
+        if (k === 'sortie')   { rec.sortie = _impNormSortie(v); return; }
       });
       if (rec.classeRaw && !rec.classeId) rec.warnings.push(`classe « ${rec.classeRaw} » inconnue → classe courante`);
     } else {
@@ -7566,7 +7673,7 @@ function _impAnalyze(text, opts) {
     if (rec.ok && !rec.targetClassId) { rec.ok = false; rec.warnings.push('aucune classe cible'); }
     if (rec.ok) {
       const sig = `${rec.targetClassId}|${norm(rec.nom)}|${norm(rec.prenom)}`;
-      if (existing.has(sig)) { rec.dup = true; rec.warnings.push('déjà présent dans la classe'); if (opts.skipDup) rec.ok = false; }
+      if (existing.has(sig)) { rec.dup = true; rec.existingSid = existingSid.get(sig); rec.warnings.push('déjà présent dans la classe'); if (opts.skipDup) rec.ok = false; }
       else if (seen.has(sig)) { rec.dup = true; rec.ok = false; rec.warnings.push(`doublon de la ligne ${seen.get(sig)}`); }
       else seen.set(sig, lineNo);
     }
@@ -7846,6 +7953,30 @@ function _impFileSelected(input) {
   reader.readAsArrayBuffer(file);
 }
 
+// Les lignes écartées comme « déjà présent » qui apportent quelque chose de VIDE chez l'élève. PUR.
+function _impACompleter(res) {
+  return (res?.records || []).filter(r => !r.ok && r.existingSid && S.eleves[r.existingSid]).filter(r => { const s = S.eleves[r.existingSid];
+    return (r.naissance && !s.naissance) || (r.regime && !s.regime) || (r.sortie && !s.sortie); });
+}
+// Sans pushUndo ni save : l'appelant s'en charge. Ne remplit QUE ce qui est vide.
+function _impCompleter(recs) {
+  let n = 0;
+  for (const r of recs) {
+    const s = S.eleves[r.existingSid];
+    if (!s) continue;
+    let ch = false;
+    if (r.naissance && !s.naissance) { s.naissance = r.naissance; ch = true; }
+    if (r.regime && !s.regime) { s.regime = r.regime; ch = true; }
+    if (r.sortie && !s.sortie) { s.sortie = r.sortie; ch = true; }
+    if (ch) n++;
+  }
+  return n;
+}
+// Un code de sortie lu dans un export et inconnu du catalogue y entre (sans signification).
+function _sortieAjouteCode(code) {
+  if (!code || _sortieCodes().some(c => c.code === code)) return;
+  _prefs().regimesSortie = [..._sortieCodes(), { code, label: '' }];
+}
 function importStudents() {
   // Une classe courante n'est PAS requise : sans elle, seuls les élèves dont la colonne
   // Classe désigne (ou crée) une classe passent — l'analyse a déjà trié.
@@ -7853,9 +7984,14 @@ function importStudents() {
   _impRefresh(); // recalcul avec l'état exact des cases et du mappage
   const res = _imp.result;
   const recs = (res?.records || []).filter(r => r.ok);
-  if (!recs.length) return toast('⚠️ Aucun élève à importer.', 'warn');
+  // Les élèves DÉJÀ PRÉSENTS (lignes écartées comme doublons) : l'import COMPLÈTE ce qui est
+  // vide chez eux — naissance, régime, régime de sortie (v1.45.1) — sans rien remplacer.
+  const aCompleter = _impACompleter(res);
+  if (!recs.length && !aCompleter.length) return toast('⚠️ Aucun élève à importer.', 'warn');
 
   pushUndo();
+  const nComp = _impCompleter(aCompleter);
+  for (const code of new Set([...recs, ...aCompleter].map(r => r.sortie).filter(Boolean))) _sortieAjouteCode(code);
   let n = 0;
   const counts = {};
   const createdTags = [];
@@ -7877,6 +8013,9 @@ function importStudents() {
     const stu = { id, nom: r.nom, prenom: r.prenom, classe_id: targetCls.id,
                   groupe: r.groupe, civilite: r.civilite || null, tags: tagIds,
                   arrivalDate: r.arrivalDate || null, departureDate: r.departureDate || null };
+    if (r.naissance) stu.naissance = r.naissance;
+    if (r.regime) stu.regime = r.regime;
+    if (r.sortie) stu.sortie = r.sortie;
     if (r.remarque) stu.remarque = r.remarque;
     // Aménagements : un seul par groupe exclusif, le dernier écrit l'emporte —
     // même règle que la modale d'édition.
@@ -7902,6 +8041,7 @@ function importStudents() {
     if (first && S.classes[first]) switchClass(first);
   }
   renderStudents();
+  if (nComp) toast(`${nComp} élève${nComp > 1 ? 's' : ''} déjà présent${nComp > 1 ? 's' : ''} complété${nComp > 1 ? 's' : ''} (naissance, régime, sortie qui étaient vides).`);
   const detail = Object.entries(counts).map(([id, c]) => `${c} dans ${id}`).join(', ');
   let msg = `${n} élève(s) importé(s) (${detail}).`;
   if (createdClasses.length) msg += ` ✚ ${createdClasses.length} classe(s) créée(s) : ${createdClasses.join(', ')}`;
@@ -12652,7 +12792,7 @@ function _elevesPrintHTML(cls) {
   // qu'on a sous les yeux. Une colonne par moment de bilan, comme à l'écran.
   const cols = [
     { key: 'nom', th: 'Élève', w: 13, td: r => `<span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${role(r) ? `<small class="pp-l"><em>${_escName(role(r))}</em></small>` : ''}${r.actif ? '' : '<small class="pp-l"><em>parti</em></small>'}` },
-    { key: 'grp', th: 'Groupe · options', w: 8, td: r => `<small>${_escName([r.groupe ? 'G' + r.groupe : '', ...r.options].filter(Boolean).join(' · '))}</small>` },
+    { key: 'grp', th: 'Groupe · options', w: 8, td: (r, sid) => `<small>${_escName([r.groupe ? 'G' + r.groupe : '', ...r.options, _regimeOf(S.eleves[sid]?.regime)?.court || '', S.eleves[sid]?.sortie || ''].filter(Boolean).join(' · '))}</small>` },
     { key: 'amen', th: 'Aménag.', w: 6.5, td: r => `<small>${_escName(r.amenagements)}</small>` },
     { key: 'cumul', th: 'Observ.', w: 5.5, c: 1, td: r => r.cumul === null ? '' : `<span class="pp-big">${r.cumul}</span> <small>${_escName(jm(r.cumulDate))}</small>` },
     { key: 'delta', th: 'Δ', w: 3.5, c: 1, td: r => r.delta === null ? '' : `${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}` },
@@ -16732,6 +16872,12 @@ function createDemo(opts) {
   [1, 4, 9, 16, 20].forEach(i => E(i).tags.push(tLatin.id));
   [2, 7, 13, 21].forEach(i => E(i).tags.push(tBil.id));
   [7, 11, 18].forEach(i => E(i).tags.push(tDnl.id));
+  // Régime et régime de sortie (v1.45.1) : surtout des demi-pensionnaires, quelques externes ;
+  // les codes de sortie de l'établissement de l'utilisateur. Deux élèves sans régime de sortie.
+  sids.forEach((sid, i) => {
+    S.eleves[sid].regime = [3, 8, 14, 19, 23].includes(i) ? 'EXT' : 'DP';
+    if (i !== 6 && i !== 17) S.eleves[sid].sortie = ['A1', 'A2', 'D1', 'D2', 'D3'][(i * 7) % 5];
+  });
 
   // Aménagements : un de chaque groupe d'exclusivité, plus deux cumuls (le rendu
   // « PAP+⅓ » et « UPE2A+ / PPRE » ne se voit que s'il existe quelque part).

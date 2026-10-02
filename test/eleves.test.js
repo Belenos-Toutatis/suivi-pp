@@ -261,3 +261,54 @@ test('_bilanOrdre est FIGÉ à l\'ouverture : trié « rédigé d\'abord », enr
   assert.deepStrictEqual(evObj(`_bilanOrdre()`), ['s1', 's2', 's3'], 'mais l’ordre parcouru par ◀ ▶ non');
   ev(`_bilanOrdreFige = null; eleveSort = { col: 'nom', dir: 1 };`);
 });
+
+// ── Régime et régime de sortie (v1.45.1) ──
+test('Régime et régime de sortie : lecture d\'un export, affichage, saisie, nettoyage', () => {
+  const { loadApp } = require('./harness.js');
+  const app2 = loadApp();
+  const e2 = c => app2.__TESTEVAL(c), o2 = c => JSON.parse(JSON.stringify(app2.__TESTEVAL(c)));
+  // Les valeurs telles qu'on les trouve dans un export.
+  assert.deepStrictEqual(o2(`['DEMI-PENSIONNAIRE', 'DP4', 'Demi-pension', 'EXTERNE LIBRE', 'Externe', 'interne', 'INT', '', 'n\\'importe quoi'].map(_impNormRegime)`),
+    ['DP', 'DP', 'DP', 'EXT', 'EXT', 'INT', 'INT', null, null]);
+  assert.strictEqual(e2(`_impNormSortie(' d2 ')`), 'D2');
+  assert.deepStrictEqual(o2(`[_impGuessField('Régime'), _impGuessField('Autorisation de sortie'), _impGuessField('Régime de sortie'), _impGuessField('Date de sortie')]`), ['regime', 'sortie', 'sortie', 'depart']);
+  // Le catalogue d'office : les codes de l'utilisateur.
+  e2(`S = _emptyState(); postLoadHook();`);
+  assert.deepStrictEqual(o2(`_sortieCodes().map(c => c.code)`), ['A1', 'A2', 'D1', 'D2', 'D3']);
+  // Réglé dans Données : « code = signification », un par ligne ; un cran d'undo.
+  e2(`renderDonnees = () => {}; undoStack.length = 0; regimesSortieUI('A1 = sortie libre\\nd2 : après la dernière heure\\nA1 = doublon\\n\\nZ9')`);
+  assert.deepStrictEqual(o2(`_sortieCodes()`), [{ code: 'A1', label: 'sortie libre' }, { code: 'D2', label: 'après la dernière heure' }, { code: 'Z9', label: '' }]);
+  assert.strictEqual(e2(`undoStack.length`), 1);
+  // L'étiquette dans la colonne Groupe · options, échappée, avec la signification en infobulle.
+  e2(`S.eleves.x = { id:'x', nom:'A', prenom:'B', regime:'DP', sortie:'D2', tags:[] }`);
+  const h = e2(`_regimeBadgesHTML(S.eleves.x)`);
+  assert.match(h, /title="Demi-pensionnaire">DP</);
+  assert.match(h, /title="Régime de sortie D2 — après la dernière heure">D2</);
+  assert.strictEqual(e2(`_regimeTexte(S.eleves.x)`), 'Demi-pensionnaire · sortie D2 (après la dernière heure)');
+  // Nettoyage au chargement : un régime inconnu s'efface, un code reste.
+  e2(`S.eleves.x.regime = 'CANTINE'; S.eleves.x.sortie = '  a1 '; postLoadHook()`);
+  assert.strictEqual(e2(`S.eleves.x.regime`), undefined);
+  assert.strictEqual(e2(`S.eleves.x.sortie`), 'a1');
+});
+
+test('Import : régime, sortie et naissance lus pour les nouveaux, et COMPLÉTÉS (jamais remplacés) chez les élèves déjà présents', () => {
+  const { loadApp } = require('./harness.js');
+  const app2 = loadApp();
+  const e2 = c => app2.__TESTEVAL(c), o2 = c => JSON.parse(JSON.stringify(app2.__TESTEVAL(c)));
+  e2(`S = _emptyState(); postLoadHook(); S.classes['5C'] = { id:'5C', nom:'5C', annee:'2025-26', eleves:['a'], ord:0 }; S.cur = '5C';
+      S.eleves.a = { id:'a', nom:'DURAND', prenom:'Léa', classe_id:'5C', tags:[], regime:'EXT' };`);
+  const csv = 'Nom;Prénom;Régime;Autorisation de sortie;Date de naissance\nDURAND;Léa;DEMI-PENSIONNAIRE;D1;12/03/2013\nMARTIN;Noé;Externe;A3;05/07/2013';
+  const res = o2(`_impAnalyze(${JSON.stringify(csv)}, { defaultClassId:'5C', skipDup:true })`);
+  const noe = res.records.find(r => r.nom === 'MARTIN');
+  assert.deepStrictEqual([noe.regime, noe.sortie, noe.naissance], ['EXT', 'A3', '2013-07-05']);
+  const lea = res.records.find(r => r.nom === 'DURAND');
+  assert.strictEqual(lea.ok, false, 'déjà présente : pas de doublon');
+  assert.strictEqual(lea.existingSid, 'a');
+  // Compléter : la naissance et la sortie (vides) entrent, le régime (déjà « externe ») reste.
+  e2(`window.__r = _impAnalyze(${JSON.stringify(csv)}, { defaultClassId:'5C', skipDup:true }); _impCompleter(_impACompleter(window.__r))`);
+  assert.deepStrictEqual(o2(`[S.eleves.a.regime, S.eleves.a.sortie, S.eleves.a.naissance]`), ['EXT', 'D1', '2013-03-12']);
+  assert.strictEqual(e2(`_impACompleter(window.__r).length`), 0, 'plus rien à compléter');
+  // Un code inconnu du catalogue y entre.
+  e2(`_sortieAjouteCode('A3')`);
+  assert.ok(o2(`_sortieCodes().map(c => c.code)`).includes('A3'));
+});
