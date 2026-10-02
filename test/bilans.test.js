@@ -105,3 +105,74 @@ test('Point du mois et bilans d\'une feuille d\'avis : le bon moment, repris plu
   assert.strictEqual(mm.type, 'mois');
   assert.strictEqual(mm.date.slice(0, 7), '2025-09', 'septembre de l\'année scolaire');
 });
+
+test('Liste des élèves : une colonne par MOMENT de bilan de la période, dans l\'ordre, conseil au bout', () => {
+  ev(FIXTURE);
+  const cols = () => evObj(`_bilanColonnes(S.classes['5C'], 0, _bilanColsAjout).map(c => [c.key, c.court, c.date])`);
+  ev(`_bilanColsAjout = new Set()`);
+  // Sans aucun bilan : la seule colonne du conseil, datée dans la période.
+  const c0 = cols();
+  assert.strictEqual(c0.length, 1);
+  assert.deepStrictEqual(c0[0].slice(0, 2), ['bil:conseil:0', 'Conseil S1']);
+  assert.ok(c0[0][2] >= '2025-08-01' && c0[0][2] <= '2026-01-31');
+  ev(`bilanAdd('s1', { date:'2025-09-30', type:'mois', texte:'Septembre de Léa' });
+      bilanAdd('s2', { date:'2025-11-20', type:'miperiode', texte:'Mi-S1 de Noé' });
+      bilanAdd('s2', { date:'2026-01-22', type:'conseil', texte:'Conseil de Noé' });
+      bilanAdd('s1', { date:'2026-03-10', type:'mois', texte:'Mars : S2, pas ici' });`);
+  assert.deepStrictEqual(cols(), [['bil:mois:2025-09', 'Point sept.', '2025-09-30'], ['bil:miperiode:0', 'Mi-S1', '2025-11-20'], ['bil:conseil:0', 'Conseil S1', '2026-01-22']]);
+  // Chaque colonne ne montre QUE son moment : le bilan de mi-période n'est pas celui du conseil.
+  const de = (sid, k) => evObj(`(() => { const c = _bilanColonnes(S.classes['5C'], 0, _bilanColsAjout).find(c => c.key === '${k}'); const b = _bilanDeColonne(S.classes['5C'], '${sid}', c); return b && b.texte; })()`);
+  assert.strictEqual(de('s2', 'bil:miperiode:0'), 'Mi-S1 de Noé');
+  assert.strictEqual(de('s2', 'bil:conseil:0'), 'Conseil de Noé');
+  assert.strictEqual(de('s1', 'bil:conseil:0'), null);
+  assert.strictEqual(de('s1', 'bil:mois:2025-09'), 'Septembre de Léa');
+  // Une colonne ajoutée à la main (vide) se range à sa place ; hors période, ignorée.
+  ev(`_bilanColsAjout = new Set(['bil:mois:2025-11', 'bil:mois:2026-04', 'bil:miperiode:1', 'nimporte'])`);
+  assert.deepStrictEqual(cols().map(c => c[0]), ['bil:mois:2025-09', 'bil:mois:2025-11', 'bil:miperiode:0', 'bil:conseil:0']);
+  assert.ok(/^2025-11-/.test(cols()[1][2]), 'un bilan neuf du point de novembre est daté en novembre');
+  // Ce qu'on peut encore ajouter : ni août ni juillet, ni ce qui existe déjà.
+  const prop = evObj(`_bilanColsProposables(S.classes['5C'], 0, _bilanColonnes(S.classes['5C'], 0, _bilanColsAjout)).map(o => o.key)`);
+  assert.deepStrictEqual(prop, ['bil:mois:2025-10', 'bil:mois:2025-12', 'bil:mois:2026-01']);
+  // Le tri par une colonne : rédigé d'abord ; « bilan » (ancien nom) = la colonne du conseil.
+  ev(`_eleveFilter = ''; eleveSort = { col: 'bil:mois:2025-09', dir: 1 }`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s1', 's2']);
+  ev(`eleveSort = { col: 'bilan', dir: 1 }`);
+  assert.deepStrictEqual(evObj(`_elevesRows(S.classes['5C']).map(x => x.s.id)`), ['s2', 's1']);
+  // Ouvrir une case : la rédaction de CE moment, à la date de la colonne.
+  ev(`_bilanColsAjout = new Set(); closeMod2 && document.getElementById('mbilan')?.classList.remove('on'); elevesBilanOuvrir('s1', 'bil:miperiode:0')`);
+  assert.deepStrictEqual(evObj(`_bilanMode`), { type: 'miperiode', date: '2025-11-20' });
+  ev(`eleveSort = { col: 'nom', dir: 1 }; _bilanMode = null; _bilanOrdreFige = null`);
+});
+
+test('Liste des élèves : des colonnes se masquent (écran ET papier), « vide » est signalé, un cran d\'undo', () => {
+  ev(FIXTURE);
+  ev(`_bilanColsAjout = new Set(); _eleveFilter = ''; eleveSort = { col: 'nom', dir: 1 };
+      bilanAdd('s1', { date:'2025-11-20', type:'miperiode', texte:'Mi-S1 de Léa' });`);
+  const capture = () => ev(`(() => {
+    const zone = document.createElement('div'); const orig = document.getElementById;
+    document.getElementById = id => id === 'eleves-body' ? zone : orig.call(document, id);
+    try { renderStudents(); } finally { document.getElementById = orig; }
+    return zone.innerHTML; })()`);
+  let html = capture();
+  assert.ok(html.includes('>Mi-S1') && html.includes('>Conseil S1'), 'une colonne par moment');
+  assert.ok(html.includes(`elevesBilanOuvrir('s1','bil:miperiode:0')`));
+  assert.ok(/Non rendus<span|Non rendus<\/th>/.test(html) || html.includes('>Non rendus'), 'colonne présente par défaut');
+  assert.match(html, /Non rendus <span class="tb-hint">— vide<\/span>/, 'le choix des colonnes dit qu\'elle est vide');
+  const u = ev(`undoStack.length`);
+  ev(`elevesColToggle('docs', false); elevesColToggle('bil:miperiode:0', false)`);
+  ev(`elevesColToggle('docs', false)`);
+  assert.strictEqual(ev(`undoStack.length`), u + 2, 'déjà masquée : rien n\'est empilé');
+  assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), ['docs', 'bil:miperiode:0']);
+  assert.ok(ev(`S.prefs.elevesColsOff !== DEFAULT_PREFS.elevesColsOff && DEFAULT_PREFS.elevesColsOff.length === 0`), 'remplacé, jamais modifié en place');
+  html = capture();
+  assert.ok(!html.includes('sortEleves(\'docs\')') && !html.includes('>Mi-S1<'), 'masquées à l\'écran');
+  assert.match(html, /☰ Colonnes <span class="tb-hint">\(2 masquées\)<\/span>/);
+  const pr = ev(`_elevesPrintHTML(S.classes['5C'])`);
+  assert.ok(!pr.includes('>Non rendus<') && !pr.includes('Mi-S1') && pr.includes('>Conseil S1<'), 'et sur le papier');
+  assert.strictEqual([...pr.matchAll(/<col style/g)].length, 10);
+  // Masquer les vides d'un geste ; tout réafficher.
+  ev(`elevesColsVides()`);
+  assert.ok(evObj(`S.prefs.elevesColsOff`).includes('incidents') && !evObj(`S.prefs.elevesColsOff`).includes('cumul'), 'le carnet a des relevés : il reste');
+  ev(`elevesColsTout()`);
+  assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), []);
+});

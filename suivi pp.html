@@ -1297,6 +1297,26 @@ body.el-projecting #main { padding-top: 8px; }
 .synth-rep { font-size: .88em; line-height: 1.35; }
 .synth-rem { font-size: .85em; color: var(--ink-deep); white-space: pre-line; max-width: 260px; max-height: 4.2em; overflow: hidden; }
 .synth-rem-td { min-width: 160px; }
+/* Le choix des colonnes de la liste (v1.41.0) : un volet qui s'ouvre sous le bouton. */
+.el-cols { position: relative; }
+.el-cols > summary { list-style: none; }
+.el-cols > summary::-webkit-details-marker { display: none; }
+.el-cols-p { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; min-width: 250px; max-width: calc(100vw - 32px);
+  background: var(--paper); color: var(--ink-deep); border: 1px solid var(--rule-line); border-radius: var(--radius-sm); padding: 8px 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 3px; }
+.el-cols-l { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 400; color: var(--ink-deep); }
+.el-cols-l input { width: 15px; height: 15px; flex: none; }
+.el-cols-t { margin-top: 6px; font-weight: 700; color: var(--ink-deep); font-size: .92em; }
+.el-cols-add { margin-top: 4px; max-width: 100%; }
+.el-cols-b { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+/* Sur téléphone, un volet en surimpression sortait de l'écran (332 px pour 320) : il
+   s'ouvre DANS la barre, sur toute sa largeur. */
+@media (max-width: 520px) {
+  .el-cols { position: static; flex-basis: 100%; min-width: 0; }
+  .el-cols-p { position: static; min-width: 0; max-width: 100%; box-shadow: none; margin-top: 4px; }
+  /* ⚠️ Un <select> prend la largeur de sa plus longue option et poussait la page. */
+  .el-cols-add { width: 100%; min-width: 0; }
+}
 .synth-inc { font-size: .85em; color: var(--ink-deep); cursor: pointer; white-space: nowrap; margin-top: 2px; text-decoration: underline dotted; text-underline-offset: 2px; }
 .synth-inc:hover, .synth-inc:focus-visible { color: var(--ink-blue); }
 .synth-inc-td { white-space: nowrap; }
@@ -2400,8 +2420,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.13';
-const APP_BUILD_DATE = '2026-10-02T16:15:00Z';
+const APP_VERSION    = '1.41.0';
+const APP_BUILD_DATE = '2026-10-02T16:22:07Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -2500,6 +2520,8 @@ const DEFAULT_PREFS = {
   // La signature de la messagerie de l'utilisateur, collée en HTML (v1.40.13) — FILTRÉE à
   // l'enregistrement et au rendu (`_htmlSur`) : elle finit dans innerHTML et dans le courriel.
   avisSignatureHtml: '',
+  // Les colonnes MASQUÉES de la liste des élèves (v1.41.0) — des clés ; écran et papier.
+  elevesColsOff: [],
 };
 function _prefs() { return (S.prefs && typeof S.prefs === 'object') ? S.prefs : (S.prefs = {}); }
 function _codeA() { const c = _prefs().codeAbsent; return (typeof c === 'string' && c.trim()) ? c.trim() : DEFAULT_PREFS.codeAbsent; }
@@ -4657,6 +4679,14 @@ function _elevesRows(cls) {
     const ordre = _sortStudents(rows.map(x => x.s.id), col, cls);
     return rows.sort((a, b) => ordre.indexOf(a.s.id) - ordre.indexOf(b.s.id));
   }
+  // Une colonne de bilan : rédigé d'abord. « bilan » (nom d'avant les colonnes par moment,
+  // v1.41.0) désigne celle du conseil de la période courante.
+  if (col === 'bilan' || String(col).startsWith('bil:')) {
+    const k = col === 'bilan' ? `bil:conseil:${_carnetCurrentPeriodIdx(cls)}` : col;
+    const bc = _bilanColonnes(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).find(c => c.key === k);
+    const a1 = new Map(rows.map(x => [x.s.id, _bilanDeColonne(cls, x.s.id, bc) ? 1 : 0]));
+    return rows.sort((a, b) => ((a1.get(b.s.id) - a1.get(a.s.id)) * dir) || byName(a, b));
+  }
   const num = (x) => col === 'cumul' ? x.r.cumul : col === 'delta' ? x.r.delta : col === 'periode' ? x.r.periodeTotal
     : col === 'docs' ? x.r.nonRendus.length : col === 'incidents' ? x.r.nbIncidents : col === 'bilan' ? (x.r.bilan ? 1 : 0) : null;
   return rows.sort((a, b) => {
@@ -4687,6 +4717,146 @@ function _elevesRows(cls) {
     }
     return byName(a, b) * dir;
   });
+}
+// ── Colonnes de la liste des élèves (v1.41.0, demande de l'utilisateur : « pas besoin de
+// voir toujours toutes les colonnes, s'il n'y a pas d'actualité dedans — pouvoir en
+// décocher ; et une colonne par bilan, comme pour la mi-période ou un bilan mensuel ») ──
+// Les colonnes MASQUÉES sont une préférence durable (`S.prefs.elevesColsOff`, des clés),
+// valable pour l'écran ET le papier : la feuille montre ce qu'on a sous les yeux. Le nom et
+// les actions ne se masquent pas (une ligne sans nom ne désigne personne).
+const ELEVES_COLS = [
+  { key: 'grp',       label: 'Groupe · options' },
+  { key: 'amen',      label: 'Aménagements' },
+  { key: 'cumul',     label: 'Observations' },
+  { key: 'delta',     label: 'Δ du dernier relevé' },
+  { key: 'periode',   label: 'Total de la période' },
+  { key: 'moy',       label: 'Moyenne' },
+  { key: 'docs',      label: 'Non rendus' },
+  { key: 'incidents', label: 'Incidents' },
+  { key: 'rem',       label: 'Remarque · contacts' },
+];
+function _elevesColsOff() { const o = _prefs().elevesColsOff; return Array.isArray(o) ? o.filter(k => typeof k === 'string') : []; }
+function _elevesColVue(key) { return !_elevesColsOff().includes(key); }
+// Une colonne a-t-elle quelque chose à montrer pour ces lignes ? (« vide » dans le choix)
+function _elevesColVide(key, rows) {
+  const t = {
+    grp: x => x.s.groupe || _studentTags(x.s).length, amen: x => _amenLabel(x.s), cumul: x => x.r.cumul !== null,
+    delta: x => x.r.delta !== null, periode: x => x.r.periodeTotal !== null, moy: x => x.r.moyenne && x.r.moyenne.generale !== null,
+    docs: x => x.r.nonRendus.length, incidents: x => x.r.nbIncidents, rem: x => x.s.remarque || (x.s.journal || []).length,
+  }[key];
+  return t ? !rows.some(x => t(x)) : false;
+}
+function elevesColToggle(key, vue) {
+  const off = _elevesColsOff();
+  const neuf = vue ? off.filter(k => k !== key) : (off.includes(key) ? off : [...off, key]);
+  if (neuf.length === off.length && neuf.every((k, i) => k === off[i])) return;
+  pushUndo();
+  _prefs().elevesColsOff = neuf;      // ⚠️ remplacé, jamais modifié en place
+  save(); renderStudents();
+}
+function elevesColsVides() {
+  const cls = getCls();
+  if (!cls) return;
+  const rows = _elevesRows(cls);
+  const bcols = _bilanColonnes(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout);
+  const vides = [...ELEVES_COLS.map(c => c.key).filter(k => _elevesColVide(k, rows)),
+    ...bcols.filter(c => !rows.some(x => _bilanDeColonne(cls, x.s.id, c))).map(c => c.key)].filter(_elevesColVue);
+  if (!vides.length) return toast('Aucune colonne vide à masquer.');
+  pushUndo();
+  _prefs().elevesColsOff = [..._elevesColsOff(), ...vides];
+  save(); renderStudents();
+  toast(`${vides.length} colonne${vides.length > 1 ? 's' : ''} vide${vides.length > 1 ? 's' : ''} masquée${vides.length > 1 ? 's' : ''}.`);
+}
+function elevesColsTout() {
+  if (!_elevesColsOff().length) return;
+  pushUndo();
+  _prefs().elevesColsOff = [];
+  save(); renderStudents();
+}
+let _elColsOpen = false;
+// Le volet des colonnes se referme au clic AILLEURS, comme un menu (il reste ouvert pendant
+// qu'on coche : le re-rendu de la liste le rouvre d'après `_elColsOpen`).
+document.addEventListener('click', e => {
+  const d = document.querySelector('.el-cols[open]');
+  // Une cible DÉTACHÉE (un bouton du volet qui vient de re-rendre la liste) n'est pas « ailleurs ».
+  if (d && e.target && document.contains(e.target) && !d.contains(e.target)) { d.open = false; _elColsOpen = false; }
+});
+
+// ── Une colonne par MOMENT de bilan de la période ──
+// Le conseil de classe toujours (c'est là qu'on écrit ce qu'on dira) ; la mi-période et
+// chaque point du mois dès qu'un élève en a un — ou ajoutés à la main pour la séance, le
+// temps d'écrire le premier (`_bilanColsAjout`). Ordre chronologique, conseil au bout. PUR
+// (lit S). Une colonne = { key, type, ym, date, court, long } ; `date` est celle qu'on
+// donne à un bilan neuf de la colonne (celle de la première entrée, sinon aujourd'hui
+// ramené dans la période — dans le mois pour un point du mois).
+let _bilanColsAjout = new Set();
+const _BILAN_MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+function _bilanColonnes(cls, pIdx, ajout) {
+  const p = _periods(cls)[pIdx];
+  if (!p) return [];
+  const borne = (d, a, b) => d < a ? a : d > b ? b : d;
+  const m = new Map();
+  const add = (type, ym, date) => {
+    const key = type === 'mois' ? `bil:mois:${ym}` : `bil:${type}:${pIdx}`;
+    const c = m.get(key);
+    if (c) { if (date && (!c.premiere || date < c.premiere)) c.premiere = date; return; }
+    m.set(key, { key, type, ym: type === 'mois' ? ym : null, premiere: date || null });
+  };
+  add('conseil', null, null);
+  cls.eleves.forEach(sid => _bilansOf(sid).forEach(e => {
+    if (e.date >= p.start && e.date <= p.end) add(_bilanType(e.type).key, String(e.date).slice(0, 7), e.date);
+  }));
+  for (const k of ajout || []) {
+    const x = /^bil:(miperiode):(\d+)$/.exec(k) || /^bil:(mois):(\d{4}-\d{2})$/.exec(k);
+    if (!x) continue;
+    if (x[1] === 'miperiode' && +x[2] === pIdx) add('miperiode', null, null);
+    if (x[1] === 'mois' && x[2] >= p.start.slice(0, 7) && x[2] <= p.end.slice(0, 7)) add('mois', x[2], null);
+  }
+  const auj = _todayYmd();
+  const milieu = (() => { const a = new Date(p.start + 'T12:00:00'), b = new Date(p.end + 'T12:00:00'); return _todayYmd(new Date((a.getTime() + b.getTime()) / 2)); })();
+  return [...m.values()].map(c => {
+    let date = c.premiere;
+    if (!date) {
+      if (c.type === 'mois') { const a = c.ym + '-01', b = c.ym + '-28'; date = borne(auj.slice(0, 7) === c.ym ? auj : c.ym + '-15', a, b); }
+      else date = borne(auj, p.start, p.end);
+      date = borne(date, p.start, p.end);
+    }
+    const mo = c.ym ? +c.ym.slice(5, 7) - 1 : 0;
+    const ordre = c.type === 'mois' ? c.ym + '-01' : c.type === 'miperiode' ? (c.premiere || milieu) : '9999';
+    return { key: c.key, type: c.type, ym: c.ym, date, ordre,
+      court: c.type === 'mois' ? `Point ${_BILAN_MOIS_COURT[mo]}` : c.type === 'miperiode' ? `Mi-${p.label}` : `Conseil ${p.label}`,
+      long: c.type === 'mois' ? `Point de ${_BILAN_MOIS[mo]}` : c.type === 'miperiode' ? `Bilan de mi-période ${p.label}` : `Conseil de classe ${p.label}` };
+  }).sort((a, b) => a.ordre.localeCompare(b.ordre));
+}
+// Le bilan d'un élève pour une colonne : même type, même période (même mois). PUR.
+function _bilanDeColonne(cls, sid, col) { return col ? _bilanCible(cls, sid, { type: col.type, date: col.date }) : null; }
+// Les mois de la période qui n'ont pas encore leur colonne (pour « ＋ colonne »), sans août ni juillet.
+function _bilanColsProposables(cls, pIdx, cols) {
+  const p = _periods(cls)[pIdx];
+  if (!p) return [];
+  const out = [];
+  if (!cols.some(c => c.type === 'miperiode')) out.push({ key: `bil:miperiode:${pIdx}`, label: `Bilan de mi-période ${p.label}` });
+  const d = new Date(p.start.slice(0, 7) + '-01T12:00:00');
+  while (_todayYmd(d).slice(0, 7) <= p.end.slice(0, 7)) {
+    const ym = _todayYmd(d).slice(0, 7), mo = d.getMonth();
+    if (mo !== 6 && mo !== 7 && !cols.some(c => c.key === `bil:mois:${ym}`)) out.push({ key: `bil:mois:${ym}`, label: `Point de ${_BILAN_MOIS[mo]} ${ym.slice(0, 4)}` });
+    d.setMonth(d.getMonth() + 1);
+  }
+  return out;
+}
+function elevesBilanColAjout(key) {
+  if (!key) return;
+  _bilanColsAjout.add(key);
+  // Ajoutée, elle doit se voir : si elle avait été masquée, on la rend visible.
+  if (_elevesColsOff().includes(key)) { pushUndo(); _prefs().elevesColsOff = _elevesColsOff().filter(k => k !== key); save(); }
+  renderStudents();
+  toast('Colonne ajoutée — elle restera dès le premier bilan écrit.');
+}
+function elevesBilanOuvrir(sid, colKey) {
+  const cls = getCls();
+  const col = cls && _bilanColonnes(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).find(c => c.key === colKey);
+  if (!col) return openBilan(sid);
+  openBilan(sid, null, { mode: { type: col.type, date: col.date } });
 }
 function sortEleves(col) {
   if (eleveSort.col === col) eleveSort.dir = -eleveSort.dir;
@@ -4764,6 +4934,22 @@ function _matchFilter(stu, q) {
   return norm(q).split(/\s+/).filter(Boolean).every(t => hay.includes(t));
 }
 
+// Le choix des colonnes : une liste à cocher qui DIT lesquelles sont vides, « masquer les
+// vides » d'un geste, et l'ajout d'une colonne de bilan (mi-période, point du mois).
+function _elevesColsPickHTML(cls, rowsData, bcols, pIdx) {
+  const nOff = ELEVES_COLS.filter(c => !_elevesColVue(c.key)).length + bcols.filter(c => !_elevesColVue(c.key)).length;
+  const ligne = (key, label, vide) => `<label class="el-cols-l"><input type="checkbox"${_elevesColVue(key) ? ' checked' : ''} onchange="elevesColToggle('${_escJsAttr(key)}',this.checked)"> ${_escName(label)}${vide ? ' <span class="tb-hint">— vide</span>' : ''}</label>`;
+  const prop = _bilanColsProposables(cls, pIdx, bcols);
+  return `<details class="el-cols"${_elColsOpen ? ' open' : ''} ontoggle="_elColsOpen=this.open">
+    <summary class="btn btn-g btn-sm" title="Choisir les colonnes affichées (et imprimées)">☰ Colonnes${nOff ? ` <span class="tb-hint">(${nOff} masquée${nOff > 1 ? 's' : ''})</span>` : ''}</summary>
+    <div class="el-cols-p">
+      ${ELEVES_COLS.map(c => ligne(c.key, c.label, _elevesColVide(c.key, rowsData))).join('')}
+      <div class="el-cols-t">Bilans ${_escName(_periods(cls)[pIdx]?.label || '')}</div>
+      ${bcols.map(c => ligne(c.key, c.long, !rowsData.some(x => _bilanDeColonne(cls, x.s.id, c)))).join('')}
+      ${prop.length ? `<select class="el-cols-add" onchange="elevesBilanColAjout(this.value)"><option value="">＋ Ajouter une colonne de bilan…</option>${prop.map(o => `<option value="${_escAttr(o.key)}">${_escName(o.label)}</option>`).join('')}</select>` : ''}
+      <div class="el-cols-b"><button class="btn btn-g btn-sm" onclick="elevesColsVides()">Masquer les colonnes vides</button>${nOff ? ` <button class="btn btn-g btn-sm" onclick="elevesColsTout()">Tout afficher</button>` : ''}</div>
+    </div></details>`;
+}
 function renderStudents() {
   const el = document.getElementById('eleves-body');
   if (!el) return;
@@ -4798,6 +4984,12 @@ function renderStudents() {
   };
   const today = _todayYmd();
 
+  // Colonnes visibles (v1.41.0) et colonnes de bilan de la période courante.
+  const vu = Object.fromEntries(ELEVES_COLS.map(c => [c.key, _elevesColVue(c.key)]));
+  const pCour = _carnetCurrentPeriodIdx(cls);
+  const bcolsTout = _bilanColonnes(cls, pCour, _bilanColsAjout);
+  const bcols = bcolsTout.filter(c => _elevesColVue(c.key));
+  const vuPer = vu.periode;
   const rows = rowsData.map(({ s, r }) => {
     const civColor = s.civilite === 'M' ? 'var(--civ-m)' : s.civilite === 'F' ? 'var(--civ-f)' : 'var(--pencil-soft)';
     const civBtn = `<button class="btn btn-sm" onclick="cycleCivilite('${_escJsAttr(s.id)}')" title="Civilité : ${_escAttr(civiliteFullLabel(s.civilite))} — clic pour cycler" style="background:transparent;color:${civColor};font-size:1.05em;padding:0 5px;font-weight:700;min-width:22px">${civiliteLabel(s.civilite)}</button>`;
@@ -4850,12 +5042,14 @@ function renderStudents() {
     const inc = `<button class="btn btn-sm" style="${stSty(!!r.nbIncidents, '#8c3f1d', 0)}" onclick="openIncident('${_escJsAttr(s.id)}')" title="${_escAttr(incTitre)}">⚖️${r.nbIncidents ? ' ' + r.nbIncidents : ''}</button>${
       r.nbIncidents ? `<div class="synth-inc" role="button" tabindex="0" title="${_escAttr(r.incident.objet)} — clic pour modifier cette entrée" onclick="openIncident('${_escJsAttr(s.id)}','${_escJsAttr(r.incident.id)}')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.click()}">${_escName(_fmtDateFr(r.incident.date))} · ${_escName(_instanceOf(r.incident.type).label)}</div>` : ''}`;
 
-    // Bilan de la période courante : le bouton ouvre la rédaction (et enchaîne les élèves
-    // dans l'ordre de la liste — préparer un conseil, c'est passer sur les vingt-cinq).
-    const bil = r.bilan;
-    const bilTitre = bil ? `${_bilanLabel(bil)} — ${_fmtDateFr(bil.date)}\n${bil.texte}` : `Préparer le conseil de classe ${r.periodeLabel} : ce que je dirai de cet élève`;
-    const bilBtn = `<button class="btn btn-sm" style="${stSty(!!bil, '#3b5a8c', 0)}" onclick="openBilan('${_escJsAttr(s.id)}')" title="${_escAttr(bilTitre)}">${bil ? _bilanType(bil.type).icon : '🎓'}</button>${
-      bil ? `<div class="synth-rem" title="${_escAttr(bil.texte)}">${_escName(bil.texte)}</div>` : ''}`;
+    // Une case par MOMENT de bilan (v1.41.0) : le bouton ouvre la rédaction de CE moment,
+    // et enchaîne les élèves dans l'ordre de la liste — on remplit une colonne.
+    const bilCells = bcols.map(c => {
+      const bil = _bilanDeColonne(cls, s.id, c);
+      const bilTitre = bil ? `${_bilanLabel(bil)} — ${_fmtDateFr(bil.date)}\n${bil.texte}` : `${c.long} : écrire le bilan de cet élève`;
+      return `<td class="synth-rem-td"><button class="btn btn-sm" style="${stSty(!!bil, '#3b5a8c', 0)}" onclick="elevesBilanOuvrir('${_escJsAttr(s.id)}','${_escJsAttr(c.key)}')" title="${_escAttr(bilTitre)}">${_bilanType(c.type).icon}</button>${
+        bil ? `<div class="synth-rem" title="${_escAttr(bil.texte)}">${_escName(bil.texte)}</div>` : ''}</td>`;
+    }).join('');
 
     return `<tr${(isFuture || isGone) ? ' class="inactive"' : ''}>
       <td>${civBtn}<a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète"
@@ -4863,13 +5057,13 @@ function renderStudents() {
       ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(s.id)}"
             max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)"
             title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
-      <td style="white-space:nowrap">${grpBadge}${tagsHtml ? '<br><span style="display:inline-block;margin-top:3px">' + tagsHtml + '</span>' : ''}</td>
-      <td class="amen-td" onclick="openEdit('${_escJsAttr(s.id)}')" title="${_escAttr(_amenLabel(s) || 'Aucun aménagement')} — clic pour modifier">${_amenBadgesHTML(s)}</td>
-      <td style="white-space:nowrap">${carnet}</td><td style="text-align:center">${delta}</td><td style="text-align:center">${per}</td>
-      <td style="text-align:center;white-space:nowrap">${moy}</td>
-      <td>${nr}</td><td class="synth-inc-td">${inc}</td>
-      <td class="synth-rem-td">${remBtn}</td>
-      <td class="synth-rem-td">${bilBtn}</td>
+      ${vu.grp ? `<td style="white-space:nowrap">${grpBadge}${tagsHtml ? '<br><span style="display:inline-block;margin-top:3px">' + tagsHtml + '</span>' : ''}</td>` : ''}
+      ${vu.amen ? `<td class="amen-td" onclick="openEdit('${_escJsAttr(s.id)}')" title="${_escAttr(_amenLabel(s) || 'Aucun aménagement')} — clic pour modifier">${_amenBadgesHTML(s)}</td>` : ''}
+      ${vu.cumul ? `<td style="white-space:nowrap">${carnet}</td>` : ''}${vu.delta ? `<td style="text-align:center">${delta}</td>` : ''}${vuPer ? `<td style="text-align:center">${per}</td>` : ''}
+      ${vu.moy ? `<td style="text-align:center;white-space:nowrap">${moy}</td>` : ''}
+      ${vu.docs ? `<td>${nr}</td>` : ''}${vu.incidents ? `<td class="synth-inc-td">${inc}</td>` : ''}
+      ${vu.rem ? `<td class="synth-rem-td">${remBtn}</td>` : ''}
+      ${bilCells}
       <td style="white-space:nowrap">
         <button class="btn btn-g btn-sm" onclick="openEdit('${_escJsAttr(s.id)}')" title="Modifier l'élève">✏️</button>
         <button class="btn btn-d btn-sm" onclick="deleteStudent('${_escJsAttr(s.id)}')" title="Supprimer l'élève">🗑</button>
@@ -4886,8 +5080,9 @@ function renderStudents() {
      { key: 'delta', label: 'par Δ du dernier relevé' }, { key: 'cumul', label: 'par total d\'observations' },
      { key: 'periode', label: `par total ${per}` }, { key: 'moy', label: 'par moyenne générale — la plus basse d\'abord' },
      { key: 'docs', label: 'par documents non rendus' }, { key: 'incidents', label: 'par incidents' },
-     { key: 'bilan', label: `par bilan ${per} (rédigé d'abord)` }])}
+     ...bcols.map(c => ({ key: c.key, label: `par ${c.long.charAt(0).toLowerCase() + c.long.slice(1)} (rédigé d'abord)` }))])}
     <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Afficher la colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée"><input type="checkbox"${_elevesNais ? ' checked' : ''} onchange="_elevesNais=this.checked;renderStudents()"> 📅 naissances</label>
+    ${_elevesColsPickHTML(cls, rowsData, bcolsTout, pCour)}
     <span class="tb-hint">Les en-têtes de colonne trient aussi, et s'inversent au second clic.</span>
     <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="openAvis()" title="Demander l'avis des collègues sur les élèves — une feuille du Nuage, un onglet par discipline — puis relire leurs réponses">🗣 Avis des collègues…</button>
     <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
@@ -4898,16 +5093,16 @@ function renderStudents() {
       <thead><tr>
         <th onclick="sortEleves('nom')" style="cursor:pointer">Élève${arrow('nom')}</th>
         ${_elevesNais ? `<th onclick="sortEleves('nais')" style="cursor:pointer" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance${arrow('nais')}</th>` : ''}
-        <th onclick="sortEleves('grp')" style="cursor:pointer">Groupe · options${arrow('grp')}</th>
-        <th onclick="sortEleves('amen')" style="cursor:pointer" title="Aménagements pédagogiques (PPRE · PAP · PPS · ULIS · UPE2A — exclusifs à l'intérieur de leur groupe), médicaux (PAI) et d'examen (📄-A agrandissement · ⏱+⅓ tiers-temps), cumulables. Se modifient par ✏️, ou d'un clic sur la case.">Aménag.${arrow('amen')}</th>
-        <th onclick="sortEleves('cumul')" style="cursor:pointer" title="Dernier total d'observations relevé dans le carnet">Observations${arrow('cumul')}</th>
-        <th onclick="sortEleves('delta')" style="cursor:pointer" title="Évolution au dernier relevé">Δ${arrow('delta')}</th>
-        <th onclick="sortEleves('periode')" style="cursor:pointer" title="Total de la période courante">${_escName(per)}${arrow('periode')}</th>
-        <th onclick="sortEleves('moy')" style="cursor:pointer" title="Dernière moyenne générale importée (onglet 📈 Moyennes), son évolution, et le nombre de matières sous 10 — la plus basse d'abord">Moy.${arrow('moy')}</th>
-        <th onclick="sortEleves('docs')" style="cursor:pointer" title="Documents non rendus — survol ou clic pour la liste">Non rendus${arrow('docs')}</th>
-        <th onclick="sortEleves('incidents')" style="cursor:pointer" title="Incidents et instances — le nombre, et le dernier">Incidents${arrow('incidents')}</th>
-        <th title="Dernier contact avec la famille, puis la remarque libre">Remarque · contacts</th>
-        <th onclick="sortEleves('bilan')" style="cursor:pointer" title="Ce que je dirai de l'élève au conseil de classe, ou ce que je retiens au bilan de mi-période — pour la période courante. Clic sur 🎓 pour rédiger, élève après élève.">Conseil ${_escName(per)}${arrow('bilan')}</th>
+        ${vu.grp ? `<th onclick="sortEleves('grp')" style="cursor:pointer">Groupe · options${arrow('grp')}</th>` : ''}
+        ${!vu.amen ? '' : `<th onclick="sortEleves('amen')" style="cursor:pointer" title="Aménagements pédagogiques (PPRE · PAP · PPS · ULIS · UPE2A — exclusifs à l'intérieur de leur groupe), médicaux (PAI) et d'examen (📄-A agrandissement · ⏱+⅓ tiers-temps), cumulables. Se modifient par ✏️, ou d'un clic sur la case.">Aménag.${arrow('amen')}</th>`}
+        ${vu.cumul ? `<th onclick="sortEleves('cumul')" style="cursor:pointer" title="Dernier total d'observations relevé dans le carnet">Observations${arrow('cumul')}</th>` : ''}
+        ${vu.delta ? `<th onclick="sortEleves('delta')" style="cursor:pointer" title="Évolution au dernier relevé">Δ${arrow('delta')}</th>` : ''}
+        ${vu.periode ? `<th onclick="sortEleves('periode')" style="cursor:pointer" title="Total de la période courante">${_escName(per)}${arrow('periode')}</th>` : ''}
+        ${vu.moy ? `<th onclick="sortEleves('moy')" style="cursor:pointer" title="Dernière moyenne générale importée (onglet 📈 Moyennes), son évolution, et le nombre de matières sous 10 — la plus basse d'abord">Moy.${arrow('moy')}</th>` : ''}
+        ${vu.docs ? `<th onclick="sortEleves('docs')" style="cursor:pointer" title="Documents non rendus — survol ou clic pour la liste">Non rendus${arrow('docs')}</th>` : ''}
+        ${vu.incidents ? `<th onclick="sortEleves('incidents')" style="cursor:pointer" title="Incidents et instances — le nombre, et le dernier">Incidents${arrow('incidents')}</th>` : ''}
+        ${vu.rem ? `<th title="Dernier contact avec la famille, puis la remarque libre">Remarque · contacts</th>` : ''}
+        ${bcols.map(c => `<th onclick="sortEleves('${_escJsAttr(c.key)}')" style="cursor:pointer" title="${_escAttr(c.long)} — clic sur l'icône d'un élève pour écrire, puis ◀ ▶ d'un élève à l'autre ; clic sur l'en-tête : rédigés d'abord">${_escName(c.court)}${arrow(c.key) || (c.type === 'conseil' && eleveSort.col === 'bilan' ? arrow('bilan') : '')}</th>`).join('')}
         <th style="cursor:default">Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -11509,35 +11704,41 @@ function _printContactHTML(r) {
 // de chaque page (thead) et aucune rangée coupée entre deux pages.
 const _ELEVES_PRINT_PT = 8.5;
 function _elevesPrintHTML(cls) {
-  const rows = _elevesRows(cls).map(x => x.r);
-  const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)]?.label || '';
+  const rowsData = _elevesRows(cls);
+  const rows = rowsData.map(x => x.r);
+  const pIdx = _carnetCurrentPeriodIdx(cls);
+  const per = _periods(cls)[pIdx]?.label || '';
   const jm = ymd => { const x = String(ymd || '').split('-'); return x.length === 3 ? `${x[2]}/${x[1]}` : ''; };
-  // Le texte libre (remarque, conseil) a la place ; les colonnes de chiffres le minimum.
-  const cols = [['Élève', 13], ['Groupe · options', 8], ['Aménag.', 6.5], ['Observ.', 5.5, 'c'], ['Δ', 3.5, 'c'], [_escName(per), 4, 'c'],
-    ['Moy.', 6.5, 'c'], ['Non rendus', 9], ['Incidents', 11.5], ['Remarque · contacts', 17], [`Conseil ${_escName(per)}`, 15.5]];
   // Moyenne en deux lignes courtes au plus (« 11,1 +0,2 » puis « 1 < 10 ») : la version
   // longue de la liste à l'écran (« 1 matière < 10 ») s'étalait sur trois lignes dans
   // une colonne de chiffres et doublait la hauteur de la rangée.
   const moy = m => !m || m.generale === null ? '' : `<span class="pp-big">${_escName(_fmtNote(m.generale))}</span>${
     m.delta !== null ? ` <small>${_escName(_fmtDelta(m.delta))}</small>` : ''}${m.sous10 ? `<small class="pp-l">${m.sous10} &lt; 10</small>` : ''}`;
-  const tot = cols.reduce((n, c) => n + c[1], 0);
-  const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c[1] / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
   const role = r => [r.delegue ? (r.delegue === 'titulaire' ? 'délégué' : 'délégué suppléant') : '', r.eco ? (r.eco === 'suppleant' ? 'éco-délégué suppléant' : 'éco-délégué') : ''].filter(Boolean).join(' · ');
-  const body = rows.map(r => `<tr${r.actif ? '' : ' class="pp-parti"'}>
-      <td><span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${role(r) ? `<small class="pp-l"><em>${_escName(role(r))}</em></small>` : ''}${r.actif ? '' : '<small class="pp-l"><em>parti</em></small>'}</td>
-      <td><small>${_escName([r.groupe ? 'G' + r.groupe : '', ...r.options].filter(Boolean).join(' · '))}</small></td>
-      <td><small>${_escName(r.amenagements)}</small></td>
-      <td class="c">${r.cumul === null ? '' : `<span class="pp-big">${r.cumul}</span> <small>${_escName(jm(r.cumulDate))}</small>`}</td>
-      <td class="c">${r.delta === null ? '' : `${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}`}</td>
-      <td class="c">${r.periodeTotal ?? ''}</td>
-      <td class="c">${moy(r.moyenne)}</td>
-      <td><small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small></td>
-      <td><small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small></td>
-      <td class="pp-rem"><small>${_printContactHTML(r)}${_escName(r.remarque)}</small></td>
-      <td class="pp-rem"><small>${r.bilan ? _escName(r.bilan.texte) : ''}</small></td></tr>`).join('');
+  // Le texte libre (remarque, bilans) a la place ; les colonnes de chiffres le minimum.
+  // ⚠️ Les colonnes MASQUÉES à l'écran le sont aussi ici (v1.41.0) : la feuille montre ce
+  // qu'on a sous les yeux. Une colonne par moment de bilan, comme à l'écran.
+  const cols = [
+    { key: 'nom', th: 'Élève', w: 13, td: r => `<span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${role(r) ? `<small class="pp-l"><em>${_escName(role(r))}</em></small>` : ''}${r.actif ? '' : '<small class="pp-l"><em>parti</em></small>'}` },
+    { key: 'grp', th: 'Groupe · options', w: 8, td: r => `<small>${_escName([r.groupe ? 'G' + r.groupe : '', ...r.options].filter(Boolean).join(' · '))}</small>` },
+    { key: 'amen', th: 'Aménag.', w: 6.5, td: r => `<small>${_escName(r.amenagements)}</small>` },
+    { key: 'cumul', th: 'Observ.', w: 5.5, c: 1, td: r => r.cumul === null ? '' : `<span class="pp-big">${r.cumul}</span> <small>${_escName(jm(r.cumulDate))}</small>` },
+    { key: 'delta', th: 'Δ', w: 3.5, c: 1, td: r => r.delta === null ? '' : `${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}` },
+    { key: 'periode', th: _escName(per), w: 4, c: 1, td: r => `${r.periodeTotal ?? ''}` },
+    { key: 'moy', th: 'Moy.', w: 6.5, c: 1, td: r => moy(r.moyenne) },
+    { key: 'docs', th: 'Non rendus', w: 9, td: r => `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` },
+    { key: 'incidents', th: 'Incidents', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
+    { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(r.remarque)}</small>` },
+    ..._bilanColonnes(cls, pIdx, _bilanColsAjout).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
+      td: (r, sid) => { const b = _bilanDeColonne(cls, sid, c); return `<small>${b ? _escName(b.texte) : ''}</small>`; } })),
+  ].filter(c => c.key === 'nom' || _elevesColVue(c.key));
+  const tot = cols.reduce((n, c) => n + c.w, 0);
+  const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c.w / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
+  const body = rows.map((r, i) => `<tr${r.actif ? '' : ' class="pp-parti"'}>${cols.map(c =>
+    `<td${c.c ? ' class="c"' : c.rem ? ' class="pp-rem"' : ''}>${c.td(r, rowsData[i].s.id)}</td>`).join('')}</tr>`).join('');
   return `<div class="pp-titre">${_escName(cls.nom)} — ${_escName(cls.annee || '')}</div>
     <p class="pp-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}</p>
-    <table class="pp-t pp-el">${colgroup}<thead><tr>${cols.map(c => `<th${c[2] ? ' class="c"' : ''}>${c[0]}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+    <table class="pp-t pp-el">${colgroup}<thead><tr>${cols.map(c => `<th${c.c ? ' class="c"' : ''}>${c.th}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
 }
 function printEleves() {
   const cls = getCls();
@@ -15431,6 +15632,9 @@ function createDemo(opts) {
     [0, '05-20', 'conseil',   'Le contrat a tenu jusqu\'en avril, puis relâchement (+11 au S2). Rencontre prévue avec la mère avant le conseil. Ne pas parler d\'orientation sans elle.'],
     [16, '05-20', 'conseil',  'Année exemplaire. Proposer les félicitations.'],
     [9, '04-10', 'miperiode', 'Une seule observation depuis février : comportement stabilisé depuis le changement de place. Le dire au conseil.'],
+    // Un point du mois au S2 (v1.41.0) : la liste montre alors trois colonnes de bilan —
+    // point de mars, mi-S2, conseil S2 — et non la seule du conseil.
+    [12, '03-27', 'mois', 'Plus régulier dans les devoirs depuis la mise en place du PAP. Continuer à valoriser les progrès.'],
   ];
   bilans.forEach(([i, md, type, texte], k) => {
     const e = bilanAdd(sids[i], { date: D(md), type, texte });

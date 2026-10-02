@@ -1035,6 +1035,32 @@ code (`tab-carnets`, `documents-body`, `S.releves`, `renderCarnets`…) ne bouge
 renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
 
 1. **👥 Élèves** — liste triable, import, ajout/édition, remarque libre, aménagements, arrivée/départ — **et, depuis la fusion de la Synthèse (v1.23.0), le suivi** : observations (dernier total + date), Δ, total de période, non rendus (pastille), incidents, remarque · contacts. **C'est l'écran de préparation du conseil de classe et des appels aux parents.** Une seule fonction, `_elevesRows(cls)`, filtre et trie les lignes `{ s, r: _syntheseRow(cls, s) }` pour l'écran ET l'impression (`printEleves`, paysage) ; les colonnes de suivi se trient par en-tête, en décroissant au premier clic (le plus chargé d'abord), inconnus en fin. La colonne **Naissance** est masquée par défaut (la ligne est longue) : case « 📅 naissances » dans la barre pour une saisie en série.
+   - **Colonnes à masquer** (v1.41.0, demande de l'utilisateur : *« pas besoin de voir
+     toujours toutes les colonnes, s'il n'y a pas d'actualité dedans — pouvoir en
+     décocher »*) : bouton **☰ Colonnes** de la barre, un volet à cocher (`ELEVES_COLS`,
+     `_elevesColsPickHTML`) qui **dit** lesquelles sont vides (`_elevesColVide`), avec
+     *Masquer les colonnes vides* et *Tout afficher*. `S.prefs.elevesColsOff` (des clés,
+     remplacé jamais modifié en place, un cran d'undo par geste, rien si rien ne change) :
+     préférence DURABLE, et valable **pour le papier aussi** (`_elevesPrintHTML` bâtit ses
+     colonnes de la même liste). Le nom et les actions ne se masquent pas. Le volet reste
+     ouvert pendant qu'on coche (`_elColsOpen`) et se ferme au clic ailleurs — ⚠️ une cible
+     DÉTACHÉE (bouton du volet qui vient de re-rendre la liste) n'est pas « ailleurs ».
+     ⚠️ À 320 px le volet en surimpression sortait de l'écran : sous 520 px il s'ouvre dans
+     la barre, et son `<select>` est borné (il prend sinon la largeur de sa plus longue option).
+   - **Une colonne par MOMENT de bilan** (v1.41.0, même demande : *« une colonne par bilan,
+     comme pour la moitié d'une période ou un bilan mensuel »*) : `_bilanColonnes(cls, pIdx,
+     ajout)` (pur) — le **conseil** de la période courante toujours, la **mi-période** et
+     chaque **point du mois** dès qu'un élève en a un ; ordre chronologique, conseil au bout ;
+     en-têtes courts (*Point sept.*, *Mi-S1*, *Conseil S1*), libellé long en infobulle. Une
+     case ne montre QUE son moment (`_bilanDeColonne` = `_bilanCible`) : le bilan de
+     mi-période n'apparaît plus dans la colonne du conseil. Cliquer la case ouvre la
+     rédaction de CE moment (`elevesBilanOuvrir` → `openBilan` en mode `{ type, date }`), et
+     ◀ ▶ remplit la colonne d'un élève à l'autre. *＋ Ajouter une colonne de bilan…* (dans
+     le volet) crée une colonne vide pour la séance (`_bilanColsAjout`, rien dans `S`) —
+     elle reste d'elle-même dès le premier bilan écrit ; ni août ni juillet proposés. Tri par
+     en-tête « rédigé d'abord » ; l'ancien tri `bilan` désigne la colonne du conseil. Les
+     colonnes de bilan se masquent comme les autres, et s'impriment une par une. Démo : un
+     point de mars au S2 (trois colonnes de bilan au S2 : mars, mi-S2, conseil).
    - **Aménagements en LECTURE dans la liste** (2026-09-11) : seuls les actifs, en texte
      coloré (`_amenBadgesHTML`, mêmes encres `--st-*-fg` que les cases de la modale ✏️).
      Les huit boutons-bascules d'origine faisaient de cette colonne la plus large du tableau
@@ -1418,6 +1444,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 75 | **Liste des élèves : colonnes à masquer** (volet ☰ Colonnes, « vide » signalé, masquer les vides, écran et papier, `S.prefs.elevesColsOff`) · **une colonne par moment de bilan** (conseil, mi-période, point du mois ; ajout d'une colonne vide) ; démo : point de mars ; 2 tests. Audit 2 thèmes, 1 570 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.41.0) |
 | 74 | **Formule de politesse et signature** du message aux collègues (nom, établissement, ou signature HTML de la messagerie collée et filtrée par `_htmlSur`), aperçu sur fond courriel blanc ; 2 tests. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.13) |
 | 73 | **Objet du courriel** proposé selon l'objectif, modifiable, copié à part (`_avisObjetMail`, `avisCopierObjet`) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.12) |
 | 72 | **Message aux collègues en texte riche** : aperçu mis en forme, copie HTML + texte (gras, puces, lien cliquable), copie en texte brut à part, mots clés en gras dans les textes proposés ; 1 test. Audit 2 thèmes et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.40.11) |
