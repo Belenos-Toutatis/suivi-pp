@@ -1133,6 +1133,26 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      - ⚠️ `--chip-on-fg` (nouveau token, aux trois endroits) : l'encre d'une puce active
        était `--paper`, qui s'assombrit la nuit — 2,5:1 mesuré. Corrige aussi les touches
        du carnet (`.rel-sug-kbd.on`), qui avaient le même défaut.
+   - ⚠️ **Révisé en v1.44.2 — le tableau EST celui du prototype** (l'utilisateur : *« j'aimais
+     bien ton tableau, mais vraiment le même — comment ça se fait que tu ne m'as pas remis
+     les mêmes ? »*). La v1.43.0 avait greffé les indicateurs sur l'ancienne liste au lieu de
+     reprendre le prototype choisi : **quand l'utilisateur valide un prototype, on le
+     reproduit, on ne l'adapte pas**. Désormais (`_elevesIndicHTML`) : colonnes `ELEVES_COLS`
+     = Groupe · options (groupe, options ET aménagements) · **Carnet** (cumul à la couleur du
+     palier, Δ, courbe de l'année `_elevesSpark`) · Moy. · Papiers (« n à rendre ») ·
+     Incidents (« ⚖ n » + date du dernier) · **Contacts** (« ☎ n » + date, colonne à part) ·
+     Avis coll. · **Bilans** (UN point par moment, plein = écrit, séparés par période) ·
+     Remarque (une ligne) ; et le **genre** (♂ ♀ coloré) devant le nom, demandé en plus.
+     **Vue** en boutons et **Colonnes** en puces, visibles dans la barre (le volet ☰ est
+     retiré). Un clic sur la ligne ouvre la fiche (`_elevesLigneClic`) ; les cases qui ont un
+     geste le gardent : ⚖ et la date → l'incident, ☎ → les contacts, un point → la
+     rédaction de CE moment, la remarque → la remarque. La colonne d'actions est retirée :
+     modifier et **supprimer** (🗑 ajouté au pied de la fiche) passent par la fiche.
+     Anciennes clés de `elevesColsOff` : `cumul` → `carnet`, les autres ignorées. Le papier
+     garde son détail (Δ, total, une colonne de texte par moment) et suit les puces
+     (`_elevesPrintVue`). Carte de chaleur alignée aussi : Δ du relevé aux couleurs des
+     paliers (`chob-N`), avis sur trois niveaux (`--av-1/2/3-bg/fg`, aux trois endroits),
+     le genre devant le nom, la ligne cliquable.
    - **Aménagements en LECTURE dans la liste** (2026-09-11) : seuls les actifs, en texte
      coloré (`_amenBadgesHTML`, mêmes encres `--st-*-fg` que les cases de la modale ✏️).
      Les huit boutons-bascules d'origine faisaient de cette colonne la plus large du tableau
@@ -1570,6 +1590,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 81 | **Liste = le tableau du prototype** (cases courtes, carnet avec courbe, contacts à part, bilans en points, remarque sur une ligne, genre devant le nom), **vues en boutons, colonnes en puces**, carte de chaleur alignée (couleurs des paliers, trois niveaux d'avis), suppression depuis la fiche ; tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.2) |
 | 80 | **Bouton** plein écran / à côté dans la fiche (la largeur de l'écran décide par défaut, le choix vaut pour la session) · **titres d'onglet retirés** · **seule la grille défile** dans Élèves, Observations, Moyennes ; test mis à jour. Audit 6 onglets + fiche, 2 thèmes, 1 440 / 2 560 / 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.1) |
 | 79 | **Fiche élève refondue** : trois vues (tableau de bord en colonnes, chronologie avec frise et journal, faits et rédaction avec avis en tableau, mots qui reviennent et brouillon), synthèse bornée à un moment, bilan écrit en place, ouverture à côté de la liste sur écran large ou plein écran ; 6 tests (`test/fiche-synthese.test.js`). Audit 3 vues × 2 thèmes à 2 560, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.0) |
 | 78 | **Liste des élèves : deux affichages** (indicateurs sur une ligne par élève, carte de chaleur repliable par groupe), **filtres d'un clic** cumulables, **vues** toutes faites, colonne **Avis** des collègues (traits par discipline, n/N, ⭐) ; token `--chip-on-fg` ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.43.0) |

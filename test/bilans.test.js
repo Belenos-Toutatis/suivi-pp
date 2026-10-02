@@ -144,9 +144,11 @@ test('Liste des élèves : une colonne par MOMENT de bilan de la période, dans 
   ev(`eleveSort = { col: 'nom', dir: 1 }; _bilanMode = null; _bilanOrdreFige = null`);
 });
 
-test('Liste des élèves : des colonnes se masquent (écran ET papier), « vide » est signalé, un cran d\'undo', () => {
+test('Liste des élèves : les colonnes se masquent par leurs puces (écran ET papier), un cran d\'undo ; un point par moment de bilan', () => {
+  // v1.44.2 : le tableau du prototype — des puces de colonnes visibles, une colonne Bilans
+  // à un point par moment (cliquable vers la rédaction de CE moment).
   ev(FIXTURE);
-  ev(`_bilanColsAjout = new Set(); _eleveFilter = ''; eleveSort = { col: 'nom', dir: 1 };
+  ev(`_bilanColsAjout = new Set(); _eleveFilter = ''; eleveSort = { col: 'nom', dir: 1 }; localStorage.removeItem('suiviPP_elevesAffichage');
       bilanAdd('s1', { date:'2025-11-20', type:'miperiode', texte:'Mi-S1 de Léa' });`);
   const capture = () => ev(`(() => {
     const zone = document.createElement('div'); const orig = document.getElementById;
@@ -154,27 +156,23 @@ test('Liste des élèves : des colonnes se masquent (écran ET papier), « vide 
     try { renderStudents(); } finally { document.getElementById = orig; }
     return zone.innerHTML; })()`);
   let html = capture();
-  assert.ok(html.includes('>Mi-S1') && html.includes('>Conseil S1'), 'une colonne par moment');
-  assert.ok(html.includes(`elevesBilanOuvrir('s1','bil:miperiode:0')`));
-  assert.ok(/Non rendus<span|Non rendus<\/th>/.test(html) || html.includes('>Non rendus'), 'colonne présente par défaut');
-  assert.match(html, /Non rendus <span class="tb-hint">— vide<\/span>/, 'le choix des colonnes dit qu\'elle est vide');
+  assert.ok(html.includes(`elevesBilanOuvrir('s1','bil:miperiode:0')`) && html.includes(`elevesBilanOuvrir('s1','bil:conseil:0')`), 'un point par moment');
+  assert.match(html, /class="el-bd f" onclick="elevesBilanOuvrir\('s1','bil:miperiode:0'\)"/, 'plein : écrit');
+  assert.match(html, /aria-pressed="true" onclick="elevesColToggle\('docs',false\)"[^>]*>Papiers</, 'la puce de la colonne');
   const u = ev(`undoStack.length`);
-  ev(`elevesColToggle('docs', false); elevesColToggle('bil:miperiode:0', false)`);
+  ev(`elevesColToggle('docs', false); elevesColToggle('bilans', false)`);
   ev(`elevesColToggle('docs', false)`);
   assert.strictEqual(ev(`undoStack.length`), u + 2, 'déjà masquée : rien n\'est empilé');
-  assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), ['docs', 'bil:miperiode:0']);
+  assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), ['docs', 'bilans']);
   assert.ok(ev(`S.prefs.elevesColsOff !== DEFAULT_PREFS.elevesColsOff && DEFAULT_PREFS.elevesColsOff.length === 0`), 'remplacé, jamais modifié en place');
   html = capture();
-  assert.ok(!html.includes('sortEleves(\'docs\')') && !html.includes('>Mi-S1<'), 'masquées à l\'écran');
-  assert.match(html, /☰ Colonnes <span class="tb-hint">\(2 masquées\)<\/span>/);
+  assert.ok(!html.includes(`sortEleves('docs')`) && !html.includes('elevesBilanOuvrir'), 'masquées à l\'écran');
   const pr = ev(`_elevesPrintHTML(S.classes['5C'])`);
-  assert.ok(!pr.includes('>Non rendus<') && !pr.includes('Mi-S1') && pr.includes('>Conseil S1<'), 'et sur le papier');
-  assert.strictEqual([...pr.matchAll(/<col style/g)].length, 10);
-  // Masquer les vides d'un geste ; tout réafficher.
-  ev(`elevesColsVides()`);
-  assert.ok(evObj(`S.prefs.elevesColsOff`).includes('incidents') && !evObj(`S.prefs.elevesColsOff`).includes('cumul'), 'le carnet a des relevés : il reste');
-  ev(`elevesColsTout()`);
-  assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), []);
+  assert.ok(!pr.includes('>Non rendus<') && !pr.includes('Mi-S1') && !pr.includes('>Conseil S1<'), 'et sur le papier');
+  // Les clés d'avant : « cumul » masquait le carnet ; Δ, aménagements, colonnes de bilan sont ignorées.
+  ev(`S.prefs.elevesColsOff = ['cumul', 'delta', 'amen', 'bil:conseil:0']`);
+  assert.deepStrictEqual(evObj(`_elevesColsOff()`), ['carnet']);
+  ev(`S.prefs.elevesColsOff = []`);
 });
 
 test('Liste des élèves : les bilans des PÉRIODES PRÉCÉDENTES ont aussi leurs colonnes (seulement si remplies)', () => {
@@ -220,12 +218,12 @@ test('Liste : filtres d\'un clic (cumulés), vues toutes faites, colonne et rés
   const u = ev(`undoStack.length`);
   ev(`elevesVueUI('papiers')`);
   assert.strictEqual(ev(`undoStack.length`), u + 1);
-  assert.strictEqual(ev(`_elevesVueCourante(S.classes['5C'])`), 'papiers');
-  assert.ok(!ev(`_elevesColVue('cumul')`) && ev(`_elevesColVue('docs')`));
+  assert.strictEqual(ev(`_elevesVueCourante()`), 'papiers');
+  assert.ok(!ev(`_elevesColVue('carnet')`) && ev(`_elevesColVue('docs')`));
   ev(`elevesVueUI('papiers')`);
   assert.strictEqual(ev(`undoStack.length`), u + 1, 'déjà dans cette vue : rien n\'est empilé');
-  ev(`elevesColToggle('cumul', true)`);
-  assert.strictEqual(ev(`_elevesVueCourante(S.classes['5C'])`), '', 'retouchée : personnalisée');
+  ev(`elevesColToggle('carnet', true)`);
+  assert.strictEqual(ev(`_elevesVueCourante()`), '', 'retouchée : personnalisée');
   ev(`elevesVueUI('tout')`);
   assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), []);
   // Avis : résumé par élève, sur la feuille la plus récente de la période courante.

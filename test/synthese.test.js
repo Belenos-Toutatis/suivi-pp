@@ -132,18 +132,19 @@ test('liste des élèves : la case Incidents ouvre la saisie d\'une entrée, com
     return zone.innerHTML; })()`);
   let html = capture();
   // Sans entrée : un bouton ⚖️ qui ouvre la saisie d'une NOUVELLE entrée pour cet élève.
-  assert.ok(/onclick="openIncident\('s2'\)"[^>]*>⚖️<\/button>/.test(html), 'bouton de saisie sur un élève sans incident');
+  // v1.44.2 : un point quand il n'y a rien — il ouvre la saisie d'une NOUVELLE entrée.
+  assert.ok(/onclick="openIncident\('s2'\)"[^>]*>·<\/button>/.test(html), 'bouton de saisie sur un élève sans incident');
   assert.ok(!html.includes(`openIncident('s2','`), 'rien à modifier chez s2');
   // Avec une entrée : le compteur sur le bouton, et la dernière entrée cliquable vers sa modification.
   ev(`incidentAdd('s1', { date:'2025-12-03', type:'retenue', objet:'Bavardages', texte:'' });
       incidentAdd('s1', { date:'2026-01-15', type:'commission_educative', objet:'Récidive', texte:'Décision : tutorat' });`);
   html = capture();
-  assert.ok(/onclick="openIncident\('s1'\)"[^>]*>⚖️ 2<\/button>/.test(html), 'le nombre d\'entrées sur le bouton');
+  assert.ok(/onclick="openIncident\('s1'\)"[^>]*>⚖ 2<\/button>/.test(html), 'le nombre d\'entrées sur le bouton');
   const id = evObj(`_incidentsOf('s1')[0].id`);
   assert.strictEqual(evObj(`_incidentsOf('s1')[0].date`), '2026-01-15', 'la plus récente d\'abord');
   assert.ok(html.includes(`openIncident('s1','${id}')`), 'la dernière entrée s\'ouvre en modification');
-  // Sur UNE ligne depuis la v1.43.0 (indicateurs) : la date sans l'année, l'année est celle de la classe.
-  assert.ok(html.includes('15/01 · Commission éducative'), 'date et instance de la dernière entrée');
+  // La date du dernier (sans l'année) ; l'instance et l'objet sont dans l'infobulle.
+  assert.ok(/title="Commission éducative : Récidive — clic pour modifier cette entrée">15\/01</.test(html), 'date et instance de la dernière entrée');
 });
 
 test('Liste des élèves imprimée : feuille .pp-t, colonnes fixes à 100 %, en-tête répétable, taille fixe', () => {
