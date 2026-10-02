@@ -2390,8 +2390,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.7';
-const APP_BUILD_DATE = '2026-10-02T10:55:52Z';
+const APP_VERSION    = '1.40.8';
+const APP_BUILD_DATE = '2026-10-02T10:58:33Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4363,11 +4363,30 @@ function _hvcPeriode(cls, periodIdx) {
 // rien). Sans note ni moyenne — celles-ci restent dans Pronote — c'est le brouillon du
 // PP, celui qu'on relit pendant que le conseil parle de l'élève.
 // ═══════════════════════════════════════════════════════════════════════════
+// « Point du mois » (2026-10-02, demande de l'utilisateur : « comment me noter un petit
+// bilan de la période où j'ai collecté des avis ? le bilan du S1 n'est pas pour le mois de
+// septembre ni pour le conseil de mi-semestre ») : le mois se lit dans la date.
 const _BILAN_TYPES = [
   { key: 'conseil',   label: 'Conseil de classe',   icon: '🎓' },
   { key: 'miperiode', label: 'Bilan de mi-période', icon: '📝' },
+  { key: 'mois',      label: 'Point du mois',       icon: '🗓' },
 ];
 function _bilanType(k) { return _BILAN_TYPES.find(t => t.key === k) || _BILAN_TYPES[0]; }
+const _BILAN_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+// Le libellé d'UN bilan : « Point de septembre » dit le mois, les autres leur type.
+function _bilanLabel(e) {
+  if (e && e.type === 'mois' && /^\d{4}-\d{2}/.test(e.date || '')) return `Point de ${_BILAN_MOIS[+e.date.slice(5, 7) - 1]}`;
+  return _bilanType(e && e.type).label;
+}
+// Le bilan d'un élève pour un MOMENT { type, date } : même type, même période (même mois
+// pour un point du mois). C'est celui qu'on reprend plutôt que d'en créer un second. PUR.
+function _bilanCible(cls, sid, mode) {
+  if (!mode) return null;
+  const p = _periodOf(cls, mode.date);
+  return _bilansOf(sid).find(e => e.type === mode.type && (mode.type === 'mois'
+    ? String(e.date).slice(0, 7) === String(mode.date).slice(0, 7)
+    : !!p && e.date >= p.start && e.date <= p.end)) || null;
+}
 // Du plus récent au plus ancien ; à date égale, le dernier saisi devant.
 function _bilansOf(sid) {
   const stu = S.eleves[sid];
@@ -4818,7 +4837,7 @@ function renderStudents() {
     // Bilan de la période courante : le bouton ouvre la rédaction (et enchaîne les élèves
     // dans l'ordre de la liste — préparer un conseil, c'est passer sur les vingt-cinq).
     const bil = r.bilan;
-    const bilTitre = bil ? `${_bilanType(bil.type).label} — ${_fmtDateFr(bil.date)}\n${bil.texte}` : `Préparer le conseil de classe ${r.periodeLabel} : ce que je dirai de cet élève`;
+    const bilTitre = bil ? `${_bilanLabel(bil)} — ${_fmtDateFr(bil.date)}\n${bil.texte}` : `Préparer le conseil de classe ${r.periodeLabel} : ce que je dirai de cet élève`;
     const bilBtn = `<button class="btn btn-sm" style="${stSty(!!bil, '#3b5a8c', 0)}" onclick="openBilan('${_escJsAttr(s.id)}')" title="${_escAttr(bilTitre)}">${bil ? _bilanType(bil.type).icon : '🎓'}</button>${
       bil ? `<div class="synth-rem" title="${_escAttr(bil.texte)}">${_escName(bil.texte)}</div>` : ''}`;
 
@@ -5270,7 +5289,7 @@ function _ficheRender() {
   const bilans = _bilansOf(stu.id);
   const bilHTML = bilans.length
     ? bilans.map(e => { const ty = _bilanType(e.type); const per = cls ? _periodOf(cls, e.date) : null;
-        return `<div class="fi-j fi-bil"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ${ty.icon} ${_escName(ty.label)}${per ? ` · ${_escName(per.label)}` : ''}
+        return `<div class="fi-j fi-bil"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ${ty.icon} ${_escName(_bilanLabel(e))}${per ? ` · ${_escName(per.label)}` : ''}
           <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersBilan('${_escJsAttr(e.id)}')" title="Modifier ce bilan">✏️</button> <button class="btn btn-d btn-sm" onclick="bilanRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer ce bilan">🗑</button></span></div>
           <div class="fi-inc-txt">${_escName(e.texte)}</div></div>`;
       }).join('')
@@ -5505,6 +5524,10 @@ function journalRemoveUI(id) {
 // fiche, où l'on voit la liste).
 // ═══════════════════════════════════════════════════════════════════════════
 let _bilanSid = null, _bilanId = null, _bilanOrdreFige = null;
+// Rédaction ouverte DEPUIS une feuille d'avis : { type, date, campId } — le moment de la
+// feuille (conseil, mi-période, point du mois), gardé d'un élève à l'autre, et ses avis
+// sous les yeux. null = rédaction ordinaire (période courante).
+let _bilanMode = null;
 function openBilan(sid, id, opts) {
   const stu = S.eleves[sid];
   const cls = stu && S.classes[stu.classe_id];
@@ -5514,19 +5537,21 @@ function openBilan(sid, id, opts) {
   // enregistrer un bilan déplaçait l'élève en tête de liste, et « Suivant » — calculé sur
   // l'ordre NEUF — repassait sur quelqu'un de déjà fait en sautant le voisin (audit du
   // 2026-09-11). L'ordre qu'on a sous les yeux en ouvrant est celui qu'on parcourt.
-  if (!document.getElementById('mbilan')?.classList.contains('on')) _bilanOrdreFige = _elevesRows(cls).map(x => x.s.id);
+  const dejaOuverte = document.getElementById('mbilan')?.classList.contains('on');
+  if (!dejaOuverte) { _bilanOrdreFige = o.ordre || _elevesRows(cls).map(x => x.s.id); _bilanMode = o.mode || null; }
   let e = id ? _bilansOf(sid).find(x => x.id === id) : null;
-  if (!e && !id && !o.nouveau) e = _bilanPeriode(cls, sid, _carnetCurrentPeriodIdx(cls), 'conseil');
+  if (!e && !id && !o.nouveau) e = _bilanMode ? _bilanCible(cls, sid, _bilanMode) : _bilanPeriode(cls, sid, _carnetCurrentPeriodIdx(cls), 'conseil');
   _bilanSid = sid; _bilanId = e ? e.id : null;
   const t = document.getElementById('mbilan-title');
-  if (t) t.textContent = `🎓 ${stu.prenom} ${stu.nom}`;
+  if (t) t.textContent = `${_bilanType((e && e.type) || (_bilanMode && _bilanMode.type) || 'conseil').icon} ${stu.prenom} ${stu.nom}`;
   const sel = document.getElementById('mbilan-type');
-  if (sel) sel.innerHTML = _BILAN_TYPES.map(ty => `<option value="${_escAttr(ty.key)}"${e && e.type === ty.key ? ' selected' : ''}>${ty.icon} ${_escName(ty.label)}</option>`).join('');
+  const typeVoulu = e ? e.type : (_bilanMode ? _bilanMode.type : null);
+  if (sel) sel.innerHTML = _BILAN_TYPES.map(ty => `<option value="${_escAttr(ty.key)}"${typeVoulu === ty.key ? ' selected' : ''}>${ty.icon} ${_escName(ty.label)}</option>`).join('');
   const d = document.getElementById('mbilan-date');
   // Date du jour, RAMENÉE dans l'année scolaire de la classe : on relit la classe de
   // l'an dernier en septembre, et un bilan daté d'aujourd'hui tomberait hors de toutes
   // ses périodes — donc nulle part dans la synthèse.
-  if (d) d.value = e ? e.date : _ymdClampAnnee(cls, _todayYmd());
+  if (d) d.value = e ? e.date : (_bilanMode ? _bilanMode.date : _ymdClampAnnee(cls, _todayYmd()));
   const tx = document.getElementById('mbilan-txt');
   if (tx) tx.value = e ? e.texte : '';
   const del = document.getElementById('mbilan-del');
@@ -5543,11 +5568,15 @@ function _bilanHint() {
   if (!cls || !d || !el) return;
   const p = _periodOf(cls, d.value);
   const pos = _bilanOrdre().indexOf(_bilanSid);
-  el.textContent = `${p ? `période ${p.label}` : 'hors année scolaire'} · ${pos < 0 ? 'hors de la liste affichée (filtre)' : `élève ${pos + 1} / ${_bilanOrdre().length}`}`;
+  const ty = document.getElementById('mbilan-type')?.value;
+  const moment = ty === 'mois' && d.value ? `${_bilanLabel({ type: 'mois', date: d.value }).toLowerCase()}, ` : '';
+  el.textContent = `${p ? `${moment}période ${p.label}` : 'hors année scolaire'} · ${pos < 0 ? 'hors de la liste affichée (filtre)' : `élève ${pos + 1} / ${_bilanOrdre().length}`}`;
   // Les avis des collègues de la période, sous les yeux pendant qu'on rédige (v1.39.0).
   const av = document.getElementById('mbilan-avis');
   if (av) {
-    const a = p ? _avisEleve(cls, _bilanSid, p.n - 1, document.getElementById('mbilan-type')?.value) : null;
+    const camp = _bilanMode && _bilanMode.campId ? _avisMap(cls.id)?.[_bilanMode.campId] : null;
+    const items = camp && camp.avis?.[_bilanSid] ? camp.disciplines.filter(x => camp.avis[_bilanSid][x.id]).map(x => ({ disc: x, ...camp.avis[_bilanSid][x.id] })) : [];
+    const a = items.length ? { camp, items } : (camp ? null : (p ? _avisEleve(cls, _bilanSid, p.n - 1, document.getElementById('mbilan-type')?.value) : null));
     av.innerHTML = a ? `<details class="av-det av-bil" open><summary><strong>🗣 Avis des collègues — ${_escName(_avisObjectif(cls, a.camp).long)}</strong> <span class="tb-hint">${a.items.length} discipline${a.items.length > 1 ? 's' : ''}</span></summary>
       <div class="av-scroll">${_avisItemsHTML(a.items)}</div></details>` : '';
   }
@@ -5596,7 +5625,7 @@ function bilanNav(dir) {
   const type = document.getElementById('mbilan-type')?.value;
   const stu = S.eleves[suivant];
   const cls = stu && S.classes[stu.classe_id];
-  const e = cls ? _bilanPeriode(cls, suivant, _carnetCurrentPeriodIdx(cls), type) : null;
+  const e = !cls ? null : _bilanMode ? _bilanCible(cls, suivant, _bilanMode) : _bilanPeriode(cls, suivant, _carnetCurrentPeriodIdx(cls), type);
   openBilan(suivant, e ? e.id : null, { nouveau: !e });
   if (!e) { const sel = document.getElementById('mbilan-type'); if (sel && type) sel.value = type; _bilanHint(); }
 }
@@ -5604,7 +5633,7 @@ function bilanRemoveUI(sid, id) {
   const s = sid || _bilanSid, i = id || _bilanId;
   const e = _bilansOf(s).find(x => x.id === i);
   if (!e) return;
-  _uiConfirm({ title: '🗑 Supprimer ce bilan ?', message: `${_fmtDateFr(e.date)} — ${_bilanType(e.type).label}\n« ${e.texte.slice(0, 120)}${e.texte.length > 120 ? '…' : ''} »\n\nRécupérable par Ctrl+Z.`, okLabel: 'Supprimer', okClass: 'btn-d',
+  _uiConfirm({ title: '🗑 Supprimer ce bilan ?', message: `${_fmtDateFr(e.date)} — ${_bilanLabel(e)}\n« ${e.texte.slice(0, 120)}${e.texte.length > 120 ? '…' : ''} »\n\nRécupérable par Ctrl+Z.`, okLabel: 'Supprimer', okClass: 'btn-d',
     onOk: () => { pushUndo(); bilanRemove(s, i); save(); renderStudents();
       if (document.getElementById('mbilan')?.classList.contains('on')) closeMod2('mbilan');
       if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); } });
@@ -12616,6 +12645,7 @@ function _avisCampHTML(cls, camp) {
         <button class="btn btn-g btn-sm" onclick="avisChoisirUI('${_escJsAttr(camp.id)}')" title="Désigner la copie locale de la feuille (à refaire une fois sur chaque ordinateur)">📂 ${choisirLbl}</button>`
       : `<label class="btn btn-p" style="cursor:pointer">📥 Lire la feuille… <input type="file" accept=".ods" style="display:none" onchange="avisLireFichierUI('${_escJsAttr(camp.id)}',this)"></label>`}
     </div>
+    <div style="margin:10px 0 2px"><button class="btn btn-s" onclick="avisBilansUI('${_escJsAttr(camp.id)}')" title="Un bilan par élève pour ${_escAttr(obj.long)}, les avis de cette feuille sous les yeux — ◀ ▶ ou Ctrl+Entrée pour passer d'un élève à l'autre">✍️ Noter mes bilans pour ${_escName(obj.long)}</button></div>
     ${_avisDetails('cibles', `<strong>⭐ Élèves sur qui je veux un avis en particulier</strong> <span class="tb-hint">— ${_avisCibles(cls, camp).length || 'aucun'}${_avisCibles(cls, camp).length ? ' · surlignés en jaune dans la feuille' : ''}</span>`,
       `<div class="tb-hint" style="margin:6px 0">Par exemple avant une rencontre avec la famille. Leur nom est surligné en jaune dans chaque onglet, et le message aux collègues les cite. ⚠️ Pour que le surlignage arrive dans la feuille : <strong>📝 Mettre la feuille à jour</strong>, plus bas.</div>
       ${_avisCiblesPickHTML(cls, camp)}`)}
@@ -12631,6 +12661,34 @@ function _avisCampHTML(cls, camp) {
     </details>
     <div class="ma"><button class="btn btn-d btn-sm" onclick="avisSupprimerUI('${_escJsAttr(camp.id)}')" title="Oublier cette feuille et les avis rangés (la feuille du Nuage, elle, reste)">🗑</button>
       <button class="btn btn-g" onclick="closeMod2('mavis')">Fermer</button></div>`;
+}
+// ── Mes bilans, pour l'objectif de la feuille ── un bilan par élève, du TYPE de la feuille
+// (conseil, mi-période, point du mois), daté DANS son moment — le conseil du S1 préparé en
+// février reste daté du S1 : ce qu'on retient après avoir lu les avis. Les élèves dans
+// l'ordre de la feuille (alphabétique), celui qu'on a eu sous les yeux en la relisant.
+function _avisBilanMode(cls, camp) {
+  const r = _avisMsgReglages(camp);
+  const p = _avisPeriode(cls, camp);
+  const auj = _ymdClampAnnee(cls, _todayYmd());
+  if (r.moment === 'mois') {
+    const y0 = +_periods(cls)[0].start.slice(0, 4);
+    const ym = `${r.mois >= 8 ? y0 : y0 + 1}-${String(r.mois).padStart(2, '0')}`;
+    return { type: 'mois', date: auj.slice(0, 7) === ym ? auj : `${ym}-15`, campId: camp.id };
+  }
+  // La date de la feuille si elle tombe dans la période (on rédige à la suite des avis) ;
+  // sinon aujourd'hui, ramené dans la période.
+  const ref = p && camp.date >= p.start && camp.date <= p.end ? camp.date : auj;
+  const date = !p ? ref : ref < p.start ? p.start : ref > p.end ? p.end : ref;
+  return { type: r.moment === 'miperiode' ? 'miperiode' : 'conseil', date, campId: camp.id };
+}
+function avisBilansUI(campId) {
+  const cls = getCls();
+  const camp = _avisMap(cls?.id)?.[campId];
+  if (!camp) return;
+  const ordre = _avisEleves(cls, camp).map(s => s.id);
+  if (!ordre.length) return toast('⚠️ Aucun élève sur cette feuille.', 'warn');
+  closeMod2('mavis');
+  openBilan(ordre[0], null, { mode: _avisBilanMode(cls, camp), ordre });
 }
 // ── Le message aux collègues : des PARTIES, chacune à garder ou non, au texte modifiable ──
 // Demandé le 2026-10-02 : « il peut être pour différents moments de l'année — un mois en
@@ -13230,7 +13288,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const AV_ABR = { travail: 'trav.', participation: 'partic.', comportement: 'comport.' };
   const avisLigne = a => AVIS_CRITERES.filter(c => a[c.key]).map(c => `<em>${AV_ABR[c.key]}</em> ${_escName(a[c.key])}`).join(' · ');
   const avisFiche = r => r.avis.map(a => `<div><strong>${_escName(a.nom)}</strong> — ${avisLigne(a)}</div>`).join('');
-  const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanType(r.bilan.type).label)} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
+  const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanLabel(r.bilan))} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
   if (o.forme === 'fiches') {
     const bloc = (t, c) => c ? `<div class="print-fb"><span class="print-fb-t">${t}</span> ${c}</div>` : '';
     return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}${legHTML}</p>${hvcHTML}` + rows.map(r => `<div class="print-fiche">
@@ -14010,7 +14068,7 @@ function _applyReloadedData(data, f) {
     // 2026-09-11 : la leçon du verrou du ramassage, une troisième fois.
     if (_elUndoTimer) { clearTimeout(_elUndoTimer); _elUndoTimer = null; }
     _elUndoArmed = false;
-    _hvcEdit = null; _bilanOrdreFige = null; _elRemplOpen = false;
+    _hvcEdit = null; _bilanOrdreFige = null; _bilanMode = null; _elRemplOpen = false;
     document.body.classList.remove('el-projecting');
   } catch (_) {}
   S = data;
@@ -15083,6 +15141,8 @@ function createDemo(opts) {
     [12, '01-20', 'conseil',  'Difficultés d\'apprentissage — équipe éducative de décembre, PAP en cours. Dire que l\'élève s\'accroche, et que la famille suit.'],
     [16, '01-20', 'conseil',  'Aucun incident, carnet vierge, devoirs faits. Féliciter.'],
     [9, '11-15', 'miperiode', 'Deux exclusions de cours en un mois, bavardages. Point fait avec l\'élève : se placer devant. À revoir avant le conseil.'],
+    // Un POINT DU MOIS (v1.40.8) : ce qu'on retient fin septembre, avant toute feuille d'avis.
+    [0, '09-29', 'mois', 'Rentrée : oublis de matériel répétés, déjà deux mots dans le carnet. Appeler la famille si ça continue en octobre.'],
     // Et le S2, pour que la colonne « Conseil » de la liste ne soit pas vide en fin d'année.
     [0, '05-20', 'conseil',   'Le contrat a tenu jusqu\'en avril, puis relâchement (+11 au S2). Rencontre prévue avec la mère avant le conseil. Ne pas parler d\'orientation sans elle.'],
     [16, '05-20', 'conseil',  'Année exemplaire. Proposer les félicitations.'],

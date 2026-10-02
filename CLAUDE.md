@@ -739,6 +739,17 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   `_avisEleve(cls, sid, pIdx, prefere)` lit d'abord la feuille du MÊME objectif : le bilan de
   mi-période lit l'avis de mi-semestre, le conseil celui du conseil (synthèse de période
   comprise, par `o.type`). Démo : deux feuilles au S1, mi-semestre (novembre) et conseil (janvier).
+- **Mes bilans pour l'objectif de la feuille** (v1.40.8 — *« comment me noter un petit bilan
+  de la période où j'ai collecté des avis ? le bilan du S1 n'est pas pour le mois de
+  septembre ni pour le conseil de mi-semestre »*) : bouton *✍️ Noter mes bilans pour …* sur
+  chaque feuille → la modale `mbilan` en **mode feuille** (`_bilanMode = { type, date, campId }`,
+  `_avisBilanMode`) : le TYPE de bilan suit l'objectif (conseil · mi-période · **point du
+  mois**, nouveau type `mois` de `_BILAN_TYPES`, libellé « Point de septembre » par
+  `_bilanLabel`), la date est celle de la feuille si elle tombe dans la période (sinon
+  aujourd'hui ramené dedans), les élèves défilent dans l'ordre de la feuille, et ce sont les
+  avis de CETTE feuille qui s'affichent au-dessus. ⚠️ `_bilanCible` **reprend** le bilan du
+  même type et de la même période (du même mois pour un point du mois) au lieu d'en créer
+  un second. Démo : un point de septembre.
 - **Le message aux collègues, en PARTIES** (v1.40.0 — *« pour différents moments de l'année :
   un mois, la fin du semestre ou du trimestre, les bilans intermédiaires ; des parties déjà
   écrites, faciles à remplacer, ou ne garder que la partie nécessaire »*) : `AVIS_MSG_PARTIES`
@@ -1356,6 +1367,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 69 | **Bilans pour l'objectif d'une feuille d'avis** (bouton ✍️, mode feuille de la modale de bilan, type « Point du mois », reprise du bilan existant) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.8) |
 | 68 | **Andika incluse dans la feuille .ods** (TTF déjà compressés, `EmbedFonts`, métriques resserrées) ; 1 test. Vu dans un LibreOffice sans Andika installée | ✅ **fait** (2026-10-02, v1.40.7) |
 | 67 | **Objectif de la feuille** (conseil · mi-période · point du mois) choisi à la création, dit dans la feuille, la liste, le message, le bilan et la fiche ; le bilan lit la feuille de son objectif ; démo à deux feuilles ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.6) |
 | 66 | **Colonne des noms à la largeur du plus long** (`_avisLargeurNoms`) ; 1 test. Vu dans LibreOffice avec un nom de 43 caractères | ✅ **fait** (2026-10-02, v1.40.5) |

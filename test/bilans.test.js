@@ -81,3 +81,27 @@ test('_ymdClampAnnee : une date hors de l\'année scolaire de la classe est rame
   assert.strictEqual(ev(`_ymdClampAnnee(S.classes['5C'], '2025-03-01')`), '2025-08-01');
   assert.strictEqual(ev(`_ymdClampAnnee(S.classes['5C'], '2026-01-20')`), '2026-01-20');
 });
+
+test('Point du mois et bilans d\'une feuille d\'avis : le bon moment, repris plutôt que doublé', () => {
+  ev(`S = _emptyState(); postLoadHook(); S.prefs.periodMode = 'semestre';
+    S.classes['5C'] = { id:'5C', nom:'5C', annee:'2025-26', eleves:['s1'], ord:0 }; S.cur = '5C';
+    S.eleves = { s1:{id:'s1',nom:'A',prenom:'a',classe_id:'5C',tags:[]} };`);
+  assert.strictEqual(ev(`_bilanLabel({ type: 'mois', date: '2025-09-20' })`), 'Point de septembre');
+  assert.strictEqual(ev(`_bilanLabel({ type: 'miperiode', date: '2025-11-20' })`), 'Bilan de mi-période');
+  ev(`bilanAdd('s1', { date: '2025-09-20', type: 'mois', texte: 'Rentrée difficile.' });
+      bilanAdd('s1', { date: '2025-11-15', type: 'miperiode', texte: 'Mieux.' })`);
+  const cls = `S.classes['5C']`;
+  assert.strictEqual(ev(`_bilanCible(${cls}, 's1', { type: 'mois', date: '2025-09-02' }).texte`), 'Rentrée difficile.', 'même mois : repris');
+  assert.strictEqual(ev(`_bilanCible(${cls}, 's1', { type: 'mois', date: '2025-10-02' })`), null, 'autre mois : nouveau');
+  assert.strictEqual(ev(`_bilanCible(${cls}, 's1', { type: 'miperiode', date: '2026-01-10' }).texte`), 'Mieux.', 'même période');
+  assert.strictEqual(ev(`_bilanCible(${cls}, 's1', { type: 'conseil', date: '2026-01-10' })`), null, 'autre type : nouveau');
+  // Le moment d'une feuille d'avis : un conseil du S1 préparé en février reste daté du S1.
+  ev(`window.__c = avisCampagneCreer(${cls}, { pIdx: 0, disciplines: ['maths'] });
+      window.__m = avisCampagneCreer(${cls}, { pIdx: 0, disciplines: ['maths'], objectif: 'mois', mois: 9 });`);
+  const mc = evObj(`_avisBilanMode(${cls}, window.__c)`);
+  assert.strictEqual(mc.type, 'conseil');
+  assert.ok(mc.date >= '2025-08-01' && mc.date <= '2026-01-31', mc.date);
+  const mm = evObj(`_avisBilanMode(${cls}, window.__m)`);
+  assert.strictEqual(mm.type, 'mois');
+  assert.strictEqual(mm.date.slice(0, 7), '2025-09', 'septembre de l\'année scolaire');
+});
