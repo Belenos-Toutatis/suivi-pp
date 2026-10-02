@@ -271,6 +271,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
   /* Hauteur du bandeau collant — valeur de repli, REMESURÉE par _topbarMeasure() au
      chargement et à chaque changement de taille. Dimensionne les cadres figés. */
   --topbar-h: 96px;
+  --fiche-cote-w: 58vw;   /* largeur de la fiche ancrée à droite de la liste (écran large) */
   --radius-sm: 3px;
   --radius-md: 5px;
   --radius-lg: 8px;
@@ -1407,6 +1408,75 @@ body.el-projecting #main { padding-top: 8px; }
 .fi-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 4px; }
 .fi-sub { color: var(--pencil); font: italic 13px var(--font-serif); }
 .fi-sec { margin-top: 16px; }
+/* Fiche refondue (v1.44.0) : plein écran, ou ancrée à droite de la liste. */
+#mfiche.plein { padding: 0; }
+#mfiche.plein .fi-mb { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; padding: 0 22px 14px; }
+#mfiche.cote { left: auto; width: var(--fiche-cote-w); top: var(--topbar-h); background: none; }
+#mfiche.cote .fi-mb { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; padding: 0 18px 14px; border-left: 3px solid var(--margin-red); box-shadow: var(--shadow-pop); }
+body.fiche-cote .tab.on { padding-right: var(--fiche-cote-w); }
+.fi-head { position: sticky; top: 0; z-index: 5; background: inherit; padding: 12px 0 8px; border-bottom: 2px solid var(--margin-red); margin-bottom: 4px; }
+#mfiche .fi-mb { background: var(--paper); }
+html[data-theme="dark"] #mfiche .fi-mb { background: var(--paper-warm); }
+.fi-head h2 { margin-bottom: 6px; }
+.fi-bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+@media (max-width: 520px) { .fi-head { position: static; } }
+.fi-bar-l { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.fi-bar-l select { max-width: 100%; }
+.fi-nav { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
+.fi-cols { columns: 400px; column-gap: 24px; }
+.fi-cols > .fi-sec { break-inside: avoid; margin: 0 0 16px; display: inline-block; width: 100%; }
+.fi-redac textarea { width: 100%; min-height: 8em; resize: vertical; }
+.fi-redac-b { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 4px; }
+.fi-bil-o { border-left: 3px solid var(--rule-line); padding: 3px 10px; margin-top: 6px; font-size: .92em; }
+.fi-trois { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; align-items: start; }
+.fi-trois > :last-child { grid-column: 1 / -1; }
+@media (min-width: 1900px) { .fi-trois { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); } .fi-trois > :last-child { grid-column: auto; position: sticky; top: 110px; } }
+body.fiche-cote .fi-trois { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+body.fiche-cote .fi-trois > :last-child { grid-column: 1 / -1; position: static; }
+@media (max-width: 860px) { .fi-trois { grid-template-columns: minmax(0, 1fr); } }
+.fi-fait { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; align-items: start; padding: 5px 0; border-bottom: 1px solid var(--rule-line-soft); }
+.fi-mots { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin: 4px 0 8px; }
+.fi-avt { font-size: .9em; }
+.fi-avt th[scope=row] { text-align: left; white-space: normal; min-width: 8em; }
+.fi-avt td { vertical-align: top; min-width: 10em; }
+.fi-avt mark, .fi-avt mark { background: var(--highlighter); color: var(--ink-blue); padding: 0 1px; border-radius: 2px; }
+.fi-courbe { width: 100%; max-width: 560px; height: auto; display: block; }
+.fi-courbe text { fill: var(--pencil); font: 10px var(--font-mono); }
+.fi-courbe .fc-zone { fill: var(--obs-2); opacity: .35; }
+.fi-courbe .fc-ax { stroke: var(--rule-line); }
+.fi-courbe .fc-mi { stroke: var(--margin-red); stroke-dasharray: 3 3; }
+.fi-courbe .fc-ln { fill: none; stroke: var(--obs-5); stroke-width: 2; }
+.fi-courbe .fc-pt { fill: var(--paper); stroke: var(--obs-5); stroke-width: 2; }
+.fi-courbe .fc-lb { fill: var(--ink-deep); }
+.fi-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 10px 0; }
+.fi-kpi { border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 6px 10px; background: var(--paper); }
+.fi-kpi small { display: block; font-size: .72em; text-transform: uppercase; letter-spacing: .05em; color: var(--pencil); }
+.fi-kpi strong { font: 700 1.35em var(--font-mono); color: var(--ink-deep); margin-right: 6px; }
+.fi-kpi span { font-size: .85em; color: var(--pencil); }
+.fi-frise-w { overflow-x: auto; border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 6px 8px 2px; background: var(--paper); }
+.fi-frise { display: block; width: 100%; min-width: 640px; height: auto; }
+.fi-frise .ff-l { fill: var(--ink-deep); font-size: 12px; }
+.fi-frise .ff-mt { fill: var(--pencil); font: 10px var(--font-mono); }
+.fi-frise .ff-m { stroke: var(--rule-line); }
+.fi-frise .ff-lane { stroke: var(--rule-line-soft); }
+.ff-mk { cursor: pointer; }
+.ff-obs { fill: var(--obs-5); background: var(--obs-5); }
+.ff-moy { fill: var(--g2); background: var(--g2); }
+.ff-avis { fill: var(--ok-fg); background: var(--ok-fg); }
+.ff-incid { fill: var(--danger-fg); background: var(--danger-fg); }
+.ff-contact { fill: var(--link-fg); background: var(--link-fg); }
+.ff-bilan { fill: var(--g3); background: var(--g3); }
+.ff-papier { fill: var(--pencil); background: var(--pencil); }
+.fi-deux { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 0 24px; align-items: start; }
+.fi-deux > div:last-child { position: sticky; top: 110px; }
+body.fiche-cote .fi-deux, .fi-deux { }
+@media (max-width: 900px) { .fi-deux { grid-template-columns: minmax(0, 1fr); } .fi-deux > div:last-child { position: static; } }
+.fi-jr { display: grid; grid-template-columns: 44px 14px minmax(0, 1fr); gap: 2px 8px; padding: 5px 0; border-bottom: 1px solid var(--rule-line-soft); }
+.ff-ic { width: 11px; height: 11px; border-radius: 3px; margin-top: 4px; display: inline-block; }
+.fi-jr.fi-flash { animation: fiFlash 1.2s ease-out; }
+@keyframes fiFlash { from { background: var(--highlighter); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .fi-jr.fi-flash { animation: none; } }
+.eleves-table tr.el-cur td, .rel-wrap.frozen .eleves-table tbody tr.el-cur td:first-child { background: var(--info-bg); }
 .fi-sec > h3 { font-size: .98em; margin: 0 0 6px; border-bottom: 1px solid var(--rule-line); padding-bottom: 3px; }
 .fi-grid { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: .93em; }
 .fi-grid dt { color: var(--pencil); font: italic 12px var(--font-serif); }
@@ -1997,9 +2067,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 </div>
 
 <!-- ═══════════════ FICHE ÉLÈVE (lecture) ═══════════════ -->
-<div id="mfiche" class="mo" onclick="closeMod(this,event)">
-  <div class="mb" style="max-width:860px;width:100%">
-    <h2 id="mfiche-title">👤 Fiche</h2>
+<div id="mfiche" class="mo plein" onclick="closeMod(this,event)" onkeydown="_ficheKey(event)">
+  <div class="mb fi-mb">
+    <div class="fi-head"><h2 id="mfiche-title">👤 Fiche</h2><div id="mfiche-bar" class="fi-bar"></div></div>
     <div id="mfiche-body"></div>
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('mfiche')">Fermer</button>
@@ -2477,8 +2547,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.43.0';
-const APP_BUILD_DATE = '2026-10-02T20:17:17Z';
+const APP_VERSION    = '1.44.0';
+const APP_BUILD_DATE = '2026-10-02T20:24:15Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3098,6 +3168,8 @@ function _modalTeardownA11y(el) {
 // sur les TROIS voies de fermeture (bouton, clic sur le fond, Échap).
 let _modalReturnTo = {};
 function _afterModalClose(id) {
+  // La fiche ancrée à côté de la liste : la liste reprend toute la largeur.
+  if (id === 'mfiche') { document.body.classList.remove('fiche-cote'); if (document.querySelector('.tab.on')?.id === 'tab-eleves') try { renderStudents(); } catch (_) { } }
   const fn = _modalReturnTo[id];
   if (fn) { delete _modalReturnTo[id]; fn(); }
 }
@@ -5342,7 +5414,8 @@ function renderStudents() {
         bil ? `<div class="synth-rem" title="${_escAttr(bil.texte)}">${_escName(bil.texte)}</div>` : ''}</td>`;
     }).join('');
 
-    return `<tr${(isFuture || isGone) ? ' class="inactive"' : ''}>
+    const ouverte = s.id === _ficheSid && document.body.classList.contains('fiche-cote') && document.getElementById('mfiche')?.classList.contains('on');
+    return `<tr class="${(isFuture || isGone) ? 'inactive' : ''}${ouverte ? ' el-cur' : ''}">
       <td>${civBtn}<a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète"
             style="text-decoration:none;color:inherit">${_nomHTML(s.id, s.nom, s.prenom)}</a>${lifeBadge}${_ageSubHTML(s, 'age-' + s.id)}</td>
       ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(s.id)}"
@@ -5474,8 +5547,11 @@ function openFiche(sid) {
   if (!S.eleves[sid]) return;
   _ficheSid = sid;
   _ficheEdit = null;
+  _ficheMot = null;
   _ficheRender();
   openMod('mfiche');
+  _ficheAppliqueOuverture();
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
 }
 function ficheEdit(k) { _ficheEdit = _ficheEdit === k ? null : k; _ficheRender(); }
 // Mutation depuis la fiche : undo, sauvegarde, liste rafraîchie (par _withStudent), puis la fiche.
@@ -5847,7 +5923,7 @@ function _ficheRender() {
       <summary><span class="fi-det-t">📄 Documents</span> ${resume}${choixHTML}</summary>
       <div style="margin-top:8px">${docsHTML}</div></details></div>`;
 
-  box.innerHTML =
+  const secs =
       sec('🪪 Identité', identite)
     + sec('📓 Observations', relevesHTML)
     + sec('📈 Moyennes', moyHTML)
@@ -5858,8 +5934,388 @@ function _ficheRender() {
     + sec(`⚖️ Incidents et instances${incs.length ? ` <span class="fi-vide">(${incs.length})</span>` : ''}`, incHTML, { onclick: 'ficheVersIncident()', title: 'Noter un incident ou une instance' })
     + sec(`🎓 Conseils de classe et bilans${bilans.length ? ` <span class="fi-vide">(${bilans.length})</span>` : ''}`, bilHTML, { onclick: 'ficheVersBilan()', title: 'Rédiger ce que je dirai au conseil, ou un bilan de mi-période' })
     + sec(`🗣 Avis des collègues${avisFiche.length ? ` <span class="fi-vide">(${avisFiche.length})</span>` : ''}`, avisFicheHTML);
+  // Trois VUES (v1.44.0), choisies dans la barre de la fiche ; la rédaction est dans les trois.
+  const col = cls ? _ficheMomentCourant(cls) : null;
+  const vue = _ficheVue();
+  const bar = document.getElementById('mfiche-bar');
+  if (bar) bar.innerHTML = _ficheBarHTML(cls, stu, col);
+  box.innerHTML = vue === 'chrono' && col ? _ficheChronoHTML(cls, stu, col)
+    : vue === 'faits' && col ? _ficheFaitsHTML(cls, stu, col)
+    : `<div class="fi-cols">${col ? _ficheRedacHTML(cls, stu, col) : ''}${secs}</div>`;
   const f = box.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FICHE ÉLÈVE refondue (v1.44.0) — demandé le 2026-10-02 : « une fiche qui prenne plus de
+// place, pour quasiment tout voir en même temps, consultable et éditable, et faire une
+// synthèse sur l'élève à un moment donné : avis des collègues, résultats, ce qui s'est
+// passé, l'évolution des observations ». Trois vues comparées en prototype, toutes gardées :
+//   ▦ Tableau de bord — le dossier complet, en colonnes (autant que l'écran en permet) ;
+//   🕑 Chronologie   — chiffres clés, frise et journal de la PÉRIODE choisie ;
+//   ✍️ Faits         — les faits en phrases, les avis en tableau, et la rédaction.
+// L'OUVERTURE suit l'écran (arbitré par l'utilisateur) : à côté de la liste sur un écran
+// large (son 21:9 à la maison), en plein écran sinon (la Surface en conseil) — le choix
+// reste dans la barre, et se retient sur le poste.
+// ═══════════════════════════════════════════════════════════════════════════
+const _LS_FICHE_VUE = 'suiviPP_ficheVue', _LS_FICHE_OUV = 'suiviPP_ficheOuverture';
+const FICHE_VUES = [['dossier', '▦ Tableau de bord', 'Tout le dossier, en colonnes'], ['chrono', '🕑 Chronologie', 'La période choisie : chiffres clés, frise, journal'], ['faits', '✍️ Faits et rédaction', 'Les faits en phrases, les avis en tableau, un brouillon de synthèse']];
+const FICHE_COTE_MIN = 1700;    // px CSS : au-delà, la fiche s'ouvre à côté de la liste
+let _ficheMoment = null;        // clé de la colonne de bilan choisie (session)
+let _ficheMot = null;           // mot surligné dans les avis (session)
+function _ficheVue() { try { const v = localStorage.getItem(_LS_FICHE_VUE); return FICHE_VUES.some(x => x[0] === v) ? v : 'dossier'; } catch (_) { return 'dossier'; } }
+function ficheVueSet(v) { try { localStorage.setItem(_LS_FICHE_VUE, v); } catch (_) { } _ficheRender(); }
+function _ficheOuvertureReglage() { try { const v = localStorage.getItem(_LS_FICHE_OUV); return v === 'cote' || v === 'plein' ? v : 'auto'; } catch (_) { return 'auto'; } }
+// L'ouverture effective. PUR à largeur donnée (les tests passent `largeur`).
+function _ficheOuverture(largeur) {
+  const r = _ficheOuvertureReglage();
+  if (r !== 'auto') return r;
+  const w = largeur ?? (typeof window !== 'undefined' ? window.innerWidth : 0);
+  return w >= FICHE_COTE_MIN ? 'cote' : 'plein';
+}
+function ficheOuvertureSet(v) { try { localStorage.setItem(_LS_FICHE_OUV, v === 'cote' || v === 'plein' ? v : 'auto'); } catch (_) { } _ficheAppliqueOuverture(); _ficheRender(); }
+function _ficheAppliqueOuverture() {
+  const el = document.getElementById('mfiche');
+  if (!el || !el.classList) return;
+  const m = _ficheOuverture();
+  el.classList.toggle('plein', m === 'plein');
+  el.classList.toggle('cote', m === 'cote');
+  if (el.setAttribute) el.setAttribute('aria-modal', m === 'cote' ? 'false' : 'true');
+  document.body.classList.toggle('fiche-cote', m === 'cote' && el.classList.contains('on'));
+}
+if (typeof window !== 'undefined' && window.addEventListener) {
+  let _ficheResizeT = null;
+  window.addEventListener('resize', () => { clearTimeout(_ficheResizeT); _ficheResizeT = setTimeout(() => { if (document.getElementById('mfiche')?.classList.contains('on')) _ficheAppliqueOuverture(); }, 150); });
+}
+// ◀ ▶ : dans l'ordre de la liste à l'écran (tri et filtres compris) ; un élève hors de la
+// liste filtrée se place dans l'ordre de la classe.
+function _ficheOrdre(cls) {
+  const l = _elevesRows(cls).map(x => x.s.id);
+  return l.includes(_ficheSid) ? l : cls.eleves.filter(id => S.eleves[id]);
+}
+function ficheNav(k) {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id];
+  if (!cls) return;
+  const o = _ficheOrdre(cls), i = o.indexOf(_ficheSid), n = o[i + k];
+  if (!n) return;
+  const ta = document.getElementById('fi-bil');
+  if (ta && document.activeElement === ta) ficheBilanSave();
+  _ficheSid = n; _ficheEdit = null; _ficheMot = null;
+  _ficheRender();
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+}
+function _ficheKey(e) {
+  if (_isTextEntryTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'ArrowRight') { e.preventDefault(); ficheNav(1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); ficheNav(-1); }
+}
+
+// ── Les MOMENTS d'une synthèse ── les colonnes de bilan de la liste (conseil, mi-période,
+// points du mois), période par période jusqu'à la courante, mi-période toujours proposée.
+function _ficheMoments(cls) {
+  const pCour = _carnetCurrentPeriodIdx(cls), out = [];
+  for (let i = 0; i <= pCour; i++)
+    out.push(..._bilanColonnes(cls, i, [`bil:miperiode:${i}`, ...(i === pCour ? [..._bilanColsAjout] : [])]).map(c => ({ ...c, pIdx: i })));
+  return out;
+}
+function _ficheMomentCourant(cls) {
+  const ms = _ficheMoments(cls);
+  return ms.find(c => c.key === _ficheMoment) || ms.find(c => c.key === `bil:conseil:${_carnetCurrentPeriodIdx(cls)}`) || ms[ms.length - 1] || null;
+}
+function ficheMomentSet(k) { const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); _ficheMoment = k; _ficheMot = null; _ficheRender(); }
+// Les bornes de ce qu'on résume : la période entière pour un conseil ; du début de la
+// période à son milieu pour la mi-période ; le mois pour un point du mois. PUR.
+function _ficheBornes(cls, col) {
+  const p = _periods(cls)[col.pIdx];
+  if (!p) return null;
+  if (col.type === 'mois') {
+    const a = col.ym + '-01', d = new Date(+col.ym.slice(0, 4), +col.ym.slice(5, 7), 0);
+    const b = `${col.ym}-${String(d.getDate()).padStart(2, '0')}`;
+    return { start: a > p.start ? a : p.start, end: b < p.end ? b : p.end, p };
+  }
+  if (col.type === 'miperiode') {
+    const a = new Date(p.start + 'T12:00:00'), b = new Date(p.end + 'T12:00:00');
+    return { start: p.start, end: _todayYmd(new Date((a.getTime() + b.getTime()) / 2)), p };
+  }
+  return { start: p.start, end: p.end, p };
+}
+// Le cumul d'observations au jour dit : le dernier relevé chiffré à cette date ou avant.
+function _cumulAu(cid, sid, ymd) {
+  const m = _relMap(cid);
+  if (!m) return null;
+  let v = null;
+  for (const d of _relDates(cid)) { if (d > ymd) break; const x = _relValue(m[d], sid); if (typeof x === 'number') v = x; }
+  return v;
+}
+function _obsEntre(cid, sid, a, b) {
+  const fin = _cumulAu(cid, sid, b);
+  if (fin === null) return null;
+  const avant = _cumulAu(cid, sid, _ymdAdd(a, -1));
+  return fin - (avant || 0);
+}
+function _ymdAdd(ymd, n) { const d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() + n); return _todayYmd(d); }
+// Les moyennes d'un moment : la période du bureau numérique qui correspond (cf.
+// _moyPourPeriode) ; pour un conseil, jusqu'au DERNIER import (les moyennes définitives
+// arrivent souvent après la fin de la période), sinon les imports faits avant la fin.
+function _ficheMoy(cls, sid, col, bornes) {
+  const mp = _moyPourPeriode(cls.id, bornes.p);
+  if (!mp) return null;
+  const list = col.type === 'conseil' ? mp.list : mp.list.filter(r => r.date <= bornes.end);
+  if (!list.length) return null;
+  const last = list[list.length - 1];
+  const g = _moyGen(last, sid);
+  const dep = list.find(r => typeof _moyGen(r, sid) === 'number');
+  const mats = _moyColsOf([last]).map(m => ({ mid: m.id, nom: m.nom, ab: _moyAbbr(m.nom), v: _moyVal(last, sid, m.id) })).filter(x => x.v !== null && x.v !== undefined);
+  return { list, last, g: typeof g === 'number' ? g : null, delta: typeof g === 'number' && dep && dep !== last ? _round2(g - _moyGen(dep, sid)) : null, depuis: dep ? dep.date : null, mats };
+}
+// Les avis d'un moment : la feuille de la période, du même objectif d'abord.
+function _ficheAvis(cls, sid, col) {
+  const a = _avisEleve(cls, sid, col.pIdx, col.type);
+  return a ? { camp: a.camp, items: a.items, cols: _avisCols(a.camp) } : null;
+}
+// Les mots qui reviennent dans les avis : comptés par DISCIPLINE qui les emploie (un
+// collègue qui répète « bavardages » dans deux colonnes ne compte qu'une fois). PUR.
+const _AVIS_MOTS_VIDES = new Set(('avec dans pour sans sous mais donc alors aussi assez très trop plus moins bien encore toujours souvent parfois jamais '
+  + 'cette elle elles ils leur leurs nous vous sont était être avoir fait faire faits peut peuvent doit quand comme depuis entre chez '
+  + 'élève élèves classe cours travail heure heures quelques plusieurs reprises semble rien signaler').split(' '));
+function _avisMotsFrequents(items, cols) {
+  const par = new Map();
+  for (const it of items || []) {
+    const vus = new Set();
+    for (const c of cols || []) String(it[c.key] || '').toLowerCase().split(/[^a-zàâäçéèêëîïôöùûüÿœæ-]+/).forEach(w => {
+      w = w.replace(/^-+|-+$/g, '');
+      if (w.length < 5 || _AVIS_MOTS_VIDES.has(w)) return;
+      const k = w.replace(/(s|x)$/, '');
+      if (vus.has(k)) return;
+      vus.add(k);
+      const e = par.get(k) || { mot: w.replace(/(s|x)$/, ''), n: 0 };
+      e.n++; par.set(k, e);
+    });
+  }
+  return [...par.values()].filter(e => e.n >= 2).sort((a, b) => b.n - a.n || a.mot.localeCompare(b.mot)).slice(0, 8);
+}
+// Les FAITS d'un moment, en phrases : [{ k, html, phrase }] — `phrase` est ce qu'on insère
+// dans le bilan (en minuscule, sans point), vide quand le fait ne se dit pas. PUR (lit S).
+function _ficheFaits(cls, stu, col) {
+  const b = _ficheBornes(cls, col);
+  if (!b) return [];
+  const cid = cls.id, sid = stu.id, F = [];
+  const e = t => _escName(t);
+  const pl = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+  // Carnet : sur le moment, depuis la mi-période (au conseil), et le rang dans la classe.
+  const o = _obsEntre(cid, sid, b.start, b.end);
+  if (o !== null) {
+    const autres = cls.eleves.map(x => _obsEntre(cid, x, b.start, b.end)).filter(v => v !== null);
+    const rang = autres.filter(v => v > o).length + 1;
+    const mi = col.type === 'conseil' ? _obsEntre(cid, sid, _ymdAdd(_ficheBornes(cls, { ...col, type: 'miperiode' }).end, 1), b.end) : null;
+    F.push({ k: 'obs', html: o ? `<strong>${pl(o, 'observation')}</strong> au carnet${mi !== null ? `, dont ${mi} depuis la mi-période` : ''} — ${rang === 1 ? 'le plus haut de la classe' : `${rang}<sup>e</sup> de la classe`}.` : 'Aucune observation au carnet sur la période.',
+      phrase: o ? `${pl(o, 'observation')} au carnet${mi !== null ? ` dont ${mi} depuis la mi-période` : ''}` : 'aucune observation au carnet' });
+  }
+  const m = _ficheMoy(cls, sid, col, b);
+  if (m && m.g !== null) {
+    F.push({ k: 'moy', html: `Moyenne générale <strong>${e(_fmtNote(m.g, 1))}</strong>${m.delta !== null ? ` (${e(_fmtDelta(m.delta))} depuis le ${e(_fmtDateFr(m.depuis))})` : ''}, au ${e(_fmtDateFr(m.last.date))}.`,
+      phrase: `moyenne générale de ${_fmtNote(m.g, 1)}${m.delta !== null && Math.abs(m.delta) >= 0.5 ? ` (${m.delta > 0 ? 'en hausse' : 'en baisse'} de ${_fmtNote(Math.abs(m.delta), 1)})` : ''}` });
+    const lo = m.mats.filter(x => typeof x.v === 'number' && x.v < 10), hi = m.mats.filter(x => typeof x.v === 'number' && x.v >= 14);
+    if (lo.length) F.push({ k: 'moy', html: `Sous 10 : <strong>${lo.map(x => `${e(x.ab)} ${e(_fmtNote(x.v, 1))}`).join(', ')}</strong>.`, phrase: `des difficultés en ${lo.map(x => x.ab.toLowerCase()).join(', ')}` });
+    if (hi.length) F.push({ k: 'moy', html: `Points forts : ${hi.map(x => `${e(x.ab)} ${e(_fmtNote(x.v, 1))}`).join(', ')}.`, phrase: `de bons résultats en ${hi.map(x => x.ab.toLowerCase()).join(', ')}` });
+  }
+  const av = _ficheAvis(cls, sid, col);
+  if (av) {
+    const mots = _avisMotsFrequents(av.items, av.cols);
+    const cible = (av.camp.cibles || []).includes(sid);
+    F.push({ k: 'avis', html: `<strong>${pl(av.items.length, 'discipline')} sur ${av.camp.disciplines.length}</strong> ${av.items.length > 1 ? 'ont' : 'a'} donné un avis${cible ? ' (demandé ⭐)' : ''}.${mots.length ? ` Revient : ${mots.slice(0, 4).map(x => `« ${e(x.mot)} » ×${x.n}`).join(', ')}.` : ''}`,
+      phrase: mots.length ? `les collègues relèvent : ${mots.slice(0, 3).map(x => x.mot).join(', ')}` : '' });
+  }
+  const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && x.date >= b.start && x.date <= b.end).sort((x, y) => x.date.localeCompare(y.date));
+  F.push(inc.length ? { k: 'incid', html: `<strong>${pl(inc.length, 'incident')}</strong> : ${inc.map(x => `${e(_instanceOf(x.type).label.toLowerCase())} le ${e(_fmtDateFr(x.date).slice(0, 5))}`).join(', ')}.`,
+    phrase: inc.map(x => `${_instanceOf(x.type).label.toLowerCase()} le ${_fmtDateFr(x.date).slice(0, 5)}`).join(', ') } : { k: 'incid', html: 'Aucun incident.', phrase: '' });
+  const ct = (stu.journal || []).filter(x => _isPlainObj(x) && x.date >= b.start && x.date <= b.end).sort((x, y) => x.date.localeCompare(y.date));
+  if (ct.length) F.push({ k: 'contact', html: `<strong>${pl(ct.length, 'contact')}</strong> avec la famille : ${ct.map(x => `${e(_journalType(x.type).label.toLowerCase())} le ${e(_fmtDateFr(x.date).slice(0, 5))}`).join(', ')}.`,
+    phrase: `famille contactée (${ct.map(x => `${_journalType(x.type).label.toLowerCase()} le ${_fmtDateFr(x.date).slice(0, 5)}`).join(', ')})` });
+  const nr = _docsOfCurrent().filter(d => (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid))
+    .filter(d => { const r = _retour(d, sid); return !r.rendu || (r.dateRetour && r.dateRetour > b.end); });
+  if (nr.length) F.push({ k: 'papier', html: `Papier${nr.length > 1 ? 's' : ''} à rendre : ${nr.map(d => e(d.titre)).join(', ')}.`, phrase: '' });
+  const prec = _bilansOf(sid).filter(x => x.date < col.date && !(x.type === col.type && _bilanCible(cls, sid, { type: col.type, date: col.date }) === x))[0];
+  if (prec) F.push({ k: 'bilan', html: `${e(_bilanLabel(prec))} (${e(_fmtDateFr(prec.date).slice(0, 5))}) : « ${e(prec.texte)} »`, phrase: '' });
+  return F;
+}
+// Un BROUILLON assemblé à partir des faits — à réécrire : l'app rassemble, elle ne juge pas.
+function _ficheBrouillon(cls, stu, col) {
+  const ph = _ficheFaits(cls, stu, col).map(f => f.phrase).filter(Boolean);
+  if (!ph.length) return '';
+  return ph[0].charAt(0).toUpperCase() + ph[0].slice(1) + (ph.length > 1 ? ' ; ' + ph.slice(1).join(' ; ') : '') + '.';
+}
+// ── La barre de la fiche ──
+function _ficheBarHTML(cls, stu, col) {
+  if (!cls) return '';
+  const o = _ficheOrdre(cls), i = o.indexOf(stu.id);
+  const vue = _ficheVue(), ouv = _ficheOuvertureReglage();
+  const ms = _ficheMoments(cls);
+  const per = _periods(cls);
+  const groupes = per.map((p, pi) => ({ p, cols: ms.filter(c => c.pIdx === pi) })).filter(g => g.cols.length);
+  return `<span class="el-aff" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
+    <label class="tb-hint fi-bar-l">Synthèse pour <select onchange="ficheMomentSet(this.value)">${groupes.map(g => `<optgroup label="${_escAttr(g.p.label)}">${g.cols.map(c => `<option value="${_escAttr(c.key)}"${col && c.key === col.key ? ' selected' : ''}>${_escName(c.long)}</option>`).join('')}</optgroup>`).join('')}</select></label>
+    <label class="tb-hint fi-bar-l">Ouverture <select onchange="ficheOuvertureSet(this.value)" title="À côté de la liste : la liste reste visible et un clic sur un nom change de fiche"><option value="auto"${ouv === 'auto' ? ' selected' : ''}>selon l'écran (${_ficheOuverture() === 'cote' ? 'à côté' : 'plein écran'})</option><option value="cote"${ouv === 'cote' ? ' selected' : ''}>à côté de la liste</option><option value="plein"${ouv === 'plein' ? ' selected' : ''}>plein écran</option></select></label>
+    <span class="fi-nav"><button class="btn btn-g btn-sm" onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="tb-hint">${i + 1} / ${o.length}</span><button class="btn btn-g btn-sm" onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>
+    <button class="btn btn-g btn-sm fi-x" onclick="closeMod2('mfiche')" title="Fermer (Échap)">✕</button>`;
+}
+// ── La rédaction : le bilan du moment choisi, écrit EN PLACE ──
+// Enregistré en quittant le champ (pas de re-rendu : un clic sur « insérer » ou ▶ ne doit
+// pas tomber sur un bouton remplacé sous le doigt). Il reprend le bilan existant de ce
+// moment (`_bilanCible`) plutôt que d'en créer un second.
+function _ficheRedacHTML(cls, stu, col, extra) {
+  const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
+  const autres = _bilansOf(stu.id).filter(x => x !== b);
+  return `<div class="fi-sec fi-redac"><h3>✍️ ${_escName(col.long)} <span class="fi-vide">— ce que je dirai</span></h3>
+    <textarea id="fi-bil" rows="6" onchange="ficheBilanSave()" placeholder="Le bilan de ${_escAttr(stu.prenom)} pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
+    <div class="fi-redac-b">${extra || ''}<span class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</span></div>
+    ${autres.length ? `<details class="fi-det"><summary class="tb-hint">Les autres bilans (${autres.length})</summary>${autres.map(x => `<div class="fi-bil-o"><span class="fi-vide">${_escName(_bilanLabel(x))} · ${_escName(_fmtDateFr(x.date))}</span><div>${_escName(x.texte)}</div></div>`).join('')}</details>` : ''}</div>`;
+}
+function ficheBilanSave() {
+  const ta = document.getElementById('fi-bil');
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id];
+  if (!ta || !cls) return;
+  const col = _ficheMomentCourant(cls);
+  if (!col) return;
+  const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
+  const v = String(ta.value || '').trim();
+  const etat = document.getElementById('fi-bil-etat');
+  if (!v) {
+    if (b) { ta.value = b.texte; toast('⚠️ Un bilan vide se supprime (🗑, dans la fiche), il ne se vide pas.', 'warn'); }
+    return;
+  }
+  if (b && b.texte === v) return;
+  pushUndo();
+  if (b) bilanSet(stu.id, b.id, { date: b.date, type: b.type, texte: v });
+  else bilanAdd(stu.id, { date: col.date, type: col.type, texte: v });
+  save();
+  if (etat) etat.textContent = `✓ Enregistré à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+}
+function ficheInsererFait(i) {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id];
+  const ta = document.getElementById('fi-bil');
+  if (!cls || !ta) return;
+  const f = _ficheFaits(cls, stu, _ficheMomentCourant(cls))[i];
+  if (!f || !f.phrase) return;
+  const t = f.phrase.charAt(0).toUpperCase() + f.phrase.slice(1) + '.';
+  ta.value = (ta.value.trim() ? ta.value.trim() + ' ' : '') + t;
+  ficheBilanSave();
+  ta.focus();
+}
+function ficheBrouillonUI() {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id];
+  const ta = document.getElementById('fi-bil');
+  if (!cls || !ta) return;
+  const br = _ficheBrouillon(cls, stu, _ficheMomentCourant(cls));
+  if (!br) return toast('Rien à rassembler pour ce moment.');
+  const poser = () => { ta.value = br; ficheBilanSave(); ta.focus(); };
+  if (ta.value.trim()) _uiConfirm({ title: 'Remplacer le texte du bilan ?', message: 'Le brouillon remplace ce qui est écrit. Ctrl+Z le récupère.', okLabel: 'Remplacer', onOk: poser });
+  else poser();
+}
+function ficheMotUI(m) { _ficheMot = _ficheMot === m ? null : m; _ficheRender(); }
+// Les avis en TABLEAU : une ligne par discipline, une colonne par colonne de la feuille.
+function _ficheAvisTableHTML(av) {
+  if (!av) return '<span class="fi-vide">Aucune feuille d\'avis pour ce moment.</span>';
+  const mots = _avisMotsFrequents(av.items, av.cols);
+  const re = _ficheMot ? new RegExp(`(${_ficheMot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[sx]?)`, 'gi') : null;
+  const cell = t => { const x = _escName(t); return re ? x.replace(re, '<mark>$1</mark>') : x; };
+  const sans = av.camp.disciplines.filter(d => !av.items.some(it => it.disc.id === d.id));
+  return `${(av.camp.cibles || []).includes(_ficheSid) ? '<div class="tb-hint">⭐ demandé en particulier</div>' : ''}
+    ${mots.length ? `<div class="fi-mots"><span class="tb-hint">Revient :</span>${mots.map(x => `<button class="el-chip${_ficheMot === x.mot ? ' on' : ''}" aria-pressed="${_ficheMot === x.mot}" onclick="ficheMotUI('${_escJsAttr(x.mot)}')" title="Surligner dans les avis">${_escName(x.mot)} ×${x.n}</button>`).join('')}</div>` : ''}
+    ${av.items.length ? `<div class="rel-wrap"><table class="dt fi-avt"><thead><tr><th>Discipline</th>${av.cols.map(c => `<th>${_escName(c.label)}</th>`).join('')}</tr></thead><tbody>${
+      av.items.map(it => `<tr><th scope="row">${_escName(it.disc.nom)}${it.disc.profs ? `<div class="fi-vide">${_escName(it.disc.profs)}</div>` : ''}</th>${av.cols.map(c => `<td>${it[c.key] ? cell(it[c.key]) : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<span class="fi-vide">Aucun avis sur cet élève.</span>'}
+    ${sans.length ? `<div class="tb-hint" style="margin-top:4px">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</div>` : ''}`;
+}
+// La courbe du cumul sur la période, la zone du moment en clair, la mi-période marquée.
+function _ficheCourbeHTML(cls, stu, col) {
+  const b = _ficheBornes(cls, col), p = b.p;
+  const m = _relMap(cls.id) || {};
+  const pts = _relDates(cls.id).filter(d => d >= p.start && d <= p.end).map(d => [d, _relValue(m[d], stu.id)]).filter(x => typeof x[1] === 'number');
+  if (pts.length < 1) return '<span class="fi-vide">Aucun relevé de carnet sur la période.</span>';
+  const W = 460, H = 150, x0 = 26, x1 = W - 10, y0 = H - 20, y1 = 12;
+  const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(p.start), tb = t(p.end);
+  const X = d => (x0 + (t(d) - ta) / (tb - ta) * (x1 - x0)).toFixed(1);
+  const mx = Math.max(5, ...pts.map(q => q[1])), Y = v => (y0 - v / mx * (y0 - y1)).toFixed(1);
+  const mi = _ficheBornes(cls, { ...col, type: 'miperiode' }).end;
+  let g = `<svg class="fi-courbe" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumul des observations sur la période ${_escAttr(p.label)}">`;
+  g += `<rect class="fc-zone" x="${X(b.start)}" y="${y1}" width="${Math.max(2, X(b.end) - X(b.start))}" height="${y0 - y1}"/>`;
+  g += `<line class="fc-ax" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/><line class="fc-mi" x1="${X(mi)}" y1="${y1}" x2="${X(mi)}" y2="${y0}"/><text x="${+X(mi) + 3}" y="${y1 + 9}">mi-${_escName(p.label)}</text>`;
+  _moisDe(p).forEach(([ym, l], k) => { if (k % (p.end.slice(0, 7) > p.start.slice(0, 7) ? 1 : 1) === 0) g += `<text x="${X(ym + '-01' < p.start ? p.start : ym + '-01')}" y="${H - 5}">${_escName(l)}</text>`; });
+  for (let v = 0; v <= mx; v += Math.max(5, Math.ceil(mx / 4 / 5) * 5)) g += `<text x="2" y="${+Y(v) + 3}">${v}</text>`;
+  g += `<polyline class="fc-ln" points="${pts.map(q => X(q[0]) + ',' + Y(q[1])).join(' ')}"/>`;
+  pts.forEach((q, k) => { const d = k ? q[1] - pts[k - 1][1] : 0; g += `<circle class="fc-pt" cx="${X(q[0])}" cy="${Y(q[1])}" r="3.5"><title>${_escName(_fmtDateFr(q[0]))} : ${q[1]}</title></circle>${d > 0 ? `<text class="fc-lb" x="${+X(q[0]) - 6}" y="${+Y(q[1]) - 7}">+${d}</text>` : ''}`; });
+  return g + '</svg>';
+}
+// ── Vue « Faits et rédaction » ──
+function _ficheFaitsHTML(cls, stu, col) {
+  const b = _ficheBornes(cls, col);
+  const F = _ficheFaits(cls, stu, col);
+  const av = _ficheAvis(cls, stu.id, col);
+  const ICO = { obs: '📓', moy: '📈', avis: '🗣', incid: '⚖️', contact: '📇', papier: '📄', bilan: '🎓' };
+  const faits = F.map((f, i) => `<div class="fi-fait"><span aria-hidden="true">${ICO[f.k] || '•'}</span><span>${f.html}</span>${f.phrase ? `<button class="btn btn-g btn-sm" onclick="ficheInsererFait(${i})" title="Ajouter cette phrase à la fin du bilan">＋ insérer</button>` : '<span></span>'}</div>`).join('');
+  return `<div class="fi-trois">
+    <div class="fi-sec"><h3>Ce que disent les faits <span class="fi-vide">— du ${_escName(_fmtDateFr(b.start))} au ${_escName(_fmtDateFr(b.end))}</span></h3>${faits || '<span class="fi-vide">Rien sur ce moment.</span>'}
+      <div style="margin-top:10px">${_ficheCourbeHTML(cls, stu, col)}</div>${stu.remarque ? `<div class="fi-bil-o"><span class="fi-vide">Remarque</span><div>${_escName(stu.remarque)}</div></div>` : ''}</div>
+    <div class="fi-sec"><h3>🗣 Avis des collègues${av ? ` <span class="fi-vide">— ${_escName(_avisObjectif(cls, av.camp).long)}</span>` : ''}</h3>${_ficheAvisTableHTML(av)}</div>
+    ${_ficheRedacHTML(cls, stu, col, `<button class="btn btn-s btn-sm" onclick="ficheBrouillonUI()" title="Rassemble les faits en une phrase par sujet, à réécrire ensuite">Proposer un brouillon</button>`)}
+  </div>`;
+}
+// ── Vue « Chronologie » ── tout ce qui s'est passé dans les bornes du moment, daté.
+function _ficheEvenements(cls, stu, col) {
+  const b = _ficheBornes(cls, col), E = [], sid = stu.id, cid = cls.id;
+  const dans = d => d && d >= b.start && d <= b.end;
+  const m = _relMap(cid) || {};
+  _relDates(cid).filter(dans).forEach(d => { const x = _relDelta(cid, d, sid); if (x && x.delta > 0) E.push({ date: d, k: 'obs', n: x.delta, html: `Carnet : +${x.delta} (cumul ${x.n})` }); else if (_relValue(m[d], sid) === REL_ABSENT) E.push({ date: d, k: 'obs', n: 0, html: 'Carnet : absent au relevé' }); });
+  const mp = _moyPourPeriode(cid, b.p);
+  (mp ? mp.list : []).filter(r => dans(r.date)).forEach(r => { const g = _moyGen(r, sid); if (g !== null) E.push({ date: r.date, k: 'moy', html: `Moyennes : générale ${_escName(typeof g === 'number' ? _fmtNote(g, 1) : g)}${_moySous10(r, sid) ? `, ${_moySous10(r, sid)} matière(s) sous 10` : ''}` }); });
+  _avisCampagnes(cid).filter(c => dans(c.date) && c.avis?.[sid]).forEach(c => { const items = c.disciplines.filter(d => c.avis[sid][d.id]).map(d => ({ disc: d, ...c.avis[sid][d.id] }));
+    if (items.length) E.push({ date: c.date, k: 'avis', html: `Avis des collègues — ${_escName(_avisObjectif(cls, c).long)} : ${items.length} discipline(s)${(c.cibles || []).includes(sid) ? ' ⭐' : ''}`, detail: _avisItemsHTML(items, _avisCols(c)) }); });
+  (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'incid', html: `<strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<div class="fi-vide">${_escName(x.texte)}</div>` : ''}` }));
+  (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'contact', html: `<strong>${_escName(_journalType(x.type).label)}</strong> — ${_escName(x.texte || '')}` }));
+  _bilansOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
+  _docsOfCurrent().filter(d => (d.classIds || []).includes(cid) && dans(d.dateDistribution) && _docExpected(d).some(x => x.id === sid)).forEach(d => {
+    const r = _retour(d, sid);
+    E.push({ date: d.dateDistribution, k: 'papier', html: `${_escName(d.titre)} distribué${d.suiviRetour === false ? '' : r.rendu ? ` — rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour)) : ''}` : ' — <strong>pas rendu</strong>'}` });
+  });
+  return E.sort((x, y) => x.date.localeCompare(y.date)).map((x, i) => ({ ...x, i }));
+}
+function _ficheChronoHTML(cls, stu, col) {
+  const b = _ficheBornes(cls, col), E = _ficheEvenements(cls, stu, col);
+  const o = _obsEntre(cls.id, stu.id, b.start, b.end), m = _ficheMoy(cls, stu.id, col, b), av = _ficheAvis(cls, stu.id, col);
+  const nb = k => E.filter(x => x.k === k).length;
+  const nr = _ficheFaits(cls, stu, col).find(f => f.k === 'papier');
+  const kpi = (l, v, sub) => `<div class="fi-kpi"><small>${l}</small><strong>${v}</strong>${sub ? `<span>${sub}</span>` : ''}</div>`;
+  const kpis = `<div class="fi-kpis">${kpi('Carnet', o ?? '—', 'observations')}${kpi('Moyenne', m && m.g !== null ? _escName(_fmtNote(m.g, 1)) : '—', m ? `${m.delta !== null ? _escName(_fmtDelta(m.delta)) + ' · ' : ''}${m.mats.filter(x => typeof x.v === 'number' && x.v < 10).length} sous 10` : '')}${
+    kpi('Incidents', nb('incid'), '')}${kpi('Contacts', nb('contact'), 'avec la famille')}${kpi('Avis', av ? `${av.items.length}/${av.camp.disciplines.length}` : '—', av && (av.camp.cibles || []).includes(stu.id) ? '⭐ demandé' : 'disciplines')}${kpi('Papiers', nr ? nr.html.split(':')[1].split(',').length : 0, 'à rendre')}</div>`;
+  // La frise : une ligne par sujet, un repère par événement, cliquable vers le journal.
+  const LANES = [['obs', 'Carnet'], ['moy', 'Moyennes'], ['avis', 'Avis'], ['incid', 'Incidents'], ['contact', 'Contacts'], ['bilan', 'Bilans'], ['papier', 'Papiers']];
+  const W = 1000, L = 92, R = 12, LH = 24, H = 20 + LANES.length * LH;
+  const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(b.start), tb = t(b.end) + 1;
+  const X = d => (L + (t(d) - ta) / (tb - ta) * (W - L - R)).toFixed(1);
+  let g = `<svg viewBox="0 0 ${W} ${H}" class="fi-frise" role="img" aria-label="Frise du ${_escAttr(_fmtDateFr(b.start))} au ${_escAttr(_fmtDateFr(b.end))}">`;
+  _moisDe({ start: b.start, end: b.end }).forEach(([ym, l]) => { const d = ym + '-01' < b.start ? b.start : ym + '-01'; g += `<line class="ff-m" x1="${X(d)}" y1="14" x2="${X(d)}" y2="${H}"/><text class="ff-mt" x="${+X(d) + 3}" y="11">${_escName(l)}</text>`; });
+  LANES.forEach(([k, l], j) => { const y = 20 + j * LH + LH / 2; g += `<text class="ff-l" x="0" y="${y + 4}">${l}</text><line class="ff-lane" x1="${L}" y1="${y}" x2="${W - R}" y2="${y}"/>`; });
+  E.forEach(e => {
+    const j = LANES.findIndex(x => x[0] === e.k), y = 20 + j * LH + LH / 2, x = X(e.date);
+    const tip = `<title>${_escName(_fmtDateFr(e.date))} — ${_escName(e.html.replace(/<[^>]+>/g, ''))}</title>`;
+    const r = e.k === 'obs' ? 3 + Math.min(6, e.n || 0) : 6;
+    g += e.k === 'incid' ? `<rect class="ff-mk ff-${e.k}" onclick="ficheSaut(${e.i})" x="${x - 6}" y="${y - 6}" width="12" height="12">${tip}</rect>`
+      : e.k === 'moy' ? `<path class="ff-mk ff-${e.k}" onclick="ficheSaut(${e.i})" d="M${x} ${y - 7}L${+x + 7} ${y}L${x} ${y + 7}L${x - 7} ${y}Z">${tip}</path>`
+      : `<circle class="ff-mk ff-${e.k}" onclick="ficheSaut(${e.i})" cx="${x}" cy="${y}" r="${r}">${tip}</circle>`;
+  });
+  g += '</svg>';
+  const journal = E.length ? E.map(e => `<div class="fi-jr" id="fi-ev-${e.i}"><span class="fi-vide">${_escName(_fmtDateFr(e.date).slice(0, 5))}</span><i class="ff-ic ff-${e.k}" aria-hidden="true"></i><div>${e.html}${e.detail ? `<details class="fi-det"><summary class="tb-hint">Lire les avis</summary>${e.detail}</details>` : ''}</div></div>`).join('')
+    : '<span class="fi-vide">Rien de daté sur ce moment.</span>';
+  return `${kpis}<div class="fi-frise-w">${g}</div>
+    <div class="fi-deux"><div class="fi-sec"><h3>Journal <span class="fi-vide">— du ${_escName(_fmtDateFr(b.start))} au ${_escName(_fmtDateFr(b.end))}, ${E.length} événement${E.length > 1 ? 's' : ''}</span></h3>${journal}</div>
+    <div>${_ficheRedacHTML(cls, stu, col)}${stu.remarque ? `<div class="fi-bil-o"><span class="fi-vide">Remarque</span><div>${_escName(stu.remarque)}</div></div>` : ''}</div></div>`;
+}
+function ficheSaut(i) {
+  const el = document.getElementById('fi-ev-' + i);
+  if (!el) return;
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.classList.remove('fi-flash'); void el.offsetWidth; el.classList.add('fi-flash');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

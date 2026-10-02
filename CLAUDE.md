@@ -1143,6 +1143,45 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      - Les deux boutons de pied (édition complète, remarque et contacts) restent, et **reviennent** à la fiche (`_modalReturnTo`).
      - **Tout le reste aussi** (v1.17.0, *« il y a toujours des données qu'on ne peut pas modifier sans aller ailleurs »*) : nom et prénom (✎ sur le titre), naissance / arrivée / départ (champs date en place, écrits **une fois le champ quitté** — `ficheSetDate`, mêmes gardes-fous que la modale), civilité (clic cycle), classe — **c'est-à-dire le NOM et l'année de LA classe** (`ficheSaveClasse`, v1.18.0 : on est PP d'une seule classe, « modifier la classe » ne peut pas vouloir dire déplacer l'élève ; le déplacement reste dans la modale ✏️, par `moveStudentToClass`, extrait pour être partagé), place (un sélecteur par salle, positions occupées désactivées → `seatSet`), **chaque cumul du carnet** (`releveSetCount`, mêmes règles que la grille, refus = valeur rétablie), **réponses, date de retour et note de chaque document** (`docSetReponse` / `docToggleReponse` / `docSetDateRetour` / `docSetNote` via `_docMut`), **texte et suppression de chaque contact** (`journalSetTexte` / `journalRemove`). Restent dérivés, donc non modifiables ici : délégué (l'élection) et élections. Testé : déplacement de classe, réponses / date / note, contact, place.
      - ⚠️ Défaut 22 (responsive) trouvé sur l'éditeur de place : `dd` de grille sans `min-width: 0` + éditeur flex **en colonne avec `flex-wrap: wrap`** — en colonne, une ligne flex qui replie se dimensionne sur ses items, pas sur le conteneur, et le label débordait de 120 px à 320 px. `nowrap` sur l'éditeur en colonne.
+   - **Refonte de la fiche (v1.44.0)** — demande de l'utilisateur : *« une fiche qui prenne
+     plus de place, pour quasiment tout voir en même temps ; faire une synthèse sur l'élève
+     à un moment donné : avis des collègues, résultats, ce qui s'est passé, l'évolution de
+     ses observations »*. Les trois vues du prototype sont gardées, choisies dans la **barre
+     de la fiche** (et seulement là — en haut de page, le choix aurait figuré deux fois
+     quand la fiche est à côté de la liste) ; la vue se retient sur le poste
+     (`suiviPP_ficheVue`) :
+     - **▦ Tableau de bord** : les sections d'avant (toutes éditables comme avant), en
+       **colonnes** (`columns: 400px` — trois sur la Surface, davantage à côté de la liste
+       sur l'écran large) ;
+     - **🕑 Chronologie** : chiffres clés, **frise** (une ligne par sujet, un repère par
+       événement, cliquable vers le journal — `ficheSaut`), journal daté (`_ficheEvenements`) ;
+     - **✍️ Faits et rédaction** : les faits en phrases (`_ficheFaits`, chacun avec
+       *＋ insérer*), la courbe du carnet, les **avis en tableau** (disciplines × colonnes de
+       la feuille) avec les **mots qui reviennent** (`_avisMotsFrequents`, comptés par
+       discipline, mots vides écartés — un clic les surligne), et un **brouillon** assemblé
+       des faits (`_ficheBrouillon`) — l'app rassemble, elle ne juge pas : à réécrire.
+     - **Synthèse pour** : un MOMENT — les colonnes de bilan (conseil, mi-période, points du
+       mois) de chaque période jusqu'à la courante (`_ficheMoments`). Il borne la chronologie
+       et les faits (`_ficheBornes` : la période pour un conseil, du début au milieu pour la
+       mi-période, le mois pour un point du mois) et choisit le bilan qu'on écrit. Moyennes :
+       la même exception que la synthèse de période (au conseil, le dernier import, même
+       daté après la fin).
+     - **La rédaction est dans les trois vues** (`_ficheRedacHTML`) : le bilan de ce moment,
+       écrit EN PLACE, enregistré **en quittant le champ** (`ficheBilanSave` : reprend le bilan
+       existant par `_bilanCible`, un cran d'undo par changement, un texte vidé ne supprime
+       rien). ⚠️ **Pas de re-rendu à l'enregistrement** : un clic sur *insérer* ou ▶ fait
+       quitter le champ, et la fiche redessinée remplaçait le bouton sous le doigt.
+     - **Ouverture** (arbitrée par l'utilisateur : *« à côté de la liste sur un écran large,
+       plein écran sinon ; proposer ces choix par défaut selon la largeur, mais laisser le
+       choix »*) : `_ficheOuverture` — `auto` (défaut) = **à côté** dès `FICHE_COTE_MIN` =
+       1 700 px CSS (son 21:9), **plein écran** en dessous (la Surface Pro 9, 1 440 px) ;
+       réglable dans la barre, retenu sur le poste (`suiviPP_ficheOuverture`), réappliqué au
+       redimensionnement. À côté : `#mfiche.cote` est ancrée à droite sous le bandeau
+       (`--fiche-cote-w` = 58vw), sans voile, `aria-modal="false"`, et `body.fiche-cote`
+       donne à l'onglet une marge à droite — la liste reste utilisable, un clic sur un nom
+       change de fiche, la ligne ouverte est surlignée (`tr.el-cur`).
+     - **◀ ▶** (et les flèches du clavier hors saisie) suivent la liste à l'écran, tri et
+       filtres compris (`_ficheOrdre`).
    - ⚠️ La fiche est un **dossier**, pas une vue courante : elle montre les documents archivés et les relevés où l'élève n'a rien. Une case vide au 8 décembre est une information quand on prépare un rendez-vous.
    - ⚠️ Un document `suiviRetour: false` s'affiche « rien à rendre », **jamais « non rendu »** : sinon la fiche fait courir après un papier qui n'existe pas.
    - La section **Documents est repliable** (elle est la plus longue, et on ne l'ouvre pas à chaque consultation) — mais les **choix portés** sur les papiers restent visibles repliés : c'est souvent la seule chose qu'on vient y chercher, et la cacher derrière un clic reviendrait à cacher l'essentiel avec l'accessoire. Le pli se souvient d'une fiche à l'autre. Reprend la structure de l'onglet Élèves de Plan de classe, moins tout ce qui touche au placement.
@@ -1518,6 +1557,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 79 | **Fiche élève refondue** : trois vues (tableau de bord en colonnes, chronologie avec frise et journal, faits et rédaction avec avis en tableau, mots qui reviennent et brouillon), synthèse bornée à un moment, bilan écrit en place, ouverture à côté de la liste sur écran large ou plein écran ; 6 tests (`test/fiche-synthese.test.js`). Audit 3 vues × 2 thèmes à 2 560, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.44.0) |
 | 78 | **Liste des élèves : deux affichages** (indicateurs sur une ligne par élève, carte de chaleur repliable par groupe), **filtres d'un clic** cumulables, **vues** toutes faites, colonne **Avis** des collègues (traits par discipline, n/N, ⭐) ; token `--chip-on-fg` ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.43.0) |
 | 77 | **Avis des collègues : colonnes réglables par feuille** (nombre et titres, modèles : conseil à trois colonnes, appréciation de bulletin, remarque libre, points forts / à travailler ; renommer garde les avis, retirer une colonne remplie est refusé), `{colonnes}` dans le message ; démo : point de mars à une colonne ; 5 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; feuille vue dans LibreOffice | ✅ **fait** (2026-10-02, v1.42.0) |
 | 76 | **Import Plan de classe : une case vide là-bas ne vide plus naissance, dates, civilité d'ici** (`stats.gardes`), point nommé avant l'import, outil *🩹 Récupérer des dates…* (`_recupChamps`) · **colonnes des bilans des périodes précédentes** (`_bilanColonnesListe`) ; 3 tests | ✅ **fait** (2026-10-02, v1.41.1) |
