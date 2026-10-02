@@ -403,3 +403,27 @@ test('Feuille d\'avis : hauteurs FIXES (mesurées en Andika) pour les quatre lig
   assert.strictEqual(r.court, 1);
   assert.ok(r.long > 4, 'un long texte se coupe sur plusieurs lignes');
 });
+
+test('Message aux collègues en TEXTE RICHE : gras, lien cliquable, puces, tout échappé ; le texte brut sans étoiles', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }); window.__c.lien = 'https://nuage03.apps.education.fr/index.php/s/AbC';
+    window.__c.msg = { echeance: '2025-11-14', off: [] }; avisCiblesSet('5C', window.__c.id, ['s1', 's5'])`);
+  const h = ev(`_avisMessageRiche(getCls(), window.__c)`);
+  const t = ev(`_avisMessage(getCls(), window.__c)`);
+  assert.match(h, /^<p style="margin:0 0 \.8em">Bonjour,<\/p>/);
+  assert.match(h, /<a href="https:\/\/nuage03\.apps\.education\.fr\/index\.php\/s\/AbC">https:\/\/nuage03/, 'le lien est cliquable');
+  assert.match(h, /« <b>rien à signaler<\/b> »/);
+  assert.match(h, /<ul[^>]*><li><b>Travail<\/b> : travail personnel/, 'les colonnes en liste à puces, sans le tiret');
+  assert.match(h, /<li>&lt;b&gt;BOLD&lt;\/b&gt; Zoé<\/li><li>DURAND Léa<\/li><\/ul>/, 'les élèves en liste, noms échappés');
+  assert.match(h, /<b>avant le vendredi 14 novembre<\/b>/);
+  assert.ok(!h.includes('**') && !t.includes('**'), 'aucune étoile ne reste, ni dans le riche ni dans le brut');
+  assert.match(t, /« rien à signaler »/);
+  assert.match(t, /– <b>BOLD<\/b> Zoé\n– DURAND Léa/, 'le texte brut garde ses tirets');
+  // Un lien qui n'est pas en https n'est jamais une ancre ; un texte réécrit piégé reste du texte.
+  ev(`window.__c.lien = 'javascript:alert(1)'; S.prefs.avisMsg = { fin: '<img src=x onerror=alert(1)> **Cordialement**' }`);
+  const h2 = ev(`_avisMessageRiche(getCls(), window.__c)`);
+  assert.ok(!/<a /.test(h2), 'pas d\'ancre sans https');
+  assert.match(h2, /<i>javascript:alert\(1\)<\/i>/);
+  assert.match(h2, /&lt;img src=x onerror=alert\(1\)&gt; <b>Cordialement<\/b>/);
+  assert.ok(!/<img/.test(h2));
+});

@@ -974,6 +974,9 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .av-part-h { display: flex; gap: 8px; align-items: center; cursor: pointer; color: var(--ink-deep); font-weight: 400; margin-bottom: 3px; }
 .av-part-h input { width: 16px; height: 16px; flex: none; }
 .av-part textarea { width: 100%; font-size: .88em; }
+/* L'aperçu du message mis en forme : ce qui sera collé dans le courriel. */
+.av-msg-riche { background: var(--paper); color: var(--ink-deep); border: 1px solid var(--rule-line); border-radius: var(--radius-sm, 4px); padding: 10px 12px; font-size: .92em; max-height: 340px; overflow: auto; overflow-wrap: anywhere; }
+.av-msg-riche a { color: var(--ink-blue); }
 .av-cibles { display: flex; flex-wrap: wrap; gap: 4px; }
 .av-cibles .tagpick { background: var(--paper-warm); }
 .av-cibles .tagpick.av-cible-on { background: var(--caution-bg); color: var(--caution-fg); border-color: var(--caution-bd); font-weight: 700; }
@@ -2390,8 +2393,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.10';
-const APP_BUILD_DATE = '2026-10-02T11:53:55Z';
+const APP_VERSION    = '1.40.11';
+const APP_BUILD_DATE = '2026-10-02T12:00:02Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12781,13 +12784,13 @@ const AVIS_MSG_PARTIES = [
       conseil:   'Je prépare {objectif} de la {classe}.',
       miperiode: 'Je prépare {objectif} de la {classe}.',
       mois:      'Je fais le point sur les élèves de la {classe} pour le mois de {mois}.' } },
-  { key: 'demande',  label: 'La demande',            texte: 'Pourriez-vous me donner votre avis sur les élèves, dans l\'onglet de votre discipline de cette feuille :\n{lien}\n\nLe lien ouvre la feuille dans le navigateur, sans compte à créer.' },
+  { key: 'demande',  label: 'La demande',            texte: 'Pourriez-vous me donner votre avis sur les élèves, dans l\'onglet de votre discipline de cette feuille :\n{lien}\n\nLe lien ouvre la feuille dans le navigateur, **sans compte à créer**.' },
   // Une partie À PART (demande de l'utilisateur, v1.40.10) : on la garde ou non selon le
   // moment — au point du mois, on ne veut que ceux qui posent question ; au conseil, parfois tous.
-  { key: 'besoin',   label: 'Seulement si besoin',   texte: '(Vous pouvez ne compléter que pour les élèves dont vous en ressentez le besoin : une case vide veut dire « rien à signaler ».)' },
-  { key: 'colonnes', label: 'Les colonnes',          texte: 'Trois colonnes :\n' + AVIS_CRITERES.map(c => `– ${c.label} : ${c.aide}`).join(' ;\n') + '.' },
-  { key: 'cibles',   label: 'Élèves en particulier', texte: 'J\'ai besoin de votre avis en particulier sur ces élèves, surlignés en jaune dans la feuille, car je rencontre bientôt leur famille :\n{eleves}' },
-  { key: 'echeance', label: 'Échéance',              texte: 'Merci de compléter la feuille avant le {echeance}.' },
+  { key: 'besoin',   label: 'Seulement si besoin',   texte: '(Vous pouvez ne compléter que pour les élèves dont vous en ressentez le besoin : une case vide veut dire « **rien à signaler** ».)' },
+  { key: 'colonnes', label: 'Les colonnes',          texte: 'Trois colonnes :\n' + AVIS_CRITERES.map(c => `– **${c.label}** : ${c.aide}`).join(' ;\n') + '.' },
+  { key: 'cibles',   label: 'Élèves en particulier', texte: 'J\'ai besoin de votre avis en particulier sur ces élèves, **surlignés en jaune** dans la feuille, car je rencontre bientôt leur famille :\n{eleves}' },
+  { key: 'echeance', label: 'Échéance',              texte: 'Merci de compléter la feuille **avant le {echeance}**.' },
   { key: 'fin',      label: 'Formule finale',        texte: 'Merci beaucoup,' },
 ];
 const AVIS_REPERES = '{objectif} {classe} {periode} {mois} {lien} {eleves} {echeance}';
@@ -12816,18 +12819,73 @@ function _avisMsgDedans(cls, camp, key) {
   if (key === 'echeance') return !!r.echeance;
   return true;
 }
-// Le message assemblé. PUR.
-function _avisMessage(cls, camp) {
+// Les parties du message, repères remplacés. PUR. Chaque partie est une liste de morceaux :
+// du texte (où **…** marque le gras), le lien, la liste des élèves — pour que le texte brut
+// et le texte riche sortent du MÊME assemblage et ne divergent jamais.
+const _AVIS_REPERE_RE = /\{(objectif|classe|periode|mois|lien|eleves|echeance)\}/g;
+function _avisMsgParties(cls, camp) {
   const r = _avisMsgReglages(camp);
   const p = _avisPeriode(cls, camp);
   const ech = r.echeance ? new Date(r.echeance + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
-  const vals = {
-    objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], lien: camp.lien || '[lien de partage de la feuille]',
-    eleves: _avisCibles(cls, camp).map(sid => `– ${S.eleves[sid].nom} ${S.eleves[sid].prenom}`).join('\n'), echeance: ech,
-  };
-  return AVIS_MSG_PARTIES.filter(pa => _avisMsgDedans(cls, camp, pa.key))
-    .map(pa => _avisMsgModele(pa.key, r.moment).replace(/\{(objectif|classe|periode|mois|lien|eleves|echeance)\}/g, (_, k) => vals[k]))
-    .filter(t => t.trim()).join('\n\n') + '\n';
+  const vals = { objectif: _avisObjectif(cls, camp).long, classe: cls.nom, periode: p ? p.label : '', mois: AVIS_MOIS[r.mois - 1], echeance: ech };
+  const eleves = _avisCibles(cls, camp).map(sid => `${S.eleves[sid].nom} ${S.eleves[sid].prenom}`);
+  return AVIS_MSG_PARTIES.filter(pa => _avisMsgDedans(cls, camp, pa.key)).map(pa => {
+    // Les repères simples d'abord, DANS le texte : « **avant le {echeance}** » reste en gras
+    // d'un bout à l'autre. Seuls le lien et la liste des élèves deviennent des morceaux.
+    const t = _avisMsgModele(pa.key, r.moment).replace(_AVIS_REPERE_RE, (x, c) => c === 'lien' || c === 'eleves' ? x : vals[c]), out = [];
+    let k = 0, m;
+    const re = /\{(lien|eleves)\}/g;
+    while ((m = re.exec(t))) {
+      if (m.index > k) out.push({ texte: t.slice(k, m.index) });
+      out.push(m[1] === 'lien' ? { lien: camp.lien || '' } : { eleves });
+      k = m.index + m[0].length;
+    }
+    if (k < t.length) out.push({ texte: t.slice(k) });
+    return out;
+  }).filter(morceaux => morceaux.some(x => x.lien !== undefined || x.eleves || (x.texte || '').replace(/\*\*/g, '').trim()));
+}
+// Le message en texte brut (le gras retiré). PUR.
+function _avisMessage(cls, camp) {
+  return _avisMsgParties(cls, camp).map(morceaux => morceaux.map(x =>
+    x.lien !== undefined ? (x.lien || '[lien de partage de la feuille]')
+      : x.eleves ? x.eleves.map(n => '– ' + n).join('\n')
+      : x.texte.replace(/\*\*/g, '')).join('')).join('\n\n') + '\n';
+}
+// Le message en TEXTE RICHE (v1.40.11, demande de l'utilisateur : copier-coller dans un
+// courriel en gardant la mise en forme). PUR. Paragraphes, gras, lien cliquable, listes à
+// puces (les lignes « – … » et les élèves). Styles EN LIGNE seulement : un client de
+// messagerie jette les feuilles de style. Tout ce qui vient de l'utilisateur est échappé ;
+// le lien n'est cliquable que s'il est en https (`_avisLienSur`).
+function _avisMessageRiche(cls, camp) {
+  const gras = t => _escName(t).replace(/\*\*([^*]+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '');
+  const ul = items => '<ul style="margin:.3em 0 .3em 1.4em;padding:0">' + items.map(i => `<li>${i}</li>`).join('') + '</ul>';
+  return _avisMsgParties(cls, camp).map(morceaux => {
+    // On aplatit en « lignes » : un retour à la ligne coupe, la liste d'élèves est un bloc.
+    const lignes = [[]];
+    morceaux.forEach(x => {
+      if (x.eleves) { lignes.push({ liste: x.eleves.map(n => _escName(n)) }); lignes.push([]); return; }
+      if (x.lien !== undefined) {
+        const l = _avisLienSur(x.lien);
+        lignes[lignes.length - 1].push(l ? `<a href="${_escAttr(l)}">${_escName(l)}</a>` : `<i>${_escName(x.lien || '[lien de partage de la feuille]')}</i>`);
+        return;
+      }
+      x.texte.split('\n').forEach((bout, i) => { if (i) lignes.push([]); if (bout) lignes[lignes.length - 1].push(gras(bout)); });
+    });
+    // Puis en blocs : paragraphes (ligne vide = nouveau paragraphe), listes « – ».
+    let html = '', para = [], puces = [];
+    const finPara = () => { if (para.length) html += '<p style="margin:0 0 .8em">' + para.join('<br>') + '</p>'; para = []; };
+    const finPuces = () => { if (puces.length) html += ul(puces); puces = []; };
+    lignes.forEach(li => {
+      if (li.liste) { finPara(); finPuces(); if (li.liste.length) html += ul(li.liste); return; }
+      const h = li.join('');
+      const txt = h.replace(/<[^>]*>/g, '');
+      if (!txt.trim() && !/<a /.test(h)) { finPara(); finPuces(); return; }
+      if (/^\s*[–-]\s/.test(txt)) { finPara(); puces.push(h.replace(/^(\s*(?:<b>)?)\s*[–-]\s+/, '$1')); return; }
+      finPuces(); para.push(h);
+    });
+    finPara(); finPuces();
+    return html;
+  }).join('');
 }
 function _avisMessageHTML(cls, camp) {
   const r = _avisMsgReglages(camp);
@@ -12849,11 +12907,13 @@ function _avisMessageHTML(cls, camp) {
       <label>Avant le <input type="date" value="${_escAttr(r.echeance)}" style="min-width:140px" onchange="avisMsgReglageUI('${id}','echeance',this.value)"></label></div>
     <div class="fg"><label for="mavis-lien">Lien de partage de la feuille</label>
       <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${id}',this.value)"></div>
-    <div class="tb-hint" style="margin-bottom:6px">Coche les parties à garder, réécris celles que tu veux : ton texte devient le modèle des prochaines feuilles (↺ pour revenir au texte proposé). Remplacés tout seuls : <code>${_escName(AVIS_REPERES)}</code>.</div>
+    <div class="tb-hint" style="margin-bottom:6px">Coche les parties à garder, réécris celles que tu veux : ton texte devient le modèle des prochaines feuilles (↺ pour revenir au texte proposé). Remplacés tout seuls : <code>${_escName(AVIS_REPERES)}</code>. <code>**entre deux paires d'étoiles**</code> = en gras ; une ligne qui commence par « – » = une puce.</div>
     ${parties}
-    <div class="fg" style="margin-top:8px"><label for="mavis-msg">Le message</label>
-      <textarea id="mavis-msg" rows="10" readonly style="width:100%;font-size:.9em">${_escName(_avisMessage(cls, camp))}</textarea></div>
-    <div style="margin-top:6px"><button class="btn btn-s btn-sm" onclick="avisCopierMessage()">📋 Copier le message</button></div>`;
+    <div class="fg" style="margin-top:8px"><label>Le message, tel qu'il sera collé</label>
+      <div id="mavis-msg" class="av-msg-riche">${_avisMessageRiche(cls, camp)}</div></div>
+    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+      <button class="btn btn-s btn-sm" onclick="avisCopierMessage('${id}')" title="Gras, lien et listes gardés au collage dans un courriel">📋 Copier le message mis en forme</button>
+      <button class="btn btn-g btn-sm" onclick="avisCopierMessage('${id}', true)" title="Sans mise en forme, pour un champ qui n'accepte que du texte">Copier en texte brut</button></div>`;
 }
 function _avisCampOf(campId) { return _avisMap(getCls()?.id)?.[campId] || null; }
 function avisMsgReglageUI(campId, champ, val) {
@@ -12925,12 +12985,35 @@ function _avisDetToggle(el) { if (el.open) _avisOuverts.add(el.dataset.det); els
 function _avisDetails(k, resume, corps) {
   return `<details class="av-det" style="margin-top:12px" data-det="${k}" ontoggle="_avisDetToggle(this)"${_avisOuverts.has(k) ? ' open' : ''}><summary>${resume}</summary>${corps}</details>`;
 }
-function avisCopierMessage() {
-  const ta = document.getElementById('mavis-msg');
-  if (!ta) return;
-  const ok = () => toast('📋 Message copié — colle-le dans un courriel aux collègues.');
-  try { navigator.clipboard.writeText(ta.value).then(ok, () => { ta.select(); toast('Sélectionné : Ctrl+C pour copier.'); }); }
-  catch (_) { ta.select(); toast('Sélectionné : Ctrl+C pour copier.'); }
+// ⚠️ On copie les DEUX formats (text/html et text/plain) : le courriel prend la mise en
+// forme, un champ de texte simple prend le texte. Sans `ClipboardItem` (Firefox ancien,
+// page hors https), repli sur une sélection de l'aperçu + execCommand('copy'), qui copie
+// aussi la mise en forme.
+async function avisCopierMessage(campId, brut) {
+  const cls = getCls(), camp = _avisCampOf(campId);
+  if (!cls || !camp) return;
+  const texte = _avisMessage(cls, camp);
+  const ok = () => toast(brut ? '📋 Message copié en texte brut.' : '📋 Message copié avec sa mise en forme — colle-le dans un courriel aux collègues.');
+  try {
+    if (brut) { await navigator.clipboard.writeText(texte); return ok(); }
+    if (typeof ClipboardItem === 'function' && navigator.clipboard && navigator.clipboard.write) {
+      const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:11pt">' + _avisMessageRiche(cls, camp) + '</div>';
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([texte], { type: 'text/plain' }) })]);
+      return ok();
+    }
+  } catch (_) { /* repli ci-dessous */ }
+  const el = document.getElementById('mavis-msg');
+  if (el && !brut) {
+    const sel = window.getSelection(), rg = document.createRange();
+    rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg);
+    let fait = false;
+    try { fait = document.execCommand('copy'); } catch (_) { fait = false; }
+    if (fait) { sel.removeAllRanges(); return ok(); }
+    return toast('Message sélectionné : Ctrl+C pour le copier.');
+  }
+  toast('Copie impossible ici — sélectionne le message à la main.', 'warn');
 }
 
 // ── Préparer ── écrire les onglets dans la feuille. ⚠️ Le sélecteur de fichier s'ouvre

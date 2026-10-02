@@ -762,6 +762,19 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   feuilles : `S.prefs.avisMsg` ne garde que ce que l'utilisateur a RÉÉCRIT (↺ revient au texte
   proposé) — remplacé, jamais modifié en place. Repères remplacés à l'assemblage
   (`_avisMessage`, pur) : `{classe} {periode} {mois} {lien} {eleves} {echeance}`.
+  **En texte riche** (v1.40.11, demande de l'utilisateur : *« copier-coller en gardant toute
+  la mise en forme »*) : `_avisMsgParties` (pur) assemble une seule fois les parties en
+  morceaux (texte · lien · liste d'élèves) ; `_avisMessage` en tire le texte brut,
+  `_avisMessageRiche` le HTML — paragraphes, `**gras**` (même convention que la feuille ;
+  les textes proposés mettent en gras « sans compte à créer », « rien à signaler », le nom
+  des colonnes, « surlignés en jaune », l'échéance), lignes « – » en puces, élèves en liste,
+  lien cliquable **seulement en https** (`_avisLienSur`), tout échappé, styles EN LIGNE (un
+  client de messagerie jette les feuilles de style). ⚠️ Les repères simples sont remplacés
+  DANS le texte avant le découpage : « **avant le {echeance}** » reste en gras d'un bout à
+  l'autre. La modale montre l'aperçu riche (`#mavis-msg`, ce qui sera collé) ; **📋 Copier
+  le message mis en forme** écrit `text/html` ET `text/plain` (`ClipboardItem`), repli par
+  sélection de l'aperçu + `execCommand('copy')` ; **Copier en texte brut** à côté. Vérifié :
+  les deux formats arrivent dans le presse-papiers du système (Chromium).
 - **Disciplines** (`S.disciplines`, `_disciplinesSeed`, comme les instances : d'office =
   décochables, pas supprimables) : la liste de l'utilisateur — **allemand** (ajouté en
   v1.39.2, oubli de la liste d'origine ; ALLEMAND et ALLEMAND BILINGUE s'y rangent, la LCE
@@ -1382,6 +1395,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 72 | **Message aux collègues en texte riche** : aperçu mis en forme, copie HTML + texte (gras, puces, lien cliquable), copie en texte brut à part, mots clés en gras dans les textes proposés ; 1 test. Audit 2 thèmes et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.40.11) |
 | 71 | **Message aux collègues** : la parenthèse « ne compléter que pour les élèves dont vous en ressentez le besoin » devient une partie à part, cochable (`besoin`) ; test étendu | ✅ **fait** (2026-10-02, v1.40.10) |
 | 70 | **Hauteurs des lignes de la feuille d'avis** : fixes et mesurées en Andika pour les quatre lignes de tête (`_odsLignes`, `_odsHauteurCm`, chasses exportées par `gen_fonts.py`), automatiques pour les élèves ; police incluse renommée « Andika SuiviPP » ; 1 test. Vu dans LibreOffice avec et sans Andika installée | ✅ **fait** (2026-10-02, v1.40.9) |
 | 69 | **Bilans pour l'objectif d'une feuille d'avis** (bouton ✍️, mode feuille de la modale de bilan, type « Point du mois », reprise du bilan existant) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-02, v1.40.8) |
