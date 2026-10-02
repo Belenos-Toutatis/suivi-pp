@@ -815,7 +815,14 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   **encadrée** (style `consigne`) : sans bordure, elle flottait entre le mode d'emploi et les
   en-têtes. Le mode d'emploi de chaque onglet rappelle **Ctrl+Entrée** pour un nouveau
   paragraphe dans la même case (v1.40.3, demande de l'utilisateur) — Entrée seule change de
-  case dans Collabora comme dans LibreOffice. Validé par LibreOffice (réenregistrement,
+  case dans Collabora comme dans LibreOffice. **En gras** (v1.40.4) : « rien à signaler »,
+  « Nouveau paragraphe dans la même case : Ctrl+Entrée », « SURLIGNÉS EN JAUNE » — option de
+  cellule `gras` (passages entre `**…**` → span `T1`), réservée aux textes écrits par l'app.
+  **Onglets verrouillés** (v1.40.4, demande de l'utilisateur) : `table:protected="true"`, et
+  seul le style `saisie` porte `style:cell-protect="none"` — noms, titres, consignes et mode
+  d'emploi ne se modifient plus par mégarde. Sans mot de passe : une protection contre les
+  fausses manœuvres (Feuille > Protéger la feuille la lève). Conservé par un réenregistrement
+  LibreOffice (vérifié) ; ⚠️ comportement dans Collabora Online à voir une fois en vrai. Validé par LibreOffice (réenregistrement,
   export CSV, gel vérifié sous python-uno) ; une feuille réenregistrée par LibreOffice est
   gardée en fixture (`test/fixtures/avis-libreoffice.ods`, noms inventés). ⚠️ **Non vérifié
   dans Collabora Online** même : à regarder une fois dans le Nuage.
@@ -1321,6 +1328,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 65 | **Mots clés en gras** dans le mode d'emploi (`gras`, span `T1`) · **onglets verrouillés** sauf les cases de saisie (`table:protected`, `cell-protect="none"`) ; test étendu. Vu dans LibreOffice | ✅ **fait** (2026-10-02, v1.40.4) |
 | 64 | **Ctrl+Entrée rappelé** dans le mode d'emploi de chaque onglet ; test mis à jour | ✅ **fait** (2026-10-02, v1.40.3) |
 | 63 | **Quadrillage masqué** (`ShowGrid` false) : le tableau n'est dessiné que par ses bordures ; test mis à jour | ✅ **fait** (2026-10-02, v1.40.2) |
 | 62 | **Feuille plus lisible** : quadrillage affiché (`ShowGrid`), consignes des colonnes encadrées ; 1 test. Vu dans LibreOffice | ✅ **fait** (2026-10-02, v1.40.1) |

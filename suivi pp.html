@@ -2390,8 +2390,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.40.3';
-const APP_BUILD_DATE = '2026-10-02T10:17:59Z';
+const APP_VERSION    = '1.40.4';
+const APP_BUILD_DATE = '2026-10-02T10:26:27Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -11695,7 +11695,9 @@ var _ODS_STYLES = {
   aide:   { t: ' fo:font-style="italic" style:font-style-asian="italic" style:font-style-complex="italic" fo:color="#444444"', c: ' fo:wrap-option="wrap"' },
   entete: { t: ' fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"', c: ' fo:background-color="#e4e4e4"' + _ODS_BORD + ' fo:wrap-option="wrap"' },
   nom:    { t: ' fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"', c: _ODS_BORD + ' style:vertical-align="top"' },
-  saisie: { t: '', c: _ODS_BORD + ' fo:wrap-option="wrap" style:vertical-align="top"' },
+  // La SEULE case qu'on écrit : non verrouillée (cell-protect none) dans un onglet protégé —
+  // noms, titres et consignes restent intouchables (demande de l'utilisateur, 2026-10-02).
+  saisie: { t: '', c: _ODS_BORD + ' fo:wrap-option="wrap" style:vertical-align="top" style:cell-protect="none"' },
   // La consigne d'une colonne, sous son en-tête : encadrée comme le tableau (sans bordure,
   // elle flottait entre le mode d'emploi et les en-têtes — remarque de l'utilisateur).
   consigne: { t: ' fo:font-style="italic" style:font-style-asian="italic" style:font-style-complex="italic" fo:color="#444444"', c: ' fo:background-color="#f4f4f4"' + _ODS_BORD + ' fo:wrap-option="wrap" style:vertical-align="top"' },
@@ -11763,9 +11765,12 @@ function _odsBuild(sheets) {
         var st = _ODS_STYLES[o.style] ? ' table:style-name="ce_' + o.style + '"' : '';
         var span = Math.max(1, o.span | 0);
         var sp = span > 1 ? ' table:number-columns-spanned="' + span + '" table:number-rows-spanned="1"' : '';
+        // `gras` : les passages entre **…** sont mis en gras (une span de style T1). Réservé aux
+        // textes écrits par l'app : un texte d'utilisateur n'est jamais interprété.
+        var ligne = o.gras ? function (l) { return l.split('**').map(function (seg, i) { return i % 2 ? '<text:span text:style-name="T1">' + _odsInline(seg) + '</text:span>' : _odsInline(seg); }).join(''); } : _odsInline;
         if (txt === '') x += '<table:table-cell' + st + sp + '/>';
         else x += '<table:table-cell' + st + sp + ' office:value-type="string">' +
-          txt.split(/\r\n|\r|\n/).map(function (l) { return '<text:p>' + _odsInline(l) + '</text:p>'; }).join('') + '</table:table-cell>';
+          txt.split(/\r\n|\r|\n/).map(function (l) { return '<text:p>' + ligne(l) + '</text:p>'; }).join('') + '</table:table-cell>';
         for (var k = 1; k < span; k++) x += '<table:covered-table-cell/>';
         w += span;
       });
@@ -11780,7 +11785,10 @@ function _odsBuild(sheets) {
       ta = 'ta' + (si + 2);
       tabXml += '<style:style style:name="' + ta + '" style:family="table" style:master-page-name="Default"><style:table-properties table:display="true" style:writing-mode="lr-tb" tableooo:tab-color="' + tc + '"/></style:style>';
     }
-    return '<table:table table:name="' + _odsEsc(sh.name || 'Feuille' + (si + 1)) + '" table:style-name="' + ta + '">' + cols + (body || '<table:table-row><table:table-cell/></table:table-row>') + '</table:table>';
+    // `protege` : l'onglet est verrouillé, sauf les cases au style non protégé (la saisie).
+    // Sans mot de passe : il protège des fausses manœuvres, pas d'une volonté — on le lève
+    // par Feuille > Protéger la feuille.
+    return '<table:table table:name="' + _odsEsc(sh.name || 'Feuille' + (si + 1)) + '" table:style-name="' + ta + '"' + (sh.protege ? ' table:protected="true"' : '') + '>' + cols + (body || '<table:table-row><table:table-cell/></table:table-row>') + '</table:table>';
   }).join('');
   var cellStyles = Object.keys(_ODS_STYLES).map(function (k) {
     var s = _ODS_STYLES[k];
@@ -11791,6 +11799,7 @@ function _odsBuild(sheets) {
     '<office:automatic-styles>' + colXml +
     '<style:style style:name="ro1" style:family="table-row"><style:table-row-properties style:row-height="0.5cm" style:use-optimal-row-height="true"/></style:style>' +
     '<style:style style:name="ta1" style:family="table" style:master-page-name="Default"><style:table-properties table:display="true" style:writing-mode="lr-tb"/></style:style>' + tabXml +
+    '<style:style style:name="T1" style:family="text"><style:text-properties fo:font-weight="bold" style:font-weight-asian="bold" style:font-weight-complex="bold"/></style:style>' +
     cellStyles + '</office:automatic-styles><office:body><office:spreadsheet>' + tabs + '</office:spreadsheet></office:body></office:document-content>';
   var styles = '<?xml version="1.0" encoding="UTF-8"?><office:document-styles ' + _ODS_NS + 'office:version="1.3">' +
     '<office:styles><style:style style:name="Default" style:family="table-cell"/></office:styles>' +
@@ -12236,12 +12245,13 @@ function _avisFeuilles(cls, camp) {
   const eleves = _avisEleves(cls, camp);
   const cibles = new Set(_avisCibles(cls, camp));
   const pour = `${cls.nom}${cls.annee ? ' (' + cls.annee + ')' : ''} — avis pour ${p ? 'le conseil du ' + p.label : 'le conseil de classe'}`;
-  const surligne = cibles.size ? ` Les élèves SURLIGNÉS EN JAUNE : j'ai besoin de votre avis en particulier (je rencontre bientôt leur famille).` : '';
+  // En **gras** dans la feuille : ce qu'il ne faut pas manquer (demande de l'utilisateur).
+  const surligne = cibles.size ? ` Les élèves **SURLIGNÉS EN JAUNE** : j'ai besoin de votre avis en particulier (je rencontre bientôt leur famille).` : '';
   return camp.disciplines.map(d => ({
-    name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [4.6, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 },
+    name: d.onglet, tabColor: _discCouleur(d.id), colWidthsCm: [4.6, 7.2, 7.2, 7.2], freeze: { rows: AVIS_LIGNE_ENTETE, cols: 1 }, protege: true,
     rows: [
       [{ text: `${d.nom}${d.profs ? ' — ' + d.profs : ''}`, style: 'titre', span: 4 }],
-      [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « rien à signaler ». Pour commencer un nouveau paragraphe dans la même case : Ctrl+Entrée. Merci de ne modifier ni les noms ni les titres de colonnes.${surligne}`, style: 'aide', span: 4 }],
+      [{ text: `${pour}. Écrivez dans les trois colonnes de droite, sur les élèves dont vous avez quelque chose à dire ; une case vide veut dire « **rien à signaler** ». **Nouveau paragraphe dans la même case : Ctrl+Entrée.** Seules ces trois colonnes s'écrivent : les noms et les titres sont verrouillés.${surligne}`, style: 'aide', span: 4, gras: true }],
       [{ text: '', style: 'consigne' }, ...AVIS_CRITERES.map(c => ({ text: c.aide, style: 'consigne' }))],
       [{ text: 'Élève', style: 'entete' }, ...AVIS_CRITERES.map(c => ({ text: c.label, style: 'entete' }))],
       ...eleves.map(s => [{ text: `${s.nom} ${s.prenom}`, style: cibles.has(s.id) ? 'vif' : 'nom' },

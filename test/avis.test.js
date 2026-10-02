@@ -315,5 +315,15 @@ test('.ods : quadrillage masqué, le tableau dessiné par ses bordures, consigne
   assert.ok(!/ShowGrid" config:type="boolean">true/.test(set));
   const f = evObj(`_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] }))`)[0];
   assert.ok(f.rows[2].every(c => c.style === 'consigne'), 'la ligne des consignes a des bordures, comme le tableau');
-  assert.match(f.rows[1][0].text, /nouveau paragraphe dans la même case : Ctrl\+Entrée/, 'rappelé sur chaque onglet');
+  assert.match(f.rows[1][0].text, /\*\*Nouveau paragraphe dans la même case : Ctrl\+Entrée\.\*\*/, 'rappelé sur chaque onglet, en gras');
+  assert.match(f.rows[1][0].text, /« \*\*rien à signaler\*\* »/);
+  assert.strictEqual(f.rows[1][0].gras, true);
+  // Onglet verrouillé : seules les cases de saisie s'écrivent.
+  assert.strictEqual(f.protege, true);
+  const xml = ev(`(() => { const u8 = _odsBuild(_avisFeuilles(getCls(), avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths'] })));
+    return new TextDecoder().decode(u8); })()`);
+  assert.match(xml, /table:protected="true"/);
+  assert.match(xml, /style:name="ce_saisie"[^>]*>[^]*?style:cell-protect="none"/);
+  assert.match(xml, /<text:span text:style-name="T1">rien à signaler<\/text:span>/, 'le gras arrive dans le fichier');
+  assert.ok(!xml.includes('**'), 'les repères de gras ne s\'écrivent pas');
 });
