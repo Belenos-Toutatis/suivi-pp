@@ -157,3 +157,35 @@ test('Points mineurs (C14) : genre dans toutes les grilles, faits à partir du 1
   rendu('avis-body', 'renderAvisTab()');
   assert.strictEqual(ev(`_avisCampId`), null, '« Nouvelle feuille » choisie : on y reste');
 });
+
+test('Second audit (D1–D8)', () => {
+  ev(DEMO);
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  // D1 : incident et bilan par-dessus la fiche (plus de fermeture).
+  for (const f of ['ficheVersIncident', 'ficheVersBilan']) {
+    const def = src.match(new RegExp(`function ${f}\\(id\\) \\{[^\\n]*\\}`))[0];
+    assert.ok(!/closeMod2\('mfiche'\)/.test(def), f);
+  }
+  // D2 : le groupe Bilans de la carte de chaleur suit les moments de « Synthèse pour ».
+  ev(`S.prefs.chaleurMoments = { plus: ['bil:mois:2025-10'], moins: [] }`);
+  const t = evObj(`_elevesChaleurHTML(getCls(), _elevesRows(getCls()), [])`).table;
+  assert.ok(t.includes(`elevesBilanOuvrir(`) && t.includes(`'bil:mois:2025-10'`));
+  ev(`S.prefs.chaleurMoments = undefined`);
+  // D3 : synthèse bornée à un moment (point du mois) ; titre et bilan de ce moment.
+  const col = `_chaleurMomentsTous(getCls()).find(c => c.key === 'bil:mois:2025-09')`;
+  const syn = evObj(`_periodeSynthese(getCls(), 0, { type: 'mois', col: ${col} })`);
+  assert.strictEqual(syn.periode.start, '2025-09-01');
+  assert.strictEqual(syn.periode.end, '2025-09-30');
+  assert.ok(syn.rows.some(r => r.bilan && r.bilan.type === 'mois'));
+  assert.match(ev(`_periodePrintHTML(getCls(), 0, { type: 'mois', col: ${col}, blocs: ['obs', 'bilan'], forme: 'tableau' }).html`), /Point de septembre/);
+  assert.ok(!/🎓 dans la liste pour les compléter/.test(src));
+  // D4 : 🗑 dans la fenêtre d'incident.
+  assert.match(src, /id="minc-del"[^>]*onclick="incidentRemoveUI\(_incSid, _incId\)"/);
+  // D5 : une seule forme d'import ; la vue « ▦ Tableau ».
+  assert.ok(!/⬆ Importer<\/button>|📥 Importer un tableau|📥 Observations MBN…|>▦ Élèves</.test(src));
+  // D6 : plus de ✏️ ni de 🗑 sans texte.
+  assert.ok(!/>🗑<\/button>|>✏️<\/button>/.test(src));
+  // D7 et D8
+  assert.strictEqual(ev(`_pl(1, 'blanc') + ' · ' + _pl(2, 'nul') + ' · ' + _pl(0, 'blanc')`), '1 blanc · 2 nuls · 0 blanc');
+  assert.match(rendu('mfiche-title', `_ficheSid = getCls().eleves[0]; _ficheRender()`), /^<span class="el-civ/);
+});

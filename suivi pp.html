@@ -1992,7 +1992,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="sh"><h2>👥 Élèves</h2></div>
     <div class="tb" id="eleves-tb">
       <button class="btn btn-p btn-sm" onclick="openAddStudent()" title="Saisir un élève à la main">+ Ajouter</button>
-      <button class="btn btn-s btn-sm" onclick="openImportStudents()" title="Coller une liste depuis Pronote ou un tableur, ou charger un fichier CSV">⬆ Importer</button>
+      <button class="btn btn-s btn-sm" onclick="openImportStudents()" title="Coller une liste depuis Pronote ou un tableur, ou charger un fichier (.csv, .xlsx, .ods)">📥 Importer des élèves</button>
       <button class="btn btn-g btn-sm" onclick="openClassesModal()" title="Créer, renommer, réordonner ou supprimer une classe">🏫 Classes…</button>
       <button class="btn btn-g btn-sm" onclick="openTagsModal()" title="Les options suivies : LATIN, BILINGUE, DNL…">🏷 Options…</button>
       <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
@@ -2113,7 +2113,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <!-- ═══════════════ IMPORT D'ÉLÈVES ═══════════════ -->
 <div id="mi" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:900px;width:100%;max-height:92vh;overflow-y:auto">
-    <h2>⬆ Importer des élèves</h2>
+    <h2>📥 Importer des élèves</h2>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
       <button class="btn btn-g btn-sm" onclick="document.getElementById('imp-file-csv').click()" title="Fichier CSV / TSV / TXT — l'encodage Windows (Pronote, SIECLE) est reconnu automatiquement">📂 Ouvrir un fichier…</button>
       <input type="file" id="imp-file-csv" accept=".csv,.tsv,.txt,.xlsx,.ods,text/csv,text/tab-separated-values,text/plain" style="display:none" onchange="_impFileSelected(this)">
@@ -2248,7 +2248,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <textarea id="mbilan-dec" rows="3" placeholder="Ce qui a été décidé en réunion : avertissement, PPRE, tutorat, rendez-vous avec la famille…" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
     </div>
     <div class="ma">
-      <button class="btn btn-d btn-sm" id="mbilan-del" onclick="bilanRemoveUI()" title="Supprimer ce bilan">🗑</button>
+      <button class="btn btn-d btn-sm" id="mbilan-del" onclick="bilanRemoveUI()" title="Supprimer ce bilan">🗑 Supprimer</button>
       <button class="btn btn-g" onclick="closeMod2('mbilan')">Fermer</button>
       <button class="btn btn-g" onclick="bilanNav(-1)" title="Enregistrer et passer à l'élève précédent">◀</button>
       <button class="btn btn-p" onclick="bilanSaveUI()">✓ Enregistrer</button>
@@ -2337,6 +2337,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <input type="file" id="minc-pdf" accept="application/pdf,.pdf">
       <div id="minc-pdf-etat" style="margin-top:4px"></div></div>
     <div class="ma">
+      <button class="btn btn-d btn-sm" id="minc-del" style="margin-right:auto" onclick="incidentRemoveUI(_incSid, _incId)" title="Supprimer cette entrée (récupérable par Ctrl+Z)">🗑 Supprimer</button>
       <button class="btn btn-g" onclick="closeMod2('mincident')">Annuler</button>
       <button class="btn btn-p" onclick="saveIncident()">✓ Enregistrer</button>
     </div>
@@ -2577,15 +2578,11 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <div id="mperiode" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();periodePrintOk()}">
     <h2>🎓 Synthèse de période</h2>
-    <div class="tb-hint" style="margin-bottom:8px">La feuille qu'on emporte au conseil de classe, ou qu'on relit à mi-période : tout y est borné à la période choisie — observations, moyennes, papiers, incidents, contacts, et le bilan rédigé pour elle. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF »).</div>
+    <div class="tb-hint" style="margin-bottom:8px">La feuille qu'on emporte au conseil de classe, ou qu'on relit à mi-période ou au point du mois : tout y est borné au moment choisi — observations, moyennes, papiers, incidents, contacts, et le bilan rédigé pour lui. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF »).</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <div class="fg" style="flex:1;min-width:200px"><label for="mper-periode">Période</label>
-        <select id="mper-periode" data-autofocus onchange="_periodePrintRefresh()" style="max-width:100%"></select></div>
-      <div class="fg" style="flex:1;min-width:160px"><label for="mper-type">Moment</label>
-        <select id="mper-type" onchange="_periodePrintRefresh()" style="max-width:100%">
-          <option value="conseil">🎓 conseil de classe</option>
-          <option value="miperiode">📝 bilan de mi-période</option>
-        </select></div>
+      <div class="fg" style="flex:1;min-width:240px"><label for="mper-moment">Moment</label>
+        <select id="mper-moment" data-autofocus onchange="_periodePrintRefresh()" style="max-width:100%"></select>
+        <div class="tb-hint" style="margin-top:3px">Les moments de « Synthèse pour » (carte de chaleur, fiche) : conseil, mi-période, point du mois.</div></div>
     </div>
     <div class="fg"><label>Blocs</label>
       <div id="mper-blocs" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
@@ -2795,8 +2792,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.47.2';
-const APP_BUILD_DATE = '2026-10-03T08:34:09Z';
+const APP_VERSION    = '1.47.3';
+const APP_BUILD_DATE = '2026-10-03T08:51:04Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3973,14 +3970,14 @@ function _renderDonneesInner(el) {
   el.innerHTML = `
     <h3 style="margin-bottom:10px">📥 Imports</h3>
     <div class="don-imps">
-      ${imp('👥', 'Élèves', 'liste Pronote, SIECLE ou tableur (.csv, .xlsx, .ods, ou collée)', 'dans Élèves ▸ Importer', b('openImportStudents()', '⬆ Importer des élèves…'))}
-      ${imp('🪑', 'Depuis Plan de classe', 'plan-classe-*.json : élèves, groupes, options, places, ordres de ramassage', '', b("document.getElementById('imp-file-pdc').click()", 'Choisir le fichier…'))}
-      ${imp('🍽', 'Régimes (Mon Bureau Numérique)', 'export « régimes de sortie » (.xlsx) : demi-pension, entrée, sortie', 'dans Élèves ▸ 🍽 Régimes', b('openMbnImport()', '📥 Depuis MBN…'))}
-      ${imp('📓', 'Observations (Mon Bureau Numérique)', 'export des observations (.xlsx)', 'dans Observations', b('openObsMbnImport()', '📥 Depuis MBN…'))}
+      ${imp('👥', 'Élèves', 'liste Pronote, SIECLE ou tableur (.csv, .xlsx, .ods, ou collée)', 'dans Élèves ▸ Importer', b('openImportStudents()', '📥 Importer…'))}
+      ${imp('🪑', 'Depuis Plan de classe', 'plan-classe-*.json : élèves, groupes, options, places, ordres de ramassage', '', b("document.getElementById('imp-file-pdc').click()", '📥 Importer…'))}
+      ${imp('🍽', 'Régimes (Mon Bureau Numérique)', 'export « régimes de sortie » (.xlsx) : demi-pension, entrée, sortie', 'dans Élèves ▸ 🍽 Régimes', b('openMbnImport()', '📥 Importer…'))}
+      ${imp('📓', 'Observations (Mon Bureau Numérique)', 'export des observations (.xlsx)', 'dans Observations', b('openObsMbnImport()', '📥 Importer…'))}
       ${imp('📈', 'Moyennes (bureau numérique)', 'export des moyennes (.csv)', 'dans Moyennes', b('openMoyImport()', '📥 Importer…'))}
       ${imp('🗣', 'Avis des collègues', 'la feuille .ods du Nuage, relue', 'dans Avis des collègues', b("switchTab('avis')", 'Ouvrir l\'onglet'))}
-      ${imp('⬆', 'Sauvegarde complète', 'fichier .json exporté par l\'app : REMPLACE tout après confirmation (Ctrl+Z annule)', '', b("document.getElementById('imp-file').click()", 'Choisir le fichier…'))}
-      ${imp('🩹', 'Récupérer des dates', 'une ancienne sauvegarde .json : remplit seulement les naissances, arrivées, départs et civilités vides', '', b("document.getElementById('imp-file-recup').click()", 'Choisir le fichier…'))}
+      ${imp('⬆', 'Sauvegarde complète', 'fichier .json exporté par l\'app : REMPLACE tout après confirmation (Ctrl+Z annule)', '', b("document.getElementById('imp-file').click()", '📥 Importer…'))}
+      ${imp('🩹', 'Récupérer des dates', 'une ancienne sauvegarde .json : remplit seulement les naissances, arrivées, départs et civilités vides', '', b("document.getElementById('imp-file-recup').click()", '📥 Importer…'))}
     </div>
     <h3 style="margin-bottom:10px">⚙ Réglages</h3>
     <div class="prefs">
@@ -4628,6 +4625,8 @@ function _ficheAge(naissance, ref) {
 // il ne l'ouvrait ni dans Observations, ni dans le tableau d'un document, ni au ramassage, et
 // son allure changeait d'un onglet à l'autre).
 // Le genre devant (v1.47.2, audit C14) : ♂ ♀ n'apparaissait que dans la liste des élèves.
+// « 1 blanc », « 2 blancs » (v1.47.3, second audit D8) : 0 et 1 au singulier, comme en français.
+function _pl(n, mot) { return `${n} ${mot}${Math.abs(n) > 1 ? 's' : ''}`; }
 function _civHTML(sid) {
   const c = S.eleves[sid]?.civilite;
   return `<span class="el-civ${c === 'M' ? ' m' : c === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(c))}">${c ? civiliteLabel(c) : '·'}</span>`;
@@ -6390,7 +6389,9 @@ function _elevesChaleurHTML(cls, rowsData, bcols) {
   const B = col ? _ficheBornes(cls, col) : null;
   const barre = col ? `<div class="ch-mom">${_chaleurMomentsPickHTML(cls)}<span class="pf-seg">${ms.map(c => `<button class="${c.key === col.key ? 'on' : ''}" aria-pressed="${c.key === col.key}" onclick="chaleurMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span>
     <span class="tb-hint">${_escName(col.long)} — du ${_escName(_fmtDateFr(_debutUtile(B.start) < B.end ? _debutUtile(B.start) : B.start))} au ${_escName(_fmtDateFr(B.end))}</span></div>` : '';
-  const G = _chaleurGroupes(cls, bcols, col);
+  // Le groupe Bilans suit les moments de « Synthèse pour » (v1.47.3, second audit D2) : 🗓 Moments,
+  // qui règle la colonne Bilans des Indicateurs, n'est pas sur cet écran.
+  const G = _chaleurGroupes(cls, ms, col);
   const plis = _chaleurPlis();
   const td = ([c, t, tip, clic], first) => `<td class="ch${first ? ' ch-g0' : ''}${c ? ' ' + c : ''}${clic ? ' ch-clic' : ''}"${tip ? ` title="${_escAttr(tip)}"` : ''}${clic ? ` role="button" tabindex="0" onclick="event.stopPropagation();${clic}" onkeydown="if(event.key==='Enter'){event.stopPropagation();${clic}}"` : ''}>${_escName(t)}</td>`;
   const head1 = G.map(g => `<th class="ch-gh" colspan="${plis.has(g.key) ? 1 : g.sub.length}"><button class="ch-pli" onclick="chaleurPliToggle('${g.key}')" aria-expanded="${!plis.has(g.key)}" title="${plis.has(g.key) ? 'Déplier' : 'Replier'} ce groupe">${plis.has(g.key) ? '▸' : '▾'} ${_escName(g.label)}</button></th>`).join('');
@@ -6413,14 +6414,14 @@ function renderStudents() {
   if (!Object.keys(S.classes).length) {
     el.innerHTML = _emptyStateHTML('🏫', 'Aucune classe',
       'Les classes se créent à l\'<strong>import d\'un fichier d\'élèves</strong> — la colonne <em>Classe</em> suffit. '
-      + '<div style="margin-top:10px"><button class="btn btn-p" onclick="openImportStudents()">⬆ Importer des élèves</button> '
+      + '<div style="margin-top:10px"><button class="btn btn-p" onclick="openImportStudents()">📥 Importer des élèves</button> '
       + '<button class="btn btn-g" onclick="openClassesModal()">🏫 Créer une classe à la main</button></div>');
     return;
   }
   if (!cls) { el.innerHTML = _needClassHTML('afficher ses élèves'); return; }
   if (!cls.eleves.length) {
     el.innerHTML = _emptyStateHTML('👥', `Aucun élève dans ${_escName(cls.nom)}`,
-      'Cliquez sur <strong>⬆ Importer</strong> pour coller la liste depuis Pronote ou un tableur, '
+      'Cliquez sur <strong>📥 Importer des élèves</strong> pour coller la liste depuis Pronote ou un tableur, '
       + 'ou sur <strong>+ Ajouter</strong> pour saisir un élève.');
     return;
   }
@@ -6448,7 +6449,7 @@ function renderStudents() {
         return `<button class="el-chip col${on ? ' on' : ''}" aria-pressed="${on}" onclick="elevesColToggle('${c.key}',${!on})" title="${on ? 'Masquer' : 'Afficher'} la colonne (écran et papier)">${_escName(c.label)}</button>`; }).join('')}</span>
       <button class="el-chip col${_elevesNais ? ' on' : ''}" aria-pressed="${_elevesNais}" onclick="_elevesNais=!_elevesNais;renderStudents()" title="La colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée">📅 Naissances</button>
       <button class="el-chip col${_elevesReg ? ' on' : ''}" aria-pressed="${_elevesReg}" onclick="_elevesReg=!_elevesReg;renderStudents()" title="Trois colonnes pour saisir en série le régime de demi-pension, le régime d'entrée et le régime de sortie">🍽 Régimes</button>
-      ${_elevesReg ? `<button class="btn btn-g btn-sm" onclick="openMbnImport()" title="Reprendre les régimes depuis l'export « régimes de sortie » de Mon Bureau Numérique (.xlsx)">📥 Depuis MBN…</button>` : ''}
+      ${_elevesReg ? `<button class="btn btn-g btn-sm" onclick="openMbnImport()" title="Reprendre les régimes depuis l'export « régimes de sortie » de Mon Bureau Numérique (.xlsx)">📥 Importer depuis MBN…</button>` : ''}
       ${_elevesColVue('bilans') ? _elevesMomentsHTML(cls, pCour) : ''}</div>`;
   // ⚠️ Plus de ligne « Trier » (v1.44.4, l'utilisateur : « on clique maintenant sur le titre
   // de colonne pour trier ») ; les ordres de place et de ramassage servent aux SAISIES (carnet,
@@ -6769,10 +6770,14 @@ function ficheVersContacts() { openContacts(_ficheSid); _modalReturnTo['mcontact
 function ficheVersEdition() { openEdit(_ficheSid); _modalReturnTo['me'] = () => { if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); }; }
 // Même aller-retour pour un incident : la fiche est l'écran de LECTURE, la saisie a sa
 // modale — et l'on retombe sur la fiche, pour voir l'entrée à sa place dans l'histoire.
-function ficheVersIncident(id) { const sid = _ficheSid; closeMod2('mfiche'); openIncident(sid, id || null); _modalReturnTo['mincident'] = () => openFiche(sid); }
+// L'incident et le bilan s'ouvrent PAR-DESSUS la fiche (v1.47.3, second audit D1 — ils la
+// fermaient, puis la rouvraient), comme ✏️ et les contacts ; la fiche se redessine après.
+const _ficheRedessine = () => { if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); };
+function ficheVersIncident(id) { openIncident(_ficheSid, id || null); _modalReturnTo['mincident'] = _ficheRedessine; }
 // Vers la rédaction d'un bilan — et retour à la fiche de l'élève sur lequel on FINIT (on a
 // pu enchaîner les élèves par ◀ ▶ depuis la modale).
-function ficheVersBilan(id) { const sid = _ficheSid; closeMod2('mfiche'); openBilan(sid, id || null, { nouveau: !id }); _modalReturnTo['mbilan'] = () => openFiche(_bilanSid || sid); }
+// ◀ ▶ dans la fenêtre de bilan change d'élève : en la fermant, la fiche suit le dernier.
+function ficheVersBilan(id) { openBilan(_ficheSid, id || null, { nouveau: !id }); _modalReturnTo['mbilan'] = () => { if (_bilanSid && _bilanSid !== _ficheSid && document.getElementById('mfiche')?.classList.contains('on')) openFiche(_bilanSid); else _ficheRedessine(); }; }
 
 function _ficheRender() {
   const stu = S.eleves[_ficheSid];
@@ -6782,7 +6787,7 @@ function _ficheRender() {
   const t = document.getElementById('mfiche-title');
   // Le titre ne s'édite plus (v1.47.1, l'utilisateur : « le titre n'est pas un endroit habituel
   // pour éditer ce genre d'informations ») : nom et prénom se corrigent dans « Identité et repères ».
-  if (t) t.innerHTML = `${_nomHTML(stu.id, stu.nom, stu.prenom)}${cls && _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls))?.cibles?.includes(stu.id) ? ' <span class="pf-star" title="Avis demandés en particulier">⭐</span>' : ''}`;
+  if (t) t.innerHTML = `${_civHTML(stu.id)}${_nomHTML(stu.id, stu.nom, stu.prenom)}${cls && _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls))?.cibles?.includes(stu.id) ? ' <span class="pf-star" title="Avis demandés en particulier">⭐</span>' : ''}`;
   const edNom = _ficheEdit !== 'nom' ? '' : `<div class="fi-editor">
        <input type="text" id="fi-nom" data-fi-focus value="${_escAttr(stu.nom)}" placeholder="NOM" maxlength="60" style="width:150px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
        <input type="text" id="fi-prn" value="${_escAttr(stu.prenom)}" placeholder="Prénom" maxlength="60" style="width:130px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
@@ -6946,7 +6951,7 @@ function _ficheRender() {
   const jHTML = journal.length
     ? journal.map(e => { const ty = _journalType(e.type);
         return `<div class="fi-j"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ${ty.icon} ${_escName(ty.label)}
-          <span class="fi-inc-act"><button class="btn btn-d btn-sm" onclick="ficheJournalRemove('${_escJsAttr(e.id)}')" title="Supprimer ce contact">🗑</button></span></div>
+          <span class="fi-inc-act"><button class="btn btn-d btn-sm" onclick="ficheJournalRemove('${_escJsAttr(e.id)}')" title="Supprimer ce contact">🗑 Supprimer</button></span></div>
           <input type="text" value="${_escAttr(e.texte)}" maxlength="300" style="width:100%;font-size:.92em" title="Se corrige ici" onchange="ficheJournalEdit('${_escJsAttr(e.id)}',this.value)"></div>`;
       }).join('')
     : vide('Aucun contact noté avec la famille.');
@@ -6957,7 +6962,7 @@ function _ficheRender() {
     ? incs.map(e => { const inst = _instanceOf(e.type);
         return `<div class="fi-j fi-inc"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ⚖️ ${_escName(inst.label)}${
           e.pdf ? ` · <a href="#" onclick="pjOpenUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}');return false" title="Ouvrir le PDF (${_escAttr(_fmtBytes(e.pdf.taille))})">📎 ${_escName(e.pdf.nom)}</a>` : ''}
-          <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersIncident('${_escJsAttr(e.id)}')" title="Modifier cette entrée">✏️</button> <button class="btn btn-d btn-sm" onclick="incidentRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer cette entrée">🗑</button></span></div>
+          <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersIncident('${_escJsAttr(e.id)}')" title="Modifier cette entrée">✏️ Modifier</button> <button class="btn btn-d btn-sm" onclick="incidentRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer cette entrée">🗑 Supprimer</button></span></div>
           <strong>${_escName(e.objet)}</strong>${e.texte ? `<div class="fi-inc-txt">${_escName(e.texte)}</div>` : ''}</div>`;
       }).join('')
     : vide('Aucun incident ni instance — tant mieux.'));
@@ -6967,7 +6972,7 @@ function _ficheRender() {
   const bilHTML = bilans.length
     ? bilans.map(e => { const ty = _bilanType(e.type); const per = cls ? _periodOf(cls, e.date) : null;
         return `<div class="fi-j fi-bil"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ${ty.icon} ${_escName(_bilanLabel(e))}${per ? ` · ${_escName(per.label)}` : ''}
-          <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersBilan('${_escJsAttr(e.id)}')" title="Modifier ce bilan">✏️</button> <button class="btn btn-d btn-sm" onclick="bilanRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer ce bilan">🗑</button></span></div>
+          <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersBilan('${_escJsAttr(e.id)}')" title="Modifier ce bilan">✏️ Modifier</button> <button class="btn btn-d btn-sm" onclick="bilanRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer ce bilan">🗑 Supprimer</button></span></div>
           <div class="fi-inc-txt">${_escName(e.texte)}</div></div>`;
       }).join('')
     : vide('Rien de rédigé pour un conseil de classe ou un bilan de mi-période.');
@@ -7485,20 +7490,20 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     kv('Options', _escName(_studentTags(stu).map(x => x.abbr).join(', ')) || '–', pen('options', 'Cocher ou décocher des options'), ed.edOptions)}${
     kv('Aménagements', _escName(_amenLabel(stu, false)) || '–', pen('amen', 'Régler les aménagements'), ed.edAmen)}${
     kv('Régime', _escName((_regimeOf(stu.regime)?.label || '') + (stu.joursDP?.length ? ' (' + _joursTexte(stu.joursDP) + ')' : '')) || '–', penF('ficheVersEdition()', 'Régime, entrée, sortie : dans la fenêtre de l\'élève'))}${
-    kv('Entrée', stu.entree ? _escName(stu.entree + (_entreeLabel(stu.entree) ? ' — ' + _entreeLabel(stu.entree) : '')) : '–')}${
-    kv('Sortie', stu.sortie ? _escName(stu.sortie + (_sortieLabel(stu.sortie) ? ' — ' + _sortieLabel(stu.sortie) : '')) : '–')}${
+    kv('Entrée', stu.entree ? _escName(stu.entree + (_entreeLabel(stu.entree) ? ' — ' + _entreeLabel(stu.entree) : '')) : '–', penF('ficheVersEdition()', 'Régime d\'entrée : dans la fenêtre de l\'élève'))}${
+    kv('Sortie', stu.sortie ? _escName(stu.sortie + (_sortieLabel(stu.sortie) ? ' — ' + _sortieLabel(stu.sortie) : '')) : '–', penF('ficheVersEdition()', 'Régime de sortie : dans la fenêtre de l\'élève'))}${
     kv('Présence', ed.presence, pen('presence', 'Corriger la date d\'arrivée ou de départ'), ouEdit('presence') ? `<div class="fi-editor"><label class="tb-hint">arrivée ${ed.dateInp('arrivalDate', stu.arrivalDate)}</label><label class="tb-hint">départ ${ed.dateInp('departureDate', stu.departureDate)}</label></div>` : '')}${
     kv('Place', ed.places.length ? ed.places.map(x => `${_escName(x.salleNom)} <span class="pf-mu">rang ${x.rang}, place ${x.colonne}</span>`).join('<br>') : '–', pen('place', 'Changer de place'), ed.edPlace)}${
     kv('Délégué', dlg ? (dlg === 'titulaire' ? 'titulaire' : 'suppléant') : '–')}${
     ed.eco ? kv('Éco-délégué', ed.eco === 'titulaire' ? 'titulaire' : 'suppléant') : ''}${
     ed.els.length ? kv('Élections', ed.elsHTML) : ''}</dl>
-    <h3 class="pf-h3b">Remarque ${add("ficheEdit('remarque')", stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', '✎')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<p class="pf-p">${_escName(stu.remarque)}</p>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
+    <h3 class="pf-h3b">Remarque ${pen('remarque', stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<p class="pf-p">${_escName(stu.remarque)}</p>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
   // Papiers : les choix portés sur chaque document (Devoirs Faits, options…), lus d'un coup d'œil.
   const choixDoc = id => (ed.docsInfo.find(x => x.docId === id)?.reponses || []).map(r => `${r.champ} : ${r.valeurs.join(', ')}`).join(' · ');
   return `<div class="pf-grid">
     ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="btn btn-g btn-sm" onclick="ficheVersEdition()" title="Tout modifier dans une fenêtre : nom, civilité, groupe, options, régimes, aménagements, dates">✏️ Tout modifier</button><button class="btn btn-d btn-sm" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑 Supprimer</button>`)}
     ${card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + (ouEdit('bilans') ? `<div class="pf-edbox">${ed.bilHTML}</div>` : _ficheBilansAutresHTML(cls, stu, col)), pen('bilans', 'Modifier ou supprimer un bilan écrit — tous les bilans de l\'année'))}
-    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length, pen('mbn', 'Retirer une observation MBN importée par erreur — toute l\'année')) + (ouEdit('mbn') ? `<div class="pf-edbox">${_obsMbnOf(sid).length ? _obsMbnOf(sid).map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''} <button class="btn btn-d btn-sm" onclick="obsMbnRemoveUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}')" title="Retirer cette observation (Ctrl+Z la rend)">🗑</button></span></div>`).join('') : '<p class="pf-empty">Aucune observation MBN.</p>'}</div>` : mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
+    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length, pen('mbn', 'Retirer une observation MBN importée par erreur — toute l\'année')) + (ouEdit('mbn') ? `<div class="pf-edbox">${_obsMbnOf(sid).length ? _obsMbnOf(sid).map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''} <button class="btn btn-d btn-sm" onclick="obsMbnRemoveUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}')" title="Retirer cette observation (Ctrl+Z la rend)">🗑 Supprimer</button></span></div>`).join('') : '<p class="pf-empty">Aucune observation MBN.</p>'}</div>` : mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
     ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
@@ -7609,6 +7614,9 @@ function openIncident(sid, id) {
   if (f) f.value = '';
   _incTypeHelp();
   _incPdfRender();
+  // Supprimer depuis la fenêtre, comme un bilan (v1.47.3, second audit D4) — en modification seulement.
+  const del = document.getElementById('minc-del');
+  if (del) del.style.display = e ? '' : 'none';
   openMod('mincident');
 }
 function _incTypeHelp() {
@@ -7684,7 +7692,9 @@ function incidentRemoveUI(sid, id) {
     title: '🗑 Supprimer cette entrée ?',
     message: `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label}\n« ${e.objet} »\n\nRécupérable par Ctrl+Z.${e.pdf ? ' Le PDF reste dans le dossier (🧹 dans Données pour le retirer).' : ''}`,
     okLabel: 'Supprimer', okClass: 'btn-d',
-    onOk: () => { pushUndo(); incidentRemove(sid, id); save(); if (_ficheSid === sid) _ficheRender(); renderStudents(); },
+    onOk: () => { pushUndo(); incidentRemove(sid, id); save();
+      if (document.getElementById('mincident')?.classList.contains('on') && _incId === id) closeMod2('mincident');
+      if (_ficheSid === sid && document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); renderStudents(); },
   });
 }
 function pjOpenUI(sid, id) {
@@ -7717,7 +7727,7 @@ function _journalRender() {
       <td><select style="font-size:.88em;max-width:170px" title="Type du contact — se corrige ici" onchange="journalTypeUI('${_escJsAttr(e.id)}', this.value)">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}"${t2.key === t.key ? ' selected' : ''}>${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></td>
       <td style="width:99%;min-width:180px"><input type="text" value="${_escAttr(e.texte)}" maxlength="300" style="width:100%;font-size:.9em" title="${_escAttr(e.texte)}"
             onchange="journalEditUI('${_escJsAttr(e.id)}', this.value)"></td>
-      <td><button class="btn btn-d btn-sm" onclick="journalRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer ce contact">🗑</button></td>
+      <td><button class="btn btn-d btn-sm" onclick="journalRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer ce contact">🗑 Supprimer</button></td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
 }
@@ -8130,9 +8140,9 @@ function renderClassesModal() {
         <td style="white-space:nowrap">
           <button class="btn btn-g btn-sm" onclick="classMove('${_escJsAttr(c.id)}',-1)"${i === 0 ? ' disabled' : ''} title="Monter">↑</button>
           <button class="btn btn-g btn-sm" onclick="classMove('${_escJsAttr(c.id)}',1)"${i === list.length - 1 ? ' disabled' : ''} title="Descendre">↓</button>
-          <button class="btn btn-g btn-sm" onclick="classRename('${_escJsAttr(c.id)}')" title="Renommer">✏️</button>
-          <button class="btn btn-g btn-sm" onclick="classSetYear('${_escJsAttr(c.id)}')" title="Année scolaire">📅</button>
-          <button class="btn btn-d btn-sm" onclick="classDelete('${_escJsAttr(c.id)}')" title="Supprimer la classe et tout ce qui n'existe que par elle">🗑</button>
+          <button class="btn btn-g btn-sm" onclick="classRename('${_escJsAttr(c.id)}')" title="Renommer">✏️ Renommer</button>
+          <button class="btn btn-g btn-sm" onclick="classSetYear('${_escJsAttr(c.id)}')" title="Changer l'année scolaire de la classe (2025-26…)">📅 Année</button>
+          <button class="btn btn-d btn-sm" onclick="classDelete('${_escJsAttr(c.id)}')" title="Supprimer la classe et tout ce qui n'existe que par elle">🗑 Supprimer</button>
         </td></tr>`;
     }).join('')}</tbody></table></div>`;
 }
@@ -8245,8 +8255,8 @@ function _tagsTableHTML() {
       <td><input type="color" value="${_escAttr(_safeColor(t.color))}" onchange="tagSetColor('${_escJsAttr(t.id)}',this.value)" title="Couleur de la pastille — l'encre est recalculée pour rester lisible" style="width:44px;height:26px;padding:1px;cursor:pointer"></td>
       <td style="text-align:right">${count[t.id] || 0}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-g btn-sm" onclick="tagRename('${_escJsAttr(t.id)}')" title="Renommer">✏️</button>
-        <button class="btn btn-d btn-sm" onclick="tagDelete('${_escJsAttr(t.id)}')" title="Supprimer l'option et la retirer de tous les élèves">🗑</button>
+        <button class="btn btn-g btn-sm" onclick="tagRename('${_escJsAttr(t.id)}')" title="Renommer">✏️ Renommer</button>
+        <button class="btn btn-d btn-sm" onclick="tagDelete('${_escJsAttr(t.id)}')" title="Supprimer l'option et la retirer de tous les élèves">🗑 Supprimer</button>
       </td></tr>`).join('')}</tbody></table></div>`;
 }
 // Formulaire de création : deux exemplaires (modale, onglet), distingués par le préfixe des ids.
@@ -9408,7 +9418,7 @@ function _sallesEditorHTML() {
   if (!sa) return avert + nouvelle + `<div class="tb-hint" style="margin-bottom:18px">Aucune salle : créez-en une, ou importez un placement depuis <em>Plan de classe</em>.</div>`;
   const regl = `<div class="prefs" style="grid-template-columns:max-content 1fr;max-width:620px;margin-bottom:10px">
       <label>Nom</label><div class="prefs-row"><input type="text" value="${_escAttr(sa.nom)}" maxlength="40" style="max-width:220px;min-width:0;flex:1" onchange="salleSetUI('${_escJsAttr(sa.id)}',{nom:this.value})">
-        <button class="btn btn-d btn-sm" onclick="salleRemoveUI('${_escJsAttr(sa.id)}')" title="Supprimer la salle et son placement dans toutes les classes">🗑</button></div>
+        <button class="btn btn-d btn-sm" onclick="salleRemoveUI('${_escJsAttr(sa.id)}')" title="Supprimer la salle et son placement dans toutes les classes">🗑 Supprimer</button></div>
       <label>Rangs × colonnes</label><div class="prefs-row"><input type="number" min="1" max="${SALLE_DIM_MAX}" value="${sa.rows}" style="width:64px" onchange="salleSetUI('${_escJsAttr(sa.id)}',{rows:+this.value})"> ×
         <input type="number" min="1" max="${SALLE_DIM_MAX}" value="${sa.cols}" style="width:64px" onchange="salleSetUI('${_escJsAttr(sa.id)}',{cols:+this.value})">
         <span class="tb-hint">rétrécir refuse tant qu'une place ou une table d'un ordre serait dehors</span></div>
@@ -9425,9 +9435,9 @@ function _sallesEditorHTML() {
       ${_salleEd.mode === 'ordre' ? `<select onchange="_salleEd.pat=this.value;renderDonnees()" style="max-width:200px">${
           pats.length ? pats.map(p => `<option value="${_escAttr(p.id)}"${p.id === _salleEd.pat ? ' selected' : ''}>${_escName(p.nom)} (${(p.order || []).length})</option>`).join('') : '<option value="">— aucun ordre —</option>'}</select>
         <button class="btn btn-s btn-sm" onclick="patternAddUI('${_escJsAttr(sa.id)}')">+ Nouvel ordre</button>${pat ? `
-        <button class="btn btn-g btn-sm" onclick="patternRenameUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Renommer">✏️</button>
+        <button class="btn btn-g btn-sm" onclick="patternRenameUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Renommer">✏️ Renommer</button>
         <button class="btn btn-g btn-sm" onclick="patternClearUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Vider l'ordre pour le refaire">↺</button>
-        <button class="btn btn-d btn-sm" onclick="patternRemoveUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Supprimer cet ordre">🗑</button>` : ''}` : ''}
+        <button class="btn btn-d btn-sm" onclick="patternRemoveUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Supprimer cet ordre">🗑 Supprimer</button>` : ''}` : ''}
       <span class="tb-hint" style="margin-left:auto">${_salleEd.mode === 'placer'
         ? 'Glissez un élève de la liste sur une case ; un élève sur un autre pour échanger ; sur la liste pour libérer.'
         : (pat ? 'Cliquez les tables dans l\'ordre où vous passez — ou glissez d\'une table à la suivante pour les enchaîner ; recliquer une table la retire.' : 'Créez un ordre pour commencer.')}</span></div>`;
@@ -9635,7 +9645,7 @@ function _instancesTableHTML() {
       <td style="min-width:180px"><input type="text" value="${_escAttr(i.label)}" maxlength="60" onchange="instanceSetUI('${_escJsAttr(i.id)}',{label:this.value})"></td>
       <td style="width:99%"><input type="text" value="${_escAttr(i.description)}" maxlength="240" placeholder="description, à votre main" onchange="instanceSetUI('${_escJsAttr(i.id)}',{description:this.value})"></td>
       <td style="white-space:nowrap">${i.builtin ? '<span class="tb-hint" title="Instance d\'office : se décoche, ne se supprime pas">d\'office</span>'
-        : `<button class="btn btn-d btn-sm" onclick="instanceRemoveUI('${_escJsAttr(i.id)}')" title="${_instanceUsee(i.id) ? 'Utilisée par au moins une entrée — décocher plutôt' : 'Supprimer cette instance'}"${_instanceUsee(i.id) ? ' disabled' : ''}>🗑</button>`}</td>
+        : `<button class="btn btn-d btn-sm" onclick="instanceRemoveUI('${_escJsAttr(i.id)}')" title="${_instanceUsee(i.id) ? 'Utilisée par au moins une entrée — décocher plutôt' : 'Supprimer cette instance'}"${_instanceUsee(i.id) ? ' disabled' : ''}>🗑 Supprimer</button>`}</td>
     </tr>`).join('')).join('');
   return `<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée à la saisie">Actif</th><th>Instance</th><th>Description</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="tb" style="max-width:900px;margin-bottom:18px"><input type="text" id="inst-new" placeholder="Nouvelle instance (ex. : Tutorat, Contrat de comportement…)" maxlength="60" style="flex:1;min-width:200px"
@@ -9979,7 +9989,7 @@ function renderCarnets() {
 
   const toolbar = `<div class="tb">
       <button class="btn btn-p btn-sm" onclick="openReleveNew()" title="Ajouter une colonne : la date du jour où vous relevez les carnets">+ Relever les carnets</button>
-      <button class="btn btn-g btn-sm" onclick="openObsMbnImport()" title="Reprendre les observations saisies par les collègues dans Mon Bureau Numérique (export .xlsx) : comptées à part, à côté du carnet">📥 Observations MBN…</button>
+      <button class="btn btn-g btn-sm" onclick="openObsMbnImport()" title="Reprendre les observations saisies par les collègues dans Mon Bureau Numérique (export .xlsx) : comptées à part, à côté du carnet">📥 Importer depuis MBN…</button>
       ${_ordrePassageHTML('carnet', cls)}
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer">
         <input type="checkbox"${_carnetShowGone ? ' checked' : ''} onchange="setCarnetShowGone(this.checked)"> élèves partis
@@ -10002,7 +10012,7 @@ function renderCarnets() {
   // carnet, et « Carnet + MBN » de la période courante en dernier (v1.46.0).
   const periodsShown = periods.filter(p => dates.some(d => d >= p.start && d <= p.end) || (mbnAny && rows.some(s => _obsMbnEntre(s.id, p.start, p.end).length)));
   const pCur = periods[curIdx];
-  const mbnTip = p => `Observations notées dans Mon Bureau Numérique pendant la période ${p.label} (${_fmtDateFr(p.start)} → ${_fmtDateFr(p.end)}) — importées par 📥 Observations MBN…, comptées une par une`;
+  const mbnTip = p => `Observations notées dans Mon Bureau Numérique pendant la période ${p.label} (${_fmtDateFr(p.start)} → ${_fmtDateFr(p.end)}) — importées par 📥 Importer depuis MBN…, comptées une par une`;
   const mbnTh = p => `<th class="rel-period rel-mbn${p.n - 1 === curIdx ? ' cur' : ''}" title="${_escAttr(mbnTip(p))}">${p.n - 1 === curIdx ? _triTeteHTML('carnet', 'mbn', `MBN ${_escName(p.label)}`, 'Trier par observations MBN de la période, le plus d\'abord') : `MBN ${_escName(p.label)}`}</th>`;
   const mbnTd = (s, p) => { const x = _obsMbnEntre(s.id, p.start, p.end);
     return `<td class="rel-period rel-mbn${p.n - 1 === curIdx ? ' cur' : ''}">${x.length ? `<button class="rel-mbn-n" onclick="openFiche('${_escJsAttr(s.id)}')" title="${_escAttr(x.map(_obsMbnTexte).join('\n') + '\nClic : la fiche')}">${x.length}</button>` : '<span class="tb-hint">—</span>'}</td>`; };
@@ -12268,7 +12278,7 @@ function _hvcHTML(cls) {
       <label style="flex-basis:100%">Ce qu'on a traité, les décisions prises <textarea id="hvc-txt" rows="3" style="width:100%" placeholder="Décision : tutorat entre pairs le jeudi. À revoir : le bruit en permanence.">${_escName(e ? e.texte : '')}</textarea></label>
       <button class="btn btn-p btn-sm" onclick="hvcSaveUI()">✓ Enregistrer</button> <button class="btn btn-g btn-sm" onclick="_hvcEdit=null;renderDelegues()">Annuler</button></div>`;
   const ligne = e => _hvcEdit === e.id ? form(e) : `<div class="fi-j${e.date > today ? ' hvc-avenir' : ''}"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))}${e.date > today ? ' · <span class="badge warn">à venir</span>' : ''}
-      <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="_hvcEdit='${_escJsAttr(e.id)}';renderDelegues()" title="Modifier">✏️</button> <button class="btn btn-d btn-sm" onclick="hvcRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer">🗑</button></span></div>
+      <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="_hvcEdit='${_escJsAttr(e.id)}';renderDelegues()" title="Modifier cette heure de vie de classe">✏️ Modifier</button> <button class="btn btn-d btn-sm" onclick="hvcRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer cette heure de vie de classe">🗑 Supprimer</button></span></div>
       <strong>${_escName(e.titre)}</strong>${e.texte ? `<div class="fi-inc-txt">${_escName(e.texte)}</div>` : ''}</div>`;
   const avenir = list.filter(e => e.date > today).reverse(), tenues = list.filter(e => e.date <= today);
   const corps = (_hvcEdit === 'new' ? form(null) : '')
@@ -12325,7 +12335,7 @@ function renderDelegues() {
     return `<tr><td>${_elType(e).icon} <a href="#" onclick="_elOpen('${_escJsAttr(e.id)}');return false" style="font-weight:600;text-decoration:none" title="${_escAttr(_elType(e).label)}">${_escName(e.titre)}</a></td>
       <td style="font-family:var(--font-mono);font-size:.85em">${_escName(_fmtDateFr(e.date))}</td><td>${(e.candidats || []).length}</td><td>${e.tours.length}</td>
       <td>${e.clos ? '<span class="badge ok">close</span>' : '<span class="badge warn">en cours</span>'}</td><td>${_escName(elus) || '<span class="tb-hint">—</span>'}</td>
-      <td style="white-space:nowrap"><button class="btn btn-g btn-sm" onclick="_elOpen('${_escJsAttr(e.id)}')">Ouvrir</button> <button class="btn btn-d btn-sm" onclick="electionDeleteUI('${_escJsAttr(e.id)}')" title="Supprimer l'élection">🗑</button></td></tr>`;
+      <td style="white-space:nowrap"><button class="btn btn-g btn-sm" onclick="_elOpen('${_escJsAttr(e.id)}')">Ouvrir</button> <button class="btn btn-d btn-sm" onclick="electionDeleteUI('${_escJsAttr(e.id)}')" title="Supprimer l'élection">🗑 Supprimer</button></td></tr>`;
   }).join('')}</tbody></table></div>` + direct;
   _hvcFocus(box);
 }
@@ -12414,7 +12424,7 @@ function _deleguesDirectHTML(cls, list, kind) {
   return `<div class="fi-sec" style="margin-top:22px"><h3>✍️ ${ty.icon} ${ty.key === 'eco' ? 'Éco-délégués' : 'Délégués'} désignés sans vote dans l'app</h3>
     <div class="tb-hint" style="margin-bottom:6px">Élection tenue sur papier, ou classe reprise en cours d'année : indiquez ici qui sont les ${quoi} — la fiche et la liste des élèves les afficheront. Si une élection close dans l'app est plus récente, c'est elle qui fait foi.</div>
     ${etat}${form}${ouvert ? '' : `<button class="btn btn-s btn-sm" onclick="_delDirectOpen.${ty.key}=true;renderDelegues()">${d ? '✏️ Modifier' : `+ Désigner les ${quoi}`}</button>${
-      d ? ` <button class="btn btn-d btn-sm" onclick="deleguesClearUI('${ty.key}')" title="Retirer la désignation (Ctrl+Z pour la rétablir)">🗑</button>` : ''}`}</div>`;
+      d ? ` <button class="btn btn-d btn-sm" onclick="deleguesClearUI('${ty.key}')" title="Retirer la désignation (Ctrl+Z pour la rétablir)">🗑 Retirer</button>` : ''}`}</div>`;
 }
 function deleguesSetUI(kind) {
   const cls = getCls();
@@ -12641,7 +12651,7 @@ function _elRenderResultats(el) {
   const tables = closed.map((t, i) => {
     const d = _elDepouillement(el, i);
     const r = _elResultatTour(el, i);
-    return `<div class="el-res"><strong>Tour ${t.n}</strong> <span class="tb-hint">— ${d.votants} votants · ${d.blancs} blancs · ${d.nuls} nuls · ${d.exprimes} exprimés · majorité absolue ${d.majoriteAbsolue}${Number.isInteger(t.votantsAnnonces) && t.votantsAnnonces !== d.votants ? ` · <span style="color:var(--danger-fg)">${t.votantsAnnonces} annoncés dans l'urne</span>` : ''}</span>
+    return `<div class="el-res"><strong>Tour ${t.n}</strong> <span class="tb-hint">— ${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · majorité absolue ${d.majoriteAbsolue}${Number.isInteger(t.votantsAnnonces) && t.votantsAnnonces !== d.votants ? ` · <span style="color:var(--danger-fg)">${t.votantsAnnonces} annoncés dans l'urne</span>` : ''}</span>
       <table class="dt" style="max-width:520px;margin-top:4px"><thead><tr><th>Candidat</th><th style="text-align:right">Voix</th><th></th></tr></thead><tbody>
       ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> ${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` <span class="tb-hint">/ ${_escName(_elCandNomSup(c))}</span>` : ''}</td><td style="text-align:right;font-family:var(--font-mono)">${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? '<span class="badge ok">élu</span>' : ''}</td></tr>`).join('')}
       </tbody></table></div>`;
@@ -12657,7 +12667,7 @@ function _elRemplacementsHTML(el) {
   const eff = _elEffectifs(el);
   const ty = _elType(el);
   const lignes = R.map(r => `<div class="fi-j"><div class="fi-j-h">${_escName(_fmtDateFr(r.date))} · ${_escName(_elMotif(r.motif).label)}
-      <span class="fi-inc-act"><button class="btn btn-d btn-sm" onclick="electionRemplacementRemoveUI('${_escJsAttr(r.id)}')" title="Retirer ce remplacement (Ctrl+Z le rétablit)">🗑</button></span></div>
+      <span class="fi-inc-act"><button class="btn btn-d btn-sm" onclick="electionRemplacementRemoveUI('${_escJsAttr(r.id)}')" title="Retirer ce remplacement (Ctrl+Z le rétablit)">🗑 Retirer</button></span></div>
       <strong>${_escName(r.nomParti)}</strong> <span class="tb-hint">(${r.qui === 'titulaire' ? 'titulaire' : 'suppléant'})</span> → ${r.remplacantCandId ? `<strong>${_escName(r.nomRemplacant)}</strong> devient titulaire` : (r.qui === 'titulaire' ? '<span class="badge warn">siège vacant</span>' : 'pas de successeur')}${r.texte ? `<div class="fi-inc-txt">${_escName(r.texte)}</div>` : ''}</div>`).join('');
   const exercice = R.length ? `<div class="al al-i" style="margin-top:6px"><strong>En exercice :</strong> ${eff.titulaires.map(t => `${_escName(t.nom)}${t.promu ? ' <span class="tb-hint">(ex-suppléant)</span>' : ''}`).join(' · ') || 'personne'}${eff.suppleants.length ? ` · <strong>suppléant${eff.suppleants.length > 1 ? 's' : ''} :</strong> ${eff.suppleants.map(t => _escName(t.nom)).join(' · ')}` : ''}${eff.vacants ? ` · <span class="badge warn">${eff.vacants} siège${eff.vacants > 1 ? 's' : ''} vacant${eff.vacants > 1 ? 's' : ''}</span>` : ''}</div>` : '';
   // Qui peut partir : les mandats encore en exercice.
@@ -13328,10 +13338,10 @@ function renderMoyennes() {
     return;
   }
   const { periodes, periode, list, rel } = _moyCourant(cls);
-  const btnImp = `<button class="btn btn-p btn-sm" onclick="openMoyImport()" title="L'export des moyennes du bureau numérique, en CSV ou collé depuis le tableur">📥 Importer un tableau</button>`;
+  const btnImp = `<button class="btn btn-p btn-sm" onclick="openMoyImport()" title="L'export des moyennes du bureau numérique, en CSV ou collé depuis le tableur">📥 Importer des moyennes</button>`;
   if (!rel) {
     el.innerHTML = `<div class="tb">${btnImp}</div>` + _emptyStateHTML('📈', 'Aucune moyenne importée',
-      'Exportez les moyennes depuis le bureau numérique (un tableau « Nom et prénom de l\'élève ; Périodes ; une colonne par matière ; Moy. »), puis cliquez sur <strong>📥 Importer un tableau</strong>. Réimportez-le au fil de la période : chaque import est gardé, et l\'évolution se calcule d\'un import au suivant — même quand de nouvelles matières apparaissent.');
+      'Exportez les moyennes depuis le bureau numérique (un tableau « Nom et prénom de l\'élève ; Périodes ; une colonne par matière ; Moy. »), puis cliquez sur <strong>📥 Importer des moyennes</strong>. Réimportez-le au fil de la période : chaque import est gardé, et l\'évolution se calcule d\'un import au suivant — même quand de nouvelles matières apparaissent.');
     return;
   }
 
@@ -13344,9 +13354,9 @@ function renderMoyennes() {
   const selRel = _moyVue === 'tableau' ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Import du
       <select onchange="setMoyRid(this.value)" style="font-size:.95em;padding:2px 6px">${
         list.map(r => `<option value="${_escAttr(r.id)}"${r.id === rel.id ? ' selected' : ''}>${_escName(_moyRelLabel(r))}</option>`).join('')}</select></label>
-      <button class="btn btn-g btn-sm" onclick="openMoyEdit('${_escJsAttr(rel.id)}')" title="Corriger la date, le libellé ou la période de cet import — ou le supprimer">✏️</button>` : '';
+      <button class="btn btn-g btn-sm" onclick="openMoyEdit('${_escJsAttr(rel.id)}')" title="Corriger la date, le libellé ou la période de cet import — ou le supprimer">✏️ Corriger</button>` : '';
   const vues = `<span class="moy-vues" role="group" aria-label="Vue">
-      <button class="btn btn-sm ${_moyVue === 'tableau' ? 'btn-p' : 'btn-g'}" aria-pressed="${_moyVue === 'tableau'}" onclick="setMoyVue('tableau')" title="Les moyennes de chaque élève à un import donné">▦ Élèves</button>
+      <button class="btn btn-sm ${_moyVue === 'tableau' ? 'btn-p' : 'btn-g'}" aria-pressed="${_moyVue === 'tableau'}" onclick="setMoyVue('tableau')" title="Les moyennes de chaque élève à un import donné">▦ Tableau</button>
       <button class="btn btn-sm ${_moyVue === 'evolution' ? 'btn-p' : 'btn-g'}" aria-pressed="${_moyVue === 'evolution'}" onclick="setMoyVue('evolution')" title="Les statistiques de la classe, import après import">📈 Évolution</button></span>`;
   const extra = [
     { key: 'gen', label: 'par moyenne générale — la plus basse d\'abord' },
@@ -15333,7 +15343,7 @@ function _avisCampHTML(cls, camp) {
         ${_AVIS_FS() ? '' : `<button class="btn btn-g btn-sm" onclick="avisTelecharger('${_escJsAttr(camp.id)}')">⬇ Télécharger la feuille</button>`}
       </div>
     </details>
-    <div class="ma"><button class="btn btn-d btn-sm" onclick="avisSupprimerUI('${_escJsAttr(camp.id)}')" title="Oublier cette feuille et les avis rangés (la feuille du Nuage, elle, reste)">🗑</button>
+    <div class="ma"><button class="btn btn-d btn-sm" onclick="avisSupprimerUI('${_escJsAttr(camp.id)}')" title="Oublier cette feuille et les avis rangés (la feuille du Nuage, elle, reste)">🗑 Supprimer</button>
       </div>`;
 }
 // ── Mes bilans, pour l'objectif de la feuille ── un bilan par élève, du TYPE de la feuille
@@ -16104,7 +16114,7 @@ function _disciplinesTableHTML() {
       <td style="min-width:150px"><input type="text" value="${_escAttr(cls ? _discProfs(cls.id, d.id) : (d.profs || ''))}" maxlength="120" placeholder="${_escAttr(cls && _discProfsAuto(cls.id, d.id) || 'à saisir')}" onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)" title="Repris des moyennes quand elles le donnent ; ce que vous tapez passe avant"></td>
       <td class="tb-hint" style="width:99%">${ms.length ? _escName(ms.join(' · ')) : '—'}</td>
       <td style="white-space:nowrap">${d.builtin ? '<span class="tb-hint" title="Discipline d\'office : se décoche, ne se supprime pas">d\'office</span>'
-        : `<button class="btn btn-d btn-sm" onclick="disciplineRemoveUI('${_escJsAttr(d.id)}')" title="Supprimer cette discipline">🗑</button>`}</td></tr>`;
+        : `<button class="btn btn-d btn-sm" onclick="disciplineRemoveUI('${_escJsAttr(d.id)}')" title="Supprimer cette discipline">🗑 Supprimer</button>`}</td></tr>`;
   }).join('');
   const matRows = mats.map(m => {
     const auto = _matiereDiscAuto(m.norm || _moyNorm(m.nom));
@@ -16176,8 +16186,13 @@ function _moyPeriodeEleve(mp, sid) {
 }
 function _periodeSynthese(cls, periodIdx, opts) {
   const o = opts || {};
-  const p = _periods(cls)[periodIdx];
-  if (!p) return null;
+  // `o.col` (v1.47.3, second audit D3) : un MOMENT de « Synthèse pour » — la feuille est
+  // bornée à lui (`_ficheBornes`), son bilan et ses décisions sont ceux de CE moment. Sans
+  // `o.col`, la période entière, comme avant.
+  const p0 = _periods(cls)[periodIdx];
+  if (!p0) return null;
+  const B = o.col ? _ficheBornes(cls, o.col) : null;
+  const p = B ? { ...p0, start: B.start, end: B.end } : p0;
   const cid = cls.id;
   const m = _relMap(cid) || {};
   const dates = _relDates(cid).filter(d => d >= p.start && d <= p.end);
@@ -16186,7 +16201,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
   // Les élèves présents PENDANT la période : arrivé avant sa fin, pas parti avant son début.
   const presents = cls.eleves.map(id => S.eleves[id]).filter(Boolean)
     .filter(s => !(s.arrivalDate && s.arrivalDate > p.end) && !(s.departureDate && s.departureDate <= p.start));
-  const mp = _moyPourPeriode(cid, p);
+  const mp = _moyPourPeriode(cid, p0);
   const rows = presents.map(stu => {
     let cumulFin = null, cumulFinDate = null, absents = 0;
     for (const d of dates) {
@@ -16199,19 +16214,19 @@ function _periodeSynthese(cls, periodIdx, opts) {
       .map(e => ({ date: e.date, type: e.type, objet: e.objet, texte: e.texte || '' })).reverse();
     const contacts = _journalOf(stu.id).filter(e => e.date >= p.start && e.date <= p.end)
       .map(e => ({ date: e.date, type: e.type, texte: e.texte })).reverse();
-    const b = _bilanPeriode(cls, stu.id, periodIdx, o.type || 'conseil');
+    const b = o.col ? _bilanCible(cls, stu.id, { type: o.col.type, date: o.col.date }) : _bilanPeriode(cls, stu.id, periodIdx, o.type || 'conseil');
     return {
       sid: stu.id, nom: stu.nom, prenom: stu.prenom, groupe: stu.groupe || null,
       options: _studentTags(stu).map(t => t.abbr), amenagements: _amenLabel(stu, false), delegue: _delegueOf(stu.id), eco: _ecoDelegueOf(stu.id),
       arrive: stu.arrivalDate && stu.arrivalDate > p.start ? stu.arrivalDate : null,
       parti: stu.departureDate && stu.departureDate <= p.end ? stu.departureDate : null,
-      cumulFin, cumulFinDate, totalPeriode: _relPeriodTotal(cid, stu.id, periodIdx), absents,
+      cumulFin, cumulFinDate, totalPeriode: B ? _obsEntre(cid, stu.id, p.start, p.end) : _relPeriodTotal(cid, stu.id, periodIdx), absents,
       mbn: _obsMbnEntre(stu.id, p.start, p.end).length,
       nonRendus, incidents, contacts,
       moyennes: _moyPeriodeEleve(mp, stu.id),
       bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
       // Les décisions du même moment (v1.46.13), sous le bilan sur la feuille.
-      decisions: (d => d ? d.texte : '')(_decisionCible(cls, stu.id, { type: o.type || 'conseil', date: p.start })),
+      decisions: (d => d ? d.texte : '')(_decisionCible(cls, stu.id, o.col ? { type: o.col.type, date: o.col.date } : { type: o.type || 'conseil', date: p.start })),
       // Avis des collègues (v1.39.0) : la dernière feuille de CETTE période.
       avis: (() => { const a = _avisEleve(cls, stu.id, periodIdx, o.type || 'conseil'); if (!a) return [];
         const cols = _avisCols(a.camp);
@@ -16241,7 +16256,7 @@ function _periodeTitre(type, p) { return `${type === 'miperiode' ? 'Bilan de mi-
 // (un bloc par élève — ce qu'on lit pendant que le conseil parle de lui).
 function _periodePrintHTML(cls, periodIdx, opts) {
   const o = Object.assign({}, _periodePrintOpts, opts || {});
-  const syn = _periodeSynthese(cls, periodIdx, { type: o.type });
+  const syn = _periodeSynthese(cls, periodIdx, { type: o.type, col: o.col });
   if (!syn) return null;
   const p = syn.periode;
   const on = k => o.blocs.includes(k);
@@ -16254,11 +16269,11 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;
     return (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr', { sensitivity: 'base' });
   });
-  const titre = `${_periodeTitre(o.type, p)} — ${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}`;
+  const titre = `${o.col ? o.col.long : _periodeTitre(o.type, p)} — ${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}`;
   const hvc = on('hvc') ? _hvcPeriode(cls, periodIdx) : [];
   const hvcHTML = on('hvc') ? `<div class="print-hvc"><strong>Heures de vie de classe ${_escName(p.label)}</strong>${
     hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_escName(e.texte)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
-  const sub = `du ${_fmtDateFr(p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet${
+  const sub = `du ${_fmtDateFr(_debutUtile(p.start) < p.end ? _debutUtile(p.start) : p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet${
     on('moy') ? (syn.moyennes ? ` · moyennes « ${syn.moyennes.periode} » importées le ${_fmtDateFr(syn.moyennes.date)}` : ' · aucune moyenne importée pour cette période') : ''} · imprimé le ${_fmtDateFr(_todayYmd())}`;
   // Paliers du carnet (v1.38.1, demande de l'utilisateur) : le cumul de fin de période sur le
   // fond de son cran, comme dans la grille — et la légende au sous-titre. Suit le réglage
@@ -16303,7 +16318,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
       ${on('incidents') ? bloc('Incidents', incCell(r)) : ''}
       ${on('contacts') ? bloc('Contacts', conCell(r)) : ''}
       ${on('avis') ? bloc('Collègues', avisFiche(r)) : ''}
-      ${on('bilan') ? bloc(o.type === 'miperiode' ? 'Bilan' : 'Conseil', bilCell(r) ? `<div class="print-rem">${bilCell(r)}</div>` : '') : ''}
+      ${on('bilan') ? bloc(o.type === 'conseil' || !o.type ? 'Conseil' : 'Bilan', bilCell(r) ? `<div class="print-rem">${bilCell(r)}</div>` : '') : ''}
     </div>`).join('') };
   }
   // ── TABLEAU : une page paysage, lisible d'un bout à l'autre ──
@@ -16320,7 +16335,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const tot = cols.reduce((n, c) => n + c[1], 0);
   const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c[1] / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
   const titres = { eleve: 'Élève', ident: 'Groupe · options', obs: `Observ. ${_escName(p.label)}`, moy: 'Moyenne',
-    docs: 'Non rendus', incidents: 'Incidents', contacts: 'Contacts', avis: 'Avis des collègues', bilan: o.type === 'miperiode' ? 'Bilan' : 'Conseil' };
+    docs: 'Non rendus', incidents: 'Incidents', contacts: 'Contacts', avis: 'Avis des collègues', bilan: o.type === 'conseil' || !o.type ? 'Conseil' : 'Bilan' };
   const premier = syn.moyennes ? syn.moyennes.premier : null;
   const cell = {
     eleve: r => `<span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${
@@ -16348,10 +16363,10 @@ function _periodePrintHTML(cls, periodIdx, opts) {
 function openPeriodePrint() {
   const cls = getCls();
   if (!cls || !cls.eleves.length) return toast('⚠️ Rien à imprimer.', 'warn');
-  const ps = _periods(cls);
-  const cur = _carnetCurrentPeriodIdx(cls);
-  document.getElementById('mper-periode').innerHTML = ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('');
-  document.getElementById('mper-type').value = _periodePrintOpts.type;
+  const ps = _periods(cls), ms = _chaleurMoments(cls), cur = _chaleurMomentCourant(cls);
+  const choisi = ms.find(c => c.key === _periodePrintOpts.moment) || cur;
+  document.getElementById('mper-moment').innerHTML = ps.map((p, i) => { const g = ms.filter(c => c.pIdx === i); return g.length ? `<optgroup label="${_escAttr(p.label)}">${g.map(c => { const b = _ficheBornes(cls, c);
+    return `<option value="${_escAttr(c.key)}"${choisi && c.key === choisi.key ? ' selected' : ''}>${_escName(c.long)} — du ${_escName(_fmtDateFr(_debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start).slice(0, 5))} au ${_escName(_fmtDateFr(b.end).slice(0, 5))}</option>`; }).join('')}</optgroup>` : ''; }).join('');
   document.getElementById('mper-forme').value = _periodePrintOpts.forme;
   document.getElementById('mper-format').value = _periodePrintOpts.format === 'A3' ? 'A3' : 'A4';
   document.getElementById('mper-blocs').innerHTML = _PERIODE_BLOCS.map(b =>
@@ -16361,9 +16376,12 @@ function openPeriodePrint() {
   _printFontLoad().then(() => { if (document.getElementById('mperiode')?.classList.contains('on')) _periodePrintRefresh(); });
 }
 function _periodePrintLire() {
+  const cls = getCls(), k = document.getElementById('mper-moment')?.value;
+  const col = cls ? (_chaleurMomentsTous(cls).find(c => c.key === k) || _chaleurMomentCourant(cls)) : null;
   return {
-    idx: +document.getElementById('mper-periode').value || 0,
-    type: document.getElementById('mper-type').value === 'miperiode' ? 'miperiode' : 'conseil',
+    idx: col ? col.pIdx : 0,
+    type: col ? col.type : 'conseil',
+    col,
     forme: document.getElementById('mper-forme').value === 'fiches' ? 'fiches' : 'tableau',
     format: document.getElementById('mper-format').value === 'A3' ? 'A3' : 'A4',
     blocs: [...document.querySelectorAll('#mper-blocs input[data-ck]')].filter(c => c.checked).map(c => c.dataset.ck),
@@ -16380,7 +16398,7 @@ function _periodePrintRefresh() {
     o.blocs.includes('hvc') ? `${_hvcPeriode(cls, o.idx).length} heure${_hvcPeriode(cls, o.idx).length > 1 ? 's' : ''} de vie de classe` : '',
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
     o.blocs.includes('moy') ? (syn.moyennes ? `moyennes « ${syn.moyennes.periode} » du ${_fmtDateFr(syn.moyennes.date)}` : '⚠️ aucune moyenne importée pour cette période') : '',
-    o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — 🎓 dans la liste pour les compléter` : '✓ un bilan pour chacun') : '',
+    o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — à écrire par les points de la colonne Bilans, ou dans la fiche` : '✓ un bilan pour chacun') : '',
     o.forme === 'fiches' ? `${o.format} portrait, un bloc par élève` : _periodeFitTexte(_periodeFit(cls, o), o.format)];
   h.textContent = bits.filter(Boolean).join(' · ');
 }
@@ -16403,7 +16421,7 @@ function periodePrintOk() {
   const o = _periodePrintLire();
   if (!cls) return;
   if (!o.blocs.length) return toast('⚠️ Choisissez au moins un bloc.', 'warn');
-  _periodePrintOpts = { blocs: o.blocs, type: o.type, forme: o.forme, format: o.format };
+  _periodePrintOpts = { blocs: o.blocs, type: o.type, moment: o.col ? o.col.key : null, forme: o.forme, format: o.format };
   const out = _periodePrintHTML(cls, o.idx, o);
   if (!out) return toast('⚠️ Période inconnue.', 'warn');
   const fit = out.kind === 'landscape' ? _printFitMeasure(out.html, out.kind, o.format) : null;
