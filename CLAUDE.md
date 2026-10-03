@@ -1443,6 +1443,10 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        chaque papier (« Participation : ULYSS »), ✎ : réponses, date de retour, note, documents
        archivés compris. Ce qui faisait doublon (identité, remarque, moyennes, avis) n'est plus
        qu'une fois. Les cartes restent bornées au moment ; ✎ ouvre l'année entière.
+       **v1.46.10** (*« dans la remarque, on ne voit pas s'il y a plusieurs paragraphes »*) :
+       remarque, bilans et avis des collègues gardent leurs retours à la ligne (`pre-line` sur
+       `.pf-p`, `.pf-bil`, `.pf-cr > span`, `.pf-mx td`, `.pf-avd`) — ⚠️ ces gabarits ne doivent
+       donc pas porter de retour à la ligne entre leurs balises.
      - ⚠️ La classe `.mo` du prototype (les mois de la frise) est celle des FENÊTRES de
        l'app (`display: none`) : les mois ne s'affichaient pas. Renommée `pf-mois`. Toute
        classe reprise d'un prototype se vérifie contre les classes de l'app.
@@ -1821,6 +1825,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 98 | **Fiche : les paragraphes des textes libres se voient** (remarque, bilans, avis des collègues — `white-space: pre-line`) ; 1 test | ✅ **fait** (2026-10-03, v1.46.10) |
 | 97 | **Fiche : plus de « Dossier complet »** — classe, naissance, civilité, présence, place, élections dans Identité ; relevés, bilans, incidents (📎), contacts, papiers (choix lus, réponses corrigeables) dans leurs cartes, derrière **✎** ; 1 test. Audit 13 états d'édition, 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.9) |
 | 96 | **La fiche a la sélection de moments de la carte de chaleur** (même liste, même titre *Synthèse pour ▾*) ; 🗓 Moments ne règle plus que la colonne Bilans ; tests mis à jour. Audit 3 vues, 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.8) |
 | 95 | **Carte de chaleur : moments de « Synthèse pour » à elle** (tous les mois proposables, liste à cocher sous le titre, indépendante de 🗓 Moments) · **compte d'élèves à droite des filtres** (une ligne de moins) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.7) |

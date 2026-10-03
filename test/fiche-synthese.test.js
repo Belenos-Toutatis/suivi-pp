@@ -155,3 +155,10 @@ test('Fiche : plus de « dossier complet » — ses éléments sont dans les car
   assert.match(rendu('naissance'), /ficheSetDate\(this,'naissance'\)/);
   assert.match(rendu('presence'), /ficheSetDate\(this,'arrivalDate'\)/);
 });
+
+test('Fiche : les textes libres gardent leurs paragraphes (remarque, bilans, avis)', () => {
+  const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const r = /([^{}]+)\{\s*white-space:\s*pre-line;\s*\}/g;
+  const sel = [...css.matchAll(r)].map(m => m[1]).join(',');
+  for (const c of ['.pf-p', '.pf-bil', '.pf-cr > span', '.pf-mx td']) assert.ok(sel.includes(c), c);
+});

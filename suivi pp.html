@@ -1562,6 +1562,9 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: 13.5px; margin: 0; }
 .pf-kv dt { color: var(--pencil); } .pf-kv dd { margin: 0; }
 .pf-p { margin: 0; }
+/* Les textes libres gardent leurs paragraphes (v1.46.10, l'utilisateur : « dans la remarque, on ne
+   voit pas s'il y a plusieurs paragraphes ») : remarque, bilans, avis des collègues (Ctrl+Entrée). */
+.pf-p, .pf-bil, .pf-cr > span, .pf-mx td, .pf-avd > div:not(.pf-dnm):not(.pf-cr) { white-space: pre-line; }
 .pf-mini { width: 100%; border-collapse: collapse; font-size: 13px; }
 .pf-mini th, .pf-mini td { padding: 3px 6px; border-bottom: 1px solid var(--rule-line-soft); text-align: left; }
 .pf-mini th { font-weight: 400; color: var(--pencil); font-size: 12px; }
@@ -2751,8 +2754,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.9';
-const APP_BUILD_DATE = '2026-10-03T05:30:11Z';
+const APP_VERSION    = '1.46.10';
+const APP_BUILD_DATE = '2026-10-03T05:36:58Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
