@@ -56,7 +56,7 @@ test('fenêtre détachée : élection close → le résultat (élus, tours), san
     const eco = _elList(cls.id).find(e => e.clos && e.type === 'eco');
     const he = _elWinResultatHTML(eco);
     return JSON.stringify({ resultat: h.includes('class="elr"'), graphique: h.includes('el-chart'), elus: (h.match(/class="elr-elu"/g) || []).length,
-      tours: (h.match(/class="elr-tour"/g) || []).length, premier: h.includes('élu au premier tour'), second: h.includes('élu au second tour'),
+      tours: (h.match(/class="elr-tour"/g) || []).length, premier: /élue? au premier tour/.test(h), second: /élue? au second tour/.test(h),
       relative: h.includes('majorité relative'), rempl: /Remplacement|devient titulaire/.test(h), boutons: /<button/.test(h), xss: h.includes('<img src=x'),
       ecoSup: he.includes('suppléant'), ecoTitre: he.includes('Éco-délégué') });
   })()`));

@@ -286,8 +286,13 @@ test('sans candidat restant, pas de second tour vide : l\'élection se clôt, si
 test('_nomHTML : le nom surligné selon le mandat, vert titulaire / jaune suppléant', () => {
   ev(FIXTURE);
   ev(`B(['c1','c2'],['c1','c2'],['c1','c2'],['c1','c2']); electionCloreTour(EL, 0);`);
-  assert.match(ev(`_nomHTML('s1', S.eleves.s1.nom, S.eleves.s1.prenom)`), /^<span class="nom del-t" title="Délégué titulaire/);
-  assert.match(ev(`_nomHTML('s11', S.eleves.s11.nom, S.eleves.s11.prenom)`), /^<span class="nom del-s" title="Délégué suppléant/);
+  assert.match(ev(`_nomHTML('s1', S.eleves.s1.nom, S.eleves.s1.prenom)`), /^<span class="nom del-t" title="Délégué(\(e\))? titulaire/);   // civilité inconnue : « Délégué(e) » (v1.52.13)
+  assert.match(ev(`_nomHTML('s11', S.eleves.s11.nom, S.eleves.s11.prenom)`), /^<span class="nom del-s" title="Délégué(\(e\))? suppléant/);
+  // Accordé quand la civilité est connue (v1.52.13).
+  ev(`S.eleves.s11.civilite = 'F'`);
+  assert.match(ev(`_nomHTML('s11', S.eleves.s11.nom, S.eleves.s11.prenom)`), /title="Déléguée suppléante — /);
+  ev(`S.eleves.s11.civilite = 'M'`);
+  assert.match(ev(`_nomHTML('s11', S.eleves.s11.nom, S.eleves.s11.prenom)`), /title="Délégué suppléant — /);
   // Sans mandat : ni classe ni infobulle — et le nom est échappé.
   assert.strictEqual(ev(`_nomHTML('s3', '<b>X</b>', 'Y&Z')`), '<span class="nom"><strong>&lt;b&gt;X&lt;/b&gt;</strong> Y&amp;Z</span>');
   // Une correction du dépouillement se répercute sur le surlignage, puisque rien n'est stocké.
@@ -714,8 +719,8 @@ test('Égalité départagée par l\'âge : les dates de naissance au PV, à la p
   assert.strictEqual(r.clos, true);
   assert.strictEqual(r.elu, true, 'le plus jeune (né en novembre) est élu');
   assert.match(r.dep, /Égalité à 2 voix, départagée par l'âge \(le plus jeune est élu\)/);
-  assert.match(r.dep, /né\(e\) le 04\/03\/2012/);
-  assert.match(r.dep, /né\(e\) le 20\/11\/2012 — élu/);
+  assert.match(r.dep, /née? le 04\/03\/2012/, 'accordé à la civilité (v1.52.13)');
+  assert.match(r.dep, /née? le 20\/11\/2012 — élue?\./);
   assert.strictEqual(r.proj, true, 'à la projection');
   assert.strictEqual(r.onglet, true, 'dans l onglet');
 });
@@ -741,7 +746,7 @@ test('Procès-verbal : une case de signature par élu (titulaires et suppléants
   const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
   const pv = SRC.slice(SRC.indexOf('function electionPrintPV('), SRC.indexOf('function _pvElusSignHTML('));
   assert.match(pv, /_pvFitPt\(/, 'la taille est calculée pour une page');
-  assert.match(pv, /_pvElusSignHTML\(el, elus, sups\)/);
+  assert.match(pv, /_pvElusSignHTML\(el, elus, sups, supsCiv\)/);
 });
 
 test('Assesseurs : saisis dans l\'élection (plus dans les modalités), deux élèves non candidats, figés à la clôture', () => {
@@ -795,5 +800,59 @@ test('Président du bureau : le PP par défaut, ou le CPE, un élève non candid
   assert.deepStrictEqual([r.autre.fonction, r.autre.nom], ['Principal adjoint', '<b>X</b>'], 'texte brut — échappé au rendu');
   assert.strictEqual(r.clos, false, 'figé à la clôture');
   const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
-  assert.match(SRC, /<div class="pv-sign-t">Le président du bureau<\/div><div class="pv-sign-n">\$\{_escName\(_elPresident\(el\)\.fonction\)\}/);
+  assert.match(SRC, /'Le président du bureau', 'La présidente du bureau', 'Le président du bureau'\)\}<\/div><div class="pv-sign-n">\$\{_escName\(_elPresident\(el\)\.fonction\)\}/);
+});
+
+test('Accord en genre dans les élections : élue, née, candidate, suppléante, elle accepte — et la forme inclusive sans civilité', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls();
+    const ids = cls.eleves.filter(id => _ymdValid(S.eleves[id].naissance) && _isStudentActive(S.eleves[id]));
+    const f = ids.find(id => S.eleves[id].civilite === 'F'), m = ids.find(id => S.eleves[id].civilite === 'M');
+    const el = electionCreate(cls.id, { nbTitulaires: 1, binome: true, majoriteAbsolueT1: false }); S.elections[cls.id][el.id] = el;
+    const autres = ids.filter(x => x !== f && x !== m);
+    const cF = electionAddCandidat(el, f, autres[0]), cM = electionAddCandidat(el, m, autres[1]);
+    electionPreparerBulletins(el, 0, 3); [[cF.id], [cF.id], [cM.id]].forEach((v, i) => electionSetBulletin(el, 0, i + 1, { voix: v }));
+    electionCloreTour(el, 0);
+    const res = _elWinResultatHTML(el), onglet = _elRenderResultats(el);
+    // Le nom écrit d'une fille, puis sa question d'acceptation
+    const el2 = electionCreate(cls.id, { nbTitulaires: 1, binome: true }); S.elections[cls.id][el2.id] = el2;
+    const f2 = ids.filter(x => S.eleves[x].civilite === 'F')[1];
+    const e = electionAddEcrit(el2, f2);
+    for (let i = 0; i < 3; i++) electionAddBulletin(el2, 0, [e.id]);
+    const q = electionCloreTour(el2, 0).warnings[0];
+    // Civilité inconnue : forme inclusive
+    const x = ids.find(id => id !== f && id !== m && !autres.slice(0, 2).includes(id));
+    S.eleves[x].civilite = null;
+    const cx = electionAddCandidat(el2, x, null);
+    return JSON.stringify({ res, onglet, q, figee: cF.civiliteTitulaire, inclusif: _acc(_civCand(cx), 'élu', 'élue', 'élu(e)') });
+  })()`));
+  assert.match(r.res, /Déléguée élue/, 'le titre de la projection');
+  assert.match(r.res, /élue au premier tour/);
+  assert.match(r.res, /✓ élue/);
+  assert.match(r.onglet, /<span class="badge ok">élue<\/span>/);
+  assert.match(r.q, /n'était pas candidate : demandez-lui si elle accepte/);
+  assert.strictEqual(r.figee, 'F', 'la civilité est figée sur la candidature');
+  assert.strictEqual(r.inclusif, 'élu(e)');
+});
+
+test('Scrutin du suppléant : la projection dit « Suppléant(e) élu(e) — de X », pas « Délégué élu »', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = 0, t = el.tours[ti];
+    electionPreparerBulletins(el, ti, null);
+    const libres = cls.eleves.filter(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    const c = electionAddEcrit(el, libres[0]);
+    for (let i = 0; i < 40; i++) electionAddBulletin(el, ti, [c.id]);
+    t.votantsAnnonces = t.bulletins.length; c.accepte = true;
+    electionCloreTour(el, ti);
+    let g = 0; while (!el.clos && g++ < 3) { const k = el.tours.length - 1; electionAddBulletin(el, k, [el.tours[k].candidats[0]]); el.tours[k].votantsAnnonces = el.tours[k].bulletins.length; electionCloreTour(el, k); }
+    const sub = electionCreerScrutinSuppleant(el, c.id);
+    const a = electionAddCandidat(sub, libres[1], null), b = electionAddCandidat(sub, libres[2], null);
+    electionPreparerBulletins(sub, 0, 3); [[a.id], [a.id], [b.id]].forEach((v, i) => electionSetBulletin(sub, 0, i + 1, { voix: v }));
+    electionCloreTour(sub, 0);
+    return JSON.stringify(_elWinResultatHTML(sub));
+  })()`));
+  assert.ok(!/Délégu/.test(r), 'jamais « Délégué élu » pour un scrutin de suppléant');
+  assert.match(r, /Suppléante? élue? — de /);
 });

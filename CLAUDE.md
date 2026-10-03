@@ -577,6 +577,22 @@ vote** (président puis assesseurs) ; au PV, la signature « Le président du bu
 fonction et son nom (avant : « Le professeur principal », sans nom). La fiche de l'élève dit
 « président du bureau de vote ». Les candidatures et les assesseurs écartent l'élève président.
 
+### Accord en genre (v1.52.13)
+
+L'utilisateur : *« accorde, en fonction du genre du candidat, tout ce que tu écris dans les
+élections »*. Aides : `_civOf(sid)`, `_civCand(c, sup)` — la civilité est **FIGÉE sur la
+candidature** (`civiliteTitulaire`, `civiliteSuppleant`, posées par `electionAddCandidat` et par
+`electionSuppleantNC`), la fiche vivante en repli pour les candidatures plus anciennes —, `_acc(civ,
+m, f, x)` (civilité inconnue : la forme inclusive `x`, « élu(e) »), `_accPl(civs, m, f)` (féminin
+seulement si TOUTES), `_civNom(nom)` (« Mme Durand » pour un adulte), `_delMot`, `_supMot`, `_maj`.
+Accordés : élu/élue (graphique, résultats, projection, PV), né/née (départage), candidat/candidate,
+retiré/retirée, suppléant/suppléante, il/elle accepte (question d'acceptation), Délégué(e)s élu(e)s
+(titres), assesseur/assesseure et président/présidente (PV, fiche), délégué/déléguée et
+éco-déléguée partout (infobulle du nom, fiche, synthèse, liste imprimée, fiche imprimée).
+⚠️ **Restent au masculin générique** : les RÈGLES (« le plus jeune est élu », « le suppléant est
+élu avec son titulaire ») et les titres de colonnes. La projection d'un **scrutin de suppléant**
+titre « Suppléant(e) élu(e) — de X » (remontée de l'utilisateur : elle disait « Délégué élu »).
+
 ### La saisie se fait bulletin par bulletin
 
 C'est déjà sa méthode (une ligne par bulletin numéroté, une colonne par binôme, on coche), et il faut la garder pour deux raisons : c'est ce qu'il fait pendant que les assesseurs annoncent, et cela laisse une **trace vérifiable** — si un total est contesté, on remonte au bulletin.
@@ -2177,6 +2193,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 129 | **Accord en genre dans les élections** (civilité figée sur la candidature, forme inclusive sans civilité) · **projection d'un scrutin de suppléant : « Suppléant(e) élu(e) »** ; 2 tests, 5 tests adaptés | ✅ **fait** (2026-10-03, v1.52.13) |
 | 128 | **Président du bureau au choix** (PP, CPE, élève non candidat, autre adulte) ; signe le PV à ce titre ; fiche de l'élève ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.12) |
 | 127 | **Assesseurs saisis dans l'élection, après les candidatures** (plus dans ⚙ Modalités) ; non candidats ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.11) |
 | 126 | **PV : titulaire et suppléant groupés** dans un cadre par binôme ; test étendu | ✅ **fait** (2026-10-03, v1.52.10) |
