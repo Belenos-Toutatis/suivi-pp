@@ -468,6 +468,17 @@ releveMoy = {
 - **Avant la fin de la septième semaine de l'année scolaire** — **art. R421-30** (la circulaire de 2004 disait la sixième ; le code, plus récent, prime).
 - **Majorité absolue au premier tour, relative au second, le plus jeune en cas d'égalité**, candidatures individuelles, un élève non candidat peut être élu s'il accepte, remplaçant élu en cours d'année (deux fois au plus) — **circulaire n° 2004-114 du 15-7-2004, § 6.1** (BO n° 29 du 22-7-2004).
 - Le texte dit **scrutin uninominal** : un nom par bulletin, et si un seul candidat atteint la majorité absolue, un second tour pour le second siège.
+- **Le § 6.1 de la circulaire n° 2004-114, relu le 2026-10-03** (texte fourni par l'utilisateur :
+  le site du ministère refuse les robots) : *« Les candidatures sont individuelles »* ; *« Un élève
+  qui n'a pas présenté sa candidature peut néanmoins être élu si les voix de ses camarades se sont
+  portées sur lui en nombre suffisant et s'il accepte son élection »* ; majorité absolue au 1er
+  tour, relative au 2nd, le plus jeune à égalité ; remplaçant élu *« au maximum deux fois dans
+  l'année scolaire »*. ⚠️ Le titulaire **indissociable** de son suppléant y figure au § 6.2 —
+  l'élection des représentants au CONSEIL D'ADMINISTRATION —, pas pour les délégués de classe.
+  Pour ceux-ci, le binôme vient de **R421-28 (2016)**, plus récent et supérieur : la circulaire
+  n'a pas été réécrite, et rien ne dit qui supplée un élu non candidat **en binôme** (hors binôme,
+  candidatures individuelles, la circulaire suffit). La fiche service-public F1370 reprend la phrase
+  de 2004 (*« … et s'il accepte son mandat »*). Cf. *Nom écrit sur un bulletin* (v1.52.2).
 - **Éco-délégués** — **circulaire n° 2019-121 du 27-8-2019, § 1.2** (*EDD 2030*, BO n° 31 du 29-8-2019) : *« chaque établissement est incité à organiser l'élection, dans chaque classe, d'un éco-délégué […]. Cette élection peut utilement intervenir concomitamment aux élections des délégués d'élèves et selon les mêmes modalités. »* Et le « binôme paritaire d'éco-délégués » de la même circulaire est **par établissement** (élu parmi les volontaires du CVC / CVL), pas par classe. **Circulaire du 24-9-2020, § 3.1** (*Agenda 2030*, BO n° 36) : *« L'élection des éco-délégués de classe est désormais obligatoire au collège et au lycée et peut être organisée simultanément avec celle des délégués de classes. Elle peut également être proposée aux élèves de CM1 et CM2. Les mêmes élèves peuvent, le cas échéant, être à la fois délégués de classe et éco-délégués. »* → **UN éco-délégué par classe, AUCUN suppléant, un nom par bulletin, uninominal à deux tours** (par renvoi aux modalités des délégués). Aucun texte n'impose deux éco-délégués ni la parité par classe : c'est un choix d'établissement, fréquent, à régler dans la modale.
 - Le lien de R421-28 est **celui fourni par l'utilisateur** (2026-09-12, v1.29.1) : la section du code sur Légifrance avec un fragment `#:~:text=` qui surligne le passage sur le type de scrutin à l'ouverture. Ne pas le « simplifier » en lien d'article nu : le surlignage est ce qui rend la lecture immédiate.
 - **Éco-délégués** (2026-09-12, v1.30.2) : les deux circulaires restent, mais par les liens **fournis par l'utilisateur** — les mêmes pages du BO avec un fragment `#:~:text=` qui surligne le passage sur les éco-délégués de classe (2019 : *« Au-delà, chaque établissement est incité… »* ; 2020 : *« L'élection des éco-délégués de classe est désormais obligatoire… »*).
