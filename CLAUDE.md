@@ -1446,7 +1446,24 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        **v1.46.10** (*« dans la remarque, on ne voit pas s'il y a plusieurs paragraphes »*) :
        remarque, bilans et avis des collègues gardent leurs retours à la ligne (`pre-line` sur
        `.pf-p`, `.pf-bil`, `.pf-cr > span`, `.pf-mx td`, `.pf-avd`) — ⚠️ ces gabarits ne doivent
-       donc pas porter de retour à la ligne entre leurs balises.
+       donc pas porter de retour à la ligne entre leurs balises. **v1.46.11** (*« mets aussi les
+       paragraphes sur les feuilles imprimées »*) : remarque et bilans les avaient déjà
+       (`.pp-t .pp-rem`, `.print-rem`) ; les **avis des collègues** de la synthèse de période
+       aussi désormais (`.pp-pl`, hors `@media print` pour que la mesure « une page » en tienne
+       compte).
+     - **La fenêtre ✏️ « Modifier l'élève » refaite** (v1.46.11, l'utilisateur : *« quand elle
+       s'affiche, l'endroit où on était change — le fond n'est plus la fiche ; la présentation
+       est fouillis, on ne voit pas tout d'un coup ; la repenser complètement »*) : elle
+       s'ouvre **par-dessus la fiche** (`ficheVersEdition` ne ferme plus `mfiche` ; l'empilement
+       d'`openMod` ; la fiche se redessine à la fermeture). Cinq blocs en deux colonnes (une sous
+       700 px) — *Identité* (nom, prénom, civilité, naissance), *Scolarité* (classe, groupe,
+       options), *Restauration et sorties* (demi-pension, jours — seulement pour un DP —, entrée,
+       sortie), *Présence* (arrivée, départ), *Aménagements* sur toute la largeur, en puces
+       rangées par exclusivité — ; le titre est le nom de l'élève. Civilité, groupe et
+       demi-pension en **boutons** (`_esSeg`, `esSegUI`) qui écrivent un champ caché : les ids
+       (`es-civ`, `es-grp`, `es-regime`…) et `saveEdit` n'ont pas changé. Une option cochée prend
+       sa couleur tout de suite (`_esTagCouleur`) ; ⚠️ la puce d'option garde son encre dérivée
+       — la règle « puce cochée » des aménagements l'écrasait (3,03:1, vu par l'audit).
      - ⚠️ La classe `.mo` du prototype (les mois de la frise) est celle des FENÊTRES de
        l'app (`display: none`) : les mois ne s'affichaient pas. Renommée `pf-mois`. Toute
        classe reprise d'un prototype se vérifie contre les classes de l'app.
@@ -1825,6 +1842,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 99 | **Fenêtre « Modifier l'élève » refaite** (par-dessus la fiche, cinq blocs sur deux colonnes, choix courts en boutons, aménagements en puces) · **avis des collègues avec leurs paragraphes sur le papier** ; 1 test, 2 tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut (un contraste trouvé et corrigé) | ✅ **fait** (2026-10-03, v1.46.11) |
 | 98 | **Fiche : les paragraphes des textes libres se voient** (remarque, bilans, avis des collègues — `white-space: pre-line`) ; 1 test | ✅ **fait** (2026-10-03, v1.46.10) |
 | 97 | **Fiche : plus de « Dossier complet »** — classe, naissance, civilité, présence, place, élections dans Identité ; relevés, bilans, incidents (📎), contacts, papiers (choix lus, réponses corrigeables) dans leurs cartes, derrière **✎** ; 1 test. Audit 13 états d'édition, 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.9) |
 | 96 | **La fiche a la sélection de moments de la carte de chaleur** (même liste, même titre *Synthèse pour ▾*) ; 🗓 Moments ne règle plus que la colonne Bilans ; tests mis à jour. Audit 3 vues, 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.8) |

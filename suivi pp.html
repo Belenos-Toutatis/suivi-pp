@@ -1554,6 +1554,25 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-src input { width: 15px; height: 15px; margin: 0; cursor: pointer; }
 .pf-add { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 50%; min-width: 24px; height: 24px; line-height: 20px; padding: 0 3px; font-weight: 700; color: var(--link-fg); }
 .pf-add.pf-del { color: var(--danger-fg); }
+/* La fenêtre « Modifier l'élève » (v1.46.11) : cinq blocs, deux colonnes, tout d'un coup. */
+.es-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.es-sec { border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 10px 12px 4px; background: var(--paper); min-width: 0; }
+.es-sec h3 { margin: 0 0 6px; font-size: 14px; color: var(--ink-blue); }
+.es-wide { grid-column: 1 / -1; }
+.es-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 10px; align-items: end; }
+.es-row .fg input, .es-row .fg select { width: 100%; min-width: 0; }
+.es-l { display: block; font-size: .85em; font-weight: 700; color: var(--ink-deep); margin-bottom: 4px; }
+.es-hint { font-size: .82em; font-weight: 400; color: var(--pencil); }
+.es-seg button { padding: 5px 10px; font-size: 13.5px; }
+.es-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.es-chips > label { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--rule-line); border-radius: 999px; padding: 3px 10px; background: var(--paper); cursor: pointer; font-size: 13.5px; font-weight: 600; }
+.es-chips > label:not(.tagpick):has(input:checked) { background: var(--chip-on-bg); border-color: var(--chip-on-bg); color: var(--chip-on-fg) !important; }
+.es-chips > label.tagpick { border-radius: 999px; }
+.es-amen { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 4px 10px; align-items: center; margin-bottom: 8px; }
+.es-amen .es-l { margin: 0; }
+.es-ma { position: sticky; bottom: -1px; background: var(--paper); padding-top: 8px; }
+@media (max-width: 700px) { .es-grid, .es-amen { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 400px) { .es-row { grid-template-columns: minmax(0, 1fr); } }
 /* ✎ : une correction faite sur place (v1.46.9) — discret, au bout de la valeur ou du titre. */
 .pf-ed { border: 0; background: none; padding: 0 3px; font-size: 13px; line-height: 1; color: var(--link-fg); cursor: pointer; border-radius: 4px; vertical-align: baseline; }
 .pf-ed:hover, .pf-ed.on { background: var(--chip-on-bg); color: var(--chip-on-fg); }
@@ -1762,7 +1781,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 .pp-t .pp-big { font-weight: 700; font-size: 1.12em; }
 .pp-t small, .pp-t .pp-m { font-size: .84em; color: #333; }
 .pp-t .pp-l { display: block; }
-.pp-t .pp-rem { white-space: pre-line; }
+.pp-t .pp-rem, .pp-pl { white-space: pre-line; }
 /* La feuille des moyennes : chiffres centrés et alignés, moyenne générale séparée d'un
    filet, statistiques en pied sur fond gris et en gras — on les lit comme un bloc à part. */
 .pp-moy td.c, .pp-moy th.c { text-align: center; font-variant-numeric: tabular-nums; }
@@ -2146,57 +2165,67 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 </div>
 
 <!-- ═══════════════ MODIFIER L'ÉLÈVE ═══════════════ -->
+<!-- v1.46.11 (l'utilisateur : « l'endroit où on était change ; la présentation est un peu
+     fouillis, on ne voit pas tout d'un coup — repenser son affichage ») : cinq blocs en deux
+     colonnes, tout visible d'un coup ; choix courts en boutons, aménagements en puces ;
+     ouverte PAR-DESSUS la fiche, qui reste derrière. Les ids des champs ne changent pas. -->
 <div id="me" class="mo" onclick="closeMod(this,event)">
-  <div class="mb" style="max-width:520px;width:100%">
-    <h2>✏️ Modifier l'élève</h2>
-    <input type="hidden" id="es-id">
-    <div class="fg"><label for="es-nom">Nom(s)</label><input id="es-nom" data-autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();saveEdit()}"></div>
-    <div class="fg"><label for="es-prn">Prénom(s)</label><input id="es-prn" onkeydown="if(event.key==='Enter'){event.preventDefault();saveEdit()}"></div>
-    <div class="fg"><label for="es-civ">Civilité</label>
-      <select id="es-civ"><option value="">— Non spécifié —</option><option value="M">♂ Garçon (M)</option><option value="F">♀ Fille (F)</option></select>
+  <div class="mb" style="max-width:860px;width:100%">
+    <h2 id="es-title">✏️ Modifier l'élève</h2>
+    <input type="hidden" id="es-id"><input type="hidden" id="es-civ"><input type="hidden" id="es-grp"><input type="hidden" id="es-regime">
+    <div class="es-grid">
+      <section class="es-sec"><h3>🪪 Identité</h3>
+        <div class="es-row">
+          <div class="fg"><label for="es-nom">Nom</label><input id="es-nom" data-autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();saveEdit()}"></div>
+          <div class="fg"><label for="es-prn">Prénom</label><input id="es-prn" onkeydown="if(event.key==='Enter'){event.preventDefault();saveEdit()}"></div>
+        </div>
+        <div class="es-row">
+          <div class="fg"><span class="es-l">Civilité</span><div class="pf-seg es-seg" id="es-civ-seg" role="group" aria-label="Civilité"></div></div>
+          <div class="fg"><label for="es-naissance">Naissance</label><input type="date" id="es-naissance" title="Sert au départage d'une égalité à l'élection des délégués (« le plus jeune »). Facultative."></div>
+        </div>
+      </section>
+      <section class="es-sec"><h3>🏫 Scolarité</h3>
+        <div class="es-row">
+          <div class="fg"><label for="es-cls">Classe</label><select id="es-cls" title="Changement de classe en cours d'année : les relevés déjà faits restent rattachés à l'ancienne classe"></select></div>
+          <div class="fg"><span class="es-l">Groupe</span><div class="pf-seg es-seg" id="es-grp-seg" role="group" aria-label="Groupe"></div></div>
+        </div>
+        <div class="fg"><span class="es-l">Options</span><div id="es-tags" class="es-chips"></div></div>
+      </section>
+      <section class="es-sec"><h3>🍽 Restauration et sorties</h3>
+        <div class="fg"><span class="es-l">Demi-pension</span><div class="pf-seg es-seg" id="es-regime-seg" role="group" aria-label="Régime de demi-pension"></div></div>
+        <div class="fg" id="es-jours-w"><span class="es-l">Jours <span class="es-hint">— aucun coché = tous</span></span><div class="es-chips" id="es-jours"></div></div>
+        <div class="es-row">
+          <div class="fg"><label for="es-entree">Régime d'entrée</label><select id="es-entree"></select></div>
+          <div class="fg"><label for="es-sortie">Régime de sortie</label><select id="es-sortie"></select></div>
+        </div>
+      </section>
+      <section class="es-sec"><h3>📅 Présence</h3>
+        <div class="es-row">
+          <div class="fg"><label for="es-arrival">Arrivée</label><input type="date" id="es-arrival" title="Premier jour de présence (vide = présent depuis la rentrée)"></div>
+          <div class="fg"><label for="es-departure">Départ</label><input type="date" id="es-departure" title="Premier jour d'ABSENCE (vide = toujours présent)"></div>
+        </div>
+        <div class="es-hint">Vides : présent toute l'année. Le départ est le premier jour d'absence.</div>
+      </section>
+      <section class="es-sec es-wide"><h3>🧩 Aménagements</h3>
+        <div class="es-amen"><span class="es-l">Scolarité <span class="es-hint">— un seul</span></span><div class="es-chips">
+          <label style="color:var(--st-ppre-fg)" title="Programme personnalisé de réussite éducative"><input type="checkbox" id="es-ppre" onchange="esStatusChange(this)"> PPRE</label>
+          <label style="color:var(--st-pap-fg)" title="Plan d'accompagnement personnalisé"><input type="checkbox" id="es-pap" onchange="esStatusChange(this)"> PAP</label>
+          <label style="color:var(--st-pps-fg)" title="GEVAsco / projet personnalisé de scolarisation"><input type="checkbox" id="es-gevasco" onchange="esStatusChange(this)"> PPS</label>
+          <label style="color:var(--st-ulis-fg)" title="ULIS, hors classe"><input type="checkbox" id="es-ulis" onchange="esStatusChange(this)"> ULIS</label>
+          <label style="color:var(--st-ulis-i-fg)" title="ULIS, en inclusion"><input type="checkbox" id="es-ulis-incl" onchange="esStatusChange(this)"> ULIS inclusion</label>
+        </div></div>
+        <div class="es-amen"><span class="es-l">Allophone <span class="es-hint">— un seul</span></span><div class="es-chips">
+          <label style="color:var(--st-upe2a-fg)" title="UPE2A, hors classe"><input type="checkbox" id="es-upe2a" onchange="esStatusChange(this)"> UPE2A</label>
+          <label style="color:var(--st-upe2a-i-fg)" title="UPE2A, en inclusion"><input type="checkbox" id="es-upe2a-incl" onchange="esStatusChange(this)"> UPE2A inclusion</label>
+        </div></div>
+        <div class="es-amen"><span class="es-l">Cumulables</span><div class="es-chips">
+          <label style="color:var(--st-pai-fg)" title="Projet d'accueil individualisé (médical : allergies, asthme, diabète…)"><input type="checkbox" id="es-pai"> PAI</label>
+          <label style="color:var(--agr-fg)" title="Photocopies agrandies"><input type="checkbox" id="es-agrandissement"> 📄 Agrandissement</label>
+          <label style="color:var(--tt-fg)" title="Temps majoré d'un tiers"><input type="checkbox" id="es-tiers-temps"> ⏱ Tiers-temps</label>
+        </div></div>
+      </section>
     </div>
-    <div class="fg"><label for="es-grp">Groupe</label>
-      <select id="es-grp"><option value="">— Aucun groupe —</option><option value="1">🔵 Groupe 1</option><option value="2">🟠 Groupe 2</option><option value="3">🟣 Groupe 3</option></select>
-    </div>
-    <div class="fg"><label for="es-cls">Classe <span style="font-weight:400;font-size:.85em">(changement en cours d'année — les relevés déjà faits restent rattachés à l'ancienne classe)</span></label>
-      <select id="es-cls"></select>
-    </div>
-    <div class="fg"><label>Options suivies</label><div id="es-tags"></div></div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <div class="fg" style="flex:1;min-width:150px"><label for="es-regime">🍽 Régime de ½ pension</label><select id="es-regime"></select></div>
-      <div class="fg" style="flex:1;min-width:120px"><label for="es-entree">Régime d'entrée</label><select id="es-entree"></select></div>
-      <div class="fg" style="flex:1;min-width:120px"><label for="es-sortie">Régime de sortie</label><select id="es-sortie"></select></div>
-    </div>
-    <div class="fg" id="es-jours-w"><label>Jours de ½ pension <span style="font-weight:400;font-size:.85em">(vides = tous)</span></label><div class="st-group" id="es-jours"></div></div>
-    <div class="st-hint">Scolarité — 1 au maximum (PPRE / PAP / PPS / ULIS exclusifs entre eux)</div>
-    <div class="st-group">
-      <label style="color:var(--st-ppre-fg)"><input type="checkbox" id="es-ppre" onchange="esStatusChange(this)"> PPRE</label>
-      <label style="color:var(--st-pap-fg)"><input type="checkbox" id="es-pap" onchange="esStatusChange(this)"> PAP (Plan d'Accompagnement Personnalisé)</label>
-      <label style="color:var(--st-pps-fg)"><input type="checkbox" id="es-gevasco" onchange="esStatusChange(this)"> GEVAsco / PPS</label>
-      <label style="color:var(--st-ulis-fg)"><input type="checkbox" id="es-ulis" onchange="esStatusChange(this)"> ULIS (hors classe)</label>
-      <label style="color:var(--st-ulis-i-fg)"><input type="checkbox" id="es-ulis-incl" onchange="esStatusChange(this)"> ULIS inclusion</label>
-    </div>
-    <div class="st-hint">UPE2A — allophone (1 au maximum ; cumulable avec un statut scolarité)</div>
-    <div class="st-group">
-      <label style="color:var(--st-upe2a-fg)"><input type="checkbox" id="es-upe2a" onchange="esStatusChange(this)"> UPE2A (hors classe)</label>
-      <label style="color:var(--st-upe2a-i-fg)"><input type="checkbox" id="es-upe2a-incl" onchange="esStatusChange(this)"> UPE2A inclusion</label>
-    </div>
-    <div class="st-hint">Cumulables avec tout le reste</div>
-    <div class="st-group">
-      <label style="color:var(--st-pai-fg)"><input type="checkbox" id="es-pai"> PAI (médical : allergies, asthme, diabète…)</label>
-      <label style="color:var(--agr-fg)"><input type="checkbox" id="es-agrandissement"> 📄 Agrandissement (photocopies agrandies)</label>
-      <label style="color:var(--tt-fg)"><input type="checkbox" id="es-tiers-temps"> ⏱ Tiers-temps (temps majoré +<span class="frac">⅓</span>)</label>
-    </div>
-    <div class="st-hint">Arrivée / départ en cours d'année (laisser vide si présent toute l'année)</div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <div class="fg" style="flex:1;min-width:160px"><label for="es-naissance">🎂 Naissance</label>
-        <input type="date" id="es-naissance" title="Sert au départage d'une égalité à l'élection des délégués (« le plus jeune »). Facultative — l'app fonctionne sans, elle demande alors de trancher à la main."></div>
-      <div class="fg" style="flex:1;min-width:160px"><label for="es-arrival">📅 Arrivée</label>
-        <input type="date" id="es-arrival" title="Premier jour de présence (vide = présent depuis la rentrée)"></div>
-      <div class="fg" style="flex:1;min-width:160px"><label for="es-departure">🚪 Départ</label>
-        <input type="date" id="es-departure" title="Premier jour d'ABSENCE (vide = toujours présent)"></div>
-    </div>
-    <div class="ma">
+    <div class="ma es-ma">
       <button class="btn btn-g" onclick="closeMod2('me')">Annuler</button>
       <button class="btn btn-p" onclick="saveEdit()">✓ Enregistrer</button>
     </div>
@@ -2754,8 +2783,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.10';
-const APP_BUILD_DATE = '2026-10-03T05:36:58Z';
+const APP_VERSION    = '1.46.11';
+const APP_BUILD_DATE = '2026-10-03T05:44:51Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6567,7 +6596,9 @@ function _fichePdcHint(cls) {
 // on ouvre une fiche, on corrige un détail, on retombe sur la fiche.
 // Supprimer l'élève depuis la fiche : la liste n'a plus de colonne d'actions (v1.44.2).
 function ficheSupprimer() { const sid = _ficheSid; if (!sid) return; closeMod2('mfiche'); deleteStudent(sid); }
-function ficheVersEdition() { const sid = _ficheSid; closeMod2('mfiche'); openEdit(sid); _modalReturnTo['me'] = () => openFiche(sid); }
+// v1.46.11 : la fenêtre s'ouvre PAR-DESSUS la fiche (empilement d'openMod) ; la fiche reste
+// derrière et se redessine à la fermeture — avant, elle se fermait et se rouvrait.
+function ficheVersEdition() { openEdit(_ficheSid); _modalReturnTo['me'] = () => { if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); }; }
 // Même aller-retour pour un incident : la fiche est l'écran de LECTURE, la saisie a sa
 // modale — et l'on retombe sur la fiche, pour voir l'entrée à sa place dans l'histoire.
 function ficheVersIncident(id) { const sid = _ficheSid; closeMod2('mfiche'); openIncident(sid, id || null); _modalReturnTo['mincident'] = () => openFiche(sid); }
@@ -7694,18 +7725,20 @@ function openEdit(sid) {
   document.getElementById('es-id').value = sid;
   document.getElementById('es-nom').value = s.nom || '';
   document.getElementById('es-prn').value = s.prenom || '';
-  document.getElementById('es-civ').value = s.civilite || '';
-  document.getElementById('es-grp').value = s.groupe || '';
+  const ti = document.getElementById('es-title');
+  if (ti) ti.textContent = `✏️ ${s.prenom || ''} ${s.nom || ''}`.trim();
+  _esSeg('es-civ', [['', '—', 'Non renseignée'], ['M', '♂ Garçon'], ['F', '♀ Fille']], s.civilite || '');
+  _esSeg('es-grp', [['', 'Aucun'], ['1', 'G1'], ['2', 'G2'], ['3', 'G3']], s.groupe ? String(s.groupe) : '');
   document.getElementById('es-naissance').value = s.naissance || '';
   document.getElementById('es-arrival').value = s.arrivalDate || '';
   document.getElementById('es-departure').value = s.departureDate || '';
-  const reg = document.getElementById('es-regime');
-  if (reg) reg.innerHTML = `<option value="">— Non renseigné —</option>${REGIMES.map(r => `<option value="${r.key}"${s.regime === r.key ? ' selected' : ''}>${_escName(r.label)}</option>`).join('')}`;
+  _esSeg('es-regime', [['', '—', 'Non renseigné'], ...REGIMES.map(r => [r.key, r.label])], _regimeOf(s.regime) ? s.regime : '');
   const so = document.getElementById('es-sortie'), en = document.getElementById('es-entree');
   if (en) en.innerHTML = _codesOptionsHTML(_entreeCodes(), s.entree).replace('<option value="">—</option>', '<option value="">— Non renseigné —</option>');
   if (so) so.innerHTML = _codesOptionsHTML(_sortieCodes(), s.sortie).replace('<option value="">—</option>', '<option value="">— Non renseigné —</option>');
   const jw = document.getElementById('es-jours');
   if (jw) jw.innerHTML = JOURS_DP.map(([k, l]) => `<label><input type="checkbox" data-jour="${k}"${(s.joursDP || []).includes(k) ? ' checked' : ''}> ${l}</label>`).join('');
+  _esJoursVis();
   document.getElementById('es-cls').innerHTML = _classList()
     .map(c => `<option value="${_escAttr(c.id)}"${c.id === s.classe_id ? ' selected' : ''}>${_escName(c.nom)}</option>`).join('');
   for (const k of STUDENT_STATUSES) {
@@ -7719,8 +7752,8 @@ function openEdit(sid) {
     ? cat.map(t => {
         const bg = _safeColor(t.color);
         const on = (s.tags || []).includes(t.id);
-        return `<label class="tagpick" style="background:${on ? bg : 'var(--paper-warm)'};color:${on ? _contrastTextColor(bg) : 'var(--ink-deep)'}" title="${_escAttr(t.name || t.abbr)}">
-          <input type="checkbox" data-tag="${_escAttr(t.id)}"${on ? ' checked' : ''}> ${_escName(t.abbr)}</label>`;
+        return `<label class="tagpick" data-bg="${_escAttr(bg)}" style="background:${on ? bg : 'var(--paper-warm)'};color:${on ? _contrastTextColor(bg) : 'var(--ink-deep)'}" title="${_escAttr(t.name || t.abbr)}">
+          <input type="checkbox" data-tag="${_escAttr(t.id)}"${on ? ' checked' : ''} onchange="_esTagCouleur(this)"> ${_escName(t.abbr)}</label>`;
       }).join('')
     : '<span class="tb-hint">Aucune option pour l\'instant — l\'import Pronote les crée à partir des codes de groupes.</span>';
   openMod('me');
@@ -7728,6 +7761,28 @@ function openEdit(sid) {
 // Les clés `_incl` deviennent `-incl` dans les ids HTML (pas d'underscore dans les ids).
 const _STATUS_DOM_SUFFIX = { ulis_incl: 'ulis-incl', upe2a_incl: 'upe2a-incl', tiers_temps: 'tiers-temps' };
 function _statusDomId(key) { return _STATUS_DOM_SUFFIX[key] || key; }
+// Les choix courts de la modale (civilité, groupe, demi-pension) : des boutons qui écrivent un
+// champ caché — saveEdit lit le champ, comme il lisait le menu.
+// Une option cochée prend sa couleur (encre dérivée par contraste), décochée le fond neutre.
+function _esTagCouleur(cb) {
+  const l = cb.closest('label'), bg = _safeColor(l?.dataset.bg);
+  if (!l) return;
+  l.style.background = cb.checked ? bg : 'var(--paper-warm)';
+  l.style.color = cb.checked ? _contrastTextColor(bg) : 'var(--ink-deep)';
+}
+function _esSeg(id, opts, val) {
+  const h = document.getElementById(id), box = document.getElementById(id + '-seg');
+  if (h) h.value = val;
+  if (box) box.innerHTML = opts.map(([v, l, t]) => `<button type="button" class="${v === val ? 'on' : ''}" aria-pressed="${v === val}" data-v="${_escAttr(v)}" onclick="esSegUI('${id}', this)"${t ? ` title="${_escAttr(t)}"` : ''}>${_escName(l)}</button>`).join('');
+}
+function esSegUI(id, b) {
+  const h = document.getElementById(id);
+  if (h) h.value = b.dataset.v;
+  for (const x of b.parentNode.children) { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }
+  if (id === 'es-regime') _esJoursVis();
+}
+// Les jours de demi-pension n'ont de sens que pour un demi-pensionnaire.
+function _esJoursVis() { const w = document.getElementById('es-jours-w'); if (w) w.style.display = document.getElementById('es-regime')?.value === 'DP' ? '' : 'none'; }
 
 // Une case cochée décoche celles de SON groupe — pas les autres.
 function esStatusChange(cb) {
@@ -16006,7 +16061,8 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   // Une colonne nommée autrement garde son titre (une abréviation automatique le rendrait
   // illisible : « À trava. ») ; une colonne seule ne s'annonce pas.
   const abr = c => AV_ABR[c.key] || c.label;
-  const avisLigne = a => { const cs = a.cols || AVIS_CRITERES; return cs.filter(c => a[c.key]).map(c => `${cs.length > 1 ? `<em>${_escName(abr(c))}</em> ` : ''}${_escName(a[c.key])}`).join(' · '); };
+  // Les paragraphes d'un avis (Ctrl+Entrée dans la feuille) se voient aussi sur le papier (v1.46.11).
+  const avisLigne = a => { const cs = a.cols || AVIS_CRITERES; return cs.filter(c => a[c.key]).map(c => `${cs.length > 1 ? `<em>${_escName(abr(c))}</em> ` : ''}<span class="pp-pl">${_escName(a[c.key])}</span>`).join(' · '); };
   const avisFiche = r => r.avis.map(a => `<div><strong>${_escName(a.nom)}</strong> — ${avisLigne(a)}</div>`).join('');
   const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanLabel(r.bilan))} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
   if (o.forme === 'fiches') {

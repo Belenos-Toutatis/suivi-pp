@@ -188,7 +188,7 @@ test('Les avis d\'un élève pour une période, et sur la synthèse de période 
   assert.ok(!t.includes('<b>BOLD</b>'));
   const fi = evObj(`_periodePrintHTML(getCls(), 0, { blocs: ['avis'], type: 'conseil', forme: 'fiches' })`).html;
   assert.match(fi, /Collègues/);
-  assert.match(fi, /<strong>Mathématiques<\/strong> — <em>comport\.<\/em> Calme/);
+  assert.match(fi, /<strong>Mathématiques<\/strong> — <em>comport\.<\/em> <span class="pp-pl">Calme<\/span>/);
   // Décoché par défaut : la feuille ne s'allonge pas sans qu'on le demande.
   assert.ok(!ev(`_periodePrintOpts.blocs.includes('avis')`));
 });
@@ -565,7 +565,7 @@ test('Colonnes : la synthèse de période imprime les titres de la feuille', () 
   const row = evObj(`_periodeSynthese(getCls(), 0, { type: 'conseil' }).rows.find(r => r.sid === 's1')`);
   assert.deepStrictEqual(row.avis[0].cols.map(c => c.label), ['Points forts', 'À travailler']);
   const html = ev(`_periodePrintHTML(getCls(), 0, { blocs: ['avis'], type: 'conseil', forme: 'fiches' }).html`);
-  assert.match(html, /<em>Points forts<\/em> Curieuse · <em>À travailler<\/em> Méthode/);
+  assert.match(html, /<em>Points forts<\/em> <span class="pp-pl">Curieuse<\/span> · <em>À travailler<\/em> <span class="pp-pl">Méthode<\/span>/);
 });
 
 test('Démo : trois feuilles d\'avis, dont un point du mois à une seule colonne', () => {

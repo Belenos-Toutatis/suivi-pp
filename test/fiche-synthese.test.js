@@ -162,3 +162,24 @@ test('Fiche : les textes libres gardent leurs paragraphes (remarque, bilans, avi
   const sel = [...css.matchAll(r)].map(m => m[1]).join(',');
   for (const c of ['.pf-p', '.pf-bil', '.pf-cr > span', '.pf-mx td']) assert.ok(sel.includes(c), c);
 });
+
+test('« Modifier l\'élève » : par-dessus la fiche ; civilité, groupe, demi-pension en boutons qui écrivent le champ lu par saveEdit', () => {
+  const fs = require('fs'), path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const fv = src.match(/function ficheVersEdition\(\) \{[^\n]*\}/)[0];
+  assert.ok(!/closeMod2\('mfiche'\)/.test(fv), 'la fiche ne se ferme plus');
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook();
+      window.__els = new Map(); window.__gid = document.getElementById;
+      document.getElementById = id => { if (!__els.has(id)) __els.set(id, document.createElement('div')); return __els.get(id); };`);
+  try {
+    const sid = ev(`getCls().eleves.find(id => S.eleves[id].regime === 'EXT' && S.eleves[id].civilite === 'F' && S.eleves[id].groupe)`);
+    ev(`openEdit(${JSON.stringify(sid)})`);
+    const s = evObj(`S.eleves[${JSON.stringify(sid)}]`);
+    assert.strictEqual(ev(`__els.get('es-civ').value`), 'F');
+    assert.match(ev(`__els.get('es-civ-seg').innerHTML`), /class="on" aria-pressed="true" data-v="F"/);
+    assert.strictEqual(ev(`__els.get('es-grp').value`), String(s.groupe));
+    assert.strictEqual(ev(`__els.get('es-regime').value`), 'EXT');
+    assert.strictEqual(ev(`__els.get('es-jours-w').style.display`), 'none', 'pas de jours pour un externe');
+    assert.match(ev(`__els.get('es-title').textContent`), new RegExp(s.nom));
+  } finally { ev(`document.getElementById = __gid`); }
+});
