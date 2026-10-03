@@ -289,7 +289,16 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   chose sur une période, carnet et MBN confondus, ou ne pas le mettre »*) ; ▼ reste pour un
   cumul en baisse ; la petite courbe (`_elevesSpark(cls, sid)`) est la **miniature** de celle de
   la fiche — total carnet + MBN, du 1er septembre à aujourd'hui, à l'échelle du temps (avant :
-  le seul carnet, un point par relevé à intervalles égaux)), carte de chaleur (groupe *Observations
+  le seul carnet, un point par relevé à intervalles égaux)). **v1.46.5 — depuis QUAND** (l'utilisateur :
+  *« choisir depuis quelle durée — une icône calendrier à côté du titre Observations : une
+  semaine, deux semaines, un mois, deux mois, le début du semestre ou du trimestre »*) : 📅 dans
+  l'en-tête (`_obsFenetrePickHTML`, `OBS_FENETRES`), réglage propre au POSTE (`localStorage`
+  `suiviPP_obsDepuis`, défaut : début de la période) ; `_obsFenetre(cls, cle, auj)` (pur) — fin =
+  aujourd'hui ramené dans l'année scolaire (une année passée, comme la démo, finit donc au 31
+  juillet : « 1 semaine » y est vide), début selon la durée, jamais avant la rentrée ;
+  `_obsGagnees` = carnet sur la fenêtre (`_obsEntre`) + MBN de la fenêtre. Le « +n 2 sem. »,
+  le filtre **« Observations +3 ou plus »** (~~« Carnet en hausse (Δ ≥ 3) »~~, demandé aussi) et
+  la colonne « +n » de la liste imprimée (ex-Δ) suivent la même durée. carte de chaleur (groupe *Observations
   MBN*, une case par mois, après le carnet), fiche (carte Carnet : *Notées dans MBN*, la liste ;
   un fait « n observations dans MBN : 2 travail non fait, 1 bavardage » insérable dans le bilan ;
   la chronologie les date ; chiffre clé), synthèse de période (« · MBN n » à côté du carnet,
@@ -1779,6 +1788,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 93 | **« +n » depuis une durée choisie** (📅 dans l'en-tête Observations : 1 ou 2 semaines, 1 ou 2 mois, début de la période ; propre au poste), carnet + MBN ; filtre « Observations +3 ou plus » et colonne imprimée sur la même durée ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut (un débordement à 320 px trouvé et corrigé : la puce du filtre) | ✅ **fait** (2026-10-03, v1.46.5) |
 | 92 | **Carte de chaleur bornée au moment du bilan** (barre *Synthèse pour*, partagée avec la fiche) avec un **Total carnet + MBN** · liste : **« +n » de la période, carnet et MBN**, petite courbe = miniature de la fiche · dessins à partir du **1er septembre** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.4) |
 | 91 | **Liste : colonne Observations = total carnet + MBN de l'année**, détail des deux dessous, tri et papier sur le total ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.3) |
 | 90 | **Courbe de la fiche arrêtée à la date du bilan du moment, sinon aujourd'hui** (`_ficheCourbeFin`), légende au-dessus du dessin ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.46.2) |

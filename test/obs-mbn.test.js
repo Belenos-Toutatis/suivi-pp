@@ -185,7 +185,7 @@ test('Liste : la colonne Observations affiche le total carnet + MBN de l\'année
   assert.strictEqual(r.mbnAn, ev(`_obsMbnOf(${JSON.stringify(sid)}).length`));
   assert.strictEqual(r.obsTotal, r.cumul + r.mbnAn);
   const html = ev(`_elevesIndicHTML(getCls(), _elevesRows(getCls()), [], null)`);
-  assert.match(html, />Observations</);
+  assert.match(html, />Observations <details class="el-cols el-fen"/);
   assert.ok(html.includes(`>${r.obsTotal}</span><span class="el-obd">carnet ${r.cumul} · MBN ${r.mbnAn}</span>`));
   ev(`eleveSort = { col: 'cumul', dir: 1 }`);
   const tot = evObj(`_elevesRows(getCls()).map(x => x.r.obsTotal).filter(v => v !== null)`);
@@ -235,4 +235,35 @@ test('Carte de chaleur : bornée au moment choisi (le même que la fiche), dit d
   assert.match(html.barre, /class="on"[^>]*>Mi-S1</);
   assert.match(html.barre, /chaleurMomentSet\('bil:conseil:0'\)/);
   ev(`_ficheMoment = null`);
+});
+
+test('« +n » : depuis une durée choisie (📅), carnet et MBN confondus ; le filtre « en hausse » suit la même durée', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = '';`);
+  const cls = 'getCls()';
+  const p2 = evObj(`_periods(getCls())[1]`);
+  // Fenêtres : fin = aujourd'hui ramené dans l'année ; début selon la durée.
+  assert.deepStrictEqual(evObj(`(f => [f.start, f.end, f.court])(_obsFenetre(${cls}, '1s', '2026-03-20'))`), ['2026-03-14', '2026-03-20', '1 sem.']);
+  assert.deepStrictEqual(evObj(`(f => [f.start, f.end])(_obsFenetre(${cls}, '2s', '2026-03-20'))`), ['2026-03-07', '2026-03-20']);
+  assert.deepStrictEqual(evObj(`(f => [f.start, f.end])(_obsFenetre(${cls}, '1m', '2026-03-20'))`), ['2026-02-21', '2026-03-20']);
+  assert.deepStrictEqual(evObj(`(f => [f.start, f.end])(_obsFenetre(${cls}, '2m', '2026-03-20'))`), ['2026-01-21', '2026-03-20']);
+  assert.deepStrictEqual(evObj(`(f => [f.start, f.court])(_obsFenetre(${cls}, 'per', '2026-03-20'))`), [p2.start, 'S2']);
+  assert.match(ev(`_obsFenetre(${cls}, 'per', '2026-03-20').long`), /début du semestre/);
+  assert.strictEqual(ev(`_obsFenetre(${cls}, '1s', '2099-01-01').end`), ev(`_periods(getCls()).slice(-1)[0].end`));
+  // Gagnées = carnet sur la fenêtre + MBN de la fenêtre.
+  const sid = ev(`getCls().eleves.find(id => _obsMbnOf(id).length >= 3)`);
+  const F = `_obsFenetre(${cls}, 'per', '2026-07-31')`;
+  const g = evObj(`_obsGagnees(${cls}, ${JSON.stringify(sid)}, ${F})`);
+  assert.strictEqual(g.carnet, ev(`_obsEntre(getCls().id, ${JSON.stringify(sid)}, ${F}.start, ${F}.end) || 0`));
+  assert.strictEqual(g.mbn, ev(`_obsMbnEntre(${JSON.stringify(sid)}, ${F}.start, ${F}.end).length`));
+  assert.strictEqual(g.n, g.carnet + g.mbn);
+  // Le filtre suit la fenêtre.
+  ev(`_elevesFiltres = new Set(['carnet'])`);
+  const gardes = evObj(`_elevesRows(getCls()).map(x => x.s.id)`);
+  assert.ok(gardes.length && gardes.every(id => ev(`_obsGagnees(getCls(), ${JSON.stringify(id)}, _obsFenetre(getCls())).n`) >= 3));
+  assert.match(ev(`ELEVES_FILTRES.find(f => f.key === 'carnet').label`), /\+3 ou plus \(S2\)/);
+  ev(`_elevesFiltres = new Set()`);
+  // L'en-tête porte le choix, les cinq durées.
+  const html = ev(`_obsFenetrePickHTML(getCls())`);
+  assert.strictEqual((html.match(/obsFenetreSet\('/g) || []).length, 5);
+  assert.match(html, /Depuis le début du semestre/);
 });

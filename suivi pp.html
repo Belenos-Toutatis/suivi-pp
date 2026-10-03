@@ -1366,7 +1366,7 @@ body.el-projecting #main { padding-top: 8px; }
 .el-aff button { border: 0; border-right: 1px solid var(--rule-line); background: var(--paper); padding: 4px 10px; font-size: .9em; white-space: nowrap; }
 .el-aff button:last-child { border-right: 0; }
 .el-aff button.on { background: var(--chip-on-bg); color: var(--chip-on-fg); font-weight: 700; }
-@media (max-width: 520px) { .el-aff { max-width: 100%; } .el-aff button { white-space: normal; } }
+@media (max-width: 520px) { .el-aff { max-width: 100%; } .el-aff button { white-space: normal; } .el-filtres .el-chip { white-space: normal; text-align: left; } }
 .el-filtres { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; min-width: 0; }
 .el-chip { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 999px; padding: 2px 10px; font-size: .86em; white-space: nowrap; }
 .el-chip.on { background: var(--chip-on-bg); color: var(--chip-on-fg); border-color: var(--chip-on-bg); }
@@ -1466,6 +1466,9 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .ch-leg span { display: inline-flex; gap: 4px; align-items: center; }
 .ch-sw { display: inline-block; width: 14px; height: 11px; border-radius: 2px; border: 1px solid var(--rule-line); }
 .el-cols > summary { list-style: none; }
+.el-fen { display: inline-block; vertical-align: middle; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.el-fen > summary { cursor: pointer; padding: 0 2px; }
+.el-fen-l { display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; white-space: nowrap; color: var(--ink-deep); }
 .el-cols > summary::-webkit-details-marker { display: none; }
 .el-cols-p { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; min-width: 250px; max-width: calc(100vw - 32px);
   background: var(--paper); color: var(--ink-deep); border: 1px solid var(--rule-line); border-radius: var(--radius-sm); padding: 8px 10px;
@@ -2744,8 +2747,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.4';
-const APP_BUILD_DATE = '2026-10-03T04:52:12Z';
+const APP_VERSION    = '1.46.5';
+const APP_BUILD_DATE = '2026-10-03T05:02:14Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5885,12 +5888,62 @@ const _LS_ELEVES_AFF = 'suiviPP_elevesAffichage';
 const _LS_CHALEUR_PLIS = 'suiviPP_chaleurPlis';
 function _elevesAffichage() { try { return localStorage.getItem(_LS_ELEVES_AFF) === 'chaleur' ? 'chaleur' : 'indic'; } catch (_) { return 'indic'; } }
 function elevesAffichageSet(v) { try { localStorage.setItem(_LS_ELEVES_AFF, v === 'chaleur' ? 'chaleur' : 'indic'); } catch (_) { } renderStudents(); }
+// ── « +n » : les observations PRISES sur une durée, carnet et MBN confondus (v1.46.5) ──
+// L'utilisateur : « choisir depuis quelle durée — une icône calendrier à côté du titre
+// Observations : depuis une semaine, deux semaines, un mois, deux mois, le début du semestre
+// (ou du trimestre) ». Réglage propre au POSTE (`localStorage`), comme l'affichage ; défaut :
+// le début de la période. La fin est aujourd'hui, ramenée dans l'année scolaire.
+const OBS_FENETRES = [
+  { key: '1s', label: 'Depuis une semaine', court: '1 sem.', jours: 7 },
+  { key: '2s', label: 'Depuis deux semaines', court: '2 sem.', jours: 14 },
+  { key: '1m', label: 'Depuis un mois', court: '1 mois', mois: 1 },
+  { key: '2m', label: 'Depuis deux mois', court: '2 mois', mois: 2 },
+  { key: 'per', label: null, court: null },   // le début du semestre / trimestre — libellé selon le réglage
+];
+const _LS_OBS_FEN = 'suiviPP_obsDepuis';
+function _obsFenetreCle() { try { const k = localStorage.getItem(_LS_OBS_FEN); return OBS_FENETRES.some(f => f.key === k) ? k : 'per'; } catch (_) { return 'per'; } }
+function obsFenetreSet(k) { try { localStorage.setItem(_LS_OBS_FEN, k); } catch (_) { } renderStudents(); }
+function _obsFenetreLabel(f) { return f.key === 'per' ? `Depuis le début du ${_prefs().periodMode === 'trimestre' ? 'trimestre' : 'semestre'}` : f.label; }
+// → { key, start, end, court, long } | null. PUR (la clé et « aujourd'hui » en paramètres).
+function _obsFenetre(cls, cle, auj) {
+  const ps = cls ? _periods(cls) : [];
+  if (!ps.length) return null;
+  const f = OBS_FENETRES.find(x => x.key === (cle || _obsFenetreCle())) || OBS_FENETRES[4];
+  let end = auj || _todayYmd();
+  if (end > ps[ps.length - 1].end) end = ps[ps.length - 1].end;
+  if (end < ps[0].start) end = ps[0].start;
+  const per = _periodOf(cls, end) || ps[ps.length - 1];
+  let start;
+  if (f.key === 'per') start = per.start;
+  else if (f.jours) start = _ymdAdd(end, -(f.jours - 1));
+  else { const d = new Date(end + 'T12:00:00'); d.setMonth(d.getMonth() - f.mois); d.setDate(d.getDate() + 1); start = _todayYmd(d); }
+  if (start < ps[0].start) start = ps[0].start;
+  return { key: f.key, start, end, court: f.key === 'per' ? per.label : f.court, long: `${_obsFenetreLabel(f).toLowerCase()} (du ${_fmtDateFr(start)} au ${_fmtDateFr(end)})` };
+}
+// Ce qu'un élève a pris sur la fenêtre : { carnet, mbn, n }. PUR.
+function _obsGagnees(cls, sid, F) {
+  if (!F) return { carnet: 0, mbn: 0, n: 0 };
+  const carnet = _obsEntre(cls.id, sid, F.start, F.end) || 0, mbn = _obsMbnEntre(sid, F.start, F.end).length;
+  return { carnet, mbn, n: carnet + mbn };
+}
+function _obsFenetrePickHTML(cls) {
+  const cle = _obsFenetreCle(), F = _obsFenetre(cls);
+  return `<details class="el-cols el-fen" onclick="event.stopPropagation()"><summary title="${_escAttr(`« +n » : les observations prises ${F ? F.long : ''} — clic : choisir depuis quand`)}" aria-label="Choisir depuis quand compter « +n »">📅</summary>
+    <div class="el-cols-p"><div class="el-cols-t">Compter le « +n » :</div>${OBS_FENETRES.map(f => `<label class="el-fen-l"><input type="radio" name="el-fen"${f.key === cle ? ' checked' : ''} onchange="obsFenetreSet('${f.key}')"> ${_escName(_obsFenetreLabel(f))}</label>`).join('')}
+    <div class="tb-hint" style="margin-top:4px">Carnet et MBN additionnés · ${F ? _escName(`du ${_fmtDateFr(F.start)} au ${_fmtDateFr(F.end)}`) : ''}</div></div></details>`;
+}
+document.addEventListener('click', e => {
+  const d = document.querySelector('.el-fen[open]');
+  if (d && e.target && document.contains(e.target) && !d.contains(e.target)) d.open = false;
+});
 // Les FILTRES d'un clic (session) : ils se cumulent (« et »), avec la recherche. Ils valent
 // pour l'écran, l'impression et l'enchaînement des bilans — on prépare ceux qu'on voit.
 const ELEVES_FILTRES = [
   { key: 'sous10',    label: 'Moyenne sous 10',          test: x => !!x.r.moyenne && typeof x.r.moyenne.generale === 'number' && x.r.moyenne.generale < 10 },
   { key: 'incid',     label: 'Incident dans la période', test: (x, c) => !!c.p && (x.s.incidents || []).some(e => e && e.date >= c.p.start && e.date <= c.p.end) },
-  { key: 'carnet',    label: 'Carnet en hausse (Δ ≥ 3)', test: x => x.r.delta !== null && x.r.delta >= 3 },
+  // Sur le « +n » affiché (v1.46.5) : la même durée, carnet et MBN confondus.
+  { key: 'carnet',    get label() { const F = _obsFenetre(getCls()); return `Observations +3 ou plus${F ? ' (' + F.court + ')' : ''}`; },
+    test: (x, c) => _obsGagnees(c.cls, x.s.id, c.fen).n >= 3 },
   { key: 'papiers',   label: 'Papier à rendre',          test: x => x.r.nonRendus.length > 0 },
   { key: 'contact',   label: 'Famille contactée',        test: (x, c) => !!c.p && (x.s.journal || []).some(e => e && e.date >= c.p.start && e.date <= c.p.end) },
   { key: 'cible',     label: 'Avis demandés ⭐',          test: (x, c) => !!c.camp && (c.camp.cibles || []).includes(x.s.id) },
@@ -5899,7 +5952,7 @@ const ELEVES_FILTRES = [
 let _elevesFiltres = new Set();
 function _elevesFiltreCtx(cls) {
   const pIdx = _carnetCurrentPeriodIdx(cls);
-  return { cls, p: _periods(cls)[pIdx] || null, camp: _avisDeLaPeriode(cls, pIdx),
+  return { cls, p: _periods(cls)[pIdx] || null, camp: _avisDeLaPeriode(cls, pIdx), fen: _obsFenetre(cls),
     bc: _bilanColonnesListe(cls, pIdx, _bilanColsAjout).find(c => c.key === `bil:conseil:${pIdx}`) || null };
 }
 function elevesFiltreToggle(key) {
@@ -6181,11 +6234,11 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const fiche = _ficheSid && document.body.classList.contains('fiche-cote') && document.getElementById('mfiche')?.classList.contains('on') ? _ficheSid : null;
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)];
   const triCle = { carnet: 'cumul' };
-  const avecMbnL = _obsMbnClasseAny(cls);
+  const avecMbnL = _obsMbnClasseAny(cls), fenL = _obsFenetre(cls);
   const th = (k, label, title) => { const sk = triCle[k] || k; const on = eleveSort.col === sk;
     return `<th class="${on ? 'el-sorted' + (eleveSort.dir < 0 ? ' up' : '') : ''}" onclick="sortEleves('${sk}')" title="${_escAttr(title)}">${label}</th>`; };
   const TITRES = {
-    grp: 'Groupe, options et aménagements', carnet: avecMbnL ? 'Observations de l\'année : le total carnet + MBN (couleur du palier), le détail des deux, « +n » pris sur la période en cours, la courbe de l\'année' : 'Observations du carnet : le dernier cumul (couleur du palier), « +n » pris sur la période en cours, la courbe de l\'année',
+    grp: 'Groupe, options et aménagements', carnet: `${avecMbnL ? 'Observations de l\'année : le total carnet + MBN (couleur du palier), le détail des deux' : 'Observations du carnet : le dernier cumul (couleur du palier)'}, « +n » pris ${fenL ? fenL.long : ''}, la courbe de l'année — 📅 : choisir depuis quand`,
     moy: 'Dernière moyenne générale importée, son évolution, le nombre de matières sous 10 — la plus basse d\'abord', docs: 'Papiers à rendre',
     incidents: 'Incidents et instances : le nombre et la date du dernier — clic : en noter un', contacts: 'Contacts avec la famille : le nombre et la date du dernier — clic : en noter un',
     avis: campCour ? `Avis des collègues — feuille pour ${_avisObjectif(cls, campCour).long} : un trait par discipline, ⭐ demandé en particulier` : 'Aucune feuille d\'avis pour cette période',
@@ -6194,7 +6247,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const head = `<tr><th class="el-th-nom">${_elevesThNomHTML()}</th>${
     _elevesNais ? `<th onclick="sortEleves('nais')" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance</th>` : ''}${
     _elevesReg ? `<th title="Demi-pensionnaire, externe, interne">Régime</th><th title="Le régime d'entrée de l'établissement — codes réglables dans 💾 Données">Entrée</th><th title="Le régime de sortie de l'établissement — codes réglables dans 💾 Données">Sortie</th>` : ''}${
-    cols.map(c => th(c.key, _escName(c.label), TITRES[c.key])).join('')}</tr>`;
+    cols.map(c => th(c.key, _escName(c.label) + (c.key === 'carnet' ? ' ' + _obsFenetrePickHTML(cls) : ''), TITRES[c.key])).join('')}</tr>`;
   const dot = (titre, onclick) => `<button class="el-0" ${onclick ? `onclick="${onclick}"` : ''} title="${_escAttr(titre)}" aria-label="${_escAttr(titre)}">·</button>`;
   const body = rowsData.map(({ s, r }) => {
     const sid = s.id, j = _escJsAttr(sid);
@@ -6222,9 +6275,10 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
       // « +n S1 » (v1.46.4, l'utilisateur : « que ce soit plus quelque chose sur une période, carnet
       // et MBN confondus ») : ce que l'élève a pris PENDANT la période courante — le total de la
       // période au carnet + les observations MBN de la période. ▼ reste : un cumul en baisse.
-      const nP = per ? (r.periodeTotal || 0) + _obsMbnEntre(sid, per.start, per.end).length : 0;
-      const plTip = nP ? `${nP} observation${nP > 1 ? 's' : ''} sur la période ${per.label}` + (avecMbnL ? ` : ${r.periodeTotal || 0} au carnet + ${nP - (r.periodeTotal || 0)} dans MBN` : '') : '';
-      const pl = nP ? `<span class="el-dl" title="${_escAttr(plTip)}">+${nP} <small>${_escName(per.label)}</small></span>` : '';
+      // v1.46.5 : sur la durée choisie par 📅 (`_obsFenetre`), le début de la période par défaut.
+      const gN = _obsGagnees(cls, sid, fenL), nP = gN.n;
+      const plTip = nP ? `${nP} observation${nP > 1 ? 's' : ''} ${fenL.long}` + (avecMbnL ? ` : ${gN.carnet} au carnet + ${gN.mbn} dans MBN` : '') : '';
+      const pl = nP ? `<span class="el-dl${nP >= 3 ? ' up' : ''}" title="${_escAttr(plTip)}">+${nP} <small>${_escName(fenL.court)}</small></span>` : '';
       return `<span title="${_escAttr(tip)}"><span class="ob-chip${_obsBandeCls(r.obsTotal)} el-ob">${r.obsTotal}</span>${det}${r.deltaDecroissant ? '<span class="el-dl up" title="Le cumul du carnet a baissé : faute de frappe ?">▼</span>' : ''}${pl}${_elevesSpark(cls, sid)}</span>`;
     };
     td.moy = () => {
@@ -13493,6 +13547,7 @@ function _elevesPrintHTML(cls) {
   // ⚠️ Les colonnes MASQUÉES à l'écran le sont aussi ici (v1.41.0) : la feuille montre ce
   // qu'on a sous les yeux. Une colonne par moment de bilan, comme à l'écran.
   const avecMbnP = _obsMbnClasseAny(cls);   // Observ. = carnet + MBN, détaillé (v1.46.3)
+  const fenP = _obsFenetre(cls);
   const cols = [
     { key: 'nom', th: 'Élève', w: 13, td: r => `<span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${role(r) ? `<small class="pp-l"><em>${_escName(role(r))}</em></small>` : ''}${r.actif ? '' : '<small class="pp-l"><em>parti</em></small>'}` },
     { key: 'grp', th: 'Groupe · options', w: 8, td: (r, sid) => `<small>${_escName([r.groupe ? 'G' + r.groupe : '', ...r.options, _regimeOf(S.eleves[sid]?.regime)?.court || '', S.eleves[sid]?.entree || '', S.eleves[sid]?.sortie || ''].filter(Boolean).join(' · '))}</small>` },
@@ -13500,7 +13555,8 @@ function _elevesPrintHTML(cls) {
     { key: 'cumul', th: 'Observ.', w: avecMbnP ? 7.5 : 5.5, c: 1, td: r => r.obsTotal === null ? '' : avecMbnP
       ? `<span class="pp-big">${r.obsTotal}</span> <small>(${r.cumul ?? 0} + ${r.mbnAn} MBN)</small>`
       : `<span class="pp-big">${r.cumul}</span> <small>${_escName(jm(r.cumulDate))}</small>` },
-    { key: 'delta', th: 'Δ', w: 3.5, c: 1, td: r => r.delta === null ? '' : `${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}` },
+    // Le « +n » de l'écran (v1.46.5) : la durée choisie par 📅, carnet et MBN confondus.
+    { key: 'delta', th: `+n ${_escName(fenP ? fenP.court : '')}`, w: 4, c: 1, td: (r, sid) => { const n = _obsGagnees(cls, sid, fenP).n; return `${r.deltaDecroissant ? '▼' : ''}${n ? '+' + n : ''}`; } },
     { key: 'periode', th: _escName(per), w: 4, c: 1, td: r => `${r.periodeTotal ?? ''}` },
     { key: 'moy', th: 'Moy.', w: 6.5, c: 1, td: r => moy(r.moyenne) },
     { key: 'docs', th: 'Non rendus', w: 9, td: r => `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` },
