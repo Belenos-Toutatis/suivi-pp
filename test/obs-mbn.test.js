@@ -128,3 +128,31 @@ test('Observations MBN : à côté du carnet partout — grille, liste, carte de
   assert.strictEqual(ev(`S.eleves[${JSON.stringify(sid)}].obsMbn.every(e => typeof e === 'object' && /^\\d{4}-/.test(e.date))`), true);
   assert.strictEqual(ev(`S.eleves[getCls().eleves[1]].obsMbn`), undefined);
 });
+
+test('Observations MBN : feuille imprimée du carnet (MBN et Carnet + MBN par période, au choix) ; courbe de la fiche = carnet + MBN, une source décochable', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = ''; carnetSort = 'nom';`);
+  const avec = ev(`_carnetFeuilleHTML(getCls(), { periode: 'all', totaux: true, mbn: true }).html`);
+  assert.match(avec, /MBN S1/);
+  assert.match(avec, /Carnet \+ MBN S2/);
+  assert.match(avec, /Mon Bureau Numérique/);
+  const sans = ev(`_carnetFeuilleHTML(getCls(), { periode: 'all', totaux: true, mbn: false }).html`);
+  assert.ok(!/MBN/.test(sans));
+  assert.ok(!/Carnet \+ MBN/.test(ev(`_carnetFeuilleHTML(getCls(), { periode: 'all', totaux: false, mbn: true }).html`)), 'la somme seulement avec les totaux');
+  // La courbe : un point par relevé et par jour d'observation MBN ; la somme des deux.
+  const sid = ev(`getCls().eleves.find(id => _obsMbnOf(id).length >= 3)`);
+  const P = src => evObj(`_ficheCourbePoints(getCls(), ${JSON.stringify(sid)}, _periods(getCls())[0], ${JSON.stringify(src)})`);
+  const tous = P({ carnet: true, mbn: true }), car = P({ carnet: true, mbn: false }), mb = P({ carnet: false, mbn: true });
+  assert.ok(mb.length >= 1 && car.length >= 1);
+  assert.strictEqual(tous.length, new Set([...car, ...mb].map(x => x[0])).size);
+  const der = a => a[a.length - 1][1];
+  assert.strictEqual(der(tous), ev(`_cumulAu(getCls().id, ${JSON.stringify(sid)}, _periods(getCls())[0].end) || 0`) + der(mb));
+  assert.deepStrictEqual(P({ carnet: false, mbn: false }), []);
+  // La carte : deux sections cochables, le détail des relevés.
+  ev(`_ficheCourbeSrc = { carnet: true, mbn: true }; _ficheSid = ${JSON.stringify(sid)}`);
+  const carte = ev(`_ficheTableauHTML(getCls(), S.eleves[${JSON.stringify(sid)}], _ficheMoments(getCls()).find(c => c.key === 'bil:conseil:0'), {})`);
+  assert.match(carte, /ficheCourbeSrcUI\('carnet'/);
+  assert.match(carte, /ficheCourbeSrcUI\('mbn'/);
+  assert.match(carte, /Relevés du carnet/);
+  assert.match(carte, /carnet \+ MBN/);
+  ev(`_ficheCourbeSrc = { carnet: true, mbn: true }`);
+});

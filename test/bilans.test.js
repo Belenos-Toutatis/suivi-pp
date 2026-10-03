@@ -296,6 +296,16 @@ test('Liste : retirer un moment de bilan — vide et ajouté : il disparaît ; a
   // parmi les autres de la carte Bilans.
   assert.ok(!evObj(`_ficheMoments(S.classes['5C']).map(c => c.key)`).includes('bil:miperiode:0'), 'la fiche suit la liste');
   assert.ok(ev(`(() => { const cls = S.classes['5C'], col = _ficheMomentCourant(cls); return _ficheBilansAutresHTML(cls, S.eleves.s1, col); })()`).includes('Mi-S1 de Léa'), 'le bilan reste lisible dans la fiche');
+  // Un conseil (toujours présent) remis par ＋ se retire d'UN seul clic (v1.46.1 : il en
+  // fallait deux — le premier ne faisait que le sortir de l'ajout de la séance).
+  ev(`elevesBilanColRetirer('bil:conseil:${p}'); elevesBilanColAjout('bil:conseil:${p}')`);
+  assert.ok(vues().includes(`bil:conseil:${p}`));
+  ev(`elevesBilanColRetirer('bil:conseil:${p}')`);
+  assert.ok(!vues().includes(`bil:conseil:${p}`), 'un seul clic');
+  ev(`elevesBilanColAjout('bil:conseil:${p}')`);
+  // Aucun moment : pas de colonne Bilans dans la liste.
+  assert.ok(!ev(`_elevesIndicHTML(S.classes['5C'], _elevesRows(S.classes['5C']), [], null)`).includes('el-c-bilans'));
+  assert.ok(ev(`_elevesIndicHTML(S.classes['5C'], _elevesRows(S.classes['5C']), _bilanColsVues(S.classes['5C'], ${p}), null)`).includes('el-c-bilans'));
   // ＋ le remet.
   ev(`elevesBilanColAjout('bil:miperiode:0')`);
   assert.ok(vues().includes('bil:miperiode:0'));

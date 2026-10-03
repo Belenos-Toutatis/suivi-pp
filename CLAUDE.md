@@ -282,7 +282,20 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   MBN*, une case par mois, après le carnet), fiche (carte Carnet : *Notées dans MBN*, la liste ;
   un fait « n observations dans MBN : 2 travail non fait, 1 bavardage » insérable dans le bilan ;
   la chronologie les date ; chiffre clé), synthèse de période (« · MBN n » à côté du carnet,
-  tableau et fiches). Pas sur la feuille imprimée de la grille du carnet.
+  tableau et fiches). ~~Pas sur la feuille imprimée de la grille du carnet.~~ **Depuis la
+  v1.46.1, aussi sur la feuille imprimée** (case *Observations MBN par période* de `mcarprint`,
+  `_carPrintOpts.mbn`) : par période, Carnet · MBN · Carnet + MBN (la somme seulement avec les
+  totaux), dit au sous-titre.
+- **La carte de la fiche** (v1.46.1, l'utilisateur : *« que le graphique représente d'origine le
+  cumul des deux ; en dessous, une partie notée dans MBN et une autre avec le détail des relevés
+  faits dans le carnet ; à côté de chaque titre une coche pour confirmer qu'elles sont
+  additionnées dans le graphique — on peut choisir de n'en afficher qu'une »*) : la carte
+  *Observations* (Carnet quand la classe n'a rien dans MBN) trace `_ficheCourbePoints` (pur) —
+  à chaque relevé chiffré et chaque jour d'observation MBN, le cumul du carnet à cette date
+  (0 avant le premier relevé) + les observations MBN depuis le début de l'année, selon les
+  sources cochées ; la courbe dit ce qu'elle additionne (« carnet + MBN »). Dessous, *Relevés du
+  carnet* (chaque relevé du moment : cumul, Δ, libellé) et *Notées dans MBN*, chacune avec sa
+  coche (`_ficheCourbeSrc`, pour la séance, toutes fiches ; `ficheCourbeSrcUI`).
 - `postLoadHook` écarte les entrées illisibles et retire un champ qui n'est pas un tableau ;
   le champ n'est jamais créé d'office. Rien à purger à part : il part avec l'élève.
   Démo : onze observations MBN sur cinq élèves.
@@ -1166,7 +1179,10 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      (l'utilisateur : *« dans la fiche, on peut aussi masquer un moment ? »*) : la fiche suit le
      même réglage — un moment retiré ne s'y propose plus dans *Synthèse pour* (`_ficheMoments`),
      ses bilans restent lus dans la carte Bilans parmi les autres ; tout retiré, la fiche garde
-     la liste entière. Au passage : « Point
+     la liste entière. **v1.46.1** : aucun moment retenu → **pas de colonne Bilans** dans la
+     liste ; et ⚠️ un conseil remis par *+* passait dans l'ajout de la séance, et le premier *−*
+     ne faisait que l'en sortir (un conseil existe toujours) : il fallait cliquer deux fois.
+     `elevesBilanColRetirer` masque désormais tout moment qui resterait affiché. Au passage : « Point
      d'avril » (`_deMois`), et le repère `{demois}` dans le message aux collègues.
      **Périodes précédentes aussi** (v1.41.1, demande de l'utilisateur) : `_bilanColonnesListe`
      (pur) — les colonnes de la période courante, précédées de celles des périodes passées
@@ -1733,6 +1749,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 89 | **Fiche : courbe carnet + MBN** avec une coche par source, détail des relevés du carnet · **observations MBN sur la feuille imprimée du carnet** · colonne Bilans retirée quand aucun moment n'y est · un seul clic sur − pour un conseil remis ; 1 test, 1 test étendu. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.1) |
 | 88 | **Observations notées dans MBN** : import de l'export (.xlsx, dates en nombre de série, réimport sans doublon, retrait seulement coché), comptées à côté du carnet dans la grille (MBN par période, *Carnet + MBN*), la liste, la carte de chaleur, la fiche et la synthèse de période ; démo · **la fiche suit les moments retirés** ; 3 tests (`test/obs-mbn.test.js`). Vérifié sur l'export fourni (hors dépôt, 7 observations). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.0) |
 | 87 | **Liste « 🗓 Moments »** à la place des menus ＋ / − : chaque moment de bilan avec − (dans la colonne) ou + (à ajouter) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.45.4) |
 | 86 | **Grille des bulletins figée** (ligne des candidats en place, position gardée) ; **retirer un moment de bilan** (vide : disparaît ; écrit : masqué, retenu) ; « Point d'avril » ; test du cadre figé étendu aux renderers qui délèguent la garde ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.3) |

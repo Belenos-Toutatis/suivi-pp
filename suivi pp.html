@@ -1543,6 +1543,8 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-card h3 { margin: 0 0 8px; font-size: 14.5px; color: var(--ink-deep); display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .pf-card h3 .pf-k { margin-left: auto; font-weight: 400; font-size: 12.5px; color: var(--pencil); }
 .pf-h3b { margin-top: 10px !important; }
+.pf-src { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.pf-src input { width: 15px; height: 15px; margin: 0; cursor: pointer; }
 .pf-add { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 50%; min-width: 24px; height: 24px; line-height: 20px; padding: 0 3px; font-weight: 700; color: var(--link-fg); }
 .pf-add.pf-del { color: var(--danger-fg); }
 .pf-sw { width: 16px; height: 12px; border-radius: 2px; display: inline-block; flex: none; }
@@ -2417,6 +2419,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mcarp-delta" style="width:16px;height:16px" onchange="_carPrintRefresh()"> Évolution à côté de chaque cumul <span class="tb-hint">— « 14 +2 »</span></label>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mcarp-dern" style="width:16px;height:16px" onchange="_carPrintRefresh()"> Colonne « Δ dernier »</label>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mcarp-tot" style="width:16px;height:16px" onchange="_carPrintRefresh()"> Totaux de période</label>
+      <label id="mcarp-mbn-l" style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mcarp-mbn" style="width:16px;height:16px" onchange="_carPrintRefresh()"> Observations MBN par période <span class="tb-hint">— et « Carnet + MBN » avec les totaux</span></label>
     </div>
     <div class="fg"><label for="mcarp-kind">Orientation</label>
       <select id="mcarp-kind" onchange="_carPrintRefresh()" style="max-width:100%">
@@ -2739,8 +2742,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.0';
-const APP_BUILD_DATE = '2026-10-03T04:13:52Z';
+const APP_VERSION    = '1.46.1';
+const APP_BUILD_DATE = '2026-10-03T04:36:47Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5712,7 +5715,13 @@ function elevesBilanColRetirer(key) {
   const col = _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).find(c => c.key === key);
   if (!col) return renderStudents();
   const n = cls.eleves.filter(sid => _bilanDeColonne(cls, sid, col)).length;
-  if (!n && _bilanColsAjout.has(key)) { _bilanColsAjout.delete(key); renderStudents(); return toast(`${col.long} : retiré.`); }
+  // Ajouté pour la séance et vide : le retirer de l'ajout suffit… s'il disparaît bien. ⚠️ Un
+  // conseil existe TOUJOURS (`_bilanColonnes`) : passé par « + », il était dans l'ajout, et le
+  // premier « − » ne faisait que l'en sortir — il fallait cliquer deux fois (v1.46.1).
+  if (!n && _bilanColsAjout.has(key)) {
+    _bilanColsAjout.delete(key);
+    if (!_bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), _bilanColsAjout).some(c => c.key === key)) { renderStudents(); return toast(`${col.long} : retiré.`); }
+  }
   pushUndo();
   _prefs().bilansMasques = [..._bilansMasques().filter(k => k !== key), key];   // ⚠️ remplacé, jamais modifié en place
   _bilanColsAjout.delete(key);
@@ -6117,7 +6126,8 @@ function renderStudents() {
 // posé par renderStudents, entre _wrapScrollKeep et keep().
 function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const cid = cls.id, today = _todayYmd();
-  const cols = ELEVES_COLS.filter(c => _elevesColVue(c.key));
+  // Aucun moment dans la colonne Bilans (tous retirés par 🗓 Moments) : pas de colonne (v1.46.1).
+  const cols = ELEVES_COLS.filter(c => _elevesColVue(c.key) && (c.key !== 'bilans' || bcols.length));
   const fiche = _ficheSid && document.body.classList.contains('fiche-cote') && document.getElementById('mfiche')?.classList.contains('on') ? _ficheSid : null;
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)];
   const triCle = { carnet: 'cumul' };
@@ -6961,18 +6971,39 @@ function _ficheAvisBlocsHTML(camp, sid) {
     + (sans.length ? `<p class="pf-mu pf-sans">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : '');
 }
 function ficheFeuilleUI(id) { _ficheFeuille = id; _ficheRender(); }
-// La courbe du cumul sur la période, la zone du moment en clair, la mi-période marquée.
+// Les SOURCES de la courbe (v1.46.1, l'utilisateur : « que le graphique représente d'origine
+// le cumul des deux, et à côté de chaque titre une petite coche pour confirmer qu'elles sont
+// additionnées — on peut choisir de n'en afficher qu'une »). Pour la séance, toutes les fiches.
+let _ficheCourbeSrc = { carnet: true, mbn: true };
+function ficheCourbeSrcUI(k, on) { _ficheCourbeSrc = { ..._ficheCourbeSrc, [k]: !!on }; _ficheRender(); }
+// Les points de la courbe sur la période : [date, valeur]. Valeur = le cumul du carnet à cette
+// date (le dernier relevé chiffré, 0 avant le premier) + les observations MBN depuis le début
+// de l'année scolaire — chacun seulement si sa source est retenue. Un point par relevé chiffré
+// et par jour d'observation MBN. PUR.
+function _ficheCourbePoints(cls, sid, p, src) {
+  const m = _relMap(cls.id) || {};
+  const rel = src.carnet ? _relDates(cls.id).filter(d => d >= p.start && d <= p.end && typeof _relValue(m[d], sid) === 'number') : [];
+  const debut = _periods(cls)[0]?.start || p.start;
+  const mbn = src.mbn ? _obsMbnOf(sid).filter(e => e.date >= debut && e.date <= p.end) : [];
+  const dates = [...new Set([...rel, ...mbn.filter(e => e.date >= p.start).map(e => e.date)])].sort();
+  return dates.map(d => [d, (src.carnet ? (_cumulAu(cls.id, sid, d) || 0) : 0) + mbn.filter(e => e.date <= d).length]);
+}
+// La courbe sur la période, la zone du moment en clair, la mi-période marquée.
 function _ficheCourbeHTML(cls, stu, col) {
   const b = _ficheBornes(cls, col), p = b.p;
-  const m = _relMap(cls.id) || {};
-  const pts = _relDates(cls.id).filter(d => d >= p.start && d <= p.end).map(d => [d, _relValue(m[d], stu.id)]).filter(x => typeof x[1] === 'number');
-  if (!pts.length) return '<p class="pf-empty">Aucun relevé de carnet sur la période.</p>';
+  const avecMbn = _obsMbnClasseAny(cls);
+  const src = { carnet: _ficheCourbeSrc.carnet, mbn: avecMbn && _ficheCourbeSrc.mbn };
+  if (!src.carnet && !src.mbn) return '<p class="pf-empty">Aucune source cochée : cochez « Relevés du carnet » ou « Notées dans MBN ».</p>';
+  const pts = _ficheCourbePoints(cls, stu.id, p, src);
+  if (!pts.length) return `<p class="pf-empty">${src.mbn && src.carnet ? 'Ni relevé de carnet ni observation MBN' : src.mbn ? 'Aucune observation MBN' : 'Aucun relevé de carnet'} sur la période.</p>`;
+  const quoi = src.carnet && src.mbn ? 'carnet + MBN' : src.mbn ? 'MBN seulement' : avecMbn ? 'carnet seulement' : '';
   const W = 420, H = 150, x0 = 26, x1 = W - 10, y0 = H - 22, y1 = 12;
   const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(p.start), tb = t(p.end);
   const X = d => (x0 + (t(d) - ta) / (tb - ta) * (x1 - x0)).toFixed(1);
   const mx = Math.max(10, ...pts.map(q => q[1])), Y = v => (y0 - v / mx * (y0 - y1)).toFixed(1);
   const mi = _ficheBornes(cls, { ...col, type: 'miperiode' }).end;
-  let g = `<svg class="pf-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du cumul d'observations, période ${_escAttr(p.label)}">`;
+  let g = `<svg class="pf-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du cumul d'observations${quoi ? ' (' + quoi + ')' : ''}, période ${_escAttr(p.label)}">`;
+  if (quoi) g += `<text x="${x1}" y="${y1 + 9}" text-anchor="end">${quoi}</text>`;
   g += `<rect class="ar" x="${X(b.start)}" y="${y1}" width="${Math.max(2, X(b.end) - X(b.start))}" height="${y0 - y1}"/>`;
   g += `<line class="ax" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/><line class="mid" x1="${X(mi)}" y1="${y1}" x2="${X(mi)}" y2="${y0}"/><text x="${+X(mi) + 3}" y="${y1 + 9}">mi-${_escName(p.label)}</text>`;
   _moisDe(p).forEach(([ym, l]) => { g += `<text x="${X(ym + '-01' < p.start ? p.start : ym + '-01')}" y="${H - 6}">${_escName(l)}</text>`; });
@@ -6986,7 +7017,15 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const b = _ficheBornes(cls, col), sid = stu.id;
   const dans = d => d && d >= b.start && d <= b.end;
   const o = _obsEntre(cls.id, sid, b.start, b.end);
-  const mbn = _obsMbnEntre(sid, b.start, b.end);
+  const mbn = _obsMbnEntre(sid, b.start, b.end), avecMbn = _obsMbnClasseAny(cls);
+  // Carnet + MBN (v1.46.1) : deux sections sous la courbe, chacune avec sa coche « additionnée
+  // dans le graphique » ; le détail des relevés du carnet faits à la main sur le moment.
+  const srcH = (k, titre, n) => `<h3 class="pf-h3b"><label class="pf-src" title="Additionnées dans le graphique — décocher pour n'afficher que l'autre source"><input type="checkbox"${_ficheCourbeSrc[k] ? ' checked' : ''} onchange="ficheCourbeSrcUI('${k}', this.checked)"> ${titre}</label><span class="pf-k">${n}</span></h3>`;
+  const rm = _relMap(cls.id) || {};
+  const rels = _relDates(cls.id).filter(dans).filter(d => _relValue(rm[d], sid) !== null);
+  const relevesHTML = rels.length ? rels.map(d => { const v = _relValue(rm[d], sid), x = _relDelta(cls.id, d, sid);
+    return `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(d).slice(0, 5))}</span><span>${v === REL_ABSENT ? '<span class="pf-mu">absent au relevé</span>' : `cumul <span class="pf-ty">${v}</span>${x && x.prev !== null && x.delta ? ` <span class="pf-mu">(${x.delta > 0 ? '+' : ''}${x.delta})</span>` : ''}`}${rm[d]?.label ? ` · ${_escName(rm[d].label)}` : ''}</span></div>`; }).join('')
+    : '<p class="pf-empty">Aucun relevé sur la période.</p>';
   const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
@@ -7015,7 +7054,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   return `<div class="pf-grid">
     ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="pf-add" onclick="ficheVersEdition()" title="Modifier l'élève : nom, civilité, groupe, options, aménagements, dates">✏️</button><button class="pf-add pf-del" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑</button>`)}
     ${card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + _ficheBilansAutresHTML(cls, stu, col))}
-    ${card('obs', 'Carnet', [o === null ? '' : `${o} sur la période`, mbn.length ? `MBN ${mbn.length}` : ''].filter(Boolean).join(' · '), _ficheCourbeHTML(cls, stu, col) + (mbn.length || _obsMbnClasseAny(cls) ? `<h3 class="pf-h3b">Notées dans MBN <span class="pf-k">${mbn.length}</span></h3>${mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>'}` : ''))}
+    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o) + relevesHTML + srcH('mbn', 'Notées dans MBN', mbn.length) + (mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
     ${card('incid', 'Incidents', inc.length, inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span><br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident'))}
@@ -9563,7 +9602,7 @@ function relCellChange(inp) {
 // réglages valent pour la session (`_carPrintOpts`), rien dans S : ils décrivent le geste.
 // ⚠️ Les couleurs de palier s'impriment (print-color-adjust: exact) ; la palette descend en
 // luminance d'un cran à l'autre, donc une feuille en noir et blanc garde l'ordre des gris.
-let _carPrintOpts = { periode: 'all', couleurs: true, delta: true, dernier: true, totaux: true, kind: 'landscape', format: 'A4' };
+let _carPrintOpts = { periode: 'all', couleurs: true, delta: true, dernier: true, totaux: true, mbn: true, kind: 'landscape', format: 'A4' };
 function _carnetPrintDates(cls, periode) {
   const dates = _relDates(cls.id);
   if (periode === 'all') return dates;
@@ -9579,14 +9618,18 @@ function _carnetFeuilleHTML(cls, opts) {
   const palier = o.couleurs ? _obsPalier() : 0;
   const rows = _carnetRows(cls);
   const periods = _periods(cls);
-  const perShown = o.totaux ? periods.filter(p => dates.some(d => d >= p.start && d <= p.end)) : [];
+  // Par période de la feuille : le total du carnet (totaux), les observations MBN (v1.46.1), et
+  // leur somme quand les deux y sont — le même découpage qu'à l'écran.
+  const mbn = !!o.mbn && _obsMbnClasseAny(cls);
+  const perP = periods.filter(p => dates.some(d => d >= p.start && d <= p.end));
+  const perCols = perP.flatMap(p => [...(o.totaux ? [{ p, k: 'tot' }] : []), ...(mbn ? [{ p, k: 'mbn' }] : []), ...(o.totaux && mbn ? [{ p, k: 'som' }] : [])]);
   const jm = d => { const x = d.split('-'); return `${x[2]}/${x[1]}`; };
   // Le nom a la place qu'il lui faut, chaque relevé une part égale, Δ et totaux un peu moins.
-  const cols = [['nom', 17], ...dates.map(() => ['d', 6]), ...(o.dernier ? [['dern', 5]] : []), ...perShown.map(() => ['p', 5.5])];
+  const cols = [['nom', 17], ...dates.map(() => ['d', 6]), ...(o.dernier ? [['dern', 5]] : []), ...perCols.map(() => ['p', 5.5])];
   const tot = cols.reduce((n, c) => n + c[1], 0);
   const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c[1] / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
   const head = `<tr><th>Élève</th>${dates.map(d => `<th class="c">${_escName(jm(d))}${m[d]?.label ? `<small>${_escName(m[d].label)}</small>` : ''}</th>`).join('')}${
-    o.dernier ? '<th class="c g">Δ dernier</th>' : ''}${perShown.map((p, i) => `<th class="c${!o.dernier && i === 0 ? ' g' : ''}">${_escName(p.label)}</th>`).join('')}</tr>`;
+    o.dernier ? '<th class="c g">Δ dernier</th>' : ''}${perCols.map((x, i) => `<th class="c${!o.dernier && i === 0 ? ' g' : ''}">${x.k === 'tot' ? (mbn ? 'Carnet ' : '') : x.k === 'mbn' ? 'MBN ' : 'Carnet + MBN '}${_escName(x.p.label)}</th>`).join('')}</tr>`;
   const body = rows.map(s => {
     const parti = !_isStudentActive(s);
     const cells = dates.map(d => {
@@ -9601,12 +9644,15 @@ function _carnetFeuilleHTML(cls, opts) {
     const ld = o.dernier ? _carnetLastDelta(cls.id, s.id, dates) : null;
     return `<tr${parti ? ' class="pp-parti"' : ''}><td><span class="pp-nom">${_escName(s.nom)}</span> ${_escName(s.prenom)}${parti ? ' <small><em>parti</em></small>' : ''}</td>${cells}${
       o.dernier ? `<td class="c g dern">${ld === null ? '' : (ld > 0 ? '+' : '') + ld}</td>` : ''}${
-      perShown.map((p, i) => { const t = _relPeriodTotal(cls.id, s.id, p.n - 1); return `<td class="c${!o.dernier && i === 0 ? ' g' : ''}">${t === null ? '' : t}</td>`; }).join('')}</tr>`;
+      perCols.map((x, i) => { const t = _relPeriodTotal(cls.id, s.id, x.p.n - 1), n = _obsMbnEntre(s.id, x.p.start, x.p.end).length;
+        const v = x.k === 'tot' ? (t === null ? '' : t) : x.k === 'mbn' ? (n || '') : (t === null && !n ? '' : (t || 0) + n);
+        return `<td class="c${!o.dernier && i === 0 ? ' g' : ''}">${v}</td>`; }).join('')}</tr>`;
   }).join('');
   const per = o.periode === 'all' ? '' : (periods[+o.periode]?.label || '');
   const annee = dates[0].slice(0, 4) === dates[dates.length - 1].slice(0, 4) ? dates[0].slice(0, 4) : `${dates[0].slice(0, 4)}-${dates[dates.length - 1].slice(2, 4)}`;
   const sous = [`${dates.length} relevé${dates.length > 1 ? 's' : ''} ${dates.length > 1 ? `du ${_fmtDateFr(dates[0])} au ${_fmtDateFr(dates[dates.length - 1])}` : `du ${_fmtDateFr(dates[0])}`}`,
-    `cumul lu dans le carnet${o.delta ? ', évolution depuis le relevé précédent en petit' : ''}`, `${codeA} = absent`, '▼ = en baisse'].join(' · ');
+    `cumul lu dans le carnet${o.delta ? ', évolution depuis le relevé précédent en petit' : ''}`, `${codeA} = absent`, '▼ = en baisse',
+    ...(mbn ? ['MBN = observations notées dans Mon Bureau Numérique sur la période, comptées à part'] : [])].join(' · ');
   const leg = palier ? `<br>Couleurs : une par tranche de ${palier} observation${palier > 1 ? 's' : ''} ${_obsLegendeHTML(_obsMaxCumul(cls.id, dates), palier)}` : '';
   return { kind: o.kind === 'portrait' ? 'portrait' : 'landscape',
     html: `<div class="pp-titre">Observations du carnet — ${_escName(cls.nom)}${per ? ' — ' + _escName(per) : ''} — ${_escName(cls.annee || annee)}</div>
@@ -9628,6 +9674,8 @@ function openCarnetPrint() {
   document.getElementById('mcarp-delta').checked = o.delta;
   document.getElementById('mcarp-dern').checked = o.dernier;
   document.getElementById('mcarp-tot').checked = o.totaux;
+  document.getElementById('mcarp-mbn').checked = o.mbn;
+  document.getElementById('mcarp-mbn-l').style.display = _obsMbnClasseAny(cls) ? 'flex' : 'none';
   document.getElementById('mcarp-kind').value = o.kind;
   document.getElementById('mcarp-format').value = o.format;
   openMod('mcarprint');
@@ -9643,6 +9691,7 @@ function _carPrintRefresh() {
   o.delta = g('mcarp-delta').checked;
   o.dernier = g('mcarp-dern').checked;
   o.totaux = g('mcarp-tot').checked;
+  o.mbn = g('mcarp-mbn').checked;
   o.kind = g('mcarp-kind').value === 'portrait' ? 'portrait' : 'landscape';
   o.format = g('mcarp-format').value === 'A3' ? 'A3' : 'A4';
   const pal = _obsPalier();
