@@ -743,3 +743,24 @@ test('Procès-verbal : une case de signature par élu (titulaires et suppléants
   assert.match(pv, /_pvFitPt\(/, 'la taille est calculée pour une page');
   assert.match(pv, /_pvElusSignHTML\(el, elus, sups\)/);
 });
+
+test('Assesseurs : saisis dans l\'élection (plus dans les modalités), deux élèves non candidats, figés à la clôture', () => {
+  const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  assert.ok(!/id="mel-a1"/.test(SRC), 'plus dans la fenêtre des modalités');
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls();
+    const el = electionCreate(cls.id, {}); S.elections[cls.id][el.id] = el;
+    const ids = cls.eleves.filter(id => _isStudentActive(S.eleves[id]));
+    const c = electionAddCandidat(el, ids[0], ids[1]);
+    const candRefus = electionSetAssesseur(el, 0, ids[0]);
+    const a1 = electionSetAssesseur(el, 0, ids[2]), doublon = electionSetAssesseur(el, 1, ids[2]), a2 = electionSetAssesseur(el, 1, ids[3]);
+    _elView = el.id;
+    const html = _elAssesseursHTML(el) + _elRenderCandidats(el, el.tours[0]);
+    const proposeAssCandidat = (_elRenderCandidats(el, el.tours[0]).match(new RegExp('value="' + ids[2] + '"', 'g')) || []).length;
+    el.clos = true;
+    const clos = electionSetAssesseur(el, 0, ids[5]);
+    return JSON.stringify({ candRefus, a1, doublon, a2, noms: el.assesseursNoms.length, proposeAssCandidat, clos, figeHTML: _elAssesseursHTML(el).includes('<select') });
+  })()`));
+  assert.deepStrictEqual(r, { candRefus: false, a1: true, doublon: false, a2: true, noms: 2, proposeAssCandidat: 0, clos: false, figeHTML: false });
+});

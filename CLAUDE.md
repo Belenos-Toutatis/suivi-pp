@@ -555,6 +555,18 @@ bulletin = {
 }
 ```
 
+### Les assesseurs, saisis après les candidatures (v1.52.11)
+
+L'utilisateur : *« que les assesseurs ne soient pas dans les modalités, mais saisis juste après les
+candidats »*. Les deux menus ont quitté la fenêtre ⚙ Modalités (`mel-a1`, `mel-a2` supprimés) ;
+le bloc **🧑‍⚖️ Assesseurs** (`_elAssesseursHTML`) est dans l'écran de l'élection, entre les
+candidatures et le dépouillement : deux élèves volontaires **non candidats** (leur rôle rappelé),
+`electionSetAssesseur(el, i, sid)` — refus : élection close (le PV est fait : affichage seul),
+élève hors classe, candidat, ou déjà l'autre assesseur ; noms FIGÉS. Dans l'autre sens, un assesseur
+n'est plus proposé comme candidat, et *+ Candidature* le refuse ; ⚠️ le MODÈLE (`electionAddCandidat`)
+reste permissif — d'anciens fichiers peuvent avoir un élève dans les deux rôles (fixture de
+`fiche.test.js`, cumul de rôles). Le scrutin d'un suppléant n'hérite plus des assesseurs.
+
 ### La saisie se fait bulletin par bulletin
 
 C'est déjà sa méthode (une ligne par bulletin numéroté, une colonne par binôme, on coche), et il faut la garder pour deux raisons : c'est ce qu'il fait pendant que les assesseurs annoncent, et cela laisse une **trace vérifiable** — si un total est contesté, on remonte au bulletin.
@@ -2155,6 +2167,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 127 | **Assesseurs saisis dans l'élection, après les candidatures** (plus dans ⚙ Modalités) ; non candidats ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.11) |
 | 126 | **PV : titulaire et suppléant groupés** dans un cadre par binôme ; test étendu | ✅ **fait** (2026-10-03, v1.52.10) |
 | 125 | **PV sur une page** (taille mesurée, 7 à 11 pt) **et signature des élus** (acceptation du mandat) ; 1 test, 1 test adapté. Mesuré sur la démo : 255 mm en 8,25 pt | ✅ **fait** (2026-10-03, v1.52.9) |
 | 124 | **Départage par l'âge justifié** : dates de naissance des candidats à égalité au PV, à la projection du résultat et dans l'onglet ; 1 test. Audit dans la fenêtre projetée, 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.8) |

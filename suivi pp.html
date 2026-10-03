@@ -990,6 +990,7 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .rel-wrap.frozen.bul-wrap.bul-plat { max-height: none; overflow: visible; }
 .rel-wrap.frozen.bul-wrap.bul-plat thead th { top: calc(var(--topbar-h) + var(--el-head-h, 0px)); }
 .rel-wrap.frozen.bul-wrap.bul-plat input, .rel-wrap.frozen.bul-wrap.bul-plat button { scroll-margin-top: calc(var(--topbar-h) + var(--el-head-h, 0px) + 48px); }
+.el-ass select { max-width: 220px; }
 .el-supnc { margin: 8px 0; display: flex; flex-direction: column; gap: 6px; text-align: left; background: var(--paper-warm); border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 8px 12px; }
 .el-supnc .mfp-opts label { justify-content: flex-start; }
 .el-ecrit { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -2884,10 +2885,6 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <label style="color:var(--ink-deep)"><input type="checkbox" id="mel-binome" checked onchange="_elBinomeChange()"> Candidatures en binôme — le suppléant est élu avec son titulaire</label>
       <label style="color:var(--ink-deep)"><input type="checkbox" id="mel-maj" checked> Majorité absolue au 1er tour (relative au 2nd)</label>
     </div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <div class="fg" style="flex:1;min-width:150px"><label for="mel-a1">Assesseur 1</label><select id="mel-a1"></select></div>
-      <div class="fg" style="flex:1;min-width:150px"><label for="mel-a2">Assesseur 2</label><select id="mel-a2"></select></div>
-    </div>
     <div class="st-hint">Projection</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
       <div class="fg" style="flex:1;min-width:160px"><label for="mel-ordre">Ordre des barres</label><select id="mel-ordre"><option value="tirage">figé (tirage / saisie)</option><option value="alpha">alphabétique</option><option value="score">par score (barres qui se réordonnent — déconseillé)</option></select></div>
@@ -2976,8 +2973,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.10';
-const APP_BUILD_DATE = '2026-10-03T16:59:05Z';
+const APP_VERSION    = '1.52.11';
+const APP_BUILD_DATE = '2026-10-03T17:07:12Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12241,7 +12238,7 @@ function electionCreerScrutinSuppleant(el, candId) {
     type: _elType(el).key, date: date < el.date ? el.date : date,
     titre: `Élection du suppléant de ${_elCandNom(c)} — ${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}`,
     nbTitulaires: 1, binome: false, nbSupplants: 0, nomsParBulletin: 1,
-    majoriteAbsolueT1: el.majoriteAbsolueT1 !== false, departage: el.departage, assesseurs: el.assesseurs,
+    majoriteAbsolueT1: el.majoriteAbsolueT1 !== false, departage: el.departage,
   });
   if (!sub) return null;
   sub.supDe = { elId: el.id, candId, nom: _elCandNom(c) };
@@ -12323,6 +12320,46 @@ function electionAddEcritUI() {
   toast(`✍️ ${c.nomTitulaire} : une colonne de plus — cochez-le sur le bulletin. Élu, il doit accepter le mandat.`);
   const last = document.querySelector(`.bul-table tbody tr:last-child .bul-c input[data-c="${CSS.escape(c.id)}"]`);
   if (last) last.focus();
+}
+
+// Les ASSESSEURS (v1.52.11, l'utilisateur : « que les assesseurs ne soient pas dans les modalités,
+// mais saisis juste après les candidats ») : deux élèves volontaires NON CANDIDATS (la présentation
+// de l'utilisateur), qui surveillent le vote, comptent les bulletins et signent le PV. `i` = 0 ou 1.
+// Refus : élection close (le PV est fait), élève hors classe, candidat, ou déjà l'autre assesseur.
+// Noms FIGÉS, comme ceux des candidats : le PV reste lisible après le départ de l'élève.
+function electionSetAssesseur(el, i, sid) {
+  if (!el || el.clos || (i !== 0 && i !== 1)) return false;
+  const a = Array.isArray(el.assesseurs) ? el.assesseurs.slice(0, 2) : [];
+  while (a.length < 2) a.push('');
+  if (sid) {
+    const cls = S.classes[el.classId];
+    if (!S.eleves[sid] || !cls || !cls.eleves.includes(sid)) return false;
+    if (el.candidats.some(c => c.sidTitulaire === sid || c.sidSuppleant === sid)) return false;
+    if (a[1 - i] === sid) return false;
+  }
+  a[i] = sid || '';
+  el.assesseurs = a.filter(Boolean);
+  el.assesseursNoms = el.assesseurs.map(x => `${S.eleves[x].prenom} ${S.eleves[x].nom}`);
+  return true;
+}
+function _elAssesseursHTML(el) {
+  const cls = getCls();
+  if (!cls) return '';
+  const a = el.assesseurs || [], noms = el.assesseursNoms || [];
+  if (el.clos) return `<div class="el-block el-ass"><strong>🧑‍⚖️ Assesseurs :</strong> ${noms.length ? noms.map(_escName).join(' · ') : '<span class="tb-hint">aucun</span>'}</div>`;
+  const cands = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
+  const eleves = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !cands.has(s.id))
+    .sort((x, y) => (x.nom + x.prenom).localeCompare(y.nom + y.prenom, 'fr'));
+  const sel = i => `<select id="el-ass-${i}" onchange="electionAssesseurUI(${i}, this.value)" aria-label="Assesseur ${i + 1}"><option value="">— assesseur ${i + 1} —</option>${
+    eleves.filter(s => s.id !== a[1 - i]).map(s => `<option value="${_escAttr(s.id)}"${s.id === a[i] ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select>`;
+  const manque = 2 - a.length;
+  return `<div class="el-block el-ass"><strong>🧑‍⚖️ Assesseurs</strong> <span class="tb-hint">— deux élèves volontaires, non candidats : ils surveillent le vote, comptent les bulletins et signent le procès-verbal.</span>
+    <div class="tb" style="margin-top:4px">${sel(0)}${sel(1)}${manque ? `<span class="tb-hint">${manque === 2 ? 'Aucun assesseur choisi.' : 'Un seul assesseur choisi.'}</span>` : ''}</div></div>`;
+}
+function electionAssesseurUI(i, sid) {
+  let ok = false;
+  _elMut(e => { ok = electionSetAssesseur(e, i, sid); });
+  if (!ok) toast('⚠️ Assesseur refusé : candidat, déjà l\'autre assesseur, ou élection close.', 'warn');
 }
 
 // ── Bulletins ──
@@ -12924,7 +12961,8 @@ function _elRenderOne(box, el, cls) {
   // La grille des bulletins est un cadre figé (v1.45.3, remontée de l'utilisateur : la ligne
   // des candidats partait au défilement) : chaque bulletin coché redessine tout, on garde sa place.
   const keep = _wrapScrollKeep(box);
-  box.innerHTML = head + (el.clos ? res + cand : `<div class="el-split${_elProject ? ' proj' : ''}">${_elProject ? '' : `<div class="el-left">${cand}${dep}</div>`}<div class="el-right${_elProject ? ' big' : ''}">${chart}</div></div>${res}`);
+  const ass = _elAssesseursHTML(el);
+  box.innerHTML = head + (el.clos ? res + cand + ass : `<div class="el-split${_elProject ? ' proj' : ''}">${_elProject ? '' : `<div class="el-left">${cand}${ass}${dep}</div>`}<div class="el-right${_elProject ? ' big' : ''}">${chart}</div></div>${res}`);
   keep();
   _elEnteteColle(box);
   box.querySelectorAll('.el-supnc[data-k]').forEach(x => _elSupNcMaj(x.getAttribute('data-k')));
@@ -13035,7 +13073,8 @@ function _elRenderCandidats(el, t) {
   const cls = getCls();
   const taken = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
   const exclus = _elSupDeExclus(el);   // scrutin de suppléant : pas les élus de l'élection d'origine
-  const eligibles = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !taken.has(s.id) && !exclus.has(s.id))
+  const assess = new Set(el.assesseurs || []);
+  const eligibles = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !taken.has(s.id) && !exclus.has(s.id) && !assess.has(s.id))
     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
   const opt = s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`;
   const canEdit = !el.clos && !t.bulletins.length && t.n === 1;
@@ -13064,6 +13103,9 @@ function electionAddCandidatUI() {
   const el = _elCurrent();
   if (el?.binome !== false && !sidS) return toast('⚠️ Un binôme : choisissez aussi le suppléant.', 'warn');
   if (sidS === sidT) return toast('⚠️ Titulaire et suppléant doivent être deux élèves différents.', 'warn');
+  // Un assesseur n'est pas candidat (v1.52.11) — refusé à l'écran ; le modèle reste permissif
+  // pour les fichiers anciens qui auraient les deux.
+  if ((el?.assesseurs || []).some(a => a === sidT || a === sidS)) return toast('⚠️ Cet élève est assesseur : il ne peut pas être candidat.', 'warn');
   _elMut(e => electionAddCandidat(e, sidT, sidS));
 }
 
@@ -13459,11 +13501,6 @@ function _elFillSettings(el) {
   g('mel-inscrits').value = el?.inscrits ?? _elInscrits(cls.id, g('mel-date').value);
   g('mel-ordre').value = el?.affichage?.ordre || 'tirage';
   g('mel-pct').checked = el ? el.affichage?.pourcentages !== false : true;
-  const students = cls.eleves.map(id => S.eleves[id]).filter(Boolean).sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
-  for (const k of ['mel-a1', 'mel-a2']) {
-    const cur = el?.assesseurs?.[k === 'mel-a1' ? 0 : 1] || '';
-    g(k).innerHTML = '<option value="">— assesseur —</option>' + students.map(s => `<option value="${_escAttr(s.id)}"${s.id === cur ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('');
-  }
   const locked = !!(el && (el.tours.some(t => t.bulletins.length) || el.clos));
   ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj', 'mel-nbs', 'mel-noncand', 'mel-defauts'].forEach(k => { g(k).disabled = locked; });
   g('mel-locked').style.display = locked ? '' : 'none';
@@ -13475,8 +13512,7 @@ function electionSettingsOk() {
   if (!_ymdValid(date)) return toast('⚠️ Date invalide.', 'warn');
   const opts = { date, type: g('mel-type').value, titre: g('mel-titre').value, etablissement: g('mel-etab').value, nbTitulaires: +g('mel-nbt').value, binome: g('mel-binome').checked, nbSupplants: +g('mel-nbs').value,
                  nomsParBulletin: +g('mel-npb').value, majoriteAbsolueT1: g('mel-maj').checked, departage: g('mel-dep').value,
-                 inscrits: parseInt(g('mel-inscrits').value, 10), assesseurs: [g('mel-a1').value, g('mel-a2').value].filter(Boolean) };
-  if (opts.assesseurs.length === 2 && opts.assesseurs[0] === opts.assesseurs[1]) return toast('⚠️ Deux assesseurs différents.', 'warn');
+                 inscrits: parseInt(g('mel-inscrits').value, 10) };
   pushUndo();
   if (opts.etablissement) _prefs().etablissement = opts.etablissement;
   if (!_elSettingsId) {
@@ -13487,7 +13523,7 @@ function electionSettingsOk() {
   } else {
     const el = _elCurrent();
     Object.assign(el, { date, type: (_EL_TYPES[opts.type] || _EL_TYPES.delegues).key, titre: opts.titre.trim() || el.titre, etablissement: opts.etablissement, departage: opts.departage, inscrits: Number.isInteger(opts.inscrits) ? opts.inscrits : el.inscrits,
-                        assesseurs: opts.assesseurs, assesseursNoms: opts.assesseurs.map(sid => `${S.eleves[sid].prenom} ${S.eleves[sid].nom}`) });
+                        });
     el.affichage = { ...el.affichage, ordre: g('mel-ordre').value, pourcentages: g('mel-pct').checked };
     if (!g('mel-noncand').disabled) el.nonCandidat = g('mel-noncand').value === 'nul' ? 'nul' : 'compte';
     if (!g('mel-nbt').disabled) { el.nbTitulaires = Math.max(1, Math.min(4, opts.nbTitulaires)); el.binome = opts.binome; el.nbSupplants = opts.binome ? el.nbTitulaires : Math.max(0, Math.min(4, opts.nbSupplants || 0)); el.nomsParBulletin = Math.max(1, Math.min(4, opts.nomsParBulletin)); el.majoriteAbsolueT1 = opts.majoriteAbsolueT1; el.tours[0].siegesAPourvoir = el.nbTitulaires; }
