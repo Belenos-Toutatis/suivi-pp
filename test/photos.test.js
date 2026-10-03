@@ -135,3 +135,19 @@ test('trombinoscope : troisième affichage de la liste, troisième choix de 🖨
   assert.match(SRC, /<input type="radio" name="mper-quoi" value="trombi"/);
   assert.match(SRC, /if \(o\.quoi === 'trombi'\) \{[\s\S]{0,300}printTrombi\(/);
 });
+
+test('carte de chaleur : une vignette devant chaque nom dès qu\'un élève a une photo, rien sinon', () => {
+  const r = JSON.parse(ev(`(() => {
+    createDemo({ force: true });
+    const cls = getCls(), rows = _elevesRows(cls), bcols = _bilanColsVues(cls, _carnetCurrentPeriodIdx(cls));
+    const sans = _elevesChaleurHTML(cls, rows, bcols).table;
+    _photos.sids = new Set([rows[0].s.id]);
+    const avec = _elevesChaleurHTML(cls, rows, bcols).table;
+    _photos.sids = new Set();
+    return JSON.stringify({ sans: /ch-ph/.test(sans), img: (avec.match(/<img class="ch-ph"/g) || []).length,
+      vides: (avec.match(/<span class="ch-ph tv-none"/g) || []).length, n: rows.length });
+  })()`));
+  assert.strictEqual(r.sans, false, 'sans aucune photo, la carte ne change pas');
+  assert.strictEqual(r.img, 1);
+  assert.strictEqual(r.vides, r.n - 1, 'une case vide garde l\'alignement');
+});

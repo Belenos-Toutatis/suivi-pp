@@ -1179,6 +1179,11 @@ Les pièges de format MBN et de l'appariement sont documentés là-bas ; à reli
   *🖨 Imprimer…* (`quoi: 'trombi'`, présélectionné depuis cette vue) — 4, 5 ou 6 photos par
   rangée, groupe et options en option, A4 / A3 portrait (`_trombiPrintHTML`, `printTrombi`) ; 25
   élèves à 5 par rangée tiennent sur une page A4.
+- **Carte de chaleur** (v1.51.1, l'utilisateur : *« ajoute les photos dans la carte de chaleur
+  aussi »*) : une vignette de 26 px devant chaque nom (`.ch-ph`, posée par `_trombiPhotosPoser`),
+  dans un lien vers la fiche qui porte `data-photo-sid` (survol = la photo en grand) ; une case
+  pointillée vide pour un élève sans photo ; **rien du tout** tant qu'aucun élève de la classe
+  n'en a. Passer à la carte de chaleur demande, comme au trombinoscope, l'accès au dossier.
 - ⚠️ **Supprimer un élève ne supprime PAS sa photo** (écart assumé avec Plan de classe) : Ctrl+Z
   rend l'élève, jamais un fichier — même règle que les PDF. *🧹 Orphelins…* (Données) liste aussi
   les `photos/<sid>.jpg` dont l'élève n'existe plus (`_photosOrphelines`) et les supprime sur
@@ -2025,6 +2030,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 113 | **Photos dans la carte de chaleur** : une vignette devant chaque nom, case vide sans photo, rien sans aucune photo ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.51.1) |
 | 112 | **📷 Trombinoscope** : troisième affichage de la liste des élèves (photos, initiales sans photo, clic vers la fiche) et troisième choix de 🖨 Imprimer… (4 à 6 par rangée, une page A4 pour 25 élèves) ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; papier simulé | ✅ **fait** (2026-10-03, v1.51.0) |
 | 111 | **Un seul « 🖨 Imprimer… » dans Élèves** : la liste du jour ou la synthèse d'un moment (tableau ou fiches), A3 pour la liste ; **« résumés » supprimés** ; Ctrl+P ouvre la fenêtre ; tests portés sur la fiche imprimée. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.50.0) |
 | 110 | **🖨 Fiche élève imprimée** : bouton dans la fiche et Ctrl+P (fenêtre `mficheprint` : moment, parties, photo, cet élève ou toute la classe, A4 / A3), une page par élève, bilan vide en lignes à remplir ; forme « fiche complète » dans la synthèse de période (« fiches » renommée « résumés ») ; 3 tests (`test/fiche-print.test.js`). Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; papier simulé depuis les deux thèmes | ✅ **fait** (2026-10-03, v1.49.0) |
