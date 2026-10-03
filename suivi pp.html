@@ -2749,8 +2749,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.7';
-const APP_BUILD_DATE = '2026-10-03T05:10:08Z';
+const APP_VERSION    = '1.46.8';
+const APP_BUILD_DATE = '2026-10-03T05:23:12Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6169,24 +6169,28 @@ function _chaleurMomentCourant(cls) {
   const t = _chaleurMomentsTous(cls), v = _chaleurMoments(cls), pC = _carnetCurrentPeriodIdx(cls);
   return v.find(c => c.key === _ficheMoment) || t.find(c => c.key === _ficheMoment) || v.find(c => c.key === `bil:conseil:${pC}`) || v[v.length - 1] || null;
 }
-function chaleurMomentVu(k, on) {
+function chaleurMomentVu(k, on, ou) {
   const pr = _isPlainObj(_prefs().chaleurMoments) ? _prefs().chaleurMoments : {};
   const plus = (Array.isArray(pr.plus) ? pr.plus : []).filter(x => x !== k), moins = (Array.isArray(pr.moins) ? pr.moins : []).filter(x => x !== k);
   pushUndo();
   _prefs().chaleurMoments = on ? { plus: [...plus, k], moins } : { plus, moins: [...moins, k] };   // ⚠️ remplacé, jamais modifié en place
   save();
-  _chMomOpen = true;
+  _momPickOpen[ou === 'fi' ? 'fi' : 'ch'] = true;
   renderStudents();
+  if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
 }
-let _chMomOpen = false;
-function _chaleurMomentsPickHTML(cls) {
+// Ouvert ou non, par endroit : la carte de chaleur (`ch`) et la fiche (`fi`) — la liste reste
+// ouverte pendant qu'on coche (le re-rendu la redessinerait fermée).
+const _momPickOpen = { ch: false, fi: false };
+function _chaleurMomentsPickHTML(cls, ou) {
+  const o = ou === 'fi' ? 'fi' : 'ch';
   const t = _chaleurMomentsTous(cls), per = _periods(cls);
-  return `<details class="el-cols ch-mom-pick"${_chMomOpen ? ' open' : ''} ontoggle="_chMomOpen=this.open"><summary class="pf-sl" title="Choisir les moments proposés ici — indépendants de 🗓 Moments de la liste">Synthèse pour ▾</summary>
-    <div class="el-cols-p">${t.map((c, i) => `${i === 0 || t[i - 1].pIdx !== c.pIdx ? `<div class="el-cols-t">${_escName(per[c.pIdx]?.label || '')}</div>` : ''}<label class="el-fen-l"><input type="checkbox"${c.vu ? ' checked' : ''} onchange="chaleurMomentVu('${_escJsAttr(c.key)}', this.checked)"> ${_escName(c.long)}</label>`).join('')}</div></details>`;
+  return `<details class="el-cols ch-mom-pick" data-ou="${o}"${_momPickOpen[o] ? ' open' : ''} ontoggle="_momPickOpen['${o}']=this.open"><summary class="pf-sl" title="Choisir les moments proposés — les mêmes dans la carte de chaleur et dans la fiche">Synthèse pour ▾</summary>
+    <div class="el-cols-p">${t.map((c, i) => `${i === 0 || t[i - 1].pIdx !== c.pIdx ? `<div class="el-cols-t">${_escName(per[c.pIdx]?.label || '')}</div>` : ''}<label class="el-fen-l"><input type="checkbox"${c.vu ? ' checked' : ''} onchange="chaleurMomentVu('${_escJsAttr(c.key)}', this.checked, '${o}')"> ${_escName(c.long)}</label>`).join('')}</div></details>`;
 }
 document.addEventListener('click', e => {
-  const d = document.querySelector('.ch-mom-pick[open]');
-  if (d && e.target && document.contains(e.target) && !d.contains(e.target)) { d.open = false; _chMomOpen = false; }
+  for (const d of document.querySelectorAll('.ch-mom-pick[open]'))
+    if (e.target && document.contains(e.target) && !d.contains(e.target)) { d.open = false; _momPickOpen[d.dataset.ou] = false; }
 });
 function chaleurMomentSet(k) {
   _ficheMoment = k;
@@ -6901,21 +6905,12 @@ function _ficheKey(e) {
 
 // ── Les MOMENTS d'une synthèse ── les colonnes de bilan de la liste (conseil, mi-période,
 // points du mois), période par période jusqu'à la courante, mi-période toujours proposée.
-// ⚠️ Un moment RETIRÉ par la liste 🗓 Moments (`prefs.bilansMasques`) ne s'y propose plus
-// (v1.46.0) : un seul réglage pour la liste et la fiche. Ses bilans restent lus dans la carte
-// Bilans, parmi les autres. Tout retiré : on garde la liste entière, une fiche sans moment
-// n'a plus rien à résumer.
-function _ficheMoments(cls) {
-  const pCour = _carnetCurrentPeriodIdx(cls), out = [];
-  for (let i = 0; i <= pCour; i++)
-    out.push(..._bilanColonnes(cls, i, [`bil:miperiode:${i}`, ...(i === pCour ? [..._bilanColsAjout] : [])]).map(c => ({ ...c, pIdx: i })));
-  const m = new Set(_bilansMasques()), vus = out.filter(c => !m.has(c.key));
-  return vus.length ? vus : out;
-}
-function _ficheMomentCourant(cls) {
-  const ms = _ficheMoments(cls);
-  return ms.find(c => c.key === _ficheMoment) || ms.find(c => c.key === `bil:conseil:${_carnetCurrentPeriodIdx(cls)}`) || ms[ms.length - 1] || null;
-}
+// ⚠️ Révisé en v1.46.8 (l'utilisateur : « que la fiche ait le même mécanisme de choix et de
+// sélection des moments que la carte de chaleur ») : les moments de *Synthèse pour* sont ceux
+// de la carte de chaleur (`_chaleurMoments`, `S.prefs.chaleurMoments`, liste à cocher sous le
+// titre) — plus ceux de 🗓 Moments (v1.46.0 → v1.46.7). Le moment choisi reste partagé.
+function _ficheMoments(cls) { return _chaleurMoments(cls); }
+function _ficheMomentCourant(cls) { return _chaleurMomentCourant(cls); }
 function ficheMomentSet(k) { const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); _ficheMoment = k; _ficheMot = null; _ficheRender(); }
 // Les bornes de ce qu'on résume : la période entière pour un conseil ; du début de la
 // période à son milieu pour la mi-période ; le mois pour un point du mois. PUR.
@@ -7049,7 +7044,7 @@ function _ficheBarHTML(cls, stu, col) {
   const o = _ficheOrdre(cls), i = o.indexOf(stu.id);
   const vue = _ficheVue(), cote = _ficheOuverture() === 'cote';
   const ms = _ficheMoments(cls);
-  return `<span class="pf-grp"><span class="pf-sl">Synthèse pour</span><span class="pf-seg">${ms.map((c, k) => `${k && ms[k - 1].pIdx !== c.pIdx ? '' : ''}<button class="${col && c.key === col.key ? 'on' : ''}" aria-pressed="${!!col && c.key === col.key}" onclick="ficheMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span></span>
+  return `<span class="pf-grp">${_chaleurMomentsPickHTML(cls, 'fi')}<span class="pf-seg">${ms.map((c, k) => `${k && ms[k - 1].pIdx !== c.pIdx ? '' : ''}<button class="${col && c.key === col.key ? 'on' : ''}" aria-pressed="${!!col && c.key === col.key}" onclick="ficheMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span></span>
     <span class="pf-seg" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     <span class="pf-sp"></span>
     <span class="pf-nav"><button onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="pf-n">${i + 1}/${o.length}</span><button onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>

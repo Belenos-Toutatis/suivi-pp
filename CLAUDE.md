@@ -1203,11 +1203,12 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      qu'on clique (`_elMomOpen`) et se ferme au clic ailleurs. Ajouté et encore vide : il disparaît (rien dans `S`).
      Avec des bilans : MASQUÉ (`S.prefs.bilansMasques`, un cran d'undo), les bilans restent
      dans les fiches, *＋* le remet (« (retiré) »). `_bilanColsVues` = la liste, la carte de
-     chaleur, le tri, le papier. ~~La fiche garde tous les moments.~~ **Révisé en v1.46.0**
+     chaleur, le tri, le papier. ~~La fiche garde tous les moments.~~ ~~**Révisé en v1.46.0**
      (l'utilisateur : *« dans la fiche, on peut aussi masquer un moment ? »*) : la fiche suit le
      même réglage — un moment retiré ne s'y propose plus dans *Synthèse pour* (`_ficheMoments`),
      ses bilans restent lus dans la carte Bilans parmi les autres ; tout retiré, la fiche garde
-     la liste entière. **v1.46.1** : aucun moment retenu → **pas de colonne Bilans** dans la
+     la liste entière.~~ (**v1.46.8** : la fiche a désormais la sélection de la carte de chaleur,
+     cf. *Carte de chaleur*.) **v1.46.1** : aucun moment retenu → **pas de colonne Bilans** dans la
      liste ; et ⚠️ un conseil remis par *+* passait dans l'ajout de la séance, et le premier *−*
      ne faisait que l'en sortir (un conseil existe toujours) : il fallait cliquer deux fois.
      `elevesBilanColRetirer` masque désormais tout moment qui resterait affiché. Au passage : « Point
@@ -1305,9 +1306,13 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        conseil, mi-période et chaque mois de chaque période jusqu'à la courante (ni août ni
        juillet) ; d'office conseil, mi-période et les mois qui ont un bilan ; le titre *Synthèse
        pour ▾* ouvre la liste à cocher (`chaleurMomentVu`, `S.prefs.chaleurMoments = { plus,
-       moins }`, remplacé jamais modifié en place, un cran d'undo). **Indépendants de 🗓 Moments**
-       (la fiche, elle, suit toujours 🗓 Moments) ; le moment choisi reste partagé avec la fiche
-       (`_chaleurMomentCourant`). Et la ligne « 25 élèves sur 25 » sous les filtres a disparu de
+       moins }`, remplacé jamais modifié en place, un cran d'undo). **Indépendants de 🗓 Moments** ;
+       le moment choisi reste partagé avec la fiche (`_chaleurMomentCourant`). **v1.46.8** (*« que
+       la fiche ait le même mécanisme de choix et de sélection des moments que la carte de
+       chaleur »*) : la fiche a la MÊME liste (`_ficheMoments` = `_chaleurMoments`,
+       `_ficheMomentCourant` = `_chaleurMomentCourant`) et le même titre *Synthèse pour ▾*
+       (`_chaleurMomentsPickHTML(cls, 'fi')`, ouvert ou non par endroit : `_momPickOpen`). 🗓
+       Moments ne règle plus que la colonne Bilans de la liste. Et la ligne « 25 élèves sur 25 » sous les filtres a disparu de
        la carte de chaleur : le compte est à droite des filtres. Par défaut, le conseil de la période
        courante : la période entière, comme avant.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
@@ -1802,6 +1807,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 96 | **La fiche a la sélection de moments de la carte de chaleur** (même liste, même titre *Synthèse pour ▾*) ; 🗓 Moments ne règle plus que la colonne Bilans ; tests mis à jour. Audit 3 vues, 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.8) |
 | 95 | **Carte de chaleur : moments de « Synthèse pour » à elle** (tous les mois proposables, liste à cocher sous le titre, indépendante de 🗓 Moments) · **compte d'élèves à droite des filtres** (une ligne de moins) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.7) |
 | 94 | **Carte de chaleur : Observations du carnet, puis MBN, puis Total des observations** (trois groupes) ; tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.6) |
 | 93 | **« +n » depuis une durée choisie** (📅 dans l'en-tête Observations : 1 ou 2 semaines, 1 ou 2 mois, début de la période ; propre au poste), carnet + MBN ; filtre « Observations +3 ou plus » et colonne imprimée sur la même durée ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut (un débordement à 320 px trouvé et corrigé : la puce du filtre) | ✅ **fait** (2026-10-03, v1.46.5) |

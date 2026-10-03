@@ -292,9 +292,9 @@ test('Liste : retirer un moment de bilan — vide et ajouté : il disparaît ; a
   assert.strictEqual(ev(`undoStack.length`), u + 1);
   assert.strictEqual(ev(`_bilansOf('s1').length`), 1, 'le bilan est toujours là');
   assert.ok(!ev(`_elevesPrintHTML(S.classes['5C'])`).includes('Mi-S1'), 'pas sur le papier non plus');
-  // v1.46.0 : la fiche suit le même réglage — le moment ne s'y propose plus, son bilan se lit
-  // parmi les autres de la carte Bilans.
-  assert.ok(!evObj(`_ficheMoments(S.classes['5C']).map(c => c.key)`).includes('bil:miperiode:0'), 'la fiche suit la liste');
+  // v1.46.8 : la fiche ne suit plus 🗓 Moments mais la sélection de la carte de chaleur — le
+  // moment retiré de la liste y reste proposé, et son bilan lisible.
+  assert.ok(evObj(`_ficheMoments(S.classes['5C']).map(c => c.key)`).includes('bil:miperiode:0'), 'la fiche ne suit plus la liste');
   assert.ok(ev(`(() => { const cls = S.classes['5C'], col = _ficheMomentCourant(cls); return _ficheBilansAutresHTML(cls, S.eleves.s1, col); })()`).includes('Mi-S1 de Léa'), 'le bilan reste lisible dans la fiche');
   // Un conseil (toujours présent) remis par ＋ se retire d'UN seul clic (v1.46.1 : il en
   // fallait deux — le premier ne faisait que le sortir de l'ajout de la séance).

@@ -127,6 +127,9 @@ test('Chronologie : les événements du moment, datés et triés, et la barre de
   assert.match(bar, /Faits et rédaction/);
   assert.match(bar, /1\/3/);
   // Le prototype : les moments en boutons (« Synthèse pour »), pas un menu.
-  assert.match(bar, /Synthèse pour<\/span><span class="pf-seg">/);
+  // v1.46.8 : le titre ouvre la liste à cocher des moments, la même que la carte de chaleur.
+  assert.match(bar, /Synthèse pour ▾<\/summary>/);
+  assert.match(bar, /<\/details><span class="pf-seg">/);
+  assert.match(bar, /chaleurMomentVu\('[^']+', this\.checked, 'fi'\)/);
   assert.match(bar, /onclick="ficheMomentSet\('bil:conseil:0'\)"[^>]*>Conseil S1</);
 });

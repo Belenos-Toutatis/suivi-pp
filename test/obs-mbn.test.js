@@ -278,7 +278,7 @@ test('Carte de chaleur : ses moments ne dépendent pas de 🗓 Moments ; le titr
   // Retirée de la liste (🗓 Moments), la mi-période reste proposée dans la carte de chaleur.
   ev(`S.prefs.bilansMasques = ['bil:miperiode:0']`);
   assert.ok(vus().includes('bil:miperiode:0'));
-  assert.ok(!evObj(`_ficheMoments(getCls()).map(c => c.key)`).includes('bil:miperiode:0'), 'la fiche, elle, suit la liste');
+  assert.deepStrictEqual(evObj(`_ficheMoments(getCls()).map(c => c.key)`), vus(), 'la fiche a les mêmes moments que la carte de chaleur (v1.46.8)');
   // Tous les mois sont proposables (ni août ni juillet) ; on coche / décoche.
   const tous = evObj(`_chaleurMomentsTous(getCls()).map(c => c.key)`);
   assert.ok(tous.includes('bil:mois:2025-10') && !tous.some(k => /-0[78]$/.test(k)));
@@ -288,10 +288,11 @@ test('Carte de chaleur : ses moments ne dépendent pas de 🗓 Moments ; le titr
   assert.strictEqual(ev(`undoStack.length`), 1);
   ev(`chaleurMomentVu('bil:miperiode:0', false)`);
   assert.ok(!vus().includes('bil:miperiode:0'));
+  assert.ok(!evObj(`_ficheMoments(getCls()).map(c => c.key)`).includes('bil:miperiode:0'), 'décoché : ni carte de chaleur ni fiche');
   // La liste à cocher est derrière le titre.
   const barre = evObj(`_elevesChaleurHTML(getCls(), _elevesRows(getCls()), [])`).barre;
   assert.match(barre, /<summary[^>]*>Synthèse pour ▾<\/summary>/);
-  assert.match(barre, /chaleurMomentVu\('bil:mois:2025-10', this\.checked\)/);
+  assert.match(barre, /chaleurMomentVu\('bil:mois:2025-10', this\.checked, 'ch'\)/);
   // Le compte : à droite des filtres, pas de seconde ligne.
   ev(`try { localStorage.setItem('suiviPP_elevesAffichage', 'chaleur'); } catch (_) {}`);
   const html = ev(`(() => { const z = document.createElement('div'); const o = document.getElementById; document.getElementById = x => x === 'eleves-body' ? z : o.call(document, x);
