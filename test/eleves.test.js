@@ -213,7 +213,7 @@ test('_ageSubHTML : l\'âge révolu sous le nom, vide sans date de naissance', (
   assert.strictEqual(ev(`_ageSubHTML({ naissance: '' }, 'age-s"1')`), '<span class="age-sub" id="age-s&quot;1"></span>');
 });
 
-test('_amenBadgesHTML : seuls les aménagements ACTIFS, dans leur encre — tiret sinon', () => {
+test('_amenBadgesHTML : seuls les aménagements ACTIFS, dans leur encre — rien sinon (v1.47.1)', () => {
   // Les huit boutons cliquables d'origine faisaient de cette colonne la plus large du
   // tableau, pour un réglage qui vient de l'import et se corrige par ✏️.
   const lab = html => [...html.matchAll(/<span class="amen" style="color:var\((--[a-z0-9-]+)\)">([^<]*)<\/span>/g)].map(m => [m[2], m[1]]);
@@ -222,8 +222,9 @@ test('_amenBadgesHTML : seuls les aménagements ACTIFS, dans leur encre — tire
   assert.deepStrictEqual(lab(ev(`_amenBadgesHTML({ ulis_incl: true, upe2a: true })`)),
     [['ULIS+', '--st-ulis-i-fg'], ['UPE2A', '--st-upe2a-fg']]);
   assert.match(ev(`_amenBadgesHTML({ tiers_temps: true })`), /⏱/);
-  assert.strictEqual(ev(`_amenBadgesHTML({})`), '<span class="tb-hint">—</span>');
-  assert.strictEqual(ev(`_amenBadgesHTML(undefined)`), '<span class="tb-hint">—</span>');
+  // Plus de « — » (audit ergonomique C12) : au milieu des pastilles du groupe et des options, il ne se lisait pas.
+  assert.strictEqual(ev(`_amenBadgesHTML({})`), '');
+  assert.strictEqual(ev(`_amenBadgesHTML(undefined)`), '');
 });
 
 // ─────────────────── Audit du 2026-09-11 : ce que l'undo et le rechargement doivent redessiner

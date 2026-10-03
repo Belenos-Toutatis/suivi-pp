@@ -100,3 +100,44 @@ test('C5 — dans la fiche, les contacts s\'ouvrent dans la même fenêtre que d
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
   assert.match(src, /function ficheVersContacts\(\) \{ openContacts\(_ficheSid\);/);
 });
+
+test('Fiche : le nom se corrige dans « Identité et repères », plus dans le titre', () => {
+  ev(DEMO);
+  const sid = ev(`getCls().eleves[0]`), J = JSON.stringify(sid);
+  const corps = rendu('mfiche-body', `_ficheSid = ${J}; _ficheEdit = null; try { localStorage.removeItem(_LS_FICHE_VUE); } catch (_) {} _ficheRender()`);
+  assert.match(corps, /<dt>Nom<\/dt><dd>[^<]*<\/dd>|<dt>Nom<\/dt><dd>.*?ficheEdit\('nom'\)/s);
+  const titre = rendu('mfiche-title', `_ficheSid = ${J}; _ficheRender()`);
+  assert.ok(!/ficheEdit\('nom'\)/.test(titre), 'pas de ✎ dans le titre');
+  assert.match(rendu('mfiche-body', `_ficheSid = ${J}; _ficheEdit = 'nom'; _ficheRender(); _ficheEdit = null`), /id="fi-nom"/);
+});
+
+test('Points moyens (C6–C12) : moments dits indépendants, MBN corrigeable, imports réunis, cases cliquables, feuille d\'un autre moment dite, boutons nommés', () => {
+  ev(DEMO);
+  // C6
+  assert.match(ev(`_elevesMomentsHTML(getCls(), _carnetCurrentPeriodIdx(getCls()))`), /se choisissent à part/);
+  assert.match(ev(`_chaleurMomentsPickHTML(getCls(), 'ch')`), /se choisissent à part/);
+  // C7
+  const sid = ev(`getCls().eleves.find(id => _obsMbnOf(id).length >= 2)`), J = JSON.stringify(sid);
+  const n = ev(`_obsMbnOf(${J}).length`), id = ev(`_obsMbnOf(${J})[0].id`);
+  assert.strictEqual(ev(`obsMbnRemove(${J}, ${JSON.stringify(id)})`), true);
+  assert.strictEqual(ev(`_obsMbnOf(${J}).length`), n - 1);
+  assert.strictEqual(ev(`obsMbnRemove(${J}, 'inconnu')`), false);
+  // C8 : la section Imports
+  // La jauge de mémoire est asynchrone et vise l'écran réel : neutralisée ici (comme dans polices.test.js).
+  const don = ev(`(() => { _renderStorageGauge = () => {}; const z = document.createElement('div'); _renderDonneesInner(z); return z.innerHTML; })()`);
+  for (const f of ['openImportStudents()', 'openMbnImport()', 'openObsMbnImport()', 'openMoyImport()', "imp-file-pdc", "imp-file-recup", "imp-file'"]) assert.ok(don.includes(f), f);
+  assert.match(don, /📥 Imports/);
+  // C9 : incidents et bilans cliquables dans la carte de chaleur
+  const G = `_chaleurGroupes(getCls(), _bilanColsVues(getCls(), _carnetCurrentPeriodIdx(getCls())))`;
+  assert.match(ev(`${G}.find(g => g.key === 'inc').cell(${J}, '__tot')[3]`), /^openIncident\(/);
+  assert.match(ev(`(g => g.cell(${J}, g.sub[0].id)[3])(${G}.find(g => g.key === 'bil'))`), /^elevesBilanOuvrir\(/);
+  // C10 : une feuille d'un autre moment est dite
+  ev(`_ficheMoment = 'bil:conseil:1'`);
+  const lab = ev(`${G}.find(g => g.key === 'avis')?.label || ''`);
+  if (lab) assert.match(lab, /pas de feuille pour Conseil S2/);
+  ev(`_ficheMoment = null`);
+  // C12 : boutons nommés, plus de « — » parmi les pastilles
+  const liste = rendu('documents-body', `closeRamassage(); _docView = null; renderDocuments()`);
+  assert.match(liste, /📋 Retours<\/button>/);
+  assert.match(liste, /⧉ Dupliquer<\/button>/);
+});

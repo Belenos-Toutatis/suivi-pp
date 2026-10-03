@@ -892,6 +892,10 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
 .pdc-row:hover { background: var(--paper-warm); }
 .pdc-row input { width: 16px; height: 16px; }
 /* Réglages (onglet Données) */
+.don-imps { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 8px 14px; margin-bottom: 22px; max-width: 1000px; }
+.don-imp { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 8px 10px; background: var(--paper); min-width: 0; }
+.don-imp > div { min-width: 0; }
+.don-imp .btn { flex: none; }
 .prefs { display: grid; grid-template-columns: max-content 1fr; gap: 10px 16px; align-items: center; max-width: 620px; margin-bottom: 18px; }
 .prefs label { font-weight: 600; color: var(--pencil); font-size: .87em; }
 .prefs .pref-help { grid-column: 2; font-size: .8em; color: var(--pencil); margin-top: -6px; }
@@ -1431,7 +1435,7 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 /* Une décision prise pour ce moment (v1.47.0) : le point entouré d'un second anneau. */
 .el-bd.d { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--g3); }
 .el-bsep { display: inline-block; width: 1px; height: 13px; background: var(--rule-line); margin: 0 3px; }
-.el-rem { border: 0; background: none; padding: 0; max-width: 18em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--ink-deep); font-size: .92em; display: inline-block; vertical-align: middle; }
+.el-rem { border: 0; background: none; padding: 0; max-width: 13em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--ink-deep); font-size: .92em; display: inline-block; vertical-align: middle; }
 /* En indicateurs, une ligne par élève : les textes (remarque, bilans) sur UNE ligne, le
    reste au survol. Une case qui grandit double la hauteur de toute la rangée. */
 .eleves-table .synth-rem { white-space: nowrap; text-overflow: ellipsis; max-width: 16em; max-height: none; }
@@ -2006,12 +2010,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="sh"><h2>💾 Données et réglages</h2></div>
     <div class="tb">
       <button class="btn btn-p" onclick="exportJSON()" title="Télécharger un fichier JSON contenant TOUTES vos données. Sauvegarde manuelle ou transfert vers une autre machine.">⬇ Exporter (.json)</button>
-      <button class="btn btn-g" onclick="document.getElementById('imp-file').click()" title="Charger un fichier JSON — remplace l'état actuel après confirmation. Annulable via Ctrl+Z.">⬆ Importer (.json)</button>
       <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importJSON(event)">
-      <button class="btn btn-g" onclick="document.getElementById('imp-file-pdc').click()" title="Lire un export plan-classe-*.json : on choisit la classe à reprendre ; identité, groupe, options et aménagements des élèves, plus les places et les ordres de ramassage. C'est AUSSI par ici qu'on met à jour un placement qui a changé.">🪑 Depuis Plan de classe…</button>
       <input type="file" id="imp-file-pdc" accept=".json" style="display:none" onchange="importPlanDeClasse(event)">
-      <button class="btn btn-g" onclick="document.getElementById('imp-file-recup').click()" title="Relire une ANCIENNE sauvegarde (export .json, suivi-pp-bk-…, point nommé) pour remplir les naissances, dates d'arrivée ou de départ et civilités qui sont VIDES aujourd'hui — par exemple effacées par un import depuis Plan de classe avant la v1.41.1. Rien de ce qui est rempli n'est remplacé.">🩹 Récupérer des dates…</button>
       <input type="file" id="imp-file-recup" accept=".json" style="display:none" onchange="recupChampsFichier(event)">
+      <span class="tb-hint">Les imports sont rassemblés juste en dessous.</span>
       <button class="btn btn-g" style="margin-left:auto" onclick="loadDemoOnDemand()" title="Remplacer les données par une classe fictive complète, pour essayer l'application sans risque. Récupérable par Ctrl+Z.">🧪 Données de démo</button>
       <button class="btn btn-d" onclick="resetEverything()" title="Effacer classes, élèves, relevés, documents et élections. Récupérable par Ctrl+Z.">🗑 Tout effacer</button>
     </div>
@@ -2793,8 +2795,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.47.0';
-const APP_BUILD_DATE = '2026-10-03T07:35:48Z';
+const APP_VERSION    = '1.47.1';
+const APP_BUILD_DATE = '2026-10-03T07:57:23Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3964,7 +3966,22 @@ function _renderDonneesInner(el) {
   const nbEle = Object.values(S.elections).reduce((n, m) => n + nb(m), 0);
   const octets = (() => { try { return (localStorage.getItem(LS_KEY) || '').length; } catch (_) { return 0; } })();
   const pm = _prefs().periodMode === 'trimestre' ? 'trimestre' : 'semestre';
+  // Tous les IMPORTS au même endroit (v1.47.1, audit C8) — chacun reste aussi près de ses
+  // données (Élèves, Moyennes, Observations, Régimes) ; ici on les trouve tous.
+  const imp = (ic, quoi, format, ou, btn) => `<div class="don-imp"><div><strong>${ic} ${quoi}</strong><div class="tb-hint">${format}${ou ? ` · aussi ${ou}` : ''}</div></div>${btn}</div>`;
+  const b = (onclick, label) => `<button class="btn btn-g btn-sm" onclick="${onclick}">${label}</button>`;
   el.innerHTML = `
+    <h3 style="margin-bottom:10px">📥 Imports</h3>
+    <div class="don-imps">
+      ${imp('👥', 'Élèves', 'liste Pronote, SIECLE ou tableur (.csv, .xlsx, .ods, ou collée)', 'dans Élèves ▸ Importer', b('openImportStudents()', '⬆ Importer des élèves…'))}
+      ${imp('🪑', 'Depuis Plan de classe', 'plan-classe-*.json : élèves, groupes, options, places, ordres de ramassage', '', b("document.getElementById('imp-file-pdc').click()", 'Choisir le fichier…'))}
+      ${imp('🍽', 'Régimes (Mon Bureau Numérique)', 'export « régimes de sortie » (.xlsx) : demi-pension, entrée, sortie', 'dans Élèves ▸ 🍽 Régimes', b('openMbnImport()', '📥 Depuis MBN…'))}
+      ${imp('📓', 'Observations (Mon Bureau Numérique)', 'export des observations (.xlsx)', 'dans Observations', b('openObsMbnImport()', '📥 Depuis MBN…'))}
+      ${imp('📈', 'Moyennes (bureau numérique)', 'export des moyennes (.csv)', 'dans Moyennes', b('openMoyImport()', '📥 Importer…'))}
+      ${imp('🗣', 'Avis des collègues', 'la feuille .ods du Nuage, relue', 'dans Avis des collègues', b("switchTab('avis')", 'Ouvrir l\'onglet'))}
+      ${imp('⬆', 'Sauvegarde complète', 'fichier .json exporté par l\'app : REMPLACE tout après confirmation (Ctrl+Z annule)', '', b("document.getElementById('imp-file').click()", 'Choisir le fichier…'))}
+      ${imp('🩹', 'Récupérer des dates', 'une ancienne sauvegarde .json : remplit seulement les naissances, arrivées, départs et civilités vides', '', b("document.getElementById('imp-file-recup').click()", 'Choisir le fichier…'))}
+    </div>
     <h3 style="margin-bottom:10px">⚙ Réglages</h3>
     <div class="prefs">
       <label for="pref-period">Périodes</label>
@@ -3984,7 +4001,7 @@ function _renderDonneesInner(el) {
       <div class="pref-help">Les codes d'entrée de l'établissement, un par ligne, avec leur signification après « = » (par exemple <code>A1 = arrivée à la première heure de cours</code>).</div>
       <label for="pref-sorties">Régimes de sortie</label>
       <textarea id="pref-sorties" rows="4" style="max-width:420px;font-family:var(--font-mono)" onchange="regimesCodesUI('regimesSortie', this.value)">${_escName(_sortieCodes().map(c => c.code + (c.label ? ' = ' + c.label : '')).join('\n'))}</textarea>
-      <div class="pref-help">Les codes de sortie, de même. Ils se choisissent sur chaque élève (✏️, ou la puce 🍽 Régimes de la liste des élèves), s'affichent dans la colonne Groupe · options, et se reprennent de l'export de Mon Bureau Numérique : <button class="btn btn-g btn-sm" onclick="openMbnImport()">📥 Régimes depuis MBN…</button> — de même que les observations saisies par les collègues dans MBN : <button class="btn btn-g btn-sm" onclick="openObsMbnImport()">📥 Observations MBN…</button></div>
+      <div class="pref-help">Les codes de sortie, de même. Ils se choisissent sur chaque élève (✏️, ou la puce 🍽 Régimes de la liste des élèves), s'affichent dans la colonne Groupe · options, et se reprennent de l'export de Mon Bureau Numérique (📥 Imports, en haut de cette page).</div>
       <label for="pref-police-ecran">Police de l'écran</label>
       <select id="pref-police-ecran" onchange="setPref('policeEcran', this.value)" style="max-width:220px">
         ${Object.entries(_POLICES).map(([k, v]) => `<option value="${k}"${_applyPolices().ecran === k ? ' selected' : ''}>${_escName(v.label)}${k === 'andika' ? ' (par défaut)' : ''}</option>`).join('')}
@@ -4632,7 +4649,8 @@ const _AMEN_VIEW = [
 function _amenBadgesHTML(stu) {
   const out = _AMEN_VIEW.filter(([k]) => stu && stu[k])
     .map(([k, lab, tok]) => `<span class="amen" style="color:var(${tok})">${lab === null ? '⏱' + _FRAC13_HTML : lab}</span>`);
-  return out.length ? out.join('') : '<span class="tb-hint">—</span>';
+  // Rien quand il n'y a rien (v1.47.1, audit C12) : un « — » au milieu des pastilles ne se lisait pas.
+  return out.join('');
 }
 
 // L'âge sous le nom, dans les grilles. Vide sans date de naissance : un tiret ferait
@@ -5676,6 +5694,25 @@ function _obsMbnBilan(cls, lignes) {
   return { nouveaux, connus, retirables, debut, fin };
 }
 // Sans pushUndo ni save : l'appelant s'en charge. `retirer` = ids d'observations à ôter.
+// Retirer UNE observation MBN à la main (v1.47.1, audit C7 — une observation importée par
+// erreur ne partait que par un nouvel import). Sans pushUndo ni save.
+function obsMbnRemove(sid, id) {
+  const s = S.eleves[sid];
+  if (!s || !Array.isArray(s.obsMbn)) return false;
+  const n = s.obsMbn.length;
+  s.obsMbn = s.obsMbn.filter(e => e?.id !== id);
+  if (!s.obsMbn.length) delete s.obsMbn;
+  return (s.obsMbn?.length ?? 0) < n;
+}
+function obsMbnRemoveUI(sid, id) {
+  pushUndo();
+  if (!obsMbnRemove(sid, id)) return;
+  save();
+  if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+  if (document.querySelector('.tab.on')?.id === 'tab-carnets') renderCarnets();
+  toast('Observation MBN retirée — Ctrl+Z la rend. Un nouvel import la reproposera si elle est toujours dans MBN.');
+}
 function _obsMbnAppliquer(nouveaux, retirer) {
   const ote = new Set(retirer || []);
   if (ote.size) for (const s of Object.values(S.eleves)) if (Array.isArray(s.obsMbn)) s.obsMbn = s.obsMbn.filter(e => !ote.has(e?.id));
@@ -5906,7 +5943,7 @@ function _elevesMomentsHTML(cls, pCour) {
       : `<button class="el-mom-b plus" onclick="elevesBilanColAjout('${_escJsAttr(m.key)}')" title="Ajouter à la colonne Bilans" aria-label="Ajouter ${_escAttr(m.label)}">+</button>`}</div>`).join('');
   return `<details class="el-cols el-mom"${_elMomOpen ? ' open' : ''} ontoggle="_elMomOpen=this.open">
     <summary class="el-chip col on" title="Les moments de bilan de la colonne Bilans : − pour en retirer un, + pour en ajouter">🗓 Moments <span class="el-chip-n">${nVus}</span></summary>
-    <div class="el-cols-p">${lignes}</div></details>`;
+    <div class="el-cols-p">${lignes}<div class="tb-hint" style="margin-top:6px">Les colonnes de bilan de cette liste. Les moments de la carte de chaleur et de la fiche se choisissent à part, sous leur titre « Synthèse pour ».</div></div></details>`;
 }
 // Le volet se referme au clic AILLEURS — une cible détachée (un bouton du volet qui vient de
 // re-rendre la liste) n'est pas « ailleurs ».
@@ -6244,7 +6281,9 @@ function _chaleurGroupes(cls, bcols, colM) {
   const camp = (col && campsP.find(c => _avisMsgReglages(c).moment === col.type)) || _avisDeLaPeriode(cls, pIdx);
   if (camp) {
     const cols = _avisCols(camp);
-    G.push({ key: 'avis', label: `Avis — ${_avisObjectif(cls, camp).court}`, sub: camp.disciplines.map(d => ({ id: d.id, l: d.onglet, long: d.nom })),
+    // Une feuille d'un AUTRE moment, faute de mieux : le dire (v1.47.1, audit C10).
+    const autre = col && _avisMsgReglages(camp).moment !== col.type;
+    G.push({ key: 'avis', label: `Avis — ${_avisObjectif(cls, camp).court}${autre ? ` (pas de feuille pour ${col.court})` : ''}`, sub: camp.disciplines.map(d => ({ id: d.id, l: d.onglet, long: d.nom })),
       cell: (sid, did) => {
         const a = camp.avis?.[sid]?.[did], d = camp.disciplines.find(x => x.id === did);
         const pleins = a ? cols.filter(c => a[c.key]) : [];
@@ -6275,13 +6314,15 @@ function _chaleurGroupes(cls, bcols, colM) {
         return x.length ? [cl, String(x.length), x.map(fmt).join('\n') + (clic ? '\n' + clic.tip : ''), clic ? clic.fn(sid) : null] : ['ch-no', '', clic ? clic.tip : '', clic ? clic.fn(sid) : null]; },
       sum });
   };
-  parMois('inc', 'Incidents', sid => (S.eleves[sid]?.incidents || []).filter(_isPlainObj), 'ch-inc', e => `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label} : ${e.objet || ''}`);
+  parMois('inc', 'Incidents', sid => (S.eleves[sid]?.incidents || []).filter(_isPlainObj), 'ch-inc', e => `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label} : ${e.objet || ''}`,
+    { fn: sid => `openIncident('${_escJsAttr(sid)}')`, tip: 'Clic : noter un incident (la fiche les liste tous)' });
   parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`,
     { fn: sid => `openContacts('${_escJsAttr(sid)}')`, tip: 'Clic : la liste des contacts, pour les voir, les corriger, en noter un' });
   if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: (col && c.key === col.key ? '▶ ' : '') + c.court, long: c.long + (col && c.key === col.key ? ' — le moment choisi' : '') })),
     cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
       const dTxt = dc ? `\nDécisions : ${String(dc.texte).slice(0, 300)}` : '';
-      return b || dc ? ['ch-bil', dc ? '◉' : '●', `${c.long}${b ? ` — ${_fmtDateFr(b.date)}\n${String(b.texte).slice(0, 400)}` : ' : bilan à écrire'}${dTxt}`] : ['ch-no', '○', `${c.long} : rien d'écrit`]; },
+      const ouvre = `elevesBilanOuvrir('${_escJsAttr(sid)}','${_escJsAttr(k)}')`;   // comme les points de la liste (v1.47.1, audit C9)
+      return b || dc ? ['ch-bil', dc ? '◉' : '●', `${c.long}${b ? ` — ${_fmtDateFr(b.date)}\n${String(b.texte).slice(0, 400)}` : ' : bilan à écrire'}${dTxt}\nClic : rédiger`, ouvre] : ['ch-no', '○', `${c.long} : rien d'écrit — clic : rédiger`, ouvre]; },
     sum: sid => ['ch-bil', bcols.map(c => _bilanDeColonne(cls, sid, c) ? '●' : '○').join(''), bcols.map(c => `${c.court} : ${_bilanDeColonne(cls, sid, c) ? 'écrit' : '—'}`).join('\n')] });
   return G;
 }
@@ -6326,7 +6367,8 @@ function _chaleurMomentsPickHTML(cls, ou) {
   const o = ou === 'fi' ? 'fi' : 'ch';
   const t = _chaleurMomentsTous(cls), per = _periods(cls);
   return `<details class="el-cols ch-mom-pick" data-ou="${o}"${_momPickOpen[o] ? ' open' : ''} ontoggle="_momPickOpen['${o}']=this.open"><summary class="pf-sl" title="Choisir les moments proposés — les mêmes dans la carte de chaleur et dans la fiche">Synthèse pour ▾</summary>
-    <div class="el-cols-p">${t.map((c, i) => `${i === 0 || t[i - 1].pIdx !== c.pIdx ? `<div class="el-cols-t">${_escName(per[c.pIdx]?.label || '')}</div>` : ''}<label class="el-fen-l"><input type="checkbox"${c.vu ? ' checked' : ''} onchange="chaleurMomentVu('${_escJsAttr(c.key)}', this.checked, '${o}')"> ${_escName(c.long)}</label>`).join('')}</div></details>`;
+    <div class="el-cols-p">${t.map((c, i) => `${i === 0 || t[i - 1].pIdx !== c.pIdx ? `<div class="el-cols-t">${_escName(per[c.pIdx]?.label || '')}</div>` : ''}<label class="el-fen-l"><input type="checkbox"${c.vu ? ' checked' : ''} onchange="chaleurMomentVu('${_escJsAttr(c.key)}', this.checked, '${o}')"> ${_escName(c.long)}</label>`).join('')}
+      <div class="tb-hint" style="margin-top:6px;white-space:normal">Les mêmes dans la carte de chaleur et la fiche. Les colonnes de bilan de la liste se choisissent à part, par 🗓 Moments.</div></div></details>`;
 }
 document.addEventListener('click', e => {
   for (const d of document.querySelectorAll('.ch-mom-pick[open]'))
@@ -6391,7 +6433,7 @@ function renderStudents() {
   // Ligne 1 : l'affichage et les filtres. Ligne 2 (indicateurs) : la vue et les colonnes.
   const affHTML = `<div class="tb el-aff-tb"><span class="el-aff" role="group" aria-label="Affichage de la liste">${[['indic', '▦ Indicateurs', 'Une case par sujet : un repère court, le contenu au survol'], ['chaleur', '▥ Carte de chaleur', 'Une case par relevé, matière, discipline, papier, mois et bilan : ce qui est rempli, et quand']].map(([k, l, t]) =>
       `<button class="${aff === k ? 'on' : ''}" aria-pressed="${aff === k}" onclick="elevesAffichageSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
-    ${_elevesFiltresHTML(cls)}${aff !== 'indic' ? `<span style="margin-left:auto">${compte}</span>` : ''}</div>`;
+    ${_elevesFiltresHTML(cls)}<span style="margin-left:auto">${compte}</span></div>`;
   // Carte de chaleur : pas de seconde ligne — le compte est à droite des filtres (v1.46.7,
   // l'utilisateur : « une ligne en trop qui prend de la place pour pas grand-chose »).
   const vuesHTML = aff !== 'indic' ? '' : `<div class="tb el-vues-tb">
@@ -6401,8 +6443,7 @@ function renderStudents() {
       <button class="el-chip col${_elevesNais ? ' on' : ''}" aria-pressed="${_elevesNais}" onclick="_elevesNais=!_elevesNais;renderStudents()" title="La colonne des dates de naissance, à saisir d'un élève à l'autre par Entrée">📅 Naissances</button>
       <button class="el-chip col${_elevesReg ? ' on' : ''}" aria-pressed="${_elevesReg}" onclick="_elevesReg=!_elevesReg;renderStudents()" title="Trois colonnes pour saisir en série le régime de demi-pension, le régime d'entrée et le régime de sortie">🍽 Régimes</button>
       ${_elevesReg ? `<button class="btn btn-g btn-sm" onclick="openMbnImport()" title="Reprendre les régimes depuis l'export « régimes de sortie » de Mon Bureau Numérique (.xlsx)">📥 Depuis MBN…</button>` : ''}
-      ${_elevesColVue('bilans') ? _elevesMomentsHTML(cls, pCour) : ''}
-      ${compte}</div>`;
+      ${_elevesColVue('bilans') ? _elevesMomentsHTML(cls, pCour) : ''}</div>`;
   // ⚠️ Plus de ligne « Trier » (v1.44.4, l'utilisateur : « on clique maintenant sur le titre
   // de colonne pour trier ») ; les ordres de place et de ramassage servent aux SAISIES (carnet,
   // signatures), pas à cette liste : un mode resté d'une autre grille retombe sur le nom.
@@ -6442,7 +6483,8 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const head = `<tr><th class="el-th-nom">${_elevesThNomHTML()}</th>${
     _elevesNais ? `<th onclick="sortEleves('nais')" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance</th>` : ''}${
     _elevesReg ? `<th title="Demi-pensionnaire, externe, interne">Régime</th><th title="Le régime d'entrée de l'établissement — codes réglables dans 💾 Données">Entrée</th><th title="Le régime de sortie de l'établissement — codes réglables dans 💾 Données">Sortie</th>` : ''}${
-    cols.map(c => th(c.key, _escName(c.label) + (c.key === 'carnet' ? ` <span class="el-th-sub">· ${avecMbnL ? 'total année' : 'cumul'}</span> ` + _obsFenetrePickHTML(cls) : ''), TITRES[c.key])).join('')}</tr>`;
+    cols.map(c => th(c.key, _escName(c.label) + (c.key === 'carnet' ? ` <span class="el-th-sub">· ${avecMbnL ? 'total année' : 'cumul'}</span> ` + _obsFenetrePickHTML(cls) : '')
+      + (c.key === 'avis' && campCour ? ` <span class="el-th-sub">· ${_escName(_avisObjectif(cls, campCour).court)}</span>` : ''), TITRES[c.key])).join('')}</tr>`;
   const dot = (titre, onclick) => `<button class="el-0" ${onclick ? `onclick="${onclick}"` : ''} title="${_escAttr(titre)}" aria-label="${_escAttr(titre)}">·</button>`;
   const body = rowsData.map(({ s, r }) => {
     const sid = s.id, j = _escJsAttr(sid);
@@ -6732,11 +6774,13 @@ function _ficheRender() {
   if (!stu || !box) return;
   const cls = S.classes[stu.classe_id] || null;
   const t = document.getElementById('mfiche-title');
-  if (t) t.innerHTML = _ficheEdit === 'nom'
-    ? `👤 <input type="text" id="fi-nom" data-fi-focus value="${_escAttr(stu.nom)}" placeholder="NOM" maxlength="60" style="width:180px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
-       <input type="text" id="fi-prn" value="${_escAttr(stu.prenom)}" placeholder="Prénom" maxlength="60" style="width:150px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
-       <button class="btn btn-p btn-sm" onclick="ficheSaveNom()">✓</button> <button class="btn btn-g btn-sm" onclick="ficheEdit('nom')">Annuler</button>`
-    : `${_nomHTML(stu.id, stu.nom, stu.prenom)}${cls && _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls))?.cibles?.includes(stu.id) ? ' <span class="pf-star" title="Avis demandés en particulier">⭐</span>' : ''} <button class="fi-plus" onclick="ficheEdit('nom')" title="Corriger le nom ou le prénom">✎</button>`;
+  // Le titre ne s'édite plus (v1.47.1, l'utilisateur : « le titre n'est pas un endroit habituel
+  // pour éditer ce genre d'informations ») : nom et prénom se corrigent dans « Identité et repères ».
+  if (t) t.innerHTML = `${_nomHTML(stu.id, stu.nom, stu.prenom)}${cls && _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls))?.cibles?.includes(stu.id) ? ' <span class="pf-star" title="Avis demandés en particulier">⭐</span>' : ''}`;
+  const edNom = _ficheEdit !== 'nom' ? '' : `<div class="fi-editor">
+       <input type="text" id="fi-nom" data-fi-focus value="${_escAttr(stu.nom)}" placeholder="NOM" maxlength="60" style="width:150px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
+       <input type="text" id="fi-prn" value="${_escAttr(stu.prenom)}" placeholder="Prénom" maxlength="60" style="width:130px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveNom()}">
+       <button class="btn btn-p btn-sm" onclick="ficheSaveNom()">✓</button> <button class="btn btn-g btn-sm" onclick="ficheEdit('nom')">Annuler</button></div>`;
   const meta = document.getElementById('mfiche-meta');
   if (meta) { const age = _ficheAge(stu.naissance), dl = _delegueOf(stu.id);
     meta.textContent = [age !== null ? age + ' ans' : '', stu.groupe ? 'G' + stu.groupe : '', _studentTags(stu).map(x => x.abbr).join(', '), _amenLabel(stu, false), _regimeOf(stu.regime)?.court || '', stu.entree || '', stu.sortie || '', dl ? 'délégué ' + (dl === 'titulaire' ? 'titulaire' : 'suppléant') : ''].filter(Boolean).join(' · '); }
@@ -6977,7 +7021,7 @@ function _ficheRender() {
   // replié.~~ v1.46.9 (l'utilisateur : « pourquoi ne pas inclure dans la première partie ce qui
   // n'y figurait pas, et le supprimer ? ») : ce que seul le dossier montrait (réponses aux
   // documents, places, élections, corrections en place) est rattaché à sa carte, derrière ✎.
-  const ed = { remHTML, contactForm, edClasse, edGroupe, edOptions, edAmen, edPlace, dateInp, age, places, eco,
+  const ed = { remHTML, contactForm, edNom, edClasse, edGroupe, edOptions, edAmen, edPlace, dateInp, age, places, eco,
     presence: _ficheePresence(stu), els, elsHTML, relevesHTML, jHTML, incHTML, bilHTML, docsHTML, docsInfo: docs };
   box.innerHTML = vue === 'chrono' && col ? _ficheChronoHTML(cls, stu, col)
     : vue === 'faits' && col ? _ficheFaitsHTML(cls, stu, col)
@@ -7427,6 +7471,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const kv = (dt, dd, crayon, editeur) => `<dt>${dt}</dt><dd>${dd}${crayon ? ' ' + crayon : ''}${editeur || ''}</dd>`;
   const ouEdit = k => _ficheEdit === k;
   const ident = `<dl class="pf-kv">${
+    kv('Nom', `${_escName(stu.nom)} ${_escName(stu.prenom)}`, pen('nom', 'Corriger le nom ou le prénom'), ed.edNom)}${
     kv('Classe', `${_escName(cls.nom)}${cls.annee ? ` <span class="pf-mu">${_escName(cls.annee)}</span>` : ''}`, pen('classe', 'Corriger le nom ou l\'année de la classe'), ed.edClasse)}${
     kv('Né(e) le', stu.naissance ? `${_escName(_fmtDateFr(stu.naissance))}${ed.age !== null ? ` <span class="pf-mu">${ed.age} ans</span>` : ''}` : '–', pen('naissance', 'Corriger la date de naissance'), ouEdit('naissance') ? `<div class="fi-editor">${ed.dateInp('naissance', stu.naissance)}</div>` : '')}${
     kv('Civilité', stu.civilite ? _escName(civiliteFullLabel(stu.civilite)) : '–', penF('ficheCycleCivilite()', 'Changer : garçon → fille → non renseignée'))}${
@@ -7445,9 +7490,9 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   // Papiers : les choix portés sur chaque document (Devoirs Faits, options…), lus d'un coup d'œil.
   const choixDoc = id => (ed.docsInfo.find(x => x.docId === id)?.reponses || []).map(r => `${r.champ} : ${r.valeurs.join(', ')}`).join(' · ');
   return `<div class="pf-grid">
-    ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="pf-add" onclick="ficheVersEdition()" title="Modifier l'élève : nom, civilité, groupe, options, aménagements, dates">✏️</button><button class="pf-add pf-del" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑</button>`)}
+    ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="btn btn-g btn-sm" onclick="ficheVersEdition()" title="Tout modifier dans une fenêtre : nom, civilité, groupe, options, régimes, aménagements, dates">✏️ Tout modifier</button><button class="btn btn-d btn-sm" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑 Supprimer</button>`)}
     ${card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + (ouEdit('bilans') ? `<div class="pf-edbox">${ed.bilHTML}</div>` : _ficheBilansAutresHTML(cls, stu, col)), pen('bilans', 'Modifier ou supprimer un bilan écrit — tous les bilans de l\'année'))}
-    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length) + (mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
+    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length, pen('mbn', 'Retirer une observation MBN importée par erreur — toute l\'année')) + (ouEdit('mbn') ? `<div class="pf-edbox">${_obsMbnOf(sid).length ? _obsMbnOf(sid).map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''} <button class="btn btn-d btn-sm" onclick="obsMbnRemoveUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}')" title="Retirer cette observation (Ctrl+Z la rend)">🗑</button></span></div>`).join('') : '<p class="pf-empty">Aucune observation MBN.</p>'}</div>` : mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
     ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
@@ -10943,11 +10988,11 @@ function renderDocuments() {
       <td>${rendus}</td>
       <td>${rep} ${avis}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-g btn-sm" onclick="openDoc('${_escJsAttr(d.id)}')" title="Ouvrir le tableau des retours">📋</button>
-        <button class="btn btn-g btn-sm" onclick="openDocEdit('${_escJsAttr(d.id)}')" title="Réglages du document (titre, dates, champs)">✏️</button>
-        <button class="btn btn-g btn-sm" onclick="docDuplicateUI('${_escJsAttr(d.id)}')" title="Dupliquer : mêmes champs et options, retours vides — le geste de la rentrée suivante">⧉</button>
-        <button class="btn btn-g btn-sm" onclick="docToggleArchive('${_escJsAttr(d.id)}')" title="${d.archive ? 'Sortir des archives' : 'Archiver : rangé hors de la vue courante, sans rien supprimer'}">${d.archive ? '📤' : '📦'}</button>
-        <button class="btn btn-d btn-sm" onclick="docDeleteUI('${_escJsAttr(d.id)}')" title="Supprimer le document et ses retours">🗑</button>
+        <button class="btn btn-g btn-sm" onclick="openDoc('${_escJsAttr(d.id)}')" title="Ouvrir le tableau des retours">📋 Retours</button>
+        <button class="btn btn-g btn-sm" onclick="openDocEdit('${_escJsAttr(d.id)}')" title="Réglages du document (titre, dates, champs)">✏️ Réglages</button>
+        <button class="btn btn-g btn-sm" onclick="docDuplicateUI('${_escJsAttr(d.id)}')" title="Dupliquer : mêmes champs et options, retours vides — le geste de la rentrée suivante">⧉ Dupliquer</button>
+        <button class="btn btn-g btn-sm" onclick="docToggleArchive('${_escJsAttr(d.id)}')" title="${d.archive ? 'Sortir des archives' : 'Archiver : rangé hors de la vue courante, sans rien supprimer'}">${d.archive ? '📤 Désarchiver' : '📦 Archiver'}</button>
+        <button class="btn btn-d btn-sm" onclick="docDeleteUI('${_escJsAttr(d.id)}')" title="Supprimer le document et ses retours">🗑 Supprimer</button>
       </td></tr>`;
   }).join('');
   el.innerHTML = toolbar + `<div class="rel-wrap"><table class="dt doc-list"><thead><tr>

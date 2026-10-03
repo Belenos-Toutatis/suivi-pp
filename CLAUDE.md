@@ -1514,6 +1514,10 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      - **Le nom ouvre la fiche dans toutes les grilles d'élèves** (v1.47.0, audit C2) :
        `_nomFicheHTML` — Élèves, carte de chaleur, Observations, Moyennes, tableau d'un document,
        ramassage, grille des avis ; même allure partout (`.el-nom`, nom en gras).
+     - **Le titre de la fiche ne s'édite plus** (v1.47.1, l'utilisateur : *« le titre n'est pas un
+       endroit habituel pour éditer ce genre d'informations »*) : *Nom* est la première ligne de
+       la carte Identité, avec son ✎ (`edNom`, mêmes champs `fi-nom` / `fi-prn`, `ficheSaveNom`).
+       En tête de la carte, des boutons nommés : *✏️ Tout modifier*, *🗑 Supprimer*.
      - **La fiche se ferme quand on quitte Élèves, Observations ou Moyennes** (v1.46.12,
        l'utilisateur : *« vers Retours, Vie de classe, Avis des collègues… ça ne sert à rien
        qu'elle reste affichée, au contraire »*) : `FICHE_ONGLETS`, dans `showTab`.
@@ -1908,6 +1912,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 106 | **Audit ergonomique — points moyens** : nom corrigé dans « Identité et repères » (plus de ✎ dans le titre de la fiche) · les deux réglages de moments se disent indépendants (C6) · **observation MBN retirable à la main** (✎ de « Notées dans MBN », `obsMbnRemove`) (C7) · **section 📥 Imports** en tête de Données, les huit imports réunis (C8) · cases **Incidents** (avec un Total) et **Bilans** cliquables dans la carte de chaleur (C9) · une feuille d'avis d'un autre moment **dite** (« pas de feuille pour Conseil S2 »), la feuille nommée dans l'en-tête de la colonne Avis (C10) · le compte d'élèves à droite des filtres, Remarque plus étroite (C11) · **boutons nommés** (Retours : Retours · Réglages · Dupliquer · Archiver · Supprimer ; fiche : Tout modifier · Supprimer), plus de « — » parmi les pastilles (C12) ; 2 tests, 1 test mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.47.1) |
 | 105 | **Audit ergonomique — les cinq points majeurs** (rapport publié à part) : décisions dans la fenêtre de bilan et signalées (◉, anneau) · **le nom ouvre la fiche dans toutes les grilles** (`_nomFicheHTML` : Observations, document, ramassage, Moyennes) · **totaux nommés** dans l'en-tête (« total année », « au 31/01 », « Total S2 · carnet + MBN ») · **tri par les en-têtes partout**, « Ordre de passage » dans Observations et Retours seulement · **contacts de la fiche par la fenêtre des contacts** ; `test/ergonomie.test.js` (5 tests), 3 tests mis à jour. Audit 9 états × 2 thèmes à 1 440 px, 6 à 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.47.0) |
 | 104 | **Carte de chaleur : Contacts avec un Total, cases cliquables** vers la fenêtre des contacts ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.46.16) |
 | 103 | **Vue « Préparer le conseil » avec la colonne Contacts** (et reprise de l'ancienne vue) ; 1 test | ✅ **fait** (2026-10-03, v1.46.15) |
