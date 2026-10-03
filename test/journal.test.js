@@ -221,3 +221,22 @@ test('journalAdd / journalSetTexte / journalRemove ne font ni pushUndo() ni save
   ev(`journalSetTexte('s1', '${id}', 'A corrigé'); journalRemove('s1', '${id}')`);
   assert.strictEqual(ev(`undoStack.length`), stackBefore, 'aucune de ces trois mutations ne pousse d\'undo elle-même');
 });
+
+test('Contacts : fenêtre à part de la remarque ; date et type se corrigent (journalSet)', () => {
+  const { loadApp } = require('./harness.js');
+  const app2 = loadApp();
+  const e2 = c => app2.__TESTEVAL(c), o2 = c => JSON.parse(JSON.stringify(app2.__TESTEVAL(c)));
+  e2(`S = _emptyState(); postLoadHook(); S.eleves.a = { id:'a', nom:'X', prenom:'Y', classe_id:'c', tags:[] };`);
+  const id = e2(`journalAdd('a', '2025-10-11', 'appel', 'Mère jointe').id`);
+  assert.strictEqual(e2(`journalSet('a', ${JSON.stringify(id)}, { date: '2025-10-12', type: 'rencontre' })`), true);
+  assert.deepStrictEqual(o2(`[S.eleves.a.journal[0].date, S.eleves.a.journal[0].type, S.eleves.a.journal[0].texte]`), ['2025-10-12', 'rencontre', 'Mère jointe']);
+  assert.strictEqual(e2(`journalSet('a', ${JSON.stringify(id)}, { date: 'hier' })`), false);
+  assert.strictEqual(e2(`journalSet('a', ${JSON.stringify(id)}, { type: 'inconnu' }) && S.eleves.a.journal[0].type`), 'autre');
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const mrem = src.slice(src.indexOf('<div id="mrem"'), src.indexOf('<div id="mcontacts"'));
+  assert.ok(mrem.length > 0 && !/mrem-jlist|journalAddUI/.test(mrem), 'la remarque seule');
+  assert.match(mrem, /Remarque — texte libre/);
+  assert.ok(!/Observations — texte libre/.test(src));
+  assert.match(src, /<div id="mcontacts"[\s\S]*id="mrem-jlist"/);
+  assert.match(src, /onclick="openContacts\('\$\{j\}'\)"/, 'la colonne Contacts ouvre la fenêtre des contacts');
+});

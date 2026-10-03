@@ -1583,7 +1583,10 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-p { margin: 0; }
 /* Les décisions d'un moment (v1.46.13), sous le bilan. */
 .pf-lab-dec { margin-top: 10px; }
-.pf-ta.pf-ta-dec { min-height: 3.4em; }
+.pf-ta.pf-ta-dec { min-height: 90px; }
+/* Bilan et décisions grandissent avec leur texte (v1.46.14) : `field-sizing` là où le
+   navigateur le connaît, `_autoTaille` partout (à l'ouverture et à la frappe). */
+#mfiche .pf-ta { field-sizing: content; overflow-y: hidden; }
 .pf-dec { margin-top: 4px; }
 .pf-dec-l { font-size: 12px; font-weight: 700; color: var(--pencil); }
 /* Les textes libres gardent leurs paragraphes (v1.46.10, l'utilisateur : « dans la remarque, on ne
@@ -2244,26 +2247,37 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 </div>
 <div id="mrem" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%">
-    <h2 id="mrem-title">📋 Remarque et contacts</h2>
+    <h2 id="mrem-title">📋 Remarque</h2>
     <div class="fg">
-      <label for="mrem-txt">Observations — texte libre</label>
-      <textarea id="mrem-txt" data-autofocus rows="4" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral."></textarea>
+      <label for="mrem-txt">Remarque — texte libre</label>
+      <textarea id="mrem-txt" data-autofocus rows="6" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral."
+                onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();saveRemarque()}"></textarea>
+      <div class="tb-hint" style="margin-top:4px">Les contacts avec la famille ont leur propre fenêtre : ☎ dans la colonne Contacts.</div>
     </div>
-    <h3 style="margin:14px 0 6px;font-size:1em">📇 Contacts avec la famille</h3>
-    <div class="tb-hint" style="margin-bottom:8px">Daté et qualifié : c'est ce qu'on relit avant un conseil de classe ou un rendez-vous, et ce que le texte libre ci-dessus ne permet ni de compter ni de retrouver.</div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mrem')">Annuler</button>
+      <button class="btn btn-p" onclick="saveRemarque()">✓ Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CONTACTS AVEC LA FAMILLE (v1.46.14 — séparés de la remarque) ═══════════════ -->
+<div id="mcontacts" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:860px;width:100%">
+    <h2 id="mct-title">📇 Contacts avec la famille</h2>
+    <div class="tb-hint" style="margin-bottom:8px">Datés et qualifiés : c'est ce qu'on relit avant un conseil de classe ou un rendez-vous. Date, type et texte se corrigent dans la liste.</div>
     <div class="tb" style="border-radius:var(--radius-md);align-items:flex-end">
       <label class="tb-hint" style="display:flex;flex-direction:column;gap:2px">Date
         <input type="date" id="mrem-jdate" style="min-width:140px"></label>
       <label class="tb-hint" style="display:flex;flex-direction:column;gap:2px">Type
-        <select id="mrem-jtype">${''}</select></label>
-      <input type="text" id="mrem-jtxt" placeholder="Ce qu'il faut en retenir" maxlength="300" style="flex:1;min-width:170px"
+        <select id="mrem-jtype"></select></label>
+      <input type="text" id="mrem-jtxt" data-autofocus placeholder="Ce qu'il faut en retenir" maxlength="300" style="flex:1;min-width:170px"
              onkeydown="if(event.key==='Enter'){event.preventDefault();journalAddUI()}">
       <button class="btn btn-s btn-sm" onclick="journalAddUI()">+ Noter</button>
     </div>
     <div id="mrem-jlist"></div>
     <div class="ma">
-      <button class="btn btn-g" onclick="closeMod2('mrem')">Fermer</button>
-      <button class="btn btn-p" onclick="saveRemarque()">✓ Enregistrer la remarque</button>
+      <button class="btn btn-g" onclick="closeMod2('mcontacts')">Fermer</button>
     </div>
   </div>
 </div>
@@ -2770,8 +2784,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.13';
-const APP_BUILD_DATE = '2026-10-03T06:18:53Z';
+const APP_VERSION    = '1.46.14';
+const APP_BUILD_DATE = '2026-10-03T06:41:48Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3104,7 +3118,7 @@ function _isTextEntryTarget(el) {
 // bilan…) n'y sont pas : elles portent une saisie en cours, qu'un re-rendu effacerait.
 const _MODAL_RERENDER = {
   mfiche:   () => { if (_ficheSid && S.eleves[_ficheSid]) { _ficheEdit = null; _ficheRender(); } else closeMod2('mfiche'); },
-  mrem:     () => { if (_remSid && S.eleves[_remSid]) _journalRender(); else closeMod2('mrem'); },
+  mcontacts: () => { if (_remSid && S.eleves[_remSid]) _journalRender(); else closeMod2('mcontacts'); },
   mtags:    () => renderTagsModal(),
   mclasses: () => renderClassesModal(),
 };
@@ -4739,6 +4753,16 @@ function journalSetTexte(sid, id, texte) {
   e.texte = txt;
   return true;
 }
+// Date et / ou type d'un contact (v1.46.14). Refuse une date illisible ; un type inconnu
+// retombe sur « autre », comme à l'ajout. Sans pushUndo ni save.
+function journalSet(sid, id, { date, type } = {}) {
+  const stu = S.eleves[sid];
+  const e = stu && Array.isArray(stu.journal) ? stu.journal.find(x => x.id === id) : null;
+  if (!e || (date !== undefined && !_ymdValid(date))) return false;
+  if (date !== undefined) e.date = date;
+  if (type !== undefined) e.type = _journalType(type).key;
+  return true;
+}
 function journalRemove(sid, id) {
   const stu = S.eleves[sid];
   if (!stu || !Array.isArray(stu.journal)) return false;
@@ -6353,7 +6377,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const TITRES = {
     grp: 'Groupe, options et aménagements', carnet: `${avecMbnL ? 'Observations de l\'année : le total carnet + MBN (couleur du palier), le détail des deux' : 'Observations du carnet : le dernier cumul (couleur du palier)'}, « +n » pris ${fenL ? fenL.long : ''}, la courbe de l'année — 📅 : choisir depuis quand`,
     moy: 'Dernière moyenne générale importée, son évolution, le nombre de matières sous 10 — la plus basse d\'abord', docs: 'Papiers à rendre',
-    incidents: 'Incidents et instances : le nombre et la date du dernier — clic : en noter un', contacts: 'Contacts avec la famille : le nombre et la date du dernier — clic : en noter un',
+    incidents: 'Incidents et instances : le nombre et la date du dernier — clic : en noter un', contacts: 'Contacts avec la famille : le nombre et la date du dernier — clic : la liste, pour les voir, les corriger, en noter un',
     avis: campCour ? `Avis des collègues — feuille pour ${_avisObjectif(cls, campCour).long} : un trait par discipline, ⭐ demandé en particulier` : 'Aucune feuille d\'avis pour cette période',
     bilans: `Un point par moment de bilan (${bcols.map(c => c.court).join(', ')}) : plein = écrit — clic : écrire celui-là`, rem: 'La remarque libre — clic : la modifier',
   };
@@ -6407,9 +6431,9 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
       return `<button class="el-pill bad" onclick="openIncident('${j}')" title="${_escAttr(all.map(e => `${_fmtDateFr(e.date)} ${_instanceOf(e.type).label} : ${e.objet}`).join('\n') + '\nClic : noter un nouvel incident')}">⚖ ${r.nbIncidents}</button> <button class="el-dl el-lien" onclick="openIncident('${j}','${_escJsAttr(r.incident.id)}')" title="${_escAttr(`${_instanceOf(r.incident.type).label} : ${r.incident.objet} — clic pour modifier cette entrée`)}">${_escName(_fmtDateFr(r.incident.date).slice(0, 5))}</button>`;
     };
     td.contacts = () => {
-      if (!r.nbContacts) return dot('Aucun contact avec la famille — clic : en noter un', `openRemarque('${j}')`);
+      if (!r.nbContacts) return dot('Aucun contact avec la famille — clic : en noter un', `openContacts('${j}')`);
       const all = _journalOf(sid);
-      return `<button class="el-pill" onclick="openRemarque('${j}')" title="${_escAttr(all.map(e => `${_fmtDateFr(e.date)} ${_journalType(e.type).label} : ${e.texte}`).join('\n') + '\nClic : noter un contact')}">☎ ${r.nbContacts}</button> <span class="el-dl">${_escName(_fmtDateFr(r.contact.date).slice(0, 5))}</span>`;
+      return `<button class="el-pill" onclick="openContacts('${j}')" title="${_escAttr(all.map(e => `${_fmtDateFr(e.date)} ${_journalType(e.type).label} : ${e.texte}`).join('\n') + '\nClic : voir, corriger, noter un contact')}">☎ ${r.nbContacts}</button> <span class="el-dl">${_escName(_fmtDateFr(r.contact.date).slice(0, 5))}</span>`;
     };
     td.avis = () => _avisCelluleHTML(cls, campCour, sid);
     td.bilans = () => `<span class="el-bdots">${bcols.map((c, i) => {
@@ -6440,8 +6464,8 @@ function _withStudent(sid, fn, msg) {
   if (msg) toast(msg);
 }
 // ─── Remarque libre du PP (la colonne « Remarque » du tableur) ───
-// Texte libre multi-ligne : c'est là que vit le journal des contacts
-// (« Appel à la mère le 11/10/2024 et le 29/11/2024 »).
+// Texte libre multi-ligne. Les contacts avec la famille, datés, ont leur fenêtre à part
+// (`openContacts`, v1.46.14) — ils ne se tapent plus dans la remarque.
 let _remSid = null;
 function openRemarque(sid) {
   const s = S.eleves[sid];
@@ -6449,8 +6473,19 @@ function openRemarque(sid) {
   _remSid = sid;
   const t = document.getElementById('mrem-title');
   const a = document.getElementById('mrem-txt');
-  if (t) t.textContent = `📋 ${s.prenom} ${s.nom} — remarque et contacts`;
+  if (t) t.textContent = `📋 ${s.prenom} ${s.nom} — remarque`;
   if (a) a.value = s.remarque || '';
+  openMod('mrem');
+}
+// Les contacts avec la famille : une fenêtre À PART (v1.46.14, l'utilisateur : « les contacts
+// avec les parents, c'est un élément à part qui ne devrait pas être dans la même fenêtre »),
+// ouverte par la colonne Contacts de la liste. Ajouter, et corriger date, type, texte ; 🗑.
+function openContacts(sid) {
+  const s = S.eleves[sid];
+  if (!s) return;
+  _remSid = sid;
+  const t = document.getElementById('mct-title');
+  if (t) t.textContent = `📇 ${s.prenom} ${s.nom} — contacts avec la famille`;
   const d = document.getElementById('mrem-jdate');
   if (d) d.value = _todayYmd();
   const ty = document.getElementById('mrem-jtype');
@@ -6458,7 +6493,7 @@ function openRemarque(sid) {
   const tx = document.getElementById('mrem-jtxt');
   if (tx) tx.value = '';
   _journalRender();
-  openMod('mrem');
+  openMod('mcontacts');
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // FICHE ÉLÈVE — le rendu
@@ -6886,8 +6921,15 @@ function _ficheRender() {
   box.innerHTML = vue === 'chrono' && col ? _ficheChronoHTML(cls, stu, col)
     : vue === 'faits' && col ? _ficheFaitsHTML(cls, stu, col)
     : col ? _ficheTableauHTML(cls, stu, col, ed) : `<div class="fi-cols">${secs}</div>`;
+  box.querySelectorAll('textarea.pf-ta').forEach(_autoTaille);
   const f = box.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
+}
+// Un champ de texte à la hauteur de son contenu, jamais sous sa hauteur minimale (CSS).
+function _autoTaille(ta) {
+  if (!ta || !ta.style) return;
+  ta.style.height = 'auto';
+  if (ta.scrollHeight) ta.style.height = (ta.scrollHeight + 2) + 'px';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -7122,10 +7164,10 @@ function _ficheRedacHTML(cls, stu, col, extra) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
   const d = _decisionCible(cls, stu.id, { type: col.type, date: col.date });
   return `<label for="fi-bil" class="pf-lab">${_escName(col.long)} · ce que je dirai</label>
-    <textarea id="fi-bil" class="pf-ta" onchange="ficheBilanSave()" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
+    <textarea id="fi-bil" class="pf-ta" onchange="ficheBilanSave()" oninput="_autoTaille(this)" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
     ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>
     <label for="fi-dec" class="pf-lab pf-lab-dec">Décisions · à mettre en place</label>
-    <textarea id="fi-dec" class="pf-ta pf-ta-dec" onchange="ficheDecisionSave()" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
+    <textarea id="fi-dec" class="pf-ta pf-ta-dec" onchange="ficheDecisionSave()" oninput="_autoTaille(this)" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
     <div class="tb-hint" id="fi-dec-etat">${d ? `Noté le ${_escName(_fmtDateFr(d.date))} · vider le champ la retire` : 'Enregistré en quittant le champ'}</div>`;
 }
 // Comme le bilan : enregistré en quittant le champ, sans re-rendu ; vider le champ retire la
@@ -7558,9 +7600,10 @@ function _journalRender() {
   box.innerHTML = `<div class="rel-wrap"><table class="dt"><tbody>${l.map(e => {
     const t = _journalType(e.type);
     return `<tr>
-      <td style="white-space:nowrap;font-family:var(--font-mono);font-size:.85em">${_escName(_fmtDateFr(e.date))}</td>
-      <td style="white-space:nowrap" title="${_escAttr(t.label)}">${t.icon} <span class="tb-hint">${_escName(t.label)}</span></td>
-      <td style="width:99%"><input type="text" value="${_escAttr(e.texte)}" maxlength="300" style="width:100%;font-size:.9em"
+      <td><input type="date" value="${_escAttr(e.date)}" style="max-width:150px;font-size:.88em" title="Date du contact — se corrige ici"
+            onchange="journalDateUI('${_escJsAttr(e.id)}', this)"></td>
+      <td><select style="font-size:.88em;max-width:170px" title="Type du contact — se corrige ici" onchange="journalTypeUI('${_escJsAttr(e.id)}', this.value)">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}"${t2.key === t.key ? ' selected' : ''}>${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></td>
+      <td style="width:99%;min-width:180px"><input type="text" value="${_escAttr(e.texte)}" maxlength="300" style="width:100%;font-size:.9em" title="${_escAttr(e.texte)}"
             onchange="journalEditUI('${_escJsAttr(e.id)}', this.value)"></td>
       <td><button class="btn btn-d btn-sm" onclick="journalRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer ce contact">🗑</button></td>
     </tr>`;
@@ -7587,6 +7630,21 @@ function journalEditUI(id, txt) {
   pushUndo();
   journalSetTexte(_remSid, id, txt);
   save();
+  renderStudents();
+}
+function journalDateUI(id, inp) {
+  const d = inp.value ? _ymdCompleteAnnee(inp.value) : '';
+  if (!_ymdValid(d)) { toast('⚠️ Date du contact illisible.', 'warn'); _journalRender(); return; }
+  const e = _journalOf(_remSid).find(x => x.id === id);
+  if (!e || e.date === d) return;
+  pushUndo(); journalSet(_remSid, id, { date: d }); save();
+  _journalRender(); renderStudents();
+}
+function journalTypeUI(id, type) {
+  const e = _journalOf(_remSid).find(x => x.id === id);
+  if (!e || e.type === type) return;
+  pushUndo(); journalSet(_remSid, id, { type }); save();
+  renderStudents();
 }
 function journalRemoveUI(id) {
   const e = _journalOf(_remSid).find(x => x.id === id);

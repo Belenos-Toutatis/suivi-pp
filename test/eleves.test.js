@@ -241,9 +241,11 @@ test('la fiche, la remarque, les options et les classes se redessinent après un
   // La table existait depuis l'étape 1 et était restée VIDE : depuis que la fiche corrige
   // sur place, Ctrl+Z remettait la donnée sans redessiner la fiche (G2 affiché, G1 en S).
   const cles = evObj(`Object.keys(_MODAL_RERENDER)`);
-  for (const k of ['mfiche', 'mrem', 'mtags', 'mclasses']) assert.ok(cles.includes(k), k);
+  // v1.46.14 : la liste des contacts a quitté la fenêtre de la remarque (`mrem`, désormais un
+  // simple formulaire) pour sa propre fenêtre, `mcontacts` — c'est elle qui se redessine.
+  for (const k of ['mfiche', 'mcontacts', 'mtags', 'mclasses']) assert.ok(cles.includes(k), k);
   // Et pas les modales de FORMULAIRE, qui portent une saisie en cours.
-  for (const k of ['me', 'mincident', 'mbilan', 'mel', 'mdoc']) assert.ok(!cles.includes(k), k + ' ne doit pas être redessinée');
+  for (const k of ['me', 'mrem', 'mincident', 'mbilan', 'mel', 'mdoc']) assert.ok(!cles.includes(k), k + ' ne doit pas être redessinée');
 });
 
 test('_bilanOrdre est FIGÉ à l\'ouverture : trié « rédigé d\'abord », enregistrer ne fait pas sauter le suivant', () => {
