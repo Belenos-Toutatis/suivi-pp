@@ -608,6 +608,14 @@ page (`pagehide`). ⚠️ Le navigateur intégré de test bloque toute fenêtre 
 en lui substituant un cadre de même origine (graphique, suivi d'un bulletin, Ctrl+Z depuis la
 fenêtre) ; **à essayer avec le vrai second écran avant le jour J**.
 
+**Le résultat final** (v1.52.1, l'utilisateur : *« la fenêtre détachée pour le résultat final,
+sans les remplacements »*) : le bouton existe aussi sur une élection close, et la fenêtre montre
+alors `_elWinResultatHTML` — les élus en grand (titulaire, suppléant, « élu au premier / second
+tour »), puis chaque tour (votants, blancs, nuls, exprimés, *majorité absolue : n* au premier tour
+seulement, *majorité relative* ensuite ; les voix ; les élus du tour marqués). Clore fait passer
+la fenêtre déjà ouverte du graphique au résultat, rouvrir la ramène au graphique. ⚠️ **Jamais
+les remplacements en cours d'année** (arbitré) ni bouton ni numéro de bulletin.
+
 #### ⚠️ Un pourcentage en cours de dépouillement est trompeur
 
 C'est le vrai piège, et il est pédagogique autant que technique. Le dénominateur (les suffrages exprimés) **grandit à mesure qu'on dépouille** :
@@ -2058,6 +2066,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 117 | **Résultat final dans la fenêtre détachée** (élus, tours, majorité relative au second tour ; sans les remplacements) ; 1 test. Audit dans la fenêtre, 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.1) |
 | 116 | **🖥 Fenêtre détachée du dépouillement** (pour le second écran : plein écran, suit chaque bulletin, Ctrl+Z depuis elle, repli si bloquée) ; 2 tests (`test/projection-fenetre.test.js`) | ✅ **fait** (2026-10-03, v1.52.0) |
 | 115 | **Photos dans les grilles des observations et des moyennes** ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; saisie au carnet vérifiée | ✅ **fait** (2026-10-03, v1.51.3) |
 | 114 | **Photos dans la vue Indicateurs** (vignette partagée avec la carte de chaleur) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.51.2) |

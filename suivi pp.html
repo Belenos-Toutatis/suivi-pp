@@ -1300,6 +1300,26 @@ details.el-block > summary { cursor: pointer; font-weight: 600; color: var(--ink
 .el-side { display: flex; gap: 16px; flex-wrap: wrap; font-size: .9em; color: var(--pencil); border-top: 1px dashed var(--rule-line); padding-top: 8px; }
 .el-side strong { color: var(--ink-deep); font-family: var(--font-mono); }
 
+/* Le RÉSULTAT dans la fenêtre détachée (v1.52.1) : borné en vw ET en vh, comme la projection. */
+.elr { background: var(--paper-warm); border: 1px solid var(--rule-line); border-radius: var(--radius-lg); padding: 3vh 4vw; }
+.elr-titre { font-family: var(--font-serif); font-size: min(3.4vh, 2.4vw); color: var(--ink-blue); }
+.elr-h { font-size: min(4.5vh, 3.2vw); font-weight: 700; color: var(--ink-deep); margin: 2vh 0 1.5vh; }
+.elr-elus { display: flex; flex-wrap: wrap; gap: 2vw; margin-bottom: 2vh; }
+.elr-elu { background: var(--com-pos-bg); border: 3px solid var(--com-pos); border-radius: var(--radius-lg); padding: 2vh 2vw; min-width: min(30vw, 100%); }
+.elr-nom { font-size: min(5.5vh, 4vw); font-weight: 700; color: var(--com-pos-fg); line-height: 1.15; }
+.elr-nom .el-swatch { width: .6em; height: .6em; margin-right: .3em; }
+.elr-sup { font-size: min(3.2vh, 2.3vw); color: var(--ink-deep); margin-top: .6vh; }
+.elr-qd { font-size: min(2.6vh, 1.9vw); color: var(--pencil); margin-top: .4vh; }
+.elr-tours { display: flex; flex-wrap: wrap; gap: 3vw; border-top: 1px dashed var(--rule-line); padding-top: 2vh; }
+.elr-tour { flex: 1 1 30vw; min-width: 0; }
+.elr-th { font-size: min(3vh, 2.2vw); font-weight: 700; color: var(--ink-blue); margin-bottom: 1vh; }
+.elr-th span { display: block; font-weight: 400; font-size: .7em; color: var(--pencil); }
+.elr-t { border-collapse: collapse; width: 100%; font-size: min(2.8vh, 2vw); }
+.elr-t td { padding: .5vh .6vw; border-bottom: 1px solid var(--rule-line-soft); }
+.elr-t td.r { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
+.elr-t tr.elr-ok td:first-child { font-weight: 700; color: var(--ok-fg); }
+.elr-t .el-tag { font-size: .75em; }
+
 /* Mode projection : le graphique seul, en grand, borné en vw ET en vh — sur un
    vidéoprojecteur large c'est la largeur qui contraint. ⚠️ La grille à deux colonnes
    doit passer à une seule, sinon le graphique reste dans sa moitié (constaté). */
@@ -2923,8 +2943,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.0';
-const APP_BUILD_DATE = '2026-10-03T15:33:15Z';
+const APP_VERSION    = '1.52.1';
+const APP_BUILD_DATE = '2026-10-03T15:42:18Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12678,7 +12698,7 @@ function _elRenderOne(box, el, cls) {
       <span class="tb-hint">${_escName(_fmtDateFr(el.date))} · ${el.inscrits} inscrits · ${el.binome !== false ? 'binômes' : 'candidats seuls'} · ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue au 1er tour' : 'majorité relative'}</span>
       ${_elTextesHTML(_elType(el))}
       <span style="margin-left:auto;display:flex;gap:6px">
-        ${el.clos ? `<button class="btn btn-p btn-sm" onclick="electionPrintPV()" title="Le procès-verbal, une page portrait, avec les lignes de signature">🖨 Procès-verbal</button><button class="btn btn-g btn-sm" onclick="electionRouvrirUI()">↺ Rouvrir</button>`
+        ${el.clos ? `<button class="btn btn-p btn-sm" onclick="electionPrintPV()" title="Le procès-verbal, une page portrait, avec les lignes de signature">🖨 Procès-verbal</button><button class="btn btn-g btn-sm" onclick="elProjectionFenetre()" title="Le résultat, en grand, dans une fenêtre à part : faites-la glisser sur le second écran, puis ⛶ Plein écran">🖥 Fenêtre détachée</button><button class="btn btn-g btn-sm" onclick="electionRouvrirUI()">↺ Rouvrir</button>`
                   : `<button class="btn btn-g btn-sm" onclick="_elProject=!_elProject;renderDelegues()" title="Masquer la grille : seul le graphique reste, en grand, pour le vidéoprojecteur">${_elProject ? '↩ Revenir à la saisie' : '📽 Projeter'}</button><button class="btn btn-g btn-sm" onclick="elProjectionFenetre()" title="Le graphique dans une fenêtre à part : faites-la glisser sur le second écran (vidéoprojecteur), puis ⛶ Plein écran. Vous gardez la saisie ici ; la fenêtre suit chaque bulletin.">🖥 Fenêtre détachée</button><button class="btn btn-g btn-sm" onclick="openElectionSettings()">⚙ Modalités</button>`}
       </span></div>`;
   const cand = _elRenderCandidats(el, t);
@@ -12739,10 +12759,41 @@ function _elWinMaj() {
   // liste des élections ne vide pas l'écran devant la classe).
   const cls = getCls();
   const el = cur || (cls && _elWinId ? (S.elections[cls.id] || {})[_elWinId] : null);
-  box.innerHTML = el ? `<div class="el-right big">${_elRenderChart(el, _elLive(el, el.tours.length - 1))}</div>`
+  // Close : l'écran de RÉSULTAT (v1.52.1) — il remplace le graphique de lui-même au moment
+  // où l'on clôt, et le graphique revient si l'on rouvre.
+  box.innerHTML = el ? (el.clos ? _elWinResultatHTML(el) : `<div class="el-right big">${_elRenderChart(el, _elLive(el, el.tours.length - 1))}</div>`)
     : '<div class="el-win-vide">Ouvrez une élection dans Suivi PP : son graphique s\'affichera ici.</div>';
 }
 window.addEventListener('pagehide', () => { try { if (_elWin && !_elWin.closed) _elWin.close(); } catch (_) {} });
+// Le RÉSULTAT projeté d'une élection close (v1.52.1, l'utilisateur : « la fenêtre détachée pour
+// le résultat final, sans les remplacements ») : les élus en grand (titulaire et suppléant, le
+// tour où il a été élu), puis chaque tour — votants, blancs, nuls, exprimés, majorité, les voix
+// de chacun, les élus du tour marqués. ⚠️ Le résultat DU VOTE : pas les remplacements en cours
+// d'année, pas de numéro de bulletin, aucun bouton. Tout est échappé.
+function _elWinResultatHTML(el) {
+  const ty = _elType(el), binome = el.binome !== false;
+  const closed = el.tours.map((t, i) => ({ t, i })).filter(x => x.t.clos);
+  const tourElu = {};
+  for (const { t, i } of closed) for (const id of _elResultatTour(el, i).elus) tourElu[id] = t.n;
+  const ord = n => n === 1 ? 'premier tour' : n === 2 ? 'second tour' : `${n}e tour`;
+  const elus = (el.elus?.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
+  const carte = c => { const sup = binome ? _elCandNomSup(c) : '';
+    return `<div class="elr-elu"><div class="elr-nom"><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c))}</div>${
+      sup ? `<div class="elr-sup">suppléant : ${_escName(sup)}</div>` : ''}${tourElu[c.id] ? `<div class="elr-qd">élu au ${ord(tourElu[c.id])}</div>` : ''}</div>`; };
+  const supHors = !binome && _elNbSup(el) ? (el.elus?.suppleants || []).map(id => _elCand(el, id)).filter(Boolean) : [];
+  const tours = closed.map(({ t, i }) => {
+    const d = _elDepouillement(el, i), elusT = new Set(_elResultatTour(el, i).elus);
+    const lignes = t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c =>
+      `<tr${elusT.has(c.id) ? ' class="elr-ok"' : ''}><td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c))}</td><td class="r">${d.voix[c.id] || 0} voix</td><td>${elusT.has(c.id) ? '<span class="el-tag">✓ élu</span>' : ''}</td></tr>`).join('');
+    return `<div class="elr-tour"><div class="elr-th">Tour ${t.n} <span>${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · ${t.n === 1 && el.majoriteAbsolueT1 !== false ? `majorité absolue : ${d.majoriteAbsolue}` : 'majorité relative'}</span></div><table class="elr-t">${lignes}</table></div>`;
+  }).join('');
+  const quoi = ty.key === 'eco' ? (elus.length > 1 ? 'Éco-délégués élus' : 'Éco-délégué élu') : (elus.length > 1 ? 'Délégués élus' : 'Délégué élu');
+  return `<div class="elr"><div class="elr-titre">${_escName(el.titre)}</div>
+    <div class="elr-h">${ty.key === 'eco' ? '🌱' : '🏅'} ${quoi}</div>
+    <div class="elr-elus">${elus.length ? elus.map(carte).join('') : '<div class="elr-sup">Aucun élu</div>'}</div>
+    ${supHors.length ? `<div class="elr-sup">Suppléants : ${supHors.map(c => _escName(_elCandNom(c))).join(' · ')}</div>` : ''}
+    <div class="elr-tours">${tours}</div></div>`;
+}
 
 // ── Candidatures ──
 function _elRenderCandidats(el, t) {
