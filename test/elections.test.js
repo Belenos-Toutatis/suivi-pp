@@ -694,3 +694,28 @@ test('Scrutin du suppléant : les élus de l\'élection d\'origine ne sont ni pr
   assert.strictEqual(r.refusEcrit, true);
   assert.strictEqual(r.libre, true, 'un élève non élu reste candidat');
 });
+
+test('Égalité départagée par l\'âge : les dates de naissance au PV, à la projection et dans l\'onglet', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls();
+    const ids = cls.eleves.filter(id => _ymdValid(S.eleves[id].naissance) && _isStudentActive(S.eleves[id])).slice(0, 2);
+    S.eleves[ids[0]].naissance = '2012-03-04'; S.eleves[ids[1]].naissance = '2012-11-20';
+    const el = electionCreate(cls.id, { nbTitulaires: 1, binome: false, nbSupplants: 0, nomsParBulletin: 1, majoriteAbsolueT1: false, departage: 'plusJeune' });
+    S.elections[cls.id][el.id] = el;
+    const a = electionAddCandidat(el, ids[0], null), b = electionAddCandidat(el, ids[1], null);
+    electionPreparerBulletins(el, 0, 4);
+    [[a.id], [b.id], [a.id], [b.id]].forEach((v, i) => electionSetBulletin(el, 0, i + 1, { voix: v }));
+    electionCloreTour(el, 0);
+    const dep = _elDepartagesHTML(el, 0, 'x');
+    const proj = _elWinResultatHTML(el), onglet = _elRenderResultats(el);
+    return JSON.stringify({ clos: el.clos, elu: el.elus.titulaires[0] === b.id, dep, proj: proj.includes('20/11/2012') && proj.includes('04/03/2012'), onglet: onglet.includes('départagée par l') });
+  })()`));
+  assert.strictEqual(r.clos, true);
+  assert.strictEqual(r.elu, true, 'le plus jeune (né en novembre) est élu');
+  assert.match(r.dep, /Égalité à 2 voix, départagée par l'âge \(le plus jeune est élu\)/);
+  assert.match(r.dep, /né\(e\) le 04\/03\/2012/);
+  assert.match(r.dep, /né\(e\) le 20\/11\/2012 — élu/);
+  assert.strictEqual(r.proj, true, 'à la projection');
+  assert.strictEqual(r.onglet, true, 'dans l onglet');
+});

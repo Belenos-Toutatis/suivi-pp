@@ -1335,6 +1335,7 @@ details.el-block > summary { cursor: pointer; font-weight: 600; color: var(--ink
 .elr-t td.r { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
 .elr-t tr.elr-ok td:first-child { font-weight: 700; color: var(--ok-fg); }
 .elr-t .el-tag { font-size: .75em; }
+.elr-dep { font-size: min(2.4vh, 1.7vw); color: var(--ink-deep); margin: 1vh 0 0; }
 
 /* Mode projection : le graphique seul, en grand, borné en vw ET en vh — sur un
    vidéoprojecteur large c'est la largeur qui contraint. ⚠️ La grille à deux colonnes
@@ -2963,8 +2964,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.7';
-const APP_BUILD_DATE = '2026-10-03T16:27:15Z';
+const APP_VERSION    = '1.52.8';
+const APP_BUILD_DATE = '2026-10-03T16:34:50Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12252,6 +12253,21 @@ function _elSupDeExclus(el) {
   if (c0 && c0.supNc?.scrutinId === el.id && c0.sidSuppleant) out.delete(c0.sidSuppleant);
   return out;
 }
+// Une égalité départagée par l'ÂGE se JUSTIFIE (v1.52.8, l'utilisateur : « si des candidats ont été
+// départagés par leur âge, indique leur date de naissance dans le PV et sur la projection des
+// résultats ») : les candidats à égalité, leur date de naissance (celle FIGÉE sur la candidature,
+// `_elNaissance`), qui l'emporte et selon quelle règle. Rend des phrases HTML échappées, une par
+// égalité, ou ''. `cls` : la classe CSS du paragraphe.
+function _elDepartagesHTML(el, tourIdx, cls) {
+  const r = _elResultatTour(el, tourIdx);
+  return (r.departages || []).map(dp => {
+    const qui = dp.candIds.map(id => { const n = _elNaissance(el, id);
+      return `<strong>${_escName(_elCandNom(_elCand(el, id)))}</strong>, né(e) le ${_escName(n ? _fmtDateFr(n) : '?')}${dp.elus.includes(id) ? ' — élu' : ''}`; }).join(' ; ');
+    const regle = el.departage === 'plusAge' ? 'le plus âgé est élu' : 'le plus jeune est élu';
+    // Pas d'emoji sur le papier (il sort en carré ou en noir plein selon la police) : « ⚖ » à l'écran seulement.
+    return `<p class="${cls}">${cls === 'pv-mod' ? '' : '⚖ '}Égalité à ${dp.voix} voix, départagée par l'âge (${regle}) : ${qui}.</p>`;
+  }).join('');
+}
 // À la clôture d'un scrutin de suppléant : son élu devient le suppléant dans l'élection d'origine.
 // Rend un avertissement (texte) ou ''.
 function _elSupDeAppliquer(sub) {
@@ -12435,6 +12451,7 @@ function _elResultatTour(el, tourIdx) {
     .sort((a, b) => b.voix - a.voix || (_elCand(el, a.id)?.ordre ?? 0) - (_elCand(el, b.id)?.ordre ?? 0));
   const elus = [];
   let egalite = null;
+  const departages = [];   // égalités tranchées par l'âge (v1.52.8) : { candIds, elus, voix }
   const manuel = (el.departageManuel && el.departageManuel[t.n]) || [];
   let i = 0;
   while (i < cands.length && elus.length < sieges) {
@@ -12448,11 +12465,11 @@ function _elResultatTour(el, tourIdx) {
     // ⚠️ La décision de l'utilisateur passe AVANT la règle automatique : s'il a tranché,
     // c'est que la règle ne s'appliquait pas ou qu'il l'a écartée en connaissance de cause.
     const parAge = _elDepartageAge(el, tied.map(c => c.id), restants);
-    if (parAge) { elus.push(...parAge); i += tied.length; continue; }
+    if (parAge) { departages.push({ candIds: tied.map(c => c.id), elus: parAge.slice(), voix: v }); elus.push(...parAge); i += tied.length; continue; }
     egalite = { candIds: tied.map(c => c.id), sieges: restants };
     break;
   }
-  return { elus, siegesRestants: sieges - elus.length, egalite, depouillement: d, absolue };
+  return { elus, siegesRestants: sieges - elus.length, egalite, depouillement: d, absolue, departages };
 }
 // Clôture d'un tour : reporte les élus, ouvre un second tour s'il reste des sièges,
 // clôt l'élection sinon. Retourne { bloque, warnings }. Sans pushUndo ni save.
@@ -12991,7 +13008,7 @@ function _elWinResultatHTML(el) {
     const d = _elDepouillement(el, i), elusT = new Set(_elResultatTour(el, i).elus);
     const lignes = t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c =>
       `<tr${elusT.has(c.id) ? ' class="elr-ok"' : ''}><td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c))}</td><td class="r">${d.voix[c.id] || 0} voix</td><td>${elusT.has(c.id) ? '<span class="el-tag">✓ élu</span>' : ''}</td></tr>`).join('');
-    return `<div class="elr-tour"><div class="elr-th">Tour ${t.n} <span>${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · ${t.n === 1 && el.majoriteAbsolueT1 !== false ? `majorité absolue : ${d.majoriteAbsolue}` : 'majorité relative'}</span></div><table class="elr-t">${lignes}</table></div>`;
+    return `<div class="elr-tour"><div class="elr-th">Tour ${t.n} <span>${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · ${t.n === 1 && el.majoriteAbsolueT1 !== false ? `majorité absolue : ${d.majoriteAbsolue}` : 'majorité relative'}</span></div><table class="elr-t">${lignes}</table>${_elDepartagesHTML(el, i, 'elr-dep')}</div>`;
   }).join('');
   const quoi = ty.key === 'eco' ? (elus.length > 1 ? 'Éco-délégués élus' : 'Éco-délégué élu') : (elus.length > 1 ? 'Délégués élus' : 'Délégué élu');
   return `<div class="elr"><div class="elr-titre">${_escName(el.titre)}</div>
@@ -13231,7 +13248,7 @@ function _elRenderResultats(el) {
     return `<div class="el-res"><strong>Tour ${t.n}</strong> <span class="tb-hint">— ${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · majorité absolue ${d.majoriteAbsolue}${Number.isInteger(t.votantsAnnonces) && t.votantsAnnonces !== d.votants ? ` · <span style="color:var(--danger-fg)">${t.votantsAnnonces} annoncés dans l'urne</span>` : ''}</span>
       <table class="dt" style="max-width:520px;margin-top:4px"><thead><tr><th>Candidat</th><th style="text-align:right">Voix</th><th></th></tr></thead><tbody>
       ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> ${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` <span class="tb-hint">/ ${_escName(_elCandNomSup(c))}</span>` : ''}</td><td style="text-align:right;font-family:var(--font-mono)">${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? '<span class="badge ok">élu</span>' : ''}</td></tr>`).join('')}
-      </tbody></table></div>`;
+      </tbody></table>${_elDepartagesHTML(el, i, 'tb-hint')}</div>`;
   }).join('');
   const elus = (el.elus?.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
   const summary = el.clos ? `<div class="al al-i"><strong>${_elType(el).key === 'eco' ? '🌱 Éco-délégués élus' : '🏅 Délégués élus'} :</strong> ${elus.map(c => `${_escName(_elCandNom(c))}${el.binome !== false && _elCandNomSup(c) ? ` (suppléant : ${_escName(_elCandNomSup(c))})` : ''}`).join(' · ') || 'aucun'}${el.binome === false && _elNbSup(el) ? `<br><strong>Suppléants :</strong> ${(el.elus.suppleants || []).map(id => _escName(_elCandNom(_elCand(el, id)))).join(' · ') || 'aucun'}` : ''}</div>` : '';
@@ -13480,7 +13497,7 @@ function electionPrintPV() {
       <tr><td>Blancs</td><td>${d.blancs}</td><td>Nuls</td><td>${d.nuls}</td></tr>
       <tr><td>Suffrages exprimés</td><td>${d.exprimes}</td><td>Majorité ${r.absolue ? 'absolue' : 'relative'}</td><td>${r.absolue ? d.majoriteAbsolue + ' voix' : '—'}</td></tr></table>
       <table class="pv-t"><tr><th>Candidat${el.binome !== false ? ' (titulaire / suppléant)' : ''}</th><th>Voix</th><th></th></tr>
-      ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td>${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}</td><td>${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? 'élu' : ''}</td></tr>`).join('')}</table>`;
+      ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td>${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}</td><td>${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? 'élu' : ''}</td></tr>`).join('')}</table>${_elDepartagesHTML(el, i, 'pv-mod')}`;
   }).join('');
   const elus = (el.elus.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
   const sups = el.binome !== false ? elus.map(c => _elCandNomSup(c)) : (el.elus.suppleants || []).map(id => _elCandNom(_elCand(el, id)));
