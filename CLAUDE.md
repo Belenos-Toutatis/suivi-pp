@@ -1292,9 +1292,13 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        par `_ficheBornes` — relevés, mois (MBN, incidents, contacts), moyennes (au conseil le dernier
        import de la période, sinon le dernier avant la fin du moment), feuille d'avis de cet
        objectif, papiers distribués avant la fin ; le bilan du moment est marqué ▶. Avec des
-       observations MBN, le premier groupe s'appelle *Observations* et finit par une case
-       **Total** (carnet + MBN depuis la rentrée, au dernier jour du moment — `_obsTotalAn(cls,
-       sid, fin)`), qui est aussi sa synthèse repliée. Par défaut, le conseil de la période
+       observations MBN, ~~le premier groupe s'appelle *Observations* et finit par une case
+       Total~~ — **révisé en v1.46.6** (l'utilisateur : *« le total après la colonne du carnet et
+       celle de MBN, et que le premier titre dise qu'il vient du carnet »*) : trois groupes,
+       *Observations du carnet* (les relevés), *Observations MBN* (les mois), puis **Total des
+       observations** (`obstot`, une case *Carnet + MBN* depuis la rentrée au dernier jour du
+       moment — `_obsTotalAn(cls, sid, fin)`). Replié, le groupe du carnet redevient le cumul et
+       l'évolution du carnet seul. Par défaut, le conseil de la période
        courante : la période entière, comme avant.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
@@ -1788,6 +1792,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 94 | **Carte de chaleur : Observations du carnet, puis MBN, puis Total des observations** (trois groupes) ; tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.6) |
 | 93 | **« +n » depuis une durée choisie** (📅 dans l'en-tête Observations : 1 ou 2 semaines, 1 ou 2 mois, début de la période ; propre au poste), carnet + MBN ; filtre « Observations +3 ou plus » et colonne imprimée sur la même durée ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut (un débordement à 320 px trouvé et corrigé : la puce du filtre) | ✅ **fait** (2026-10-03, v1.46.5) |
 | 92 | **Carte de chaleur bornée au moment du bilan** (barre *Synthèse pour*, partagée avec la fiche) avec un **Total carnet + MBN** · liste : **« +n » de la période, carnet et MBN**, petite courbe = miniature de la fiche · dessins à partir du **1er septembre** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.4) |
 | 91 | **Liste : colonne Observations = total carnet + MBN de l'année**, détail des deux dessous, tri et papier sur le total ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.3) |

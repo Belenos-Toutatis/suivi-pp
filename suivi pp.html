@@ -2747,8 +2747,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.5';
-const APP_BUILD_DATE = '2026-10-03T05:02:14Z';
+const APP_VERSION    = '1.46.6';
+const APP_BUILD_DATE = '2026-10-03T05:03:43Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6062,10 +6062,12 @@ function _chaleurGroupes(cls, bcols, colM) {
   const totCase = sid => { const t = _obsTotalAn(cls, sid, p.end), b = t.total === null ? 0 : _obsBande(t.total);
     return [b ? 'chob-' + b : (t.total === null ? 'ch-no' : ''), t.total === null ? '—' : String(t.total),
       t.total === null ? 'Aucune observation' : `Total au ${_fmtDateFr(p.end)} : ${t.total} = ${t.carnet ?? 0} au carnet + ${t.mbn} dans MBN`]; };
-  if (dates.length || mbnAny) G.push({ key: 'carnet', label: `${mbnAny ? 'Observations' : 'Carnet'} ${nomM}`,
-    sub: [...dates.map(d => ({ id: d, l: _fmtDateFr(d).slice(0, 5), long: 'Relevé du ' + _fmtDateFr(d) })), ...(mbnAny ? [{ id: '__tot', l: 'Total', long: `Total depuis la rentrée au ${_fmtDateFr(p.end)} : cumul du carnet + observations MBN` }] : [])],
+  // v1.46.6 (l'utilisateur : « le total après la colonne du carnet et celle de MBN, et que le
+  // premier titre dise qu'il vient du carnet ») : trois groupes — *Observations du carnet* (les
+  // relevés), *Observations MBN* (les mois), puis *Total des observations*.
+  if (dates.length) G.push({ key: 'carnet', label: `${mbnAny ? 'Observations du carnet' : 'Carnet'} ${nomM}`,
+    sub: dates.map(d => ({ id: d, l: _fmtDateFr(d).slice(0, 5), long: 'Relevé du ' + _fmtDateFr(d) })),
     cell: (sid, d) => {
-      if (d === '__tot') return totCase(sid);
       const v = _relValue(map[d], sid);
       if (v === REL_ABSENT) return ['ch-no', _codeA(), `Relevé du ${_fmtDateFr(d)} : absent`];
       if (v === null) return ['ch-no', '', `Relevé du ${_fmtDateFr(d)} : pas relevé`];
@@ -6074,7 +6076,7 @@ function _chaleurGroupes(cls, bcols, colM) {
       return [dd > 0 ? 'chob-' + Math.min(8, Math.ceil(dd * 1.4)) : '', dd > 0 ? '+' + dd : (x?.decreasing ? '▼' : '·'),
         `Relevé du ${_fmtDateFr(d)} : cumul ${v}${dd > 0 ? ` (+${dd})` : x?.decreasing ? ' (en baisse : à vérifier)' : ' (inchangé)'}`];
     },
-    sum: sid => { if (mbnAny) return totCase(sid);
+    sum: sid => {
       const t = _obsEntre(cid, sid, p.start, p.end), n = _cumulAu(cid, sid, p.end), b = n !== null ? _obsBande(n) : 0;
       return [b ? 'chob-' + b : '', n !== null ? `${n}${t ? ' +' + t : ''}` : '—', `${t ?? 0} observation(s) sur le moment${n !== null ? ` — cumul ${n} au ${_fmtDateFr(p.end)}` : ''}`]; } });
   const mois = _moisDe({ start: _debutUtile(p.start) < p.end ? _debutUtile(p.start) : p.start, end: p.end });
@@ -6084,6 +6086,8 @@ function _chaleurGroupes(cls, bcols, colM) {
       return x.length ? ['chob-' + Math.min(8, x.length), String(x.length), x.map(_obsMbnTexte).join('\n')] : ['ch-no', '', '']; },
     sum: sid => { const x = _obsMbnEntre(sid, p.start, p.end);
       return [x.length ? 'chob-' + Math.min(8, x.length) : 'ch-no', x.length ? String(x.length) : '·', x.length ? `${x.length} observation(s) MBN sur la période\n` + x.map(_obsMbnTexte).join('\n') : 'Aucune observation MBN sur la période']; } });
+  if (mbnAny) G.push({ key: 'obstot', label: 'Total des observations', sub: [{ id: '__tot', l: 'Carnet + MBN', long: `Total depuis la rentrée au ${_fmtDateFr(p.end)} : cumul du carnet + observations MBN` }],
+    cell: sid => totCase(sid), sum: sid => totCase(sid) });
   // Moyennes : au conseil, le dernier import de la période (même daté après) ; sinon le dernier
   // fait avant la fin du moment — la même règle que la fiche (`_ficheMoy`).
   const mp = _moyPourPeriode(cid, p0);

@@ -113,7 +113,7 @@ test('Observations MBN : à côté du carnet partout — grille, liste, carte de
   assert.match(grille, /openObsMbnImport\(\)/);
   assert.ok(!grille.includes('<img src=x') && grille.includes('&lt;img'));
   // Carte de chaleur : le groupe juste après le carnet.
-  assert.deepStrictEqual(evObj(`_chaleurGroupes(getCls(), []).map(g => g.key).slice(0, 2)`), ['carnet', 'mbn']);
+  assert.deepStrictEqual(evObj(`_chaleurGroupes(getCls(), []).map(g => g.key).slice(0, 3)`), ['carnet', 'mbn', 'obstot']);
   // Fiche : un fait MBN, distinct du carnet, avec ses motifs ; la chronologie le date.
   const p0 = `{ ..._ficheMoments(getCls()).find(c => c.key === 'bil:conseil:0') }`;
   const faits = evObj(`_ficheFaits(getCls(), S.eleves[${JSON.stringify(sid)}], ${p0}).map(f => f.html)`).join('\n');
@@ -199,8 +199,11 @@ test('Carte de chaleur : case Total carnet + MBN (et synthèse repliée) ; liste
   const sid = ev(`getCls().eleves.find(id => _obsMbnOf(id).length >= 3)`);
   const t = evObj(`_obsTotalAn(getCls(), ${JSON.stringify(sid)})`);
   assert.strictEqual(t.total, t.carnet + t.mbn);
-  const g = `_chaleurGroupes(getCls(), []).find(x => x.key === 'carnet')`;
-  assert.match(ev(`${g}.label`), /^Observations /);
+  // Ordre : carnet, MBN, puis le total ; le premier titre dit qu'il vient du carnet.
+  assert.deepStrictEqual(evObj(`_chaleurGroupes(getCls(), []).map(x => x.key).slice(0, 3)`), ['carnet', 'mbn', 'obstot']);
+  assert.match(ev(`_chaleurGroupes(getCls(), []).find(x => x.key === 'carnet').label`), /^Observations du carnet /);
+  assert.ok(!evObj(`_chaleurGroupes(getCls(), []).find(x => x.key === 'carnet').sub.map(x => x.id)`).includes('__tot'));
+  const g = `_chaleurGroupes(getCls(), []).find(x => x.key === 'obstot')`;
   assert.strictEqual(ev(`${g}.sub.slice(-1)[0].id`), '__tot');
   assert.deepStrictEqual(evObj(`${g}.cell(${JSON.stringify(sid)}, '__tot').slice(1, 2)`), [String(t.total)]);
   assert.deepStrictEqual(evObj(`${g}.sum(${JSON.stringify(sid)}).slice(1, 2)`), [String(t.total)]);
@@ -226,7 +229,7 @@ test('Carte de chaleur : bornée au moment choisi (le même que la fiche), dit d
   ev(`_ficheMoment = 'bil:miperiode:0'`);
   const b = evObj(`_ficheBornes(getCls(), _ficheMomentCourant(getCls()))`);
   const G = `_chaleurGroupes(getCls(), _bilanColsVues(getCls(), _carnetCurrentPeriodIdx(getCls())))`;
-  const dates = evObj(`${G}.find(g => g.key === 'carnet').sub.map(x => x.id).filter(x => x !== '__tot')`);
+  const dates = evObj(`${G}.find(g => g.key === 'carnet').sub.map(x => x.id)`);
   assert.ok(dates.length && dates.every(d => d >= b.start && d <= b.end), 'seulement les relevés du moment');
   assert.match(ev(`${G}.find(g => g.key === 'carnet').label`), /Mi-S1/);
   assert.ok(evObj(`${G}.find(g => g.key === 'bil')?.sub.map(x => x.l) || []`).some(l => l === '▶ Mi-S1') || !ev(`_bilanColsVues(getCls(), _carnetCurrentPeriodIdx(getCls())).some(c => c.key === 'bil:miperiode:0')`));
