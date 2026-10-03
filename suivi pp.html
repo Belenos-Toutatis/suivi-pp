@@ -1589,6 +1589,33 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-sw { width: 16px; height: 12px; border-radius: 2px; display: inline-block; flex: none; }
 .pf-kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: 13.5px; margin: 0; }
 .pf-kv dt { color: var(--pencil); } .pf-kv dd { margin: 0; }
+/* 📷 Photos (v1.48.0, repris de Plan de classe) : case de la carte Identité, vignette de
+   l'en-tête, aperçu au survol d'un nom, fenêtre d'import du trombinoscope. */
+.fiche-photo { float: right; margin: 0 0 8px 12px; text-align: center; }
+.fiche-photo img { display: block; width: 110px; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule-line); }
+.fiche-photo.drop img, .fiche-photo.drop .fiche-photo-add { outline: 3px dashed var(--ink-blue); outline-offset: 2px; }
+.fiche-photo-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px; max-width: 150px; }
+.fiche-photo-acts .btn { padding: 2px 6px; }
+.fiche-photo-add { width: 110px; height: 110px; border: 1.5px dashed var(--rule-line); border-radius: 6px; background: var(--paper-warm); color: var(--pencil); font: inherit; font-size: 12px; line-height: 1.5; cursor: pointer; }
+.fiche-photo-add span { font-size: 11px; }
+.fiche-photo-add:hover { border-color: var(--ink-blue); color: var(--ink-blue); }
+.pf-ph { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule-line); align-self: center; }
+.pf-ph[hidden] { display: none; }
+#photo-pop { position: fixed; z-index: 10050; display: none; pointer-events: none; background: var(--paper); border: 1px solid var(--rule-line); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); padding: 5px; text-align: center; font-size: .8em; color: var(--ink-deep); max-width: 150px; }
+#photo-pop img { display: block; width: 120px; height: 120px; object-fit: cover; border-radius: 3px; margin-bottom: 3px; }
+.trombi-head { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; padding: 8px 12px; background: var(--paper-warm); border-radius: 6px; }
+.trombi-head select { max-width: 100%; }
+.trombi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.trombi-card { border: 1px solid var(--rule-line); border-radius: 6px; padding: 6px; background: var(--paper); display: flex; flex-direction: column; gap: 4px; align-items: center; text-align: center; font-size: .85em; min-width: 0; }
+.trombi-card.off { border-style: dashed; }
+.trombi-card img, .trombi-noimg { width: 84px; height: 84px; object-fit: cover; border-radius: 4px; background: var(--paper-deep); }
+.trombi-noimg { display: flex; align-items: center; justify-content: center; font-size: 2em; color: var(--pencil); }
+.trombi-card select { width: 100%; font-size: .95em; }
+.trombi-pdfname { font-family: var(--font-mono); font-size: .82em; color: var(--ink-blue); word-break: break-word; }
+.trombi-st { font-size: .85em; color: var(--pencil); }
+.trombi-st.ok { color: var(--ok-fg); }
+.trombi-st.bad { color: var(--danger-fg); }
+@media print { .fiche-photo, .pf-ph, #photo-pop { display: none !important; } }
 .pf-p { margin: 0; }
 /* Les décisions d'un moment (v1.46.13), sous le bilan. */
 .pf-lab-dec { margin-top: 10px; }
@@ -1945,7 +1972,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     incidents et instances (commission éducative…) avec, si vous les joignez, les PDF des fiches —
     ceux-ci dans le dossier que vous choisissez, pas dans le navigateur —, et les avis des collègues :
     la feuille qui les recueille (noms des élèves compris) vit dans votre Nuage académique, ouverte
-    à qui a le lien que vous leur envoyez.
+    à qui a le lien que vous leur envoyez. Les photos des élèves, si vous les importez, sont rangées dans
+    le sous-dossier <code>photos/</code> du dossier des PDF, jamais dans le navigateur.
     En cadre professionnel, déclarez-la à votre DPO d'établissement (souvent <code>dpo@ac-&lt;votre-académie&gt;.fr</code>).
     Rien ne sort de votre navigateur : aucun serveur, aucune télémétrie.
   </span>
@@ -1993,6 +2021,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="tb" id="eleves-tb">
       <button class="btn btn-p btn-sm" onclick="openAddStudent()" title="Saisir un élève à la main">+ Ajouter</button>
       <button class="btn btn-s btn-sm" onclick="openImportStudents()" title="Coller une liste depuis Pronote ou un tableur, ou charger un fichier (.csv, .xlsx, .ods)">📥 Importer des élèves</button>
+      <button class="btn btn-g btn-sm" onclick="openTrombiImport()" title="Les photos des élèves, depuis le trombinoscope PDF de Mon Bureau Numérique — dans la fiche et au survol des noms">📥 Importer des photos</button>
       <button class="btn btn-g btn-sm" onclick="openClassesModal()" title="Créer, renommer, réordonner ou supprimer une classe">🏫 Classes…</button>
       <button class="btn btn-g btn-sm" onclick="openTagsModal()" title="Les options suivies : LATIN, BILINGUE, DNL…">🏷 Options…</button>
       <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
@@ -2312,7 +2341,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <!-- ═══════════════ FICHE ÉLÈVE (lecture) ═══════════════ -->
 <div id="mfiche" class="mo plein" onclick="closeMod(this,event)" onkeydown="_ficheKey(event)">
   <div class="mb fi-mb">
-    <div class="fi-head pf-fh"><div class="pf-id"><h2 id="mfiche-title">👤 Fiche</h2><span class="pf-meta" id="mfiche-meta"></span></div><div id="mfiche-bar" class="fi-bar"></div></div>
+    <div class="fi-head pf-fh"><div class="pf-id"><img id="mfiche-ph" class="pf-ph" alt="" hidden><h2 id="mfiche-title">👤 Fiche</h2><span class="pf-meta" id="mfiche-meta"></span></div><div id="mfiche-bar" class="fi-bar"></div></div>
     <div id="mfiche-body"></div>
   </div>
 </div>
@@ -2363,6 +2392,22 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 </div>
 
 <!-- ═══════════════ LECTEUR PDF ═══════════════ -->
+<!-- ═══════════════ PHOTOS : TROMBINOSCOPE MBN ═══════════════ -->
+<div id="mtrombi" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:980px;width:100%">
+    <h2>📷 Photos des élèves — trombinoscope</h2>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <input type="file" id="trombi-file" accept="application/pdf,.pdf" data-autofocus onchange="_trombiFileSelected(this.files[0])" aria-label="Trombinoscope PDF" style="max-width:100%">
+      <span id="trombi-status" class="tb-hint"></span>
+    </div>
+    <div id="trombi-body" style="max-height:62vh;overflow-y:auto;padding-right:4px"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mtrombi')">Annuler</button>
+      <button class="btn btn-p" id="trombi-go" onclick="_trombiSave()" disabled>📷 Enregistrer les photos</button>
+    </div>
+  </div>
+</div>
+
 <div id="mpdf" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:960px;width:100%;height:min(92vh,900px);display:flex;flex-direction:column">
     <h2 id="mpdf-title" style="flex:none">📎 PDF</h2>
@@ -2792,8 +2837,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.47.3';
-const APP_BUILD_DATE = '2026-10-03T08:51:04Z';
+const APP_VERSION    = '1.48.0';
+const APP_BUILD_DATE = '2026-10-03T09:03:01Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3974,6 +4019,7 @@ function _renderDonneesInner(el) {
       ${imp('🪑', 'Depuis Plan de classe', 'plan-classe-*.json : élèves, groupes, options, places, ordres de ramassage', '', b("document.getElementById('imp-file-pdc').click()", '📥 Importer…'))}
       ${imp('🍽', 'Régimes (Mon Bureau Numérique)', 'export « régimes de sortie » (.xlsx) : demi-pension, entrée, sortie', 'dans Élèves ▸ 🍽 Régimes', b('openMbnImport()', '📥 Importer…'))}
       ${imp('📓', 'Observations (Mon Bureau Numérique)', 'export des observations (.xlsx)', 'dans Observations', b('openObsMbnImport()', '📥 Importer…'))}
+      ${imp('📷', 'Photos (Mon Bureau Numérique)', 'le trombinoscope de la classe (.pdf), lu dans le navigateur', 'une à la fois dans la fiche', b('openTrombiImport()', '📥 Importer…'))}
       ${imp('📈', 'Moyennes (bureau numérique)', 'export des moyennes (.csv)', 'dans Moyennes', b('openMoyImport()', '📥 Importer…'))}
       ${imp('🗣', 'Avis des collègues', 'la feuille .ods du Nuage, relue', 'dans Avis des collègues', b("switchTab('avis')", 'Ouvrir l\'onglet'))}
       ${imp('⬆', 'Sauvegarde complète', 'fichier .json exporté par l\'app : REMPLACE tout après confirmation (Ctrl+Z annule)', '', b("document.getElementById('imp-file').click()", '📥 Importer…'))}
@@ -4032,8 +4078,8 @@ function _renderDonneesInner(el) {
       <label>Dossier des PDF</label>
       <div>${pjDirHandle ? `<code>${_escName(pjDirHandle.name)}</code>` : '<span class="tb-hint">aucun — les fiches incident ne pourront pas être jointes</span>'}
         <button class="btn btn-g btn-sm" onclick="choosePjDir()">📂 ${pjDirHandle ? 'Changer' : 'Choisir un dossier'}</button>${
-        pjDirHandle ? ` <button class="btn btn-g btn-sm" onclick="pjNettoyerUI()" title="Lister puis supprimer les PDF que plus aucune entrée ne référence">🧹 Orphelins…</button>` : ''}</div>
-      <div class="pref-help">Les PDF joints aux incidents sont <strong>copiés</strong> dans ce dossier, jamais dans la sauvegarde JSON (trop lourds pour la mémoire du navigateur). Choisissez un dossier <strong>synchronisé par Nextcloud</strong>, distinct du dossier de sauvegarde : sur l'autre poste, il suffira de choisir le même. L'app n'y efface rien d'elle-même.</div>
+        pjDirHandle ? ` <button class="btn btn-g btn-sm" onclick="pjNettoyerUI()" title="Lister puis supprimer les PDF que plus aucune entrée ne référence, et les photos d'élèves supprimés">🧹 Orphelins…</button>` : ''}</div>
+      <div class="pref-help">Les PDF joints aux incidents sont <strong>copiés</strong> dans ce dossier, jamais dans la sauvegarde JSON (trop lourds pour la mémoire du navigateur) ; les photos des élèves vont dans son sous-dossier <code>photos/</code>. Choisissez un dossier <strong>synchronisé par Nextcloud</strong>, distinct du dossier de sauvegarde : sur l'autre poste, il suffira de choisir le même. L'app n'y efface rien d'elle-même.</div>
     </div>
     <h3 style="margin-bottom:10px">⚖️ Instances et incidents</h3>
     <div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renommez, décrivez, décochez celles que votre établissement n'utilise pas, ajoutez les vôtres. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>
@@ -4632,7 +4678,7 @@ function _civHTML(sid) {
   return `<span class="el-civ${c === 'M' ? ' m' : c === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(c))}">${c ? civiliteLabel(c) : '·'}</span>`;
 }
 function _nomFicheHTML(sid, nom, prenom) {
-  return `${_civHTML(sid)}<a href="#" class="el-nom" onclick="openFiche('${_escJsAttr(sid)}');return false" title="Ouvrir la fiche">${_nomHTML(sid, nom, prenom)}</a>`;
+  return `${_civHTML(sid)}<a href="#" class="el-nom" data-photo-sid="${_escAttr(sid)}" onclick="openFiche('${_escJsAttr(sid)}');return false" title="Ouvrir la fiche">${_nomHTML(sid, nom, prenom)}</a>`;
 }
 function _nomHTML(sid, nom, prenom) {
   const del = _delegueOf(sid);
@@ -6398,7 +6444,7 @@ function _elevesChaleurHTML(cls, rowsData, bcols) {
   const head2 = G.map(g => plis.has(g.key) ? '<th class="ch-sh ch-g0"><span>synthèse</span></th>'
     : g.sub.map((x, i) => `<th class="ch-sh${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(x.long)}"><span>${_escName(x.l)}</span></th>`).join('')).join('');
   const camp = _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls));
-  const body = rowsData.map(({ s }) => `<tr${_isStudentActive(s) ? '' : ' class="inactive"'} onclick="_elevesLigneClic(event,'${_escJsAttr(s.id)}')"><td><span class="el-civ${s.civilite === 'M' ? ' m' : s.civilite === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(s.civilite))}">${s.civilite ? civiliteLabel(s.civilite) : '·'}</span><a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète" class="el-nom">${_nomHTML(s.id, s.nom, s.prenom)}</a>${camp && (camp.cibles || []).includes(s.id) ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}</td>${
+  const body = rowsData.map(({ s }) => `<tr${_isStudentActive(s) ? '' : ' class="inactive"'} onclick="_elevesLigneClic(event,'${_escJsAttr(s.id)}')"><td><span class="el-civ${s.civilite === 'M' ? ' m' : s.civilite === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(s.civilite))}">${s.civilite ? civiliteLabel(s.civilite) : '·'}</span><a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète" class="el-nom" data-photo-sid="${_escAttr(s.id)}">${_nomHTML(s.id, s.nom, s.prenom)}</a>${camp && (camp.cibles || []).includes(s.id) ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}</td>${
     G.map(g => plis.has(g.key) ? td(g.sum(s.id), true) : g.sub.map((x, i) => td(g.cell(s.id, x.id), i === 0)).join('')).join('')}</tr>`).join('');
   const leg = `<div class="ch-leg tb-hint"><span><i class="ch-sw chob-2"></i><i class="ch-sw chob-5"></i> observations gagnées au relevé</span><span><i class="ch-sw ch-lo"></i> sous 10</span><span><i class="ch-sw ch-av3"></i><i class="ch-sw ch-av2"></i><i class="ch-sw ch-av1"></i> avis : toutes les colonnes, la moitié, moins</span><span>☐ papier à rendre · — non concerné</span><span><i class="ch-sw ch-inc"></i> incidents · <i class="ch-sw ch-ct"></i> contacts du mois</span><span>● bilan écrit · ◉ avec décisions · ○ vide</span><span>Survol : le contenu · clic sur le nom : la fiche · ▾ replie un groupe</span></div>`;
   // Le cadre (.rel-wrap frozen) est posé par renderStudents, entre _wrapScrollKeep et keep().
@@ -6550,7 +6596,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     }).join('')}</span>`;
     td.rem = () => s.remarque ? `<button class="el-rem" onclick="openRemarque('${j}')" title="${_escAttr(s.remarque)}">${_escName(s.remarque)}</button>` : dot('Pas de remarque — clic : en écrire une', `openRemarque('${j}')`);
     return `<tr class="${isFuture || isGone ? 'inactive' : ''}${fiche === sid ? ' el-cur' : ''}" onclick="_elevesLigneClic(event,'${j}')">
-      <td>${civ}<a href="#" onclick="openFiche('${j}');return false" title="Ouvrir la fiche" class="el-nom">${_nomHTML(sid, s.nom, s.prenom)}</a>${cible ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}${_ageSubHTML(s, 'age-' + sid)}${life}</td>
+      <td>${civ}<a href="#" onclick="openFiche('${j}');return false" title="Ouvrir la fiche" class="el-nom" data-photo-sid="${_escAttr(sid)}">${_nomHTML(sid, s.nom, s.prenom)}</a>${cible ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}${_ageSubHTML(s, 'age-' + sid)}${life}</td>
       ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(sid)}" max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)" title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
       ${_elevesReg ? _regimeSelectsHTML(s) : ''}
       ${cols.map(c => `<td class="el-c-${c.key}"${c.key === 'grp' ? ` data-sid="${_escAttr(sid)}"` : ''}>${td[c.key]()}</td>`).join('')}</tr>`;
@@ -7038,6 +7084,7 @@ function _ficheRender() {
     : vue === 'faits' && col ? _ficheFaitsHTML(cls, stu, col)
     : col ? _ficheTableauHTML(cls, stu, col, ed) : `<div class="fi-cols">${secs}</div>`;
   box.querySelectorAll('textarea.pf-ta').forEach(_autoTaille);
+  _fichePhotoFill(stu.id);
   const f = box.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
 }
@@ -7481,7 +7528,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const penF = (onclick, title) => `<button class="pf-ed" onclick="${onclick}" title="${_escAttr(title)}" aria-label="${_escAttr(title)}">✎</button>`;
   const kv = (dt, dd, crayon, editeur) => `<dt>${dt}</dt><dd>${dd}${crayon ? ' ' + crayon : ''}${editeur || ''}</dd>`;
   const ouEdit = k => _ficheEdit === k;
-  const ident = `<dl class="pf-kv">${
+  const ident = `<div id="fiche-photo" class="fiche-photo"></div><dl class="pf-kv">${
     kv('Nom', `${_escName(stu.nom)} ${_escName(stu.prenom)}`, pen('nom', 'Corriger le nom ou le prénom'), ed.edNom)}${
     kv('Classe', `${_escName(cls.nom)}${cls.annee ? ` <span class="pf-mu">${_escName(cls.annee)}</span>` : ''}`, pen('classe', 'Corriger le nom ou l\'année de la classe'), ed.edClasse)}${
     kv('Né(e) le', stu.naissance ? `${_escName(_fmtDateFr(stu.naissance))}${ed.age !== null ? ` <span class="pf-mu">${ed.age} ans</span>` : ''}` : '–', pen('naissance', 'Corriger la date de naissance'), ouEdit('naissance') ? `<div class="fi-editor">${ed.dateInp('naissance', stu.naissance)}</div>` : '')}${
@@ -16722,23 +16769,969 @@ async function pjOrphelins() {
   for await (const [name, h] of pjDirHandle.entries()) {
     if (h.kind === 'file' && /\.pdf$/i.test(name) && !refs.has(name)) out.push(name);
   }
+  // Les photos d'élèves supprimés (v1.48.0) : la suppression d'un élève laisse sa photo.
+  for (const name of await _photosOrphelines()) out.push(PHOTOS_SUBDIR + '/' + name);
   return out.sort();
 }
 async function pjNettoyerUI() {
   const l = await pjOrphelins();
   if (l === null) return toast('⚠️ Dossier des PDF inaccessible.', 'warn');
-  if (!l.length) return toast('✓ Aucun PDF orphelin dans le dossier.');
+  if (!l.length) return toast('✓ Aucun PDF ni aucune photo orphelins dans le dossier.');
   _uiConfirm({
-    title: `🧹 Supprimer ${l.length} PDF orphelin${l.length > 1 ? 's' : ''} ?`,
+    title: `🧹 Supprimer ${l.length} fichier${l.length > 1 ? 's' : ''} orphelin${l.length > 1 ? 's' : ''} ?`,
     message: `Ces fichiers ne sont plus référencés par aucune entrée :\n${l.slice(0, 12).join('\n')}${l.length > 12 ? `\n… et ${l.length - 12} autres` : ''}\n\nSuppression DÉFINITIVE dans le dossier (pas de Ctrl+Z).`,
     okLabel: 'Supprimer', okClass: 'btn-d',
     onOk: async () => {
       let n = 0;
-      for (const name of l) { try { await pjDirHandle.removeEntry(name); n++; } catch (_) {} }
+      const ph = l.some(x => x.startsWith(PHOTOS_SUBDIR + '/')) ? await _photosDir(true, true) : null;
+      for (const name of l) {
+        try {
+          if (name.startsWith(PHOTOS_SUBDIR + '/')) { if (ph) { await ph.removeEntry(name.slice(PHOTOS_SUBDIR.length + 1)); _photos.sids.delete(name.slice(PHOTOS_SUBDIR.length + 1).replace(/\.jpe?g$/i, '')); n++; } }
+          else { await pjDirHandle.removeEntry(name); n++; }
+        } catch (_) {}
+      }
       toast(`🧹 ${n} fichier${n > 1 ? 's' : ''} supprimé${n > 1 ? 's' : ''}.`);
       renderDonnees();
     },
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📷 PHOTOS DES ÉLÈVES (v1.48.0) — repris de Plan de classe (v2.64.0 → v2.64.2, commit ace7234).
+// Le trombinoscope PDF exporté de MBN est lu ICI, sans bibliothèque (l'app reste hors-ligne,
+// la CSP n'autorise aucun script externe) ; une photo à la fois s'ajoute aussi depuis la fiche.
+// Le lecteur ne couvre que ce dont un trombinoscope a besoin — texte (polices Type0
+// Identity-H + ToUnicode, ou polices simples), images JPEG (DCTDecode, recopiées telles
+// quelles), formulaires XObject, flux d'objets compressés.
+// ═══════════════════════════════════════════════════════════════════════════
+const PHOTOS_SUBDIR = 'photos';
+
+// ─── Lecture bas niveau du PDF ──────────────────────────────────────────────
+function _pdfLatin1(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+  return s;
+}
+async function _pdfInflate(u8) {
+  if (typeof DecompressionStream !== 'function') throw new Error('Décompression indisponible dans ce navigateur.');
+  const ds = new DecompressionStream('deflate');
+  const w = ds.writable.getWriter();
+  w.write(u8).catch(() => {}); w.close().catch(() => {});
+  const r = ds.readable.getReader();
+  const chunks = []; let n = 0;
+  try {
+    for (;;) { const { done, value } = await r.read(); if (done) break; chunks.push(value); n += value.length; }
+  } catch (e) {
+    // Octets parasites après la fin du flux zlib : on garde ce qui a été décodé.
+    if (!n) throw e;
+  }
+  const out = new Uint8Array(n); let o = 0;
+  for (const c of chunks) { out.set(c, o); o += c.length; }
+  return out;
+}
+
+// Analyseur d'objets PDF (aussi utilisé pour les flux de contenu : un mot inconnu devient
+// un opérateur { op }). Noms → chaîne JS ; chaînes → { s: octets en latin1 } ; réf → { r }.
+const _PDF_DELIM = '()<>[]{}/%';
+class _PdfLexer {
+  constructor(src, pos) { this.src = src; this.pos = pos || 0; }
+  ws() {
+    const s = this.src;
+    for (;;) {
+      const c = s.charCodeAt(this.pos);
+      if (c === 32 || c === 10 || c === 13 || c === 9 || c === 12 || c === 0) { this.pos++; continue; }
+      if (c === 37) { while (this.pos < s.length && s[this.pos] !== '\n' && s[this.pos] !== '\r') this.pos++; continue; }
+      return;
+    }
+  }
+  word() {
+    const s = this.src; const st = this.pos;
+    while (this.pos < s.length) {
+      const c = s[this.pos];
+      if (c <= ' ' || _PDF_DELIM.includes(c)) break;
+      this.pos++;
+    }
+    return s.slice(st, this.pos);
+  }
+  value() {
+    this.ws();
+    const s = this.src, c = s[this.pos];
+    if (c === undefined) throw new Error('EOF');
+    if (c === '<' && s[this.pos + 1] === '<') {
+      this.pos += 2; const d = {};
+      for (;;) {
+        this.ws();
+        if (s[this.pos] === '>' && s[this.pos + 1] === '>') { this.pos += 2; return d; }
+        if (s[this.pos] !== '/') { this.value(); continue; }
+        this.pos++; const k = this.word();
+        d[k] = this.value();
+      }
+    }
+    if (c === '<') {
+      const e = s.indexOf('>', this.pos);
+      let h = s.slice(this.pos + 1, e).replace(/[^0-9a-fA-F]/g, '');
+      if (h.length % 2) h += '0';
+      let out = '';
+      for (let i = 0; i < h.length; i += 2) out += String.fromCharCode(parseInt(h.substr(i, 2), 16));
+      this.pos = e + 1;
+      return { s: out };
+    }
+    if (c === '[') {
+      this.pos++; const a = [];
+      for (;;) { this.ws(); if (s[this.pos] === ']') { this.pos++; return a; } a.push(this.value()); }
+    }
+    if (c === '(') {
+      this.pos++; let depth = 1, out = '';
+      while (this.pos < s.length) {
+        const ch = s[this.pos++];
+        if (ch === '\\') {
+          const n = s[this.pos++];
+          const map = { n: '\n', r: '\r', t: '\t', b: '\b', f: '\f', '(': '(', ')': ')', '\\': '\\' };
+          if (map[n] !== undefined) out += map[n];
+          else if (n >= '0' && n <= '7') {
+            let oct = n;
+            while (oct.length < 3 && s[this.pos] >= '0' && s[this.pos] <= '7') oct += s[this.pos++];
+            out += String.fromCharCode(parseInt(oct, 8) & 255);
+          } else if (n === '\r') { if (s[this.pos] === '\n') this.pos++; }
+          else if (n !== '\n') out += n;
+        } else if (ch === '(') { depth++; out += ch; }
+        else if (ch === ')') { if (--depth === 0) break; out += ch; }
+        else out += ch;
+      }
+      return { s: out };
+    }
+    if (c === '/') { this.pos++; return this.word(); }
+    if (c === ']' || c === '>' || c === ')' || c === '{' || c === '}') { this.pos++; return { op: c }; }
+    const w = this.word();
+    if (/^[+-]?(\d+\.?\d*|\.\d+)$/.test(w)) {
+      // Référence « n g R » ?
+      if (/^\d+$/.test(w)) {
+        const m = /^\s+(\d+)\s+R(?=[\s\/\[\]<>()%]|$)/.exec(s.slice(this.pos, this.pos + 24));
+        if (m) { this.pos += m[0].length; return { r: +w }; }
+      }
+      return +w;
+    }
+    if (w === 'true') return true;
+    if (w === 'false') return false;
+    if (w === 'null') return null;
+    if (!w) { this.pos++; return { op: c }; }
+    return { op: w };
+  }
+}
+
+async function _pdfOpen(u8) {
+  const src = _pdfLatin1(u8);
+  if (!src.startsWith('%PDF')) throw new Error("Ce fichier n'est pas un PDF.");
+  if (/\/Encrypt\b/.test(src.slice(Math.max(0, src.length - 4096))) || /\/Encrypt\s+\d+\s+\d+\s+R/.test(src)) throw new Error('PDF protégé par mot de passe : non pris en charge.');
+  const objs = new Map();
+  const re = /(\d+)\s+(\d+)\s+obj\b/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const lx = new _PdfLexer(src, re.lastIndex);
+    let val;
+    try { val = lx.value(); } catch (e) { continue; }
+    lx.ws();
+    let stream = null;
+    if (src.startsWith('stream', lx.pos)) {
+      let st = lx.pos + 6;
+      if (src[st] === '\r') st++;
+      if (src[st] === '\n') st++;
+      stream = { start: st };
+      re.lastIndex = st;
+    } else re.lastIndex = lx.pos;
+    objs.set(+m[1], { val, stream });
+  }
+  const doc = { src, u8, objs };
+  // Bornes des flux : /Length direct ou référencé, sinon « endstream ».
+  for (const o of objs.values()) {
+    if (!o.stream) continue;
+    let len = o.val && o.val.Length;
+    if (len && typeof len === 'object' && 'r' in len) len = objs.get(len.r)?.val;
+    let end = (typeof len === 'number' && len >= 0 && src.startsWith('endstream', _pdfSkipEol(src, o.stream.start + len)))
+      ? o.stream.start + len : -1;
+    if (end < 0) {
+      end = src.indexOf('endstream', o.stream.start);
+      if (end < 0) end = src.length;
+      if (src[end - 1] === '\n') end--;
+      if (src[end - 1] === '\r') end--;
+    }
+    o.stream.end = end;
+  }
+  // Flux d'objets (PDF ≥ 1.5) : objets compressés.
+  for (const o of [...objs.values()]) {
+    if (!o.stream || o.val?.Type !== 'ObjStm') continue;
+    try {
+      const txt = _pdfLatin1(await _pdfStreamBytes(doc, o));
+      const first = o.val.First || 0, n = o.val.N || 0;
+      const head = txt.slice(0, first).trim().split(/\s+/).map(Number);
+      for (let i = 0; i < n; i++) {
+        const num = head[2 * i], off = head[2 * i + 1];
+        if (objs.has(num)) continue;
+        try { objs.set(num, { val: new _PdfLexer(txt, first + off).value(), stream: null }); } catch (e) {}
+      }
+    } catch (e) {}
+  }
+  return doc;
+}
+function _pdfSkipEol(src, i) {
+  while (src[i] === '\r' || src[i] === '\n' || src[i] === ' ') i++;
+  return i;
+}
+function _pdfGet(doc, v) {
+  let guard = 0;
+  while (v && typeof v === 'object' && 'r' in v && guard++ < 32) v = doc.objs.get(v.r)?.val;
+  return v;
+}
+// Octets d'un flux, filtres appliqués — sauf DCTDecode, laissé tel quel (c'est un JPEG).
+async function _pdfStreamBytes(doc, o, keepDct) {
+  let bytes = doc.u8.subarray(o.stream.start, o.stream.end);
+  let filters = _pdfGet(doc, o.val.Filter);
+  if (!filters) filters = [];
+  if (!Array.isArray(filters)) filters = [filters];
+  for (const f of filters) {
+    const name = _pdfGet(doc, f);
+    if (name === 'FlateDecode' || name === 'Fl') bytes = await _pdfInflate(bytes);
+    else if (name === 'DCTDecode' || name === 'DCT') { if (keepDct) return bytes; }
+    else throw new Error('Filtre non pris en charge : ' + name);
+  }
+  return bytes;
+}
+
+// ─── Polices : décodage du texte et largeurs ─────────────────────────────────
+function _pdfParseCMap(txt) {
+  const map = new Map();
+  const hex = h => parseInt(h, 16);
+  const toStr = h => { let s = ''; for (let i = 0; i + 3 < h.length + 1; i += 4) s += String.fromCharCode(hex(h.substr(i, 4).padEnd(4, '0'))); return s; };
+  for (const blk of txt.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+    for (const p of blk[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]*)>/g)) map.set(hex(p[1]), toStr(p[2]));
+  }
+  for (const blk of txt.matchAll(/beginbfrange([\s\S]*?)endbfrange/g)) {
+    for (const p of blk[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*(<[0-9a-fA-F]*>|\[[^\]]*\])/g)) {
+      const lo = hex(p[1]), hi = hex(p[2]);
+      if (p[3][0] === '[') {
+        const arr = [...p[3].matchAll(/<([0-9a-fA-F]*)>/g)].map(x => x[1]);
+        for (let c = lo; c <= hi && c - lo < arr.length; c++) map.set(c, toStr(arr[c - lo]));
+      } else {
+        const base = p[3].slice(1, -1);
+        const last = hex(base.slice(-4) || '0');
+        const pre = toStr(base.slice(0, -4));
+        for (let c = lo; c <= hi && c - lo < 65536; c++) map.set(c, pre + String.fromCharCode(last + c - lo));
+      }
+    }
+  }
+  return map;
+}
+// WinAnsi : les octets 0x80–0x9F diffèrent du latin1.
+const _PDF_WINANSI = { 0x80: '€', 0x82: '‚', 0x84: '„', 0x85: '…', 0x8C: 'Œ', 0x91: '‘', 0x92: '’', 0x93: '“', 0x94: '”', 0x96: '–', 0x97: '—', 0x9C: 'œ', 0x9F: 'Ÿ' };
+async function _pdfFont(doc, ref, cache) {
+  const key = ref && typeof ref === 'object' && 'r' in ref ? ref.r : null;
+  if (key != null && cache.has(key)) return cache.get(key);
+  const d = _pdfGet(doc, ref) || {};
+  const f = { twoByte: false, uni: null, w: () => 500 };
+  const tu = d.ToUnicode && typeof d.ToUnicode === 'object' && 'r' in d.ToUnicode ? doc.objs.get(d.ToUnicode.r) : null;
+  if (tu && tu.stream) { try { f.uni = _pdfParseCMap(_pdfLatin1(await _pdfStreamBytes(doc, tu))); } catch (e) {} }
+  if (d.Subtype === 'Type0') {
+    f.twoByte = true;
+    const cid = _pdfGet(doc, (_pdfGet(doc, d.DescendantFonts) || [])[0]) || {};
+    const dw = typeof cid.DW === 'number' ? cid.DW : 1000;
+    const W = _pdfGet(doc, cid.W) || [], wm = new Map();
+    for (let i = 0; i < W.length;) {
+      const a = _pdfGet(doc, W[i]), b = _pdfGet(doc, W[i + 1]);
+      if (Array.isArray(b)) { b.forEach((x, k) => wm.set(a + k, _pdfGet(doc, x))); i += 2; }
+      else { const w = _pdfGet(doc, W[i + 2]); for (let c = a; c <= b; c++) wm.set(c, w); i += 3; }
+    }
+    f.w = c => wm.has(c) ? wm.get(c) : dw;
+  } else {
+    const first = d.FirstChar || 0, ws = _pdfGet(doc, d.Widths) || [];
+    f.w = c => { const v = _pdfGet(doc, ws[c - first]); return typeof v === 'number' ? v : 500; };
+  }
+  if (key != null) cache.set(key, f);
+  return f;
+}
+function _pdfDecodeStr(f, bytes) {
+  const out = [];
+  if (f.twoByte) {
+    for (let i = 0; i + 1 < bytes.length; i += 2) {
+      const code = (bytes.charCodeAt(i) << 8) | bytes.charCodeAt(i + 1);
+      out.push({ code, ch: f.uni?.get(code) ?? '' });
+    }
+  } else {
+    for (let i = 0; i < bytes.length; i++) {
+      const code = bytes.charCodeAt(i);
+      out.push({ code, ch: f.uni?.get(code) ?? _PDF_WINANSI[code] ?? String.fromCharCode(code) });
+    }
+  }
+  return out;
+}
+
+// ─── Interprétation des pages ────────────────────────────────────────────────
+// Matrices en convention PDF (vecteur ligne) : _pdfMul(A, B) = « A puis B ».
+function _pdfMul(A, B) {
+  return [A[0] * B[0] + A[1] * B[2], A[0] * B[1] + A[1] * B[3], A[2] * B[0] + A[3] * B[2], A[2] * B[1] + A[3] * B[3],
+          A[4] * B[0] + A[5] * B[2] + B[4], A[4] * B[1] + A[5] * B[3] + B[5]];
+}
+function _pdfPages(doc) {
+  const rootRef = /\/Root\s+(\d+)\s+\d+\s+R/.exec(doc.src.slice(Math.max(0, doc.src.lastIndexOf('trailer') >= 0 ? doc.src.lastIndexOf('trailer') : 0)))
+               || /\/Root\s+(\d+)\s+\d+\s+R/.exec(doc.src);
+  let cat = rootRef ? doc.objs.get(+rootRef[1])?.val : null;
+  if (!cat || cat.Type !== 'Catalog') cat = [...doc.objs.values()].map(o => o.val).find(v => v && v.Type === 'Catalog');
+  const out = [];
+  const walk = (node, inh, depth) => {
+    node = _pdfGet(doc, node);
+    if (!node || depth > 32) return;
+    const res = node.Resources !== undefined ? node.Resources : inh.Resources;
+    const mb = node.MediaBox !== undefined ? node.MediaBox : inh.MediaBox;
+    if (node.Type === 'Pages' || Array.isArray(_pdfGet(doc, node.Kids))) {
+      for (const k of _pdfGet(doc, node.Kids) || []) walk(k, { Resources: res, MediaBox: mb }, depth + 1);
+    } else out.push({ node, res, mb: (_pdfGet(doc, mb) || [0, 0, 595.28, 841.89]).map(x => _pdfGet(doc, x)) });
+  };
+  if (cat) walk(cat.Pages, {}, 0);
+  return out;
+}
+async function _pdfContentOf(doc, contents) {
+  // /Contents : une référence vers un flux, ou un tableau de références (éventuellement lui-même référencé).
+  // Ne pas résoudre une référence de flux par _pdfGet : on perdrait l'objet (et donc ses octets).
+  const isStreamRef = v => v && typeof v === 'object' && 'r' in v && doc.objs.get(v.r)?.stream;
+  if (!isStreamRef(contents)) contents = _pdfGet(doc, contents);
+  const refs = Array.isArray(contents) ? contents : [contents];
+  let txt = '';
+  for (const r of refs) {
+    const o = r && typeof r === 'object' && 'r' in r ? doc.objs.get(r.r) : null;
+    if (o && o.stream) txt += _pdfLatin1(await _pdfStreamBytes(doc, o)) + '\n';
+  }
+  return txt;
+}
+// Parcourt une page : glyphes (caractère, position, taille, fin) et images (boîte, objet).
+async function _pdfScanPage(doc, page, fontCache) {
+  const glyphs = [], images = [];
+  const run = async (content, resources, ctm0, depth) => {
+    const res = _pdfGet(doc, resources) || {};
+    const fonts = _pdfGet(doc, res.Font) || {}, xobjs = _pdfGet(doc, res.XObject) || {};
+    const lx = new _PdfLexer(content, 0);
+    let ctm = ctm0, stack = [];
+    let Tm = [1, 0, 0, 1, 0, 0], Tlm = Tm, font = null, fs = 0, Tc = 0, Tw = 0, Th = 1, TL = 0, Trise = 0;
+    let ops = [];
+    const show = (bytes) => {
+      if (!font) return;
+      for (const g of _pdfDecodeStr(font, bytes)) {
+        const M = _pdfMul(_pdfMul([fs * Th, 0, 0, fs, 0, Trise], Tm), ctm);
+        const adv = ((font.w(g.code) / 1000) * fs + Tc + (!font.twoByte && g.code === 32 ? Tw : 0)) * Th;
+        const Tm2 = _pdfMul([1, 0, 0, 1, adv, 0], Tm);
+        const M2 = _pdfMul(_pdfMul([fs * Th, 0, 0, fs, 0, Trise], Tm2), ctm);
+        glyphs.push({ ch: g.ch, x: M[4], y: M[5], x2: M2[4], size: Math.hypot(M[2], M[3]) });
+        Tm = Tm2;
+      }
+    };
+    const n = i => _pdfGet(doc, ops[i]);
+    for (;;) {
+      let v;
+      try { lx.ws(); if (lx.pos >= content.length) break; v = lx.value(); } catch (e) { break; }
+      if (!(v && typeof v === 'object' && 'op' in v)) { ops.push(v); continue; }
+      switch (v.op) {
+        case 'q': stack.push(ctm); break;
+        case 'Q': ctm = stack.pop() || ctm0; break;
+        case 'cm': if (ops.length >= 6) ctm = _pdfMul(ops.slice(-6), ctm); break;
+        case 'BT': Tm = Tlm = [1, 0, 0, 1, 0, 0]; break;
+        case 'Tf': font = await _pdfFont(doc, fonts[ops[ops.length - 2]], fontCache); fs = +ops[ops.length - 1] || 0; break;
+        case 'Tc': Tc = +n(ops.length - 1) || 0; break;
+        case 'Tw': Tw = +n(ops.length - 1) || 0; break;
+        case 'Tz': Th = (+n(ops.length - 1) || 100) / 100; break;
+        case 'TL': TL = +n(ops.length - 1) || 0; break;
+        case 'Ts': Trise = +n(ops.length - 1) || 0; break;
+        case 'Tm': if (ops.length >= 6) Tm = Tlm = ops.slice(-6).map(Number); break;
+        case 'Td': Tlm = _pdfMul([1, 0, 0, 1, +ops[ops.length - 2] || 0, +ops[ops.length - 1] || 0], Tlm); Tm = Tlm; break;
+        case 'TD': TL = -(+ops[ops.length - 1] || 0); Tlm = _pdfMul([1, 0, 0, 1, +ops[ops.length - 2] || 0, +ops[ops.length - 1] || 0], Tlm); Tm = Tlm; break;
+        case 'T*': Tlm = _pdfMul([1, 0, 0, 1, 0, -TL], Tlm); Tm = Tlm; break;
+        case 'Tj': { const s = ops[ops.length - 1]; if (s && s.s !== undefined) show(s.s); break; }
+        case "'": { Tlm = _pdfMul([1, 0, 0, 1, 0, -TL], Tlm); Tm = Tlm; const s = ops[ops.length - 1]; if (s && s.s !== undefined) show(s.s); break; }
+        case '"': { Tw = +ops[ops.length - 3] || 0; Tc = +ops[ops.length - 2] || 0; Tlm = _pdfMul([1, 0, 0, 1, 0, -TL], Tlm); Tm = Tlm; const s = ops[ops.length - 1]; if (s && s.s !== undefined) show(s.s); break; }
+        case 'TJ': {
+          const arr = ops[ops.length - 1];
+          if (Array.isArray(arr)) for (const it of arr) {
+            if (it && it.s !== undefined) show(it.s);
+            else if (typeof it === 'number') Tm = _pdfMul([1, 0, 0, 1, (-it / 1000) * fs * Th, 0], Tm);
+          }
+          break;
+        }
+        case 'Do': {
+          const name = ops[ops.length - 1], ref = xobjs[name];
+          const o = ref && typeof ref === 'object' && 'r' in ref ? doc.objs.get(ref.r) : null;
+          if (!o) break;
+          if (o.val.Subtype === 'Image') {
+            const pts = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => [ctm[0] * x + ctm[2] * y + ctm[4], ctm[1] * x + ctm[3] * y + ctm[5]]);
+            const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+            images.push({ o, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) });
+          } else if (o.val.Subtype === 'Form' && o.stream && depth < 12) {
+            const mat = (_pdfGet(doc, o.val.Matrix) || [1, 0, 0, 1, 0, 0]).map(x => +_pdfGet(doc, x));
+            const sub = _pdfLatin1(await _pdfStreamBytes(doc, o));
+            await run(sub, o.val.Resources !== undefined ? o.val.Resources : res, _pdfMul(mat, ctm), depth + 1);
+          }
+          break;
+        }
+        case 'BI': {
+          // Image en ligne : on saute ses données binaires jusqu'à « EI ».
+          const k = content.indexOf('ID', lx.pos);
+          if (k < 0) { lx.pos = content.length; break; }
+          const e = content.search(/\sEI(?=[\s]|$)/);
+          const e2 = (() => { const r = /\sEI(?=\s|$)/g; r.lastIndex = k + 3; const mm = r.exec(content); return mm ? mm.index + 3 : content.length; })();
+          lx.pos = e2; void e;
+          break;
+        }
+      }
+      ops = [];
+    }
+  };
+  const content = await _pdfContentOf(doc, page.node.Contents);
+  await run(content, page.res, [1, 0, 0, 1, 0, 0], 0);
+  return { glyphs, images };
+}
+
+// Regroupe des glyphes en lignes : même ligne de base, puis coupure aux grands blancs.
+// Un blanc de plus de ~0,2 corps entre deux glyphes devient une espace.
+function _trombiLines(glyphs) {
+  const gs = glyphs.filter(g => g.ch !== '' && g.size > 0).slice().sort((a, b) => b.y - a.y || a.x - b.x);
+  const rows = [];
+  for (const g of gs) {
+    const r = rows.find(r => Math.abs(r.y - g.y) < Math.max(1, g.size * 0.3));
+    if (r) r.gs.push(g); else rows.push({ y: g.y, gs: [g] });
+  }
+  const lines = [];
+  for (const r of rows) {
+    r.gs.sort((a, b) => a.x - b.x);
+    let cur = null;
+    for (const g of r.gs) {
+      if (cur && g.x - cur.x2 > g.size * 1.2) { lines.push(cur); cur = null; }
+      if (!cur) cur = { y: r.y, x: g.x, x2: g.x2, size: g.size, text: '' };
+      else if (g.x - cur.x2 > g.size * 0.18 && !/\s$/.test(cur.text) && g.ch !== ' ') cur.text += ' ';
+      cur.text += g.ch;
+      cur.x2 = Math.max(cur.x2, g.x2);
+      cur.size = Math.max(cur.size, g.size);
+    }
+    if (cur) lines.push(cur);
+  }
+  lines.forEach(l => { l.text = l.text.replace(/\s+/g, ' ').trim(); });
+  return lines.filter(l => l.text);
+}
+
+// Lit le thrombinoscope : en-tête + une entrée par photo, avec le nom écrit dessous.
+// Retour : { header: { classLabel, count, pp, year, date, school }, entries: [{ page, lines[], text, jpeg (Uint8Array) | null, objNum }], pages }
+async function _trombiParsePdf(u8) {
+  const doc = await _pdfOpen(u8);
+  const pages = _pdfPages(doc);
+  if (!pages.length) throw new Error('Aucune page trouvée dans ce PDF.');
+  const fontCache = new Map();
+  const entries = [], headerLines = [];
+  for (let p = 0; p < pages.length; p++) {
+    const { glyphs, images } = await _pdfScanPage(doc, pages[p], fontCache);
+    // Les photos : images d'au moins 30 pt de côté (écarte logos et décors minuscules).
+    const photos = images.filter(im => im.x1 - im.x0 >= 30 && im.y1 - im.y0 >= 30)
+      .sort((a, b) => b.y1 - a.y1 || a.x0 - b.x0);
+    // Chaque glyphe va à la photo dont il est juste en dessous ET la plus proche horizontalement
+    // (les noms sont centrés sous leur photo ; deux voisins de rangée ont la même ligne de base).
+    const byImg = new Map(), free = [];
+    for (const g of glyphs) {
+      const gx = (g.x + g.x2) / 2;
+      let best = null, bd = Infinity;
+      for (const im of photos) {
+        const dy = im.y0 - g.y;                      // > 0 : le glyphe est sous la photo
+        if (dy < 0 || dy > Math.max(45, g.size * 4.5)) continue;
+        if (gx < im.x0 - (im.x1 - im.x0) * 0.4 || gx > im.x1 + (im.x1 - im.x0) * 0.4) continue;
+        const d = Math.abs(gx - (im.x0 + im.x1) / 2);
+        if (d < bd) { bd = d; best = im; }
+      }
+      if (best) { if (!byImg.has(best)) byImg.set(best, []); byImg.get(best).push(g); }
+      else free.push(g);
+    }
+    for (const im of photos) {
+      const lines = _trombiLines(byImg.get(im) || []).sort((a, b) => b.y - a.y);
+      let jpeg = null;
+      try { jpeg = await _pdfImageJpeg(doc, im.o); } catch (e) { jpeg = null; }
+      // Une ligne coupée après un trait d'union (« DE LA TOUR- » / « DUVERNOY ») se recolle sans espace.
+      const text = lines.map(l => l.text).reduce((acc, t) => !acc ? t : /-$/.test(acc) ? acc + t : acc + ' ' + t, '');
+      entries.push({ page: p + 1, lines: lines.map(l => l.text), text, jpeg });
+    }
+    headerLines.push(..._trombiLines(free).map(l => l.text));
+  }
+  return { header: _trombiParseHeader(headerLines), headerLines, entries, pages: pages.length };
+}
+// Octets JPEG d'une image : recopiés si le flux est déjà un JPEG ; sinon (pixels bruts
+// compressés), redessinés sur un canevas et réencodés — seulement dans un navigateur.
+async function _pdfImageJpeg(doc, o) {
+  let filters = _pdfGet(doc, o.val.Filter) || [];
+  if (!Array.isArray(filters)) filters = [filters];
+  if (filters.map(f => _pdfGet(doc, f)).some(f => f === 'DCTDecode' || f === 'DCT')) return await _pdfStreamBytes(doc, o, true);
+  const w = o.val.Width, h = o.val.Height, bpc = o.val.BitsPerComponent || 8;
+  const cs = _pdfGet(doc, o.val.ColorSpace);
+  const comps = cs === 'DeviceGray' ? 1 : cs === 'DeviceCMYK' ? 4 : 3;
+  if (bpc !== 8 || typeof document === 'undefined' || !document.createElement) return null;
+  const raw = await _pdfStreamBytes(doc, o);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext && cv.getContext('2d'); if (!ctx) return null;
+  const img = ctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const s = i * comps, d = i * 4;
+    if (comps === 1) img.data[d] = img.data[d + 1] = img.data[d + 2] = raw[s];
+    else if (comps === 4) { const k = raw[s + 3]; img.data[d] = 255 - Math.min(255, raw[s] + k); img.data[d + 1] = 255 - Math.min(255, raw[s + 1] + k); img.data[d + 2] = 255 - Math.min(255, raw[s + 2] + k); }
+    else { img.data[d] = raw[s]; img.data[d + 1] = raw[s + 1]; img.data[d + 2] = raw[s + 2]; }
+    img.data[d + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
+  return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+}
+
+// ─── En-tête, noms, appariement (fonctions pures, testées) ──────────────────
+function _trombiParseHeader(lines) {
+  const h = { classLabel: null, count: null, pp: null, year: null, date: null, school: null };
+  for (const raw of lines) {
+    const t = String(raw).trim();
+    let m;
+    if (!h.classLabel && (m = /t?r?o?m?binoscope\b.*?\bclasse\s*:?\s*(.+)$/i.exec(t))) h.classLabel = m[1].trim();
+    else if (!h.classLabel && (m = /^classe\s*:?\s*(.+)$/i.exec(t))) h.classLabel = m[1].trim();
+    if (h.count == null && (m = /^(\d+)\s+[ée]l[èe]ves?\b/i.exec(t))) h.count = +m[1];
+    if (!h.pp && (m = /professeur(?:e|s|es)?\s+principa(?:l|le|ux|les)\s*:\s*(.+)$/i.exec(t))) h.pp = _trombiDedupNames(m[1]);
+    if (!h.year && /ann[ée]e\s+scolaire/i.test(t) && (m = /(\d{4})\s*[-–\/]\s*(\d{4})/.exec(t))) h.year = `${m[1]}-${m[2]}`;
+    if (!h.date && (m = /[ée]dit[ée]e?\s+le\s+(\d{1,2}\/\d{1,2}\/\d{4})/i.exec(t))) h.date = m[1];
+    if (!h.school && /^(coll[èe]ge|lyc[ée]e|[ée]cole|cit[ée] scolaire|ensemble scolaire)\b/i.test(t)) h.school = t;
+  }
+  return h;
+}
+// MBN écrit parfois deux fois le même professeur principal (« Mme X, Mme X ») : on garde
+// chaque nom une seule fois, dans l'ordre, en comparant sans accents ni casse.
+function _trombiDedupNames(txt) {
+  const seen = new Set(), out = [];
+  for (const part of String(txt || '').split(/\s*[,;]\s*|\s+et\s+/i)) {
+    const p = part.trim(), k = _trombiNorm(p);
+    if (p && !seen.has(k)) { seen.add(k); out.push(p); }
+  }
+  return out.join(', ');
+}
+// « DE LA TOUR Jean-Marc » → { nom: 'DE LA TOUR', prenom: 'Jean-Marc' } : les mots tout en
+// majuscules en tête font le nom. Tout en majuscules : le dernier mot est le prénom.
+function _trombiSplitName(full) {
+  const toks = String(full || '').trim().split(/\s+/).filter(Boolean);
+  const isUp = t => /\p{L}/u.test(t) && t === t.toLocaleUpperCase('fr') && t !== t.toLocaleLowerCase('fr');
+  let k = 0;
+  while (k < toks.length && isUp(toks[k])) k++;
+  if (k === toks.length && k > 1) k = toks.length - 1;
+  return { nom: toks.slice(0, k).join(' '), prenom: toks.slice(k).join(' ') };
+}
+const _trombiNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/[-'’.]/g, ' ').replace(/\s+/g, ' ').trim();
+// Score de ressemblance entre le nom lu sur le PDF et un élève de l'app (0 = aucun).
+function _trombiScore(pdfName, stu) {
+  const a = _trombiSplitName(pdfName);
+  const pn = _trombiNorm(a.nom), pp = _trombiNorm(a.prenom);
+  const sn = _trombiNorm(stu.nom), sp = _trombiNorm(stu.prenom);
+  if (!sn && !sp) return 0;
+  if (pn === sn && pp === sp) return 100;
+  const bag = s => s.split(' ').filter(Boolean).sort().join(' ');
+  if (bag(pn + ' ' + pp) === bag(sn + ' ' + sp)) return 90;
+  if (pn === sn && pp && sp && (pp.startsWith(sp) || sp.startsWith(pp) || pp.split(' ')[0] === sp.split(' ')[0])) return 80;
+  if (pp === sp && pn && sn && (pn.startsWith(sn) || sn.startsWith(pn))) return 70;
+  if (pn && pn === sn) return 50;
+  return 0;
+}
+// Propose un élève pour chaque photo : meilleur score ≥ 70, sans doublon (un élève ne
+// reçoit qu'une photo — à égalité de score, aucune proposition : c'est à l'utilisateur).
+function _trombiMatch(names, students) {
+  const props = names.map(nm => {
+    const scored = students.map(s => ({ sid: s.id, sc: _trombiScore(nm, s) })).filter(x => x.sc > 0).sort((a, b) => b.sc - a.sc);
+    const best = scored[0];
+    if (!best || best.sc < 70) return { sid: null, score: best ? best.sc : 0, candidates: scored.slice(0, 5).map(x => x.sid) };
+    if (scored[1] && scored[1].sc === best.sc) return { sid: null, score: best.sc, candidates: scored.filter(x => x.sc === best.sc).map(x => x.sid) };
+    return { sid: best.sid, score: best.sc, candidates: [best.sid] };
+  });
+  const bySid = new Map();
+  props.forEach((p, i) => { if (p.sid) { if (!bySid.has(p.sid)) bySid.set(p.sid, []); bySid.get(p.sid).push(i); } });
+  for (const idxs of bySid.values()) {
+    if (idxs.length < 2) continue;
+    const top = Math.max(...idxs.map(i => props[i].score));
+    const winners = idxs.filter(i => props[i].score === top);
+    idxs.forEach(i => { if (winners.length > 1 || props[i].score < top) props[i].sid = null; });
+  }
+  return props;
+}
+// Classe désignée par l'en-tête (« 6A », « 6e A », « 6ème A ») : id, nom, puis forme compacte.
+function _trombiResolveClass(label) {
+  if (!label) return null;
+  const direct = _impResolveClass(label);
+  if (direct) return direct;
+  const compact = s => _trombiNorm(s).replace(/(\d+)\s*(?:e|eme|ere|nde|de)\b/g, '$1').replace(/[^a-z0-9]/g, '');
+  const k = compact(label);
+  for (const c of Object.values(S.classes || {})) if (compact(c.id) === k || compact(c.nom) === k) return c.id;
+  return null;
+}
+
+
+// ─── Stockage : <dossier des pièces jointes>/photos/<sid>.jpg ───────────────
+// ⚠️ Le dossier des PDF, pas celui de la sync (arbitré par l'utilisateur le 2026-10-03) : le
+// dossier de sync fait tourner ses JSON (backups, conflits) et on n'y mêle pas de documents.
+// Les photos ne sont ni dans `S` ni dans localStorage. Supprimer un élève NE supprime PAS sa
+// photo (Ctrl+Z le rend, pas le fichier) : 🧹 Orphelins… la propose ensuite au nettoyage.
+const _photos = { sids: new Set(), urls: new Map(), ready: false, lastTry: 0 };
+const LS_PHOTOS_KNOWN = 'suiviPP_photosKnown';
+async function _photosDir(write, ask) {
+  if (!pjDirHandle) return null;
+  const mode = write ? 'readwrite' : 'read';
+  try {
+    if (typeof pjDirHandle.queryPermission === 'function') {   // OPFS, tests : pas de permission à demander
+      let p = await pjDirHandle.queryPermission({ mode });
+      if (p !== 'granted' && ask) p = await pjDirHandle.requestPermission({ mode });
+      if (p !== 'granted') return null;
+    }
+    return await pjDirHandle.getDirectoryHandle(PHOTOS_SUBDIR, { create: !!write });
+  } catch (e) { return null; }
+}
+async function _photosRefresh(ask) {
+  _photos.lastTry = Date.now();
+  const d = await _photosDir(false, ask);
+  if (!d) return false;
+  const found = new Set();
+  try {
+    for await (const [name, h] of d.entries()) {
+      const m = /^(.+)\.jpe?g$/i.exec(name);
+      if (m && h.kind === 'file') found.add(m[1]);
+    }
+  } catch (e) { return false; }
+  const changed = found.size !== _photos.sids.size || [...found].some(x => !_photos.sids.has(x));
+  _photos.sids = found;
+  _photos.ready = true;
+  if (changed) _photosChanged();
+  if (found.size) { try { localStorage.setItem(LS_PHOTOS_KNOWN, '1'); } catch (e) {} }
+  return true;
+}
+function _photoHas(sid) { return _photos.sids.has(sid); }
+// Après un import, un ajout ou un retrait : la fiche ouverte se redessine (la liste n'a pas de photo).
+function _photosChanged() {
+  if (_ficheSid && document.getElementById('mfiche')?.classList.contains('on')) _fichePhotoFill(_ficheSid);
+}
+async function _photoUrl(sid) {
+  if (!_photos.sids.has(sid)) return null;
+  if (_photos.urls.has(sid)) return _photos.urls.get(sid);
+  const d = await _photosDir(false, false);
+  if (!d) return null;
+  try {
+    const file = await (await d.getFileHandle(sid + '.jpg')).getFile();
+    const u = URL.createObjectURL(file);
+    _photos.urls.set(sid, u);
+    return u;
+  } catch (e) { return null; }
+}
+async function _photoWrite(dir, sid, bytes) {
+  const fh = await dir.getFileHandle(sid + '.jpg', { create: true });
+  const w = await fh.createWritable();
+  try { await w.write(new Blob([bytes], { type: 'image/jpeg' })); await w.close(); }
+  catch (e) { try { await w.abort(); } catch (_) {} throw e; }
+  const old = _photos.urls.get(sid); if (old) URL.revokeObjectURL(old);
+  _photos.urls.delete(sid);
+  _photos.sids.add(sid);
+}
+async function _photoDelete(sid, ask) {
+  if (!_photos.sids.has(sid)) return;
+  const d = await _photosDir(true, !!ask);
+  if (!d) return;
+  try { await d.removeEntry(sid + '.jpg'); } catch (e) { return; }
+  const u = _photos.urls.get(sid); if (u) URL.revokeObjectURL(u);
+  _photos.urls.delete(sid); _photos.sids.delete(sid);
+}
+// Les photos dont l'élève n'existe plus (supprimé) — pour 🧹 Orphelins… de Données.
+async function _photosOrphelines() {
+  const d = await _photosDir(false, false);
+  if (!d) return [];
+  const out = [];
+  try {
+    for await (const [name, h] of d.entries()) {
+      const m = /^(.+)\.jpe?g$/i.exec(name);
+      if (m && h.kind === 'file' && !S.eleves[m[1]]) out.push(name);
+    }
+  } catch (e) {}
+  return out.sort();
+}
+
+// ─── Fenêtre d'import (mtrombi) ──────────────────────────────────────────────
+let _trombi = null;   // { header, entries: [{ ..., url, sid, score, candidates }], classId }
+function openTrombiImport() {
+  _trombi = null;
+  const inp = document.getElementById('trombi-file'); if (inp) inp.value = '';
+  renderTrombi();
+  openMod('mtrombi');
+  _modalReturnTo['mtrombi'] = () => { _trombiRelease(); _trombi = null; };
+}
+async function _trombiFileSelected(file) {
+  if (!file) return;
+  const st = document.getElementById('trombi-status');
+  if (st) st.textContent = '⏳ Lecture du PDF…';
+  try {
+    const u8 = new Uint8Array(await file.arrayBuffer());
+    const res = await _trombiParsePdf(u8);
+    _trombiRelease();
+    res.entries.forEach(e => { e.url = e.jpeg ? URL.createObjectURL(new Blob([e.jpeg], { type: 'image/jpeg' })) : null; });
+    const auto = _trombiResolveClass(res.header.classLabel);
+    _trombi = { ...res, classId: auto || S.cur || null, classAuto: !!auto };
+    _trombiRematch();
+    if (st) st.textContent = '';
+  } catch (e) {
+    console.warn('Import du trombinoscope :', e);
+    _trombi = null;
+    if (st) st.textContent = '';
+    appAlert('Lecture du PDF impossible', _escName((e && e.message) || String(e)), 'error');
+  }
+  renderTrombi();
+}
+function _trombiRelease() {
+  if (_trombi) for (const e of _trombi.entries) if (e.url) URL.revokeObjectURL(e.url);
+}
+function _trombiStudents(cid) {
+  const cls = S.classes[cid];
+  return (cls?.eleves || []).map(id => S.eleves[id]).filter(Boolean)
+    .sort((a, b) => (a.nom || '').localeCompare(b.nom || '', 'fr') || (a.prenom || '').localeCompare(b.prenom || '', 'fr'));
+}
+function _trombiRematch() {
+  if (!_trombi) return;
+  const props = _trombiMatch(_trombi.entries.map(e => e.text), _trombiStudents(_trombi.classId));
+  _trombi.entries.forEach((e, i) => { e.sid = e.jpeg ? props[i].sid : null; e.score = props[i].score; e.candidates = props[i].candidates; e.auto = !!props[i].sid; });
+}
+function _trombiSetClass(cid) {
+  if (!_trombi) return;
+  _trombi.classId = cid || null;
+  _trombiRematch();
+  renderTrombi();
+}
+function _trombiSetSid(i, sid) {
+  const e = _trombi?.entries[i]; if (!e) return;
+  // Un élève ne reçoit qu'une photo : on le retire d'une autre ligne qui l'aurait.
+  if (sid) _trombi.entries.forEach((o, k) => { if (k !== i && o.sid === sid) { o.sid = null; o.auto = false; } });
+  e.sid = sid || null; e.auto = false;
+  renderTrombi();
+}
+function renderTrombi() {
+  const box = document.getElementById('trombi-body');
+  const btn = document.getElementById('trombi-go');
+  if (!box) return;
+  const dirOk = !!pjDirHandle;
+  const dirLine = dirOk
+    ? `<div class="tb-hint" style="margin:0 0 8px">📂 Les photos seront enregistrées dans <code>${_escName(pjDirHandle.name)}/${PHOTOS_SUBDIR}/</code> — le dossier des pièces jointes, synchronisé par Nextcloud.</div>`
+    : `<div class="al al-w">⚠️ Aucun dossier des pièces jointes n'est choisi. Les photos sont rangées dans son sous-dossier <code>${PHOTOS_SUBDIR}/</code>, à côté des PDF des incidents.
+        <button class="btn btn-p btn-sm" style="margin-left:6px" onclick="_trombiPickDir()">📂 Choisir le dossier</button></div>`;
+  if (!_trombi) {
+    box.innerHTML = dirLine + `<p style="margin:8px 0">Exportez le trombinoscope de la classe depuis Mon Bureau Numérique (PDF), puis choisissez-le ici. Le fichier est lu dans le navigateur et n'est envoyé nulle part.</p>`;
+    if (btn) { btn.disabled = true; btn.textContent = '📷 Enregistrer les photos'; }
+    return;
+  }
+  const h = _trombi.header;
+  const studs = _trombiStudents(_trombi.classId);
+  const taken = new Set(_trombi.entries.map(e => e.sid).filter(Boolean));
+  const opts = Object.values(S.classes || {}).sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr', { numeric: true }))
+    .map(c => `<option value="${_escAttr(c.id)}"${c.id === _trombi.classId ? ' selected' : ''}>${_escName(c.nom)}${c.annee ? ' — ' + _escName(c.annee) : ''}</option>`).join('');
+  const found = _trombi.entries.length;
+  const countWarn = h.count != null && h.count !== found ? ` <span class="trombi-st bad">⚠ ${h.count} annoncés</span>` : '';
+  const lu = h.classLabel ? _escName(h.classLabel) : '<i>non lue</i>';
+  const head = `<div class="trombi-head">
+    <div><b>Classe du PDF :</b> ${lu}
+      → <select onchange="_trombiSetClass(this.value)" aria-label="Classe des élèves">${opts}</select>
+      ${_trombi.classAuto ? '' : '<span class="trombi-st bad" title="Le nom de classe du PDF ne correspond à aucune classe : vérifiez le choix">⚠ à vérifier</span>'}</div>
+    <div><b>${found}</b> photo${found > 1 ? 's' : ''} trouvée${found > 1 ? 's' : ''}${countWarn}${h.year ? ` · ${_escName(h.year)}` : ''}${h.date ? ` · éditée le ${_escName(h.date)}` : ''}</div>
+  </div>`;
+  const cards = _trombi.entries.map((e, i) => {
+    const has = e.sid && _photoHas(e.sid);
+    const state = !e.jpeg ? '<span class="trombi-st bad">image illisible</span>'
+      : !e.sid ? '<span class="trombi-st bad">✗ à associer</span>'
+      : e.auto ? `<span class="trombi-st ok">✓ ${e.score >= 100 ? 'trouvé' : 'proche'}</span>` : '<span class="trombi-st ok">✎ choisi</span>';
+    const sopts = `<option value="">— ignorer cette photo —</option>` + studs.map(s =>
+      `<option value="${_escAttr(s.id)}"${s.id === e.sid ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}${taken.has(s.id) && s.id !== e.sid ? ' (déjà pris)' : ''}${_photoHas(s.id) ? ' 📷' : ''}</option>`).join('');
+    const lu2 = _escName(e.lines.join(' / ') || '(aucun nom lu)');
+    return `<div class="trombi-card${e.sid ? '' : ' off'}">
+      ${e.url ? `<img src="${e.url}" alt="">` : '<div class="trombi-noimg">?</div>'}
+      <div class="trombi-pdfname" title="Nom lu sur le PDF">${lu2}</div>
+      <select ${e.jpeg ? '' : 'disabled'} onchange="_trombiSetSid(${i}, this.value)" aria-label="Élève de cette photo">${sopts}</select>
+      <div>${state}${has ? ' <span class="trombi-st" title="Cet élève a déjà une photo : elle sera remplacée">🔁 remplace</span>' : ''}</div>
+    </div>`;
+  }).join('');
+  const missing = studs.filter(s => !taken.has(s.id) && _isStudentActive(s));
+  const miss = missing.length
+    ? `<div class="tb-hint" style="margin-top:10px"><b>Élèves de la classe sans photo dans ce PDF (${missing.length}) :</b> ${missing.map(s => _escName(s.nom + ' ' + s.prenom)).join(', ')} — la photo d'un élève s'ajoute aussi depuis sa fiche.</div>` : '';
+  box.innerHTML = dirLine + head + `<div class="trombi-grid">${cards}</div>` + miss;
+  const n = _trombi.entries.filter(e => e.sid && e.jpeg).length;
+  if (btn) { btn.disabled = !n || !dirOk; btn.textContent = `📷 Enregistrer ${n} photo${n > 1 ? 's' : ''}`; }
+}
+async function _trombiPickDir() {
+  await choosePjDir();
+  if (pjDirHandle) await _photosRefresh(false);
+  renderTrombi();
+}
+async function _trombiSave() {
+  if (!_trombi) return;
+  const todo = _trombi.entries.filter(e => e.sid && e.jpeg);
+  if (!todo.length) return;
+  const dir = await _photosDir(true, true);
+  if (!dir) { appAlert('Dossier inaccessible', "L'autorisation d'écrire dans le dossier des pièces jointes n'a pas été accordée. Les photos n'ont pas été enregistrées.", 'error'); return; }
+  const btn = document.getElementById('trombi-go'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Enregistrement…'; }
+  let ok = 0, ko = 0;
+  for (const e of todo) { try { await _photoWrite(dir, e.sid, e.jpeg); ok++; } catch (err) { ko++; console.warn('Photo non écrite', e.sid, err); } }
+  try { localStorage.setItem(LS_PHOTOS_KNOWN, '1'); } catch (e) {}
+  _photos.ready = true;
+  _trombiRelease(); _trombi = null;
+  closeMod2('mtrombi');
+  _photosChanged();
+  toast(ko ? `📷 ${ok} photo(s) enregistrée(s), ${ko} en échec (voir la console).` : `📷 ${ok} photo${ok > 1 ? 's' : ''} enregistrée${ok > 1 ? 's' : ''}.`, ko ? 'warn' : undefined);
+}
+
+// ─── Survol d'un nom : la photo en grand ─────────────────────────────────────
+// Tout nom qui ouvre la fiche (`_nomFicheHTML`, liste, carte de chaleur) porte `data-photo-sid`.
+const _photoPop = { el: null, sid: null, timer: null, x: 0, y: 0 };
+function _photoPopHide() {
+  clearTimeout(_photoPop.timer); _photoPop.timer = null; _photoPop.sid = null;
+  if (_photoPop.el) _photoPop.el.style.display = 'none';
+}
+function _photoPopPlace() {
+  const el = _photoPop.el; if (!el) return;
+  const w = el.offsetWidth || 140, h = el.offsetHeight || 170;
+  let x = _photoPop.x + 18, y = _photoPop.y + 18;
+  if (x + w > innerWidth - 8) x = _photoPop.x - w - 12;
+  if (y + h > innerHeight - 8) y = innerHeight - h - 8;
+  el.style.left = Math.max(8, x) + 'px'; el.style.top = Math.max(8, y) + 'px';
+}
+async function _photoPopShow(sid) {
+  const url = await _photoUrl(sid);
+  if (!url || _photoPop.sid !== sid) return;
+  if (!_photoPop.el) {
+    _photoPop.el = document.createElement('div');
+    _photoPop.el.id = 'photo-pop';
+    document.body.appendChild(_photoPop.el);
+  }
+  const s = S.eleves[sid];
+  _photoPop.el.innerHTML = `<img src="${url}" alt=""><div>${_escName(s.prenom)} ${_escName(s.nom)}</div>`;
+  _photoPop.el.style.display = 'block';
+  _photoPopPlace();
+}
+document.addEventListener('mousemove', e => {
+  _photoPop.x = e.clientX; _photoPop.y = e.clientY;
+  if (_photoPop.el && _photoPop.el.style.display === 'block') _photoPopPlace();
+}, { passive: true });
+document.addEventListener('mouseover', e => {
+  const t = e.target;
+  const sid = t && t.closest ? t.closest('[data-photo-sid]')?.getAttribute('data-photo-sid') || null : null;
+  if (sid === _photoPop.sid) return;
+  _photoPopHide();
+  if (!sid || !S.eleves?.[sid]) return;
+  if (!_photos.ready) {
+    // Autorisation accordée entre-temps (un PDF ouvert, un import…) : on relit le dossier, sans insister.
+    if (pjDirHandle && Date.now() - _photos.lastTry > 30000) _photosRefresh(false);
+    return;
+  }
+  if (!_photoHas(sid)) return;
+  _photoPop.sid = sid;
+  _photoPop.timer = setTimeout(() => _photoPopShow(sid), 250);
+}, { passive: true });
+document.addEventListener('mousedown', _photoPopHide, { passive: true });
+document.addEventListener('scroll', _photoPopHide, { passive: true, capture: true });
+
+// ─── Fiche : la photo, et l'ajout d'une photo à la fois ──────────────────────
+// Pour l'élève absent le jour de la photo de classe, ou une photo reçue plus tard (v1.48.0,
+// repris de Plan de classe v2.64.2). Remplie après coup : la lecture du fichier est
+// asynchrone. Ouvrir la fiche est un clic : on peut y demander une fois l'autorisation de lire.
+async function _fichePhotoFill(sid) {
+  const box = document.getElementById('fiche-photo');
+  const mini = document.getElementById('mfiche-ph');
+  if (!box && !mini) return;
+  if (!_photos.ready && pjDirHandle) {
+    let known = false; try { known = localStorage.getItem(LS_PHOTOS_KNOWN) === '1'; } catch (e) {}
+    await _photosRefresh(known);
+  }
+  const url = _photoHas(sid) ? await _photoUrl(sid) : null;
+  if (_ficheSid !== sid) return;
+  // La vignette de l'en-tête : visible dans les trois vues.
+  const mini2 = document.getElementById('mfiche-ph');
+  if (mini2) { if (url) { mini2.src = url; mini2.hidden = false; } else { mini2.removeAttribute('src'); mini2.hidden = true; } }
+  const box2 = document.getElementById('fiche-photo');
+  if (!box2) return;
+  // Avec photo : la photo + Changer / Coller / Retirer. Sans : une case « Ajouter une photo ».
+  // La case accepte aussi une image glissée dessus.
+  box2.innerHTML = (url
+    ? `<img src="${url}" alt="Photo de l'élève">
+       <div class="fiche-photo-acts">
+         <button type="button" class="btn btn-g btn-sm" onclick="_fichePhotoPick()" title="Remplacer la photo par une image de l'ordinateur (ou Ctrl+V pour coller, ou glisser une image ici)">📷 Changer</button>
+         <button type="button" class="btn btn-g btn-sm" onclick="_fichePhotoPaste()" title="Remplacer la photo par l'image du presse-papier (Ctrl+V marche aussi)">📋 Coller</button>
+         <button type="button" class="btn btn-g btn-sm" onclick="_fichePhotoRemove()" title="Retirer la photo de cet élève">🗑 Retirer</button>
+       </div>`
+    : `<button type="button" class="fiche-photo-add" onclick="_fichePhotoPick()" title="Ajouter une photo : fichier de l'ordinateur, image glissée ici, ou Ctrl+V pour coller">📷<br>Ajouter une photo<br><span>ou Ctrl+V</span></button>
+       <div class="fiche-photo-acts"><button type="button" class="btn btn-g btn-sm" onclick="_fichePhotoPaste()" title="Coller l'image du presse-papier">📋 Coller</button></div>`)
+    + `<input type="file" id="fiche-photo-file" accept="image/*" hidden onchange="_fichePhotoChosen(this.files[0])">`;
+  box2.ondragover = e => { e.preventDefault(); box2.classList.add('drop'); };
+  box2.ondragleave = () => box2.classList.remove('drop');
+  box2.ondrop = e => { e.preventDefault(); box2.classList.remove('drop'); _fichePhotoChosen(e.dataTransfer?.files?.[0]); };
+}
+function _fichePhotoPick() { document.getElementById('fiche-photo-file')?.click(); }
+// Bouton « 📋 Coller » : lecture du presse-papier par l'API asynchrone (le navigateur peut
+// demander l'autorisation la première fois). Ctrl+V, lui, passe par l'événement paste ci-dessous.
+async function _fichePhotoPaste() {
+  if (!navigator.clipboard?.read) { toast('⚠️ Ce navigateur ne permet pas de lire le presse-papier : utilisez Ctrl+V.', 'warn'); return; }
+  try {
+    for (const item of await navigator.clipboard.read()) {
+      const type = item.types.find(t => t.startsWith('image/'));
+      if (type) { const blob = await item.getType(type); return _fichePhotoChosen(new File([blob], 'presse-papier', { type })); }
+    }
+    toast("⚠️ Le presse-papier ne contient pas d'image.", 'warn');
+  } catch (e) {
+    toast('⚠️ Lecture du presse-papier refusée ou impossible : essayez Ctrl+V.', 'warn');
+  }
+}
+// Ctrl+V dans la fiche ouverte : une image du presse-papier devient la photo de l'élève.
+// Ignoré dans un champ de texte (le bilan, les décisions) et quand une autre fenêtre est par-dessus.
+document.addEventListener('paste', e => {
+  if (!document.getElementById('mfiche')?.classList.contains('on') || !_ficheSid) return;
+  if (document.querySelector('.mo.on:not(#mfiche)')) return;
+  const t = e.target;
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  const f = [...(e.clipboardData?.items || [])].find(it => it.kind === 'file' && it.type.startsWith('image/'))?.getAsFile();
+  if (!f) { toast("⚠️ Le presse-papier ne contient pas d'image.", 'warn'); return; }
+  e.preventDefault();
+  _fichePhotoChosen(f);
+});
+// Image quelconque (JPEG, PNG, WebP…) → JPEG d'au plus 400 px de côté, proportions gardées.
+// Les photos MBN font ~200 px : inutile de stocker une photo de téléphone de 4 000 px.
+async function _photoFileToJpeg(file) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 400 / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(bmp.width * k)); cv.height = Math.max(1, Math.round(bmp.height * k));
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);   // fond blanc sous un PNG transparent
+  ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+  bmp.close && bmp.close();
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.88));
+  if (!blob) throw new Error('Conversion impossible');
+  return new Uint8Array(await blob.arrayBuffer());
+}
+async function _fichePhotoChosen(file) {
+  const sid = _ficheSid;
+  if (!file || !sid || !S.eleves[sid]) return;
+  if (!/^image\//.test(file.type)) { toast("⚠️ Ce fichier n'est pas une image.", 'warn'); return; }
+  if (!pjDirHandle) {
+    _uiConfirm({ title: '📂 Dossier des pièces jointes', okLabel: '📂 Choisir le dossier',
+      message: "Les photos sont rangées dans le sous-dossier photos/ du dossier des pièces jointes (celui des PDF), qui n'est pas encore choisi.\nChoisissez-le, puis ajoutez la photo à nouveau.",
+      onOk: async () => { await choosePjDir(); if (pjDirHandle) await _photosRefresh(false); if (_ficheSid === sid) _fichePhotoFill(sid); } });
+    return;
+  }
+  let bytes;
+  try { bytes = await _photoFileToJpeg(file); }
+  catch (e) { toast('⚠️ Image illisible (format non pris en charge par le navigateur ?).', 'warn'); return; }
+  const dir = await _photosDir(true, true);
+  if (!dir) { toast('⚠️ Accès au dossier des pièces jointes refusé : photo non enregistrée.', 'warn'); return; }
+  try { await _photoWrite(dir, sid, bytes); }
+  catch (e) { console.warn('Photo non écrite', e); toast("⚠️ Écriture de la photo impossible.", 'warn'); return; }
+  _photos.ready = true;
+  try { localStorage.setItem(LS_PHOTOS_KNOWN, '1'); } catch (e) {}
+  toast('📷 Photo enregistrée.');
+  _photosChanged();
+}
+function _fichePhotoRemove() {
+  const sid = _ficheSid, s = S.eleves[sid];
+  if (!s) return;
+  _uiConfirm({ title: '🗑 Retirer la photo', okLabel: '🗑 Retirer', okClass: 'btn-d',
+    message: `Supprimer la photo de ${s.prenom} ${s.nom} ?\nLe fichier est effacé du dossier photos/ — Ctrl+Z ne le ramène pas.`,
+    onOk: async () => { await _photoDelete(sid, true); if (_photoHas(sid)) { toast('⚠️ Photo non supprimée (accès au dossier refusé).', 'warn'); return; } toast('🗑 Photo retirée.'); _photosChanged(); } });
 }
 
 // ── Sync auto ──
@@ -18715,7 +19708,7 @@ function init() {
 
   updateAutoSyncUI();
   tryRestoreDirHandle();
-  tryRestorePjDir();
+  tryRestorePjDir().then(() => { if (pjDirHandle) _photosRefresh(false); }).catch(() => {});
   _passiveUpdateCheck();
 
   _topbarMeasure();

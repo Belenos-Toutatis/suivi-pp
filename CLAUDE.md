@@ -97,7 +97,7 @@ Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sono
 - `README.md`, `LICENSE` (MIT), `CLAUDE.md`
 - `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
 - `scripts/audit_static.js`, `scripts/audit_browser.js` — les deux auditeurs (cf. *Scores de référence*, v1.28.2) ; `scripts/gen_icons.py`
-- `test/harness.js`, `test/*.test.js`, `package.json` (`npm test` → `node --test "test/*.test.js"`)
+- `test/harness.js`, `test/*.test.js`, `test/fixtures/` (dont `trombi/fake-trombi.pdf`, un faux trombinoscope), `package.json` (`npm test` → `node --test "test/*.test.js"`)
   ⚠️ Le glob, pas `node --test test/` : sous Node 22, l'argument-répertoire `test` échoue en `MODULE_NOT_FOUND`. Le glob a en prime l'avantage de n'exécuter que les `*.test.js`, donc `harness.js` n'est plus compté comme un test.
 
 Nom de dépôt proposé : **`suivi-pp`** sous `Belenos-Toutatis` → `belenos-toutatis.github.io/suivi-pp/`.
@@ -1092,6 +1092,49 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   qui a le lien. Démo : une feuille du S1 relue (13 avis, 7 disciplines), et « ESPAGNOL LV2 »
   laissée sans discipline pour que la question se voie.
 
+## 📷 Photos des élèves (v1.48.0)
+
+Demandé le 2026-10-03, par la session Plan de classe puis validé par l'utilisateur (*« vas-y,
+fais tout ce que tu as prévu »*). **Code COPIÉ de Plan de classe** (v2.64.0 → v2.64.2, commit
+`ace7234`, section *📷 Photos des élèves* de son CLAUDE.md) : lecteur PDF minimal (`_pdfOpen`,
+`_PdfLexer`, `_pdfStreamBytes`, `_pdfFont`, `_pdfScanPage`), lecture du trombinoscope
+(`_trombiParsePdf`, `_trombiParseHeader`, `_trombiDedupNames`), appariement (`_trombiSplitName`,
+`_trombiScore`, `_trombiMatch` — rien n'est deviné à égalité —, `_trombiResolveClass`).
+Les pièges de format MBN et de l'appariement sont documentés là-bas ; à relire avant d'y toucher.
+
+- **Stockage : `<dossier des pièces jointes>/photos/<sid>.jpg`** (`PHOTOS_SUBDIR`, `pjDirHandle`)
+  — ⚠️ **le dossier des PDF, PAS celui de la sync** (arbitré par l'utilisateur : la sync fait
+  tourner ses JSON, on n'y mêle pas de documents ; Plan de classe, lui, prend son dossier de
+  sauvegarde). Ni dans `S`, ni dans `localStorage`. Cache `_photos` (sids lus au démarrage par
+  `_photosRefresh(false)` après `tryRestorePjDir`, URL `blob:` à la demande) ; la fiche, ouverte
+  d'un clic, demande une fois l'autorisation de lire si des photos sont connues
+  (`suiviPP_photosKnown`).
+- **Import** (`openTrombiImport`, modale `mtrombi`) : *📥 Importer des photos* dans la barre de
+  👥 Élèves et dans 💾 Données ▸ Imports. Classe lue dans l'en-tête, modifiable ; une carte par
+  photo (nom lu, élève proposé, « ignorer », « 🔁 remplace ») ; élèves présents sans photo
+  nommés. Pas de professeur principal repris (Suivi PP n'a pas ce champ).
+- **Une photo à la fois depuis la fiche** : case dans la carte *Identité et repères*
+  (`#fiche-photo`, `_fichePhotoFill`, appelée en fin de `_ficheRender`) — sans photo, « 📷 Ajouter
+  une photo · ou Ctrl+V » et *📋 Coller* ; avec, *📷 Changer*, *📋 Coller*, *🗑 Retirer* (boutons
+  nommés, règle du second audit). Fichier, **image glissée**, **Ctrl+V** (écouteur `paste`, fiche
+  ouverte sans autre fenêtre par-dessus, hors champ de texte) ou `navigator.clipboard.read`.
+  `_photoFileToJpeg` : JPEG d'au plus 400 px, fond blanc. Retrait confirmé (« Ctrl+Z ne le
+  ramène pas »). Vignette 44 px dans l'en-tête de la fiche (`#mfiche-ph`), visible dans les
+  trois vues.
+- **Survol d'un nom** : tout nom qui ouvre la fiche porte `data-photo-sid` (`_nomFicheHTML`,
+  liste, carte de chaleur) → `#photo-pop` après 250 ms. ⚠️ Toute nouvelle grille passe déjà par
+  `_nomFicheHTML` : elle a la photo au survol sans rien faire.
+- ⚠️ **Supprimer un élève ne supprime PAS sa photo** (écart assumé avec Plan de classe) : Ctrl+Z
+  rend l'élève, jamais un fichier — même règle que les PDF. *🧹 Orphelins…* (Données) liste aussi
+  les `photos/<sid>.jpg` dont l'élève n'existe plus (`_photosOrphelines`) et les supprime sur
+  confirmation.
+- RGPD : le bandeau cite les photos et leur dossier. La démo n'en porte pas (ce sont des fichiers).
+- Tests : `test/photos.test.js` sur `test/fixtures/trombi/fake-trombi.pdf` (copie de la fixture
+  de Plan de classe : noms inventés, carrés de couleur ; ⚠️ dépôt public, jamais un vrai
+  trombinoscope), dossier simulé en mémoire. Vérifié dans le navigateur avec l'OPFS : import de
+  la fixture (6 photos écrites), collage d'un PNG 600 × 300 → JPEG 400 × 200, retrait, survol.
+  ⚠️ `navigator.clipboard.read` (bouton 📋) et un vrai dossier Nextcloud : à essayer à la main.
+
 ## Incidents et instances
 
 Ce qui se passe quand ça se passe mal, et ce qui en découle : une fiche incident, une
@@ -1927,6 +1970,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 109 | **📷 Photos des élèves** (repris de Plan de classe) : import du trombinoscope PDF de MBN (lecteur PDF sans bibliothèque, appariement des noms, rattachement manuel), photos dans `photos/` du dossier des pièces jointes, case photo dans la carte Identité (fichier, glisser, Ctrl+V, 📋 Coller, retrait), vignette dans l'en-tête de la fiche, aperçu au survol des noms, orphelines dans 🧹 Orphelins… ; 7 tests (`test/photos.test.js`). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.48.0) |
 | 108 | **Second audit ergonomique (D1–D8)** : **incident et bilan s'ouvrent par-dessus la fiche** (`_ficheRedessine`) · groupe Bilans de la carte de chaleur = moments de « Synthèse pour » · **synthèse de période par MOMENT** (un menu `mper-moment` des moments de « Synthèse pour », feuille bornée à lui par `_ficheBornes`, son bilan et ses décisions ; `_periodeSynthese(…, { col })`, sans `col` la période entière comme avant ; dates à partir du 1er septembre ; consigne mise à jour) · 🗑 dans la fenêtre d'incident · imports en « 📥 Importer … », vue « ▦ Tableau » des moyennes · plus aucun ✏️ ni 🗑 sans texte (classes, options, salles, instances, disciplines, vie de classe, contacts…) · un seul style de ✎, ✎ sur Entrée et Sortie · « 1 blanc · 2 nuls » (`_pl`) · ♂ ♀ dans l'en-tête de la fiche ; 1 test. Audit 10 états × 2 thèmes à 1 440 px, 9 à 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.47.3) |
 | 107 | **Audit ergonomique — points mineurs** : **vouvoiement partout** (≈ 85 textes affichés qui tutoyaient, hérités de Plan de classe — bandeau RGPD, toasts, infobulles, réglages, salles, sync ; commentaires et identifiants intacts) · **♂ ♀ devant le nom dans toutes les grilles** (`_civHTML` dans `_nomFicheHTML`) · « Ce que disent les faits » à partir du 1er septembre · en-têtes verticaux de la carte de chaleur plus hauts, papiers et disciplines abrégés (plus aucun tronqué) · onglet Avis sur la dernière feuille sauf si l'on a choisi « Nouvelle feuille » (`_avisNouvelleVoulue`) ; 1 test, 1 test mis à jour. Audit 11 écrans × 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.47.2) |
 | 106 | **Audit ergonomique — points moyens** : nom corrigé dans « Identité et repères » (plus de ✎ dans le titre de la fiche) · les deux réglages de moments se disent indépendants (C6) · **observation MBN retirable à la main** (✎ de « Notées dans MBN », `obsMbnRemove`) (C7) · **section 📥 Imports** en tête de Données, les huit imports réunis (C8) · cases **Incidents** (avec un Total) et **Bilans** cliquables dans la carte de chaleur (C9) · une feuille d'avis d'un autre moment **dite** (« pas de feuille pour Conseil S2 »), la feuille nommée dans l'en-tête de la colonne Avis (C10) · le compte d'élèves à droite des filtres, Remarque plus étroite (C11) · **boutons nommés** (Retours : Retours · Réglages · Dupliquer · Archiver · Supprimer ; fiche : Tout modifier · Supprimer), plus de « — » parmi les pastilles (C12) ; 2 tests, 1 test mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.47.1) |
@@ -2611,4 +2655,4 @@ Aucune ne bloque le démarrage — les étapes 1 à 3 se font sans réponse — 
 6. ~~**Éco-délégués.**~~ — **répondu le 2026-09-11 : oui**, `election.type` (cf. *Après l'élection*). *Le texte d'origine :* Beaucoup d'établissements en élisent aussi, souvent par le même PP et selon la même procédure. Un simple champ « type d'élection » suffirait ; ne rien construire avant de savoir si le besoin existe.
 7. **Alerte d'échéance.** Un document a une `dateEcheance` : faut-il un signalement à l'ouverture (« 3 fiches d'orientation manquantes, échéance dans 2 jours ») ?
 8. ~~**Remplacement d'un délégué en cours d'année**~~ — **tranché le 2026-09-11 : option 1** (trace datée sur l'élection close, suppléant promu, PV d'origine intact), livrée en v1.29.0 — cf. *Après l'élection*. Les options écartées : la seule désignation sans vote (lien avec l'élection perdu), et l'élection partielle pour un siège sans suppléant (à ne construire que si le cas se présente — pour l'instant le siège est marqué vacant).
-9. **Les autres besoins listés le 2026-09-11** et non retenus pour l'instant : rappels / choses à faire (journal à deux temps), signaux positifs (famille « Valorisation »), compteur d'absences relevé comme le carnet, contacts familiaux minimum sur la fiche, alerte d'échéance, courrier type aux familles, photo trombinoscope, synthèse de fin d'année pour le PP suivant. L'utilisateur a choisi les cinq autres (bilans, synthèse de période, éco-délégués, heures de vie de classe) — livrés v1.25 → v1.28.
+9. **Les autres besoins listés le 2026-09-11** et non retenus pour l'instant : rappels / choses à faire (journal à deux temps), signaux positifs (famille « Valorisation »), compteur d'absences relevé comme le carnet, contacts familiaux minimum sur la fiche, alerte d'échéance, courrier type aux familles, ~~photo trombinoscope~~ (livrée en v1.48.0, cf. *📷 Photos des élèves*), synthèse de fin d'année pour le PP suivant. L'utilisateur a choisi les cinq autres (bilans, synthèse de période, éco-délégués, heures de vie de classe) — livrés v1.25 → v1.28.
