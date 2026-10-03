@@ -1410,7 +1410,7 @@ body.el-projecting #main { padding-top: 8px; }
 .el-ob { min-width: 2.2em; text-align: center; }
 .el-dl { font-family: var(--font-mono); font-size: .85em; color: var(--pencil); margin-left: 4px; }
 .el-dl.up { color: var(--danger-fg); font-weight: 700; }
-.el-mbn { font-family: var(--font-mono); font-size: .8em; margin-left: 6px; padding: 0 5px; border-radius: 8px; border: 1px solid var(--rule-line); color: var(--ink-deep); white-space: nowrap; }
+.el-obd { font-family: var(--font-mono); font-size: .78em; margin-left: 5px; color: var(--pencil); white-space: nowrap; }
 button.el-dl { border: 0; background: none; padding: 0; text-decoration: underline dotted; text-underline-offset: 2px; }
 .el-spark { vertical-align: middle; margin-left: 5px; }
 .el-spark polyline { fill: none; stroke: var(--obs-5); stroke-width: 1.5; }
@@ -2743,8 +2743,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.2';
-const APP_BUILD_DATE = '2026-10-03T04:43:10Z';
+const APP_VERSION    = '1.46.3';
+const APP_BUILD_DATE = '2026-10-03T04:44:48Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5062,7 +5062,7 @@ function _elevesRows(cls) {
   }
   // Bilans : combien de moments écrits (les points de la colonne Bilans).
   const bcolsT = col === 'bilans' ? _bilanColsVues(cls, _carnetCurrentPeriodIdx(cls)) : null;
-  const num = (x) => col === 'cumul' ? x.r.cumul : col === 'delta' ? x.r.delta : col === 'periode' ? x.r.periodeTotal
+  const num = (x) => col === 'cumul' ? x.r.obsTotal : col === 'delta' ? x.r.delta : col === 'periode' ? x.r.periodeTotal
     : col === 'docs' ? x.r.nonRendus.length : col === 'incidents' ? x.r.nbIncidents : col === 'bilan' ? (x.r.bilan ? 1 : 0)
     : col === 'contacts' ? x.r.nbContacts : col === 'rem' ? (x.s.remarque ? 1 : 0)
     : col === 'bilans' ? bcolsT.filter(c => _bilanDeColonne(cls, x.s.id, c)).length : null;
@@ -5115,7 +5115,7 @@ function _elevesRows(cls) {
 // colonnes se choisissent par des puces visibles, et des vues toutes faites.
 const ELEVES_COLS = [
   { key: 'grp',       label: 'Groupe · options' },
-  { key: 'carnet',    label: 'Carnet' },
+  { key: 'carnet',    label: 'Observations' },
   { key: 'moy',       label: 'Moy.' },
   { key: 'docs',      label: 'Papiers' },
   { key: 'incidents', label: 'Incidents' },
@@ -6132,10 +6132,11 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const fiche = _ficheSid && document.body.classList.contains('fiche-cote') && document.getElementById('mfiche')?.classList.contains('on') ? _ficheSid : null;
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)];
   const triCle = { carnet: 'cumul' };
+  const avecMbnL = _obsMbnClasseAny(cls);
   const th = (k, label, title) => { const sk = triCle[k] || k; const on = eleveSort.col === sk;
     return `<th class="${on ? 'el-sorted' + (eleveSort.dir < 0 ? ' up' : '') : ''}" onclick="sortEleves('${sk}')" title="${_escAttr(title)}">${label}</th>`; };
   const TITRES = {
-    grp: 'Groupe, options et aménagements', carnet: 'Observations du carnet : le dernier cumul (couleur du palier), l\'évolution au dernier relevé, la courbe de l\'année',
+    grp: 'Groupe, options et aménagements', carnet: avecMbnL ? 'Observations de l\'année : le total carnet + MBN (couleur du palier), le détail des deux, l\'évolution au dernier relevé du carnet, la courbe du carnet' : 'Observations du carnet : le dernier cumul (couleur du palier), l\'évolution au dernier relevé, la courbe de l\'année',
     moy: 'Dernière moyenne générale importée, son évolution, le nombre de matières sous 10 — la plus basse d\'abord', docs: 'Papiers à rendre',
     incidents: 'Incidents et instances : le nombre et la date du dernier — clic : en noter un', contacts: 'Contacts avec la famille : le nombre et la date du dernier — clic : en noter un',
     avis: campCour ? `Avis des collègues — feuille pour ${_avisObjectif(cls, campCour).long} : un trait par discipline, ⭐ demandé en particulier` : 'Aucune feuille d\'avis pour cette période',
@@ -6156,14 +6157,20 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     const td = {};
     td.grp = () => `${s.groupe ? `<span class="gbdg g${s.groupe}">G${s.groupe}</span>` : ''} ${_studentTags(s).map(_tagBadgeHTML).join('')} ${_amenBadgesHTML(s)} <span class="el-regs">${_regimeBadgesHTML(s)}</span>`;
     td.carnet = () => {
-      // Les observations MBN de la période (v1.46.0), à côté du carnet, jamais additionnées.
-      const mb = per ? _obsMbnEntre(sid, per.start, per.end) : [];
-      const mbTip = mb.length ? `${mb.length} observation${mb.length > 1 ? 's' : ''} notée${mb.length > 1 ? 's' : ''} dans MBN sur la période ${per.label}\n` + mb.map(_obsMbnTexte).join('\n') : '';
-      const mbn = mb.length ? `<span class="el-mbn" title="${_escAttr(mbTip)}">MBN ${mb.length}</span>` : '';
-      if (r.cumul === null) return mbn || '<span class="el-0">·</span>';
+      // Le TOTAL des deux sources (v1.46.3, l'utilisateur : « la colonne devrait s'appeler
+      // Observations et afficher la somme des deux, mais on doit encore voir le détail ») :
+      // cumul du carnet + observations MBN de l'année, puis « carnet n · MBN n ». Le Δ et la
+      // courbe restent ceux du carnet (des relevés), et l'infobulle détaille les deux.
+      if (r.obsTotal === null) return '<span class="el-0">·</span>';
       const m = _relMap(cid) || {};
-      const tip = `Relevés : ${_relDates(cid).map(d => `${_fmtDateFr(d).slice(0, 5)} ${(v => v === null ? '—' : v)(_relValue(m[d], sid))}`).join(' · ')}${r.periodeTotal !== null ? `\nSur la période ${per ? per.label : ''} : ${r.periodeTotal}` : ''}${r.deltaDecroissant ? '\n▼ le cumul a baissé : faute de frappe ?' : ''}`;
-      return `<span title="${_escAttr(tip)}"><span class="ob-chip${_obsBandeCls(r.cumul)} el-ob">${r.cumul}</span><span class="el-dl${r.delta >= 3 ? ' up' : ''}">${r.deltaDecroissant ? '▼' : r.delta > 0 ? '+' + r.delta : ''}</span>${_elevesSpark(cid, sid)}</span>${mbn}`;
+      const mb = r.mbnAn ? _obsMbnOf(sid).filter(e => e.date >= (_periods(cls)[0]?.start || '0000')) : [];
+      const tip = [avecMbnL ? `Total de l'année : ${r.obsTotal} = ${r.cumul ?? 0} au carnet + ${r.mbnAn} dans MBN` : '',
+        r.cumul !== null ? `Relevés du carnet : ${_relDates(cid).map(d => `${_fmtDateFr(d).slice(0, 5)} ${(v => v === null ? '—' : v)(_relValue(m[d], sid))}`).join(' · ')}` : 'Aucun relevé du carnet',
+        r.periodeTotal !== null ? `Carnet sur la période ${per ? per.label : ''} : ${r.periodeTotal}` : '',
+        r.deltaDecroissant ? '▼ le cumul du carnet a baissé : faute de frappe ?' : '',
+        mb.length ? 'Notées dans MBN :\n' + mb.map(_obsMbnTexte).join('\n') : ''].filter(Boolean).join('\n');
+      const det = avecMbnL ? `<span class="el-obd">carnet ${r.cumul ?? 0} · MBN ${r.mbnAn}</span>` : '';
+      return `<span title="${_escAttr(tip)}"><span class="ob-chip${_obsBandeCls(r.obsTotal)} el-ob">${r.obsTotal}</span>${det}<span class="el-dl${r.delta >= 3 ? ' up' : ''}">${r.deltaDecroissant ? '▼' : r.delta > 0 ? '+' + r.delta : ''}</span>${_elevesSpark(cid, sid)}</span>`;
     };
     td.moy = () => {
       const m = r.moyenne;
@@ -13279,6 +13286,11 @@ function _syntheseRow(cls, stu) {
     options: _studentTags(stu).map(t => t.abbr), amenagements: _amenLabel(stu, false),
     delegue: _delegueOf(stu.id), eco: _ecoDelegueOf(stu.id), actif: _isStudentActive(stu),
     cumul: last ? last.n : null, cumulDate: last ? last.ymd : null,
+    // Observations notées dans MBN depuis le début de l'année scolaire, et le TOTAL des deux
+    // sources (v1.46.3) — ce qu'affiche et trie la colonne Observations de la liste.
+    ...(() => { const ps = _periods(cls), a = ps[0]?.start || '0000', z = ps[ps.length - 1]?.end || '9999';
+      const mbnAn = _obsMbnOf(stu.id).filter(e => e.date >= a && e.date <= z).length;
+      return { mbnAn, obsTotal: !last && !mbnAn ? null : (last ? last.n : 0) + mbnAn }; })(),
     delta: delta ? delta.delta : null, deltaDecroissant: !!delta?.decreasing,
     periodeLabel: periode ? periode.label : '', periodeTotal: _relPeriodTotal(cid, stu.id, pIdx),
     // Dernière moyenne générale importée (onglet 📈 Moyennes), son évolution depuis
@@ -13421,11 +13433,14 @@ function _elevesPrintHTML(cls) {
   // Le texte libre (remarque, bilans) a la place ; les colonnes de chiffres le minimum.
   // ⚠️ Les colonnes MASQUÉES à l'écran le sont aussi ici (v1.41.0) : la feuille montre ce
   // qu'on a sous les yeux. Une colonne par moment de bilan, comme à l'écran.
+  const avecMbnP = _obsMbnClasseAny(cls);   // Observ. = carnet + MBN, détaillé (v1.46.3)
   const cols = [
     { key: 'nom', th: 'Élève', w: 13, td: r => `<span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${role(r) ? `<small class="pp-l"><em>${_escName(role(r))}</em></small>` : ''}${r.actif ? '' : '<small class="pp-l"><em>parti</em></small>'}` },
     { key: 'grp', th: 'Groupe · options', w: 8, td: (r, sid) => `<small>${_escName([r.groupe ? 'G' + r.groupe : '', ...r.options, _regimeOf(S.eleves[sid]?.regime)?.court || '', S.eleves[sid]?.entree || '', S.eleves[sid]?.sortie || ''].filter(Boolean).join(' · '))}</small>` },
     { key: 'amen', th: 'Aménag.', w: 6.5, td: r => `<small>${_escName(r.amenagements)}</small>` },
-    { key: 'cumul', th: 'Observ.', w: 5.5, c: 1, td: r => r.cumul === null ? '' : `<span class="pp-big">${r.cumul}</span> <small>${_escName(jm(r.cumulDate))}</small>` },
+    { key: 'cumul', th: 'Observ.', w: avecMbnP ? 7.5 : 5.5, c: 1, td: r => r.obsTotal === null ? '' : avecMbnP
+      ? `<span class="pp-big">${r.obsTotal}</span> <small>(${r.cumul ?? 0} + ${r.mbnAn} MBN)</small>`
+      : `<span class="pp-big">${r.cumul}</span> <small>${_escName(jm(r.cumulDate))}</small>` },
     { key: 'delta', th: 'Δ', w: 3.5, c: 1, td: r => r.delta === null ? '' : `${r.deltaDecroissant ? '▼' : ''}${r.delta > 0 ? '+' : ''}${r.delta}` },
     { key: 'periode', th: _escName(per), w: 4, c: 1, td: r => `${r.periodeTotal ?? ''}` },
     { key: 'moy', th: 'Moy.', w: 6.5, c: 1, td: r => moy(r.moyenne) },

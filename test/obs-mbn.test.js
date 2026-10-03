@@ -177,3 +177,19 @@ test('Fiche : la courbe s\'arrête à la date du bilan du moment, sinon aujourd\
   const dates = [...html.matchAll(/<title>(\d\d)\/(\d\d)\/(\d{4})/g)].map(m => `${m[3]}-${m[2]}-${m[1]}`);
   assert.ok(dates.length && dates.every(x => x <= d));
 });
+
+test('Liste : la colonne Observations affiche le total carnet + MBN de l\'année, avec le détail des deux, et trie sur lui', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = '';`);
+  const sid = ev(`getCls().eleves.find(id => _obsMbnOf(id).length >= 3)`);
+  const r = evObj(`_syntheseRow(getCls(), S.eleves[${JSON.stringify(sid)}])`);
+  assert.strictEqual(r.mbnAn, ev(`_obsMbnOf(${JSON.stringify(sid)}).length`));
+  assert.strictEqual(r.obsTotal, r.cumul + r.mbnAn);
+  const html = ev(`_elevesIndicHTML(getCls(), _elevesRows(getCls()), [], null)`);
+  assert.match(html, />Observations</);
+  assert.ok(html.includes(`>${r.obsTotal}</span><span class="el-obd">carnet ${r.cumul} · MBN ${r.mbnAn}</span>`));
+  ev(`eleveSort = { col: 'cumul', dir: 1 }`);
+  const tot = evObj(`_elevesRows(getCls()).map(x => x.r.obsTotal).filter(v => v !== null)`);
+  assert.deepStrictEqual(tot, [...tot].sort((a, b) => b - a), 'le plus chargé d\'abord, sur le total');
+  assert.match(ev(`_elevesPrintHTML(getCls())`), new RegExp(`${r.obsTotal}</span> <small>\\(${r.cumul} \\+ ${r.mbnAn} MBN\\)`));
+  ev(`eleveSort = { col: 'nom', dir: 1 }`);
+});

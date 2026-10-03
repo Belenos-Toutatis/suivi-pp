@@ -278,7 +278,13 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
     proposée au retrait — effacée dans MBN ? — mais **jamais cochée d'office**.
 - **Où on les voit** : onglet Observations (une colonne *MBN S1* par période, cliquable vers la
   fiche, détail en infobulle ; *Carnet + MBN* ; tri « par observations MBN »), liste des élèves
-  (pastille *MBN n* de la période dans la case Carnet), carte de chaleur (groupe *Observations
+  (~~pastille *MBN n* de la période dans la case Carnet~~ — **révisé en v1.46.3**, l'utilisateur :
+  *« la colonne Carnet devrait s'appeler Observations et afficher la somme des deux, mais on doit
+  encore voir le détail »* : la colonne **Observations** montre le TOTAL de l'année, cumul du
+  carnet + observations MBN depuis le début de l'année (`_syntheseRow` : `mbnAn`, `obsTotal`),
+  à la couleur du palier, puis « carnet n · MBN n » ; le Δ et la courbe restent ceux du carnet ;
+  le tri par l'en-tête et le papier (« 14 (11 + 3 MBN) ») suivent le total ; sans MBN dans la
+  classe, rien ne change), carte de chaleur (groupe *Observations
   MBN*, une case par mois, après le carnet), fiche (carte Carnet : *Notées dans MBN*, la liste ;
   un fait « n observations dans MBN : 2 travail non fait, 1 bavardage » insérable dans le bilan ;
   la chronologie les date ; chiffre clé), synthèse de période (« · MBN n » à côté du carnet,
@@ -1754,6 +1760,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 91 | **Liste : colonne Observations = total carnet + MBN de l'année**, détail des deux dessous, tri et papier sur le total ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.3) |
 | 90 | **Courbe de la fiche arrêtée à la date du bilan du moment, sinon aujourd'hui** (`_ficheCourbeFin`), légende au-dessus du dessin ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.46.2) |
 | 89 | **Fiche : courbe carnet + MBN** avec une coche par source, détail des relevés du carnet · **observations MBN sur la feuille imprimée du carnet** · colonne Bilans retirée quand aucun moment n'y est · un seul clic sur − pour un conseil remis ; 1 test, 1 test étendu. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.1) |
 | 88 | **Observations notées dans MBN** : import de l'export (.xlsx, dates en nombre de série, réimport sans doublon, retrait seulement coché), comptées à côté du carnet dans la grille (MBN par période, *Carnet + MBN*), la liste, la carte de chaleur, la fiche et la synthèse de période ; démo · **la fiche suit les moments retirés** ; 3 tests (`test/obs-mbn.test.js`). Vérifié sur l'export fourni (hors dépôt, 7 observations). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.0) |
