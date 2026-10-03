@@ -746,6 +746,8 @@ html[data-theme="dark"] .mb { background: var(--paper-warm); }
 .fg { margin-bottom: 12px; }
 .fg label { display: block; margin-bottom: 3px; font-size: .87em; font-weight: 600; color: var(--pencil); }
 .fg input, .fg textarea, .fg select { width: 100%; }
+.mfp-opts label { display: flex; gap: 6px; align-items: baseline; font-weight: 400; color: var(--ink-deep); font-size: .92em; margin: 2px 0; }
+.mfp-opts input { width: auto; flex: none; }
 .fg textarea { min-height: 110px; resize: vertical; font-family: var(--font-mono); font-size: .85em; }
 .ma { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
 
@@ -1906,6 +1908,37 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   .print-fb-t { font-weight: 700; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #333; margin-right: 4pt; }
   .print-hvc { font-size: 9pt; margin: 0 0 8pt; padding: 4pt 7pt; border: 1px solid #888; border-radius: 4pt; }
   .print-hvc ul { margin: 2pt 0 0; padding-left: 14pt; }
+  /* La fiche élève imprimée (v1.49.0) : une page par élève, deux colonnes de rubriques
+     courtes, le bilan et les avis sur toute la largeur. */
+  .fp-page { break-after: page; font-size: 10pt; line-height: 1.35; }
+  .fp-page:last-child { break-after: auto; }
+  .fp-h { display: flex; gap: 10pt; align-items: center; border-bottom: 1.2pt solid #000; padding-bottom: 5pt; margin-bottom: 7pt; }
+  .fp-ph { width: 26mm; height: 26mm; object-fit: cover; border: 1px solid #888; border-radius: 3pt; }
+  .fp-nom { font-size: 16pt; }
+  .fp-nom .el-civ { font-size: .8em; }
+  .fp-meta { font-size: 10pt; color: #222; margin-top: 2pt; }
+  .fp-mom { font-size: 9pt; color: #444; margin-top: 2pt; }
+  .fp-cols { columns: 2; column-gap: 12pt; }
+  .fp-sec { break-inside: avoid; margin: 0 0 8pt; }
+  .fp-sec h3 { font-size: 8.5pt; text-transform: uppercase; letter-spacing: .05em; color: #333; border-bottom: 1px solid #999; margin: 0 0 3pt; padding-bottom: 1pt; }
+  .fp-sec p { margin: 1pt 0; }
+  .fp-large { column-span: all; }
+  .fp-st { font-weight: 700; font-size: 9.5pt; margin: 3pt 0 1pt; }
+  .fp-pl { white-space: pre-line; }
+  .fp-mu { color: #555; }
+  .fp-small { font-size: 8.5pt; }
+  .fp-lignes div { border-bottom: 1px dotted #777; height: 7mm; }
+  .fp-kv { display: grid; grid-template-columns: max-content 1fr; gap: 1pt 8pt; margin: 0; }
+  .fp-kv dt { color: #444; } .fp-kv dd { margin: 0; }
+  .fp-ent { display: grid; grid-template-columns: 11mm 1fr; gap: 0 6pt; margin: 2pt 0; }
+  .fp-d { color: #444; font-size: 9pt; }
+  .fp-av { margin: 2pt 0; }
+  .fp-t { border-collapse: collapse; width: 100%; font-size: 9pt; }
+  .fp-t th, .fp-t td { border-bottom: 1px solid #ccc; padding: 1pt 3pt; text-align: left; }
+  .fp-t .r { text-align: right; }
+  .fp-gen td { border-top: 1px solid #000; font-weight: 700; }
+  .fp-courbe svg { width: 100%; max-width: 85mm; height: auto; }
+  .fp-courbe .pf-chart-cap { font-size: 8pt; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2635,7 +2668,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <div class="fg" style="flex:3;min-width:200px"><label for="mper-forme">Forme</label>
         <select id="mper-forme" onchange="_periodePrintRefresh()" style="max-width:100%">
           <option value="tableau">tableau — une ligne par élève, paysage, sur une page</option>
-          <option value="fiches">fiches — un bloc par élève, portrait (à lire pendant le conseil)</option>
+          <option value="fiches">résumés — un bloc court par élève, à la suite, portrait</option>
+          <option value="complete">fiche complète — la fiche élève, une page par élève, portrait</option>
         </select></div>
       <div class="fg" style="flex:1;min-width:110px"><label for="mper-format">Papier</label>
         <select id="mper-format" onchange="_periodePrintRefresh()" style="max-width:100%">
@@ -2647,6 +2681,31 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('mperiode')">Annuler</button>
       <button class="btn btn-p" onclick="periodePrintOk()">🖨 Imprimer…</button>
+    </div>
+  </div>
+</div>
+<div id="mficheprint" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:600px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();fichePrintOk()}">
+    <h2>🖨 Imprimer la fiche</h2>
+    <div class="tb-hint" style="margin-bottom:8px">La fiche de l'élève sur le papier, bornée au moment choisi, une page par élève. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF »).</div>
+    <div class="fg"><label for="mfp-moment">Moment</label>
+      <select id="mfp-moment" data-autofocus onchange="_fichePrintRefresh()" style="max-width:100%"></select></div>
+    <div class="fg"><label>Parties</label>
+      <div id="mfp-parts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <div class="mfp-opts" style="margin-top:6px"><label><input type="checkbox" id="mfp-photo" onchange="_fichePrintRefresh()"> 📷 avec la photo de l'élève</label></div></div>
+    <div class="fg"><label>Élèves</label>
+      <div class="mfp-opts">
+        <label><input type="radio" name="mfp-qui" value="eleve" onchange="_fichePrintRefresh()"> <span>cet élève — <strong id="mfp-qui-eleve-l"></strong></span></label>
+        <label><input type="radio" name="mfp-qui" value="classe" onchange="_fichePrintRefresh()"> <span id="mfp-qui-classe-l">toute la classe</span></label></div></div>
+    <div class="fg" style="max-width:220px"><label for="mfp-format">Papier</label>
+      <select id="mfp-format" onchange="_fichePrintRefresh()">
+        <option value="A4">A4</option>
+        <option value="A3">A3 — texte plus grand</option>
+      </select></div>
+    <div class="al al-i" id="mfp-hint"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mficheprint')">Annuler</button>
+      <button class="btn btn-p" onclick="fichePrintOk()">🖨 Imprimer…</button>
     </div>
   </div>
 </div>
@@ -2837,8 +2896,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.48.0';
-const APP_BUILD_DATE = '2026-10-03T09:03:01Z';
+const APP_VERSION    = '1.49.0';
+const APP_BUILD_DATE = '2026-10-03T09:38:51Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -7316,6 +7375,7 @@ function _ficheBarHTML(cls, stu, col) {
     <span class="pf-seg" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     <span class="pf-sp"></span>
     <span class="pf-nav"><button onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="pf-n">${i + 1}/${o.length}</span><button onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>
+    <button class="pf-x" onclick="openFichePrint()" title="Imprimer cette fiche — ou celles de toute la classe, une page par élève (Ctrl+P)">🖨 Imprimer</button>
     <button class="pf-x" onclick="ficheOuvertureBascule()" title="${cote ? 'Ouvrir la fiche en plein écran' : 'Ouvrir la fiche à côté de la liste : la liste reste visible, un clic sur un nom change de fiche'} — par défaut, la largeur de l'écran décide">${cote ? '⛶ Plein écran' : '◧ À côté de la liste'}</button>
     <button class="pf-x" onclick="closeMod2('mfiche')" title="Fermer (Échap)">✕</button>`;
 }
@@ -13914,7 +13974,9 @@ function _printHTML(html, kind, opts) {
   _setPageOrientation(kind, o.format);
   const done = () => { document.body.classList.remove('printing-pa'); pa.innerHTML = ''; _clearPageOrientation(); window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);
-  _printFontLoad().then(() => setTimeout(() => { try { window.print(); } catch (_) { done(); } }, 50));
+  // Les photos (v1.49.0) : décodées avant d'ouvrir l'impression, sinon une case vide part sur le papier.
+  const imgs = [...pa.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => {}) : null);
+  _printFontLoad().then(() => Promise.all(imgs)).then(() => setTimeout(() => { try { window.print(); } catch (_) { done(); } }, 50));
 }
 // Le dernier contact, en tête de la case « Remarque » à l'impression.
 // ⚠️ Sorti dans sa propre fonction pour que la ligne qui porte le `<br>` ne mentionne
@@ -16410,10 +16472,9 @@ function _periodePrintHTML(cls, periodIdx, opts) {
 function openPeriodePrint() {
   const cls = getCls();
   if (!cls || !cls.eleves.length) return toast('⚠️ Rien à imprimer.', 'warn');
-  const ps = _periods(cls), ms = _chaleurMoments(cls), cur = _chaleurMomentCourant(cls);
+  const ms = _chaleurMoments(cls), cur = _chaleurMomentCourant(cls);
   const choisi = ms.find(c => c.key === _periodePrintOpts.moment) || cur;
-  document.getElementById('mper-moment').innerHTML = ps.map((p, i) => { const g = ms.filter(c => c.pIdx === i); return g.length ? `<optgroup label="${_escAttr(p.label)}">${g.map(c => { const b = _ficheBornes(cls, c);
-    return `<option value="${_escAttr(c.key)}"${choisi && c.key === choisi.key ? ' selected' : ''}>${_escName(c.long)} — du ${_escName(_fmtDateFr(_debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start).slice(0, 5))} au ${_escName(_fmtDateFr(b.end).slice(0, 5))}</option>`; }).join('')}</optgroup>` : ''; }).join('');
+  document.getElementById('mper-moment').innerHTML = _momentsOptionsHTML(cls, choisi ? choisi.key : null);
   document.getElementById('mper-forme').value = _periodePrintOpts.forme;
   document.getElementById('mper-format').value = _periodePrintOpts.format === 'A3' ? 'A3' : 'A4';
   document.getElementById('mper-blocs').innerHTML = _PERIODE_BLOCS.map(b =>
@@ -16429,7 +16490,7 @@ function _periodePrintLire() {
     idx: col ? col.pIdx : 0,
     type: col ? col.type : 'conseil',
     col,
-    forme: document.getElementById('mper-forme').value === 'fiches' ? 'fiches' : 'tableau',
+    forme: ['fiches', 'complete'].includes(document.getElementById('mper-forme').value) ? document.getElementById('mper-forme').value : 'tableau',
     format: document.getElementById('mper-format').value === 'A3' ? 'A3' : 'A4',
     blocs: [...document.querySelectorAll('#mper-blocs input[data-ck]')].filter(c => c.checked).map(c => c.dataset.ck),
   };
@@ -16446,14 +16507,14 @@ function _periodePrintRefresh() {
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
     o.blocs.includes('moy') ? (syn.moyennes ? `moyennes « ${syn.moyennes.periode} » du ${_fmtDateFr(syn.moyennes.date)}` : '⚠️ aucune moyenne importée pour cette période') : '',
     o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — à écrire par les points de la colonne Bilans, ou dans la fiche` : '✓ un bilan pour chacun') : '',
-    o.forme === 'fiches' ? `${o.format} portrait, un bloc par élève` : _periodeFitTexte(_periodeFit(cls, o), o.format)];
+    o.forme === 'fiches' ? `${o.format} portrait, un bloc par élève, à la suite` : o.forme === 'complete' ? `${o.format} portrait, la fiche de chaque élève sur sa page` : _periodeFitTexte(_periodeFit(cls, o), o.format)];
   h.textContent = bits.filter(Boolean).join(' · ');
 }
 // Le tableau se MESURE avant d'imprimer : la plus grande taille de texte qui tient sur une
 // page du format choisi (_printFitMeasure). Annoncé dans le résumé de la modale, pour
 // qu'on sache avant d'imprimer si l'A3 s'impose.
 function _periodeFit(cls, o) {
-  if (o.forme === 'fiches' || !o.blocs.length) return null;
+  if (o.forme !== 'tableau' || !o.blocs.length) return null;
   const out = _periodePrintHTML(cls, o.idx, o);
   return out ? _printFitMeasure(out.html, out.kind, o.format) : null;
 }
@@ -16469,12 +16530,216 @@ function periodePrintOk() {
   if (!cls) return;
   if (!o.blocs.length) return toast('⚠️ Choisissez au moins un bloc.', 'warn');
   _periodePrintOpts = { blocs: o.blocs, type: o.type, moment: o.col ? o.col.key : null, forme: o.forme, format: o.format };
+  // « Fiche complète » (v1.49.0) : la fiche élève imprimée, une page par élève — les blocs
+  // cochés deviennent ses parties (identité et remarque toujours, la courbe avec les observations).
+  if (o.forme === 'complete' && o.col) {
+    const parts = ['identite', 'remarque', ...o.blocs.flatMap(k => k === 'obs' ? ['obs', 'courbe'] : k === 'docs' ? ['papiers'] : k === 'hvc' ? [] : [k])];
+    closeMod2('mperiode');
+    return _fichePrintGo(cls, o.col, _fichePrintEleves(cls, o.col), { parts, photo: true, format: o.format });
+  }
   const out = _periodePrintHTML(cls, o.idx, o);
   if (!out) return toast('⚠️ Période inconnue.', 'warn');
   const fit = out.kind === 'landscape' ? _printFitMeasure(out.html, out.kind, o.format) : null;
   closeMod2('mperiode');
   if (fit && !fit.fits) toast(`⚠️ La feuille déborde sur ≈ ${fit.pages} pages ${o.format}, même en ${String(fit.size).replace('.', ',')} pt.`, 'warn');
   _printHTML(out.html, out.kind, { format: o.format, fontPt: fit ? fit.size : null });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPRIMER LA FICHE (v1.49.0) — demandé le 2026-10-03 : « ajoute le bouton Imprimer dans la
+// fiche ; quand j'imprime la synthèse de période, j'ai une liste de tous les élèves, je n'ai
+// pas la fiche élève ». La fiche telle qu'on la lit à l'écran (tableau de bord), bornée au
+// MOMENT choisi, UNE PAGE PAR ÉLÈVE (A4 / A3 portrait) : pour un rendez-vous avec la famille
+// (cet élève) ou pour le conseil (toute la classe, dans l'ordre de la liste). Bouton 🖨 de la
+// fiche, Ctrl+P fiche ouverte, et la forme « fiche complète » de la synthèse de période.
+// Le bilan vide laisse des LIGNES à remplir au stylo : la feuille sert aussi pendant la réunion.
+// ═══════════════════════════════════════════════════════════════════════════
+const FICHE_PRINT_PARTS = [
+  { key: 'identite',  label: 'Identité et repères', hint: 'Naissance, groupe, options, aménagements, régimes, présence, délégué' },
+  { key: 'bilan',     label: 'Bilan et décisions',  hint: 'Le bilan et les décisions du moment choisi — des lignes à remplir s\'il n\'y en a pas' },
+  { key: 'remarque',  label: 'Remarque',            hint: 'La remarque libre, avec ses paragraphes' },
+  { key: 'obs',       label: 'Observations',        hint: 'Carnet et MBN sur le moment, total depuis la rentrée, relevés' },
+  { key: 'courbe',    label: 'Courbe',              hint: 'La courbe des observations, comme dans la fiche' },
+  { key: 'moy',       label: 'Moyennes',            hint: 'Matières × imports du moment, sous 10 en gras' },
+  { key: 'avis',      label: 'Avis des collègues',  hint: 'La feuille d\'avis du moment, discipline par discipline' },
+  { key: 'incidents', label: 'Incidents',           hint: 'Incidents et instances du moment, avec la décision' },
+  { key: 'contacts',  label: 'Contacts',            hint: 'Contacts avec la famille du moment' },
+  { key: 'papiers',   label: 'Papiers',             hint: 'Documents distribués : rendu ou non, choix portés' },
+  { key: 'bilans',    label: 'Autres bilans',       hint: 'Les bilans et décisions des autres moments de l\'année' },
+];
+// Réglages de la séance (rien dans `S`) : ce qu'on imprime, la photo, qui, le papier.
+let _fichePrintOpts = { parts: FICHE_PRINT_PARTS.map(p => p.key).filter(k => k !== 'bilans'), photo: true, qui: 'eleve', format: 'A4' };
+// Les élèves d'une feuille « toute la classe » : présents pendant la période du moment, dans
+// l'ordre de la liste à l'écran (tri courant, sans le filtre de recherche), les autres au bout.
+function _fichePrintEleves(cls, col) {
+  const syn = _periodeSynthese(cls, col.pIdx, { type: col.type, col });
+  const ids = syn ? syn.rows.map(r => r.sid) : cls.eleves.filter(id => S.eleves[id]);
+  const ordre = _elevesRows(cls).map(x => x.s.id);
+  const rang = id => { const i = ordre.indexOf(id); return i < 0 ? 1e6 : i; };
+  return ids.slice().sort((a, b) => rang(a) - rang(b)
+    || `${S.eleves[a].nom} ${S.eleves[a].prenom}`.localeCompare(`${S.eleves[b].nom} ${S.eleves[b].prenom}`, 'fr', { sensitivity: 'base' }));
+}
+// Une page : la fiche d'UN élève pour UN moment. `photo` = URL déjà lue (ou null). Tout est échappé.
+function _fichePrintHTML(cls, sid, col, opts, photo) {
+  const stu = S.eleves[sid], b = cls && col ? _ficheBornes(cls, col) : null;
+  if (!stu || !b) return '';
+  const o = Object.assign({}, _fichePrintOpts, opts || {});
+  const on = k => o.parts.includes(k);
+  const dans = d => d && d >= b.start && d <= b.end;
+  const jm = ymd => _escName(_fmtDateFr(ymd).slice(0, 5));
+  const pl = t => `<span class="fp-pl">${_escName(t)}</span>`;   // garde les paragraphes
+  const sec = (titre, corps, cls2) => corps ? `<section class="fp-sec${cls2 ? ' ' + cls2 : ''}"><h3>${titre}</h3>${corps}</section>` : '';
+  const vide = t => `<p class="fp-mu">${t}</p>`;
+  const lignes = n => `<div class="fp-lignes">${'<div></div>'.repeat(n)}</div>`;
+  const age = _ficheAge(stu.naissance), dl = _delegueOf(sid), eco = _ecoDelegueOf(sid);
+  const tags = _studentTags(stu).map(x => x.abbr).join(', '), amen = _amenLabel(stu, false);
+  const reg = _regimeOf(stu.regime)?.label || '';
+  const meta = [cls.nom + (cls.annee ? ' — ' + cls.annee : ''), age !== null ? age + ' ans' : '', stu.groupe ? 'G' + stu.groupe : '', tags, amen,
+    dl ? 'délégué ' + (dl === 'titulaire' ? 'titulaire' : 'suppléant') : '', eco ? 'éco-délégué' : ''].filter(Boolean).join(' · ');
+  const debut = _debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start;
+  const quand = `${col.long} — du ${_fmtDateFr(debut)} au ${_fmtDateFr(b.end)} · imprimé le ${_fmtDateFr(_todayYmd())}`;
+  const tete = `<div class="fp-h">${o.photo && photo ? `<img class="fp-ph" src="${_escAttr(photo)}" alt="">` : ''}<div class="fp-hid">
+    <div class="fp-nom">${_civHTML(sid)} <strong>${_escName(stu.nom)}</strong> ${_escName(stu.prenom)}</div>
+    <div class="fp-meta">${_escName(meta)}</div><div class="fp-mom">${_escName(quand)}</div></div></div>`;
+  // ── Identité ──
+  const kv = (dt, dd) => dd ? `<dt>${dt}</dt><dd>${dd}</dd>` : '';
+  const joursDP = stu.joursDP?.length ? ' (' + _joursTexte(stu.joursDP) + ')' : '';
+  const ident = `<dl class="fp-kv">${kv('Né(e) le', stu.naissance ? _escName(_fmtDateFr(stu.naissance)) : '')}${
+    kv('Civilité', stu.civilite ? _escName(civiliteFullLabel(stu.civilite)) : '')}${kv('Groupe', stu.groupe ? 'G' + stu.groupe : '')}${
+    kv('Options', _escName(tags))}${kv('Aménagements', _escName(amen))}${kv('Régime', _escName(reg ? reg + joursDP : ''))}${
+    kv('Entrée', stu.entree ? _escName(stu.entree + (_entreeLabel(stu.entree) ? ' — ' + _entreeLabel(stu.entree) : '')) : '')}${
+    kv('Sortie', stu.sortie ? _escName(stu.sortie + (_sortieLabel(stu.sortie) ? ' — ' + _sortieLabel(stu.sortie) : '')) : '')}${
+    kv('Présence', _ficheePresence(stu))}</dl>`;
+  // ── Bilan et décisions du moment ──
+  const mode = { type: col.type, date: col.date };
+  const bil = _bilanCible(cls, sid, mode), dec = _decisionCible(cls, sid, mode);
+  const bilanH = `<div class="fp-st">Bilan${bil ? ` <span class="fp-mu">· écrit le ${_escName(_fmtDateFr(bil.date))}</span>` : ''}</div>${bil ? `<p>${pl(bil.texte)}</p>` : lignes(4)}
+    <div class="fp-st">Décisions · à mettre en place</div>${dec ? `<p>${pl(dec.texte)}</p>` : lignes(2)}`;
+  // ── Observations ──
+  const avecMbn = _obsMbnClasseAny(cls);
+  const oc = _obsEntre(cls.id, sid, b.start, b.end), cum = _cumulAu(cls.id, sid, b.end);
+  const mbn = _obsMbnEntre(sid, b.start, b.end), an = _obsTotalAn(cls, sid, b.end);
+  const rm = _relMap(cls.id) || {};
+  const rels = _relDates(cls.id).filter(dans).map(d => ({ d, v: _relValue(rm[d], sid), x: _relDelta(cls.id, d, sid) })).filter(r => r.v !== null);
+  const relTxt = rels.map(r => r.v === REL_ABSENT ? `${jm(r.d)} absent` : `${jm(r.d)} : ${r.v}${r.x && r.x.prev !== null && r.x.delta ? ` (${r.x.delta > 0 ? '+' : ''}${r.x.delta})` : ''}`).join(' · ');
+  const obsH = `<p><strong>Carnet :</strong> ${oc === null ? 'aucun relevé' : `${oc > 0 ? '+' : ''}${oc} sur le moment`}${cum !== null ? ` <span class="fp-mu">(cumul ${cum} au ${jm(b.end)})</span>` : ''}</p>${
+    avecMbn ? `<p><strong>MBN :</strong> ${mbn.length}${mbn.length ? ` — ${_escName(_obsMbnMotifs(mbn))}` : ''}</p>` : ''}${
+    an.total !== null ? `<p><strong>Depuis la rentrée :</strong> ${an.total}${avecMbn ? ` <span class="fp-mu">(carnet ${an.carnet || 0} + MBN ${an.mbn})</span>` : ''}</p>` : ''}${
+    relTxt ? `<p class="fp-small">Relevés : ${relTxt}</p>` : ''}${on('courbe') ? `<div class="fp-courbe">${_ficheCourbeHTML(cls, stu, col)}</div>` : ''}`;
+  // ── Moyennes : matières × imports, sous 10 en GRAS (le papier sort souvent en noir et blanc) ──
+  const m = _ficheMoy(cls, sid, col, b);
+  let moyH = vide('Aucun import de moyennes pour ce moment.');
+  if (m) {
+    const cell = v => v === null || v === undefined ? '–' : typeof v === 'number' ? (v < 10 ? `<strong>${_escName(_fmtNote(v, 1))}</strong>` : _escName(_fmtNote(v, 1))) : `<em>${_escName(v)}</em>`;
+    const ligne = (nom, vals, gras) => `<tr${gras ? ' class="fp-gen"' : ''}><td>${_escName(nom)}</td>${vals.map(v => `<td class="r">${cell(v)}</td>`).join('')}</tr>`;
+    moyH = `<table class="fp-t"><thead><tr><th>Matière</th>${m.list.map(r => `<th class="r">${jm(r.date)}</th>`).join('')}</tr></thead><tbody>${
+      _moyColsOf(m.list).map(mt => ligne(_moyAbbr(mt.nom), m.list.map(r => _moyVal(r, sid, mt.id)))).join('')}${ligne('Générale', m.list.map(r => _moyGen(r, sid)), true)}</tbody></table>`;
+  }
+  // ── Avis des collègues : la feuille du moment, une discipline par ligne ──
+  const av = _ficheAvis(cls, sid, col);
+  let avisH = vide('Pas de feuille d\'avis pour ce moment.');
+  if (av) {
+    const cols = _avisCols(av.camp), a = av.camp.avis?.[sid] || {};
+    const ds = av.camp.disciplines.filter(d => a[d.id]), sans = av.camp.disciplines.filter(d => !a[d.id]);
+    avisH = (ds.length ? ds.map(d => `<div class="fp-av"><strong>${_escName(d.nom)}</strong>${d.profs ? ` <span class="fp-mu">${_escName(d.profs)}</span>` : ''} — ${
+      cols.filter(c => a[d.id][c.key]).map(c => `${cols.length > 1 ? `<em>${_escName(c.label)}</em> ` : ''}${pl(a[d.id][c.key])}`).join(' · ')}</div>`).join('') : vide('Aucune réponse.'))
+      + (sans.length ? `<p class="fp-mu fp-small">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : '');
+  }
+  // ── Incidents, contacts, papiers ──
+  const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
+  const incH = inc.length ? inc.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<br>${pl(x.texte)}` : ''}</span></div>`).join('') : vide('Aucun incident sur le moment.');
+  const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
+  const ctH = ct.length ? ct.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_journalType(x.type).label.toLowerCase())}</strong> — ${pl(x.texte || '')}</span></div>`).join('') : vide('Aucun contact sur le moment.');
+  const infos = _ficheDocuments(cls, sid);
+  const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
+  const papH = docs.length ? docs.map(d => { const r = _retour(d, sid), info = infos.find(x => x.docId === d.id);
+    const etat = d.suiviRetour === false ? 'rien à rendre' : r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _fmtDateFr(r.dateRetour).slice(0, 5) : ''}` : '☐ pas rendu';
+    const ch = (info?.reponses || []).map(x => `${x.champ} : ${x.valeurs.join(', ')}`).join(' · ');
+    return `<div class="fp-ent"><span class="fp-d">${d.dateDistribution ? jm(d.dateDistribution) : ''}</span><span>${_escName(d.titre)} — ${_escName(etat)}${ch ? `<br><span class="fp-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : vide('Aucun papier.');
+  // ── Les autres moments de l'année : leurs bilans et décisions, s'ils en ont ──
+  const autres = _chaleurMoments(cls).filter(c => c.key !== col.key).map(c => {
+    const x = _bilanCible(cls, sid, { type: c.type, date: c.date }), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
+    return x || dc ? `<div class="fp-ent"><span class="fp-d">${_escName(c.court)}</span><span>${x ? pl(x.texte) : ''}${dc ? `${x ? '<br>' : ''}<em>Décisions :</em> ${pl(dc.texte)}` : ''}</span></div>` : '';
+  }).join('');
+  return `<div class="fp-page">${tete}
+    ${on('bilan') ? sec(_escName(col.long), bilanH, 'fp-large') : ''}
+    <div class="fp-cols">
+      ${on('identite') ? sec('Identité et repères', ident) : ''}
+      ${on('remarque') ? sec('Remarque', stu.remarque ? `<p>${pl(stu.remarque)}</p>` : vide('Aucune remarque.')) : ''}
+      ${on('obs') ? sec('Observations', obsH) : ''}
+      ${on('moy') ? sec('Moyennes', moyH) : ''}
+      ${on('incidents') ? sec('Incidents', incH) : ''}
+      ${on('contacts') ? sec('Contacts avec la famille', ctH) : ''}
+      ${on('papiers') ? sec('Papiers', papH) : ''}
+    </div>
+    ${on('avis') ? sec(`Avis des collègues${av ? ' — ' + _escName(_avisObjectif(cls, av.camp).long) : ''}`, avisH, 'fp-large') : ''}
+    ${on('bilans') ? sec('Autres moments de l\'année', autres || vide('Rien d\'écrit pour les autres moments.'), 'fp-large') : ''}
+  </div>`;
+}
+// Imprime les fiches de `sids` : lit d'abord les photos (le clic qui a lancé l'impression
+// permet de demander l'accès au dossier une fois), puis une page par élève.
+async function _fichePrintGo(cls, col, sids, o) {
+  if (!sids.length) return toast('⚠️ Aucun élève à imprimer.', 'warn');
+  const urls = {};
+  if (o.photo && pjDirHandle) {
+    if (!_photos.ready) await _photosRefresh(true);
+    for (const sid of sids) if (_photoHas(sid)) urls[sid] = await _photoUrl(sid);
+  }
+  const html = sids.map(sid => _fichePrintHTML(cls, sid, col, o, urls[sid] || null)).join('');
+  _printHTML(`<div class="fp">${html}</div>`, 'portrait', { format: o.format });
+}
+// ── La fenêtre : moment, parties, photo, cet élève ou toute la classe, papier ──
+function openFichePrint() {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id];
+  if (!cls) return;
+  const cur = _ficheMomentCourant(cls);
+  document.getElementById('mfp-moment').innerHTML = _momentsOptionsHTML(cls, cur ? cur.key : null);
+  document.getElementById('mfp-parts').innerHTML = FICHE_PRINT_PARTS.map(p =>
+    `<label class="tagpick" style="background:var(--paper-warm)" title="${_escAttr(p.hint)}"><input type="checkbox" data-ck="${_escAttr(p.key)}"${_fichePrintOpts.parts.includes(p.key) ? ' checked' : ''} onchange="_fichePrintRefresh()"> ${_escName(p.label)}</label>`).join('');
+  document.getElementById('mfp-photo').checked = _fichePrintOpts.photo;
+  document.getElementById('mfp-format').value = _fichePrintOpts.format;
+  const nom = `${stu.prenom} ${stu.nom}`;
+  document.getElementById('mfp-qui-eleve-l').textContent = nom;
+  document.querySelector(`input[name="mfp-qui"][value="${_fichePrintOpts.qui === 'classe' ? 'classe' : 'eleve'}"]`).checked = true;
+  openMod('mficheprint');
+  _fichePrintRefresh();
+}
+function _fichePrintLire() {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id];
+  const k = document.getElementById('mfp-moment')?.value;
+  const col = cls ? (_chaleurMomentsTous(cls).find(c => c.key === k) || _ficheMomentCourant(cls)) : null;
+  return {
+    cls, stu, col,
+    parts: [...document.querySelectorAll('#mfp-parts input[data-ck]')].filter(c => c.checked).map(c => c.dataset.ck),
+    photo: !!document.getElementById('mfp-photo')?.checked,
+    qui: document.querySelector('input[name="mfp-qui"]:checked')?.value === 'classe' ? 'classe' : 'eleve',
+    format: document.getElementById('mfp-format')?.value === 'A3' ? 'A3' : 'A4',
+  };
+}
+function _fichePrintRefresh() {
+  const o = _fichePrintLire(), h = document.getElementById('mfp-hint');
+  if (!h || !o.cls || !o.col) return;
+  const n = o.qui === 'classe' ? _fichePrintEleves(o.cls, o.col).length : 1;
+  document.getElementById('mfp-qui-classe-l').textContent = `toute la classe — ${_pl(_fichePrintEleves(o.cls, o.col).length, 'élève')} présents pendant ${_periods(o.cls)[o.col.pIdx]?.label || 'la période'}, dans l'ordre de la liste`;
+  const photos = o.photo ? (pjDirHandle ? (o.qui === 'classe' ? `${_fichePrintEleves(o.cls, o.col).filter(_photoHas).length} avec photo` : (_photoHas(o.stu.id) ? 'avec sa photo' : 'pas de photo pour cet élève')) : 'pas de dossier des photos choisi') : 'sans photo';
+  h.textContent = [`${o.format} portrait, une page par élève — ${_pl(n, 'page')} au moins`, photos,
+    o.parts.includes('bilan') ? 'un bilan vide laisse des lignes à remplir au stylo' : ''].filter(Boolean).join(' · ');
+}
+function fichePrintOk() {
+  const o = _fichePrintLire();
+  if (!o.cls || !o.col) return;
+  if (!o.parts.length) return toast('⚠️ Choisissez au moins une partie.', 'warn');
+  _fichePrintOpts = { parts: o.parts, photo: o.photo, qui: o.qui, format: o.format };
+  const sids = o.qui === 'classe' ? _fichePrintEleves(o.cls, o.col) : [o.stu.id];
+  closeMod2('mficheprint');
+  _fichePrintGo(o.cls, o.col, sids, _fichePrintOpts);
+}
+// Les moments de « Synthèse pour », rangés par période — la fenêtre de la fiche imprimée et
+// celle de la synthèse de période proposent la même liste.
+function _momentsOptionsHTML(cls, choisi) {
+  const ps = _periods(cls), ms = _chaleurMoments(cls);
+  return ps.map((p, i) => { const g = ms.filter(c => c.pIdx === i); return g.length ? `<optgroup label="${_escAttr(p.label)}">${g.map(c => { const b = _ficheBornes(cls, c);
+    return `<option value="${_escAttr(c.key)}"${c.key === choisi ? ' selected' : ''}>${_escName(c.long)} — du ${_escName(_fmtDateFr(_debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start).slice(0, 5))} au ${_escName(_fmtDateFr(b.end).slice(0, 5))}</option>`; }).join('')}</optgroup>` : ''; }).join('');
 }
 
 // Le tableau des retours sur papier. Les colonnes viennent de la modale, l'ordre du tri
@@ -18909,6 +19174,8 @@ document.addEventListener('keydown', e => {
   // Ctrl+P → l'impression qui a du sens dans l'onglet courant (orientation imposée par la
   // page nommée de la zone d'impression). Ailleurs, l'impression native reste disponible.
   if (ctrl && k === 'p') {
+    // Fiche ouverte (et rien par-dessus) : c'est elle qu'on veut imprimer, pas la liste derrière.
+    if (document.getElementById('mfiche')?.classList.contains('on') && _ficheSid && !document.querySelector('.mo.on:not(#mfiche)')) { e.preventDefault(); openFichePrint(); return; }
     const tab = document.querySelector('.tab.on')?.id.replace('tab-', '');
     if (tab === 'eleves') { e.preventDefault(); printEleves(); return; }
     if (tab === 'carnets' && getCls() && _relDates(getCls().id).length) { e.preventDefault(); printCarnets(); return; }
