@@ -255,3 +255,15 @@ test('le pourcentage du graphique ne se tronque pas (il perdrait son dénominate
   // Et le nom tronqué de la vue à deux volets porte bien son infobulle.
   assert.ok(/<div class="el-name" title="\$\{_escAttr\(/.test(SRC));
 });
+
+test('papier (audit v1.53.2) : le Δ d\'un cumul coloré prend l\'encre de la case ; le tiret « sans objet » atteint 4,5:1 sur blanc', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  assert.match(src, /\.pp-t\.pp-car tbody td\[class\*="ob-"\] small \{ color: inherit; \}/);
+  const m = src.match(/\.print-na \{ color: #([0-9a-f]{3,6}); \}/i);
+  assert.ok(m, 'règle .print-na trouvée');
+  const hex = m[1].length === 3 ? m[1].split('').map(x => x + x).join('') : m[1];
+  const lin = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; };
+  const L = [0, 2, 4].map(i => lin(parseInt(hex.slice(i, i + 2), 16)));
+  const lum = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
+  assert.ok(1.05 / (lum + .05) >= 4.5, `#${hex} sur blanc : ${(1.05 / (lum + .05)).toFixed(2)}:1`);
+});

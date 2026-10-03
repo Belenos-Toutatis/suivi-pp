@@ -25,7 +25,8 @@
   const visible = el => { const r = el.getBoundingClientRect(); if (!r.width || !r.height) return false; const cs = getComputedStyle(el); return cs.visibility !== 'hidden' && cs.display !== 'none'; };
   const ownText = el => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).filter(Boolean).join(' ');
   const state = { results: [] };
-  function run(label) {
+  // `papier` : la zone d'impression #pa est mesurée aussi (règles @media print réinjectées à l'écran).
+  function run(label, papier) {
     const out = { label, contrast: [], overflow: null, hidden: [], errors: (window.__suiviPPErrors || []).length, nodes: 0 };
     // ⚠️ clientWidth, pas innerWidth : en émulation mobile, la fenêtre s'élargit d'elle-même à
     // la largeur du contenu (innerWidth 414 pour 375), et un débordement passait inaperçu.
@@ -33,7 +34,7 @@
     out.overflow = document.documentElement.scrollWidth > largeur + 1 ? `${document.documentElement.scrollWidth} px pour ${largeur}` : null;
     const seen = new Set();
     for (const el of document.querySelectorAll('body *')) {
-      if (!visible(el) || el.closest('#pa, script, style')) continue;
+      if (!visible(el) || el.closest(papier ? 'script, style' : '#pa, script, style')) continue;
       const txt = ownText(el) || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'date', 'file', 'range', 'color'].includes(el.type) ? el.value : '');
       const cs = getComputedStyle(el);
       // Texte tronqué : ellipse ou overflow caché qui rogne réellement, sans infobulle ni title parent.

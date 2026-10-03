@@ -767,6 +767,10 @@ non candidat) — question posée à l'utilisateur le 2026-10-03.
   suppléants de l'élection d'origine — retire ces élèves des candidatures et du *nom écrit* du
   scrutin, et `electionAddCandidat` / `electionAddEcrit` les refusent. L'état vide le dit (« sauf
   les 3 déjà élus »). Le suppléant posé par ce scrutin ne s'exclut pas lui-même (rouvrir, reclore).
+  **v1.53.2 (audit)** : un suppléant posé APRÈS le vote (`supNc`) n'était pas sur le bulletin —
+  `_elCandNomSupBulletin` le tait dans la liste des candidats et les tableaux de voix du PV, les
+  candidatures de l'onglet et le graphique ; il est dit sous les élus et dans le bloc du suppléant.
+  Le titre du PV s'accorde (« Est élue » pour un seul élu, « Sont élues »).
 
 #### ⚠️ Un pourcentage en cours de dépouillement est trompeur
 
@@ -2231,6 +2235,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 132 | **Audit complet après la salve des élections** : 56 états × 2 thèmes × 2 largeurs (1 570 et 320 px, ≈ 100 000 nœuds), dix feuilles imprimées depuis les deux thèmes, scénario d'élection de bout en bout (nom écrit, acceptation, deux sièges, second tour, scrutin du suppléant). Quatre défauts corrigés : Δ illisible sur les deux derniers paliers du carnet imprimé (2,2:1), tiret « sans objet » de la grille imprimée à 4,48:1, **suppléant posé après le vote affiché comme s'il était sur le bulletin** (PV, candidatures, graphique), « Sont élus » au-dessus d'un seul élu ; auditeur : mode `papier` ; 2 tests | ✅ **fait** (2026-10-04, v1.53.2) |
 | 131 | **Sources hors Légifrance liées** (justice.fr, circulaire de 2004, service-public, académie de Versailles) dans les modalités, la question d'acceptation et le bureau de vote ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.53.1) |
 | 130 | **Un siège après l'autre** (défaut, R421-28 ; « les sièges ensemble » au choix) · **candidats du second tour** au choix (tous, au-dessus d'un % des exprimés à défaut les x premiers, les x premiers) ; démo ; 2 tests, 2 tests adaptés. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.53.0) |
 | 129 | **Accord en genre dans les élections** (civilité figée sur la candidature, forme inclusive sans civilité) · **projection d'un scrutin de suppléant : « Suppléant(e) élu(e) »** ; 2 tests, 5 tests adaptés | ✅ **fait** (2026-10-03, v1.52.13) |
@@ -2594,6 +2599,30 @@ seconde définition gagnait, la première restait comme un piège), `_stubHTML`,
 `_impNormTags` ; `reloadLastFile`, écrit à l'étape 8 et jamais branché, l'est désormais
 (💾 Données → *↩ Dernier fichier chargé*) — la copie IndexedDB avait un écrivain et
 aucun lecteur.
+
+**2026-10-04, v1.53.2 — AUDIT COMPLET après la salve v1.48 → v1.53** (photos, impressions,
+trombinoscope, fenêtre détachée, élections). Parcours de **56 états** (les 7 onglets et leurs
+sous-états, les trois vues de la fiche et cinq de ses éditeurs, les trois affichages de la liste,
+les élections et la projection, 30 fenêtres par leur vrai ouvreur) × 2 thèmes × 1 570 et 320 px :
+≈ 100 000 nœuds, **0 écart, 0 débordement, 0 texte tronqué, 0 erreur JS**. Statique : 334
+handlers, 0 fonction définie deux fois. **Papier** : dix feuilles (liste, synthèse tableau et
+fiches, trombinoscope, fiche, carnet, moyennes, document, grille, PV) imprimées depuis les deux
+thèmes — `scripts/audit_browser.js` a désormais un mode `run(label, true)` qui mesure aussi
+`#pa`, avec les règles `@media print` réinjectées à l'écran et `window.print` remplacé. Puis un
+**scénario d'élection de bout en bout** dans le navigateur (candidatures, bureau, nom écrit,
+bulletins préparés, question d'acceptation, siège 1 au premier tour, siège 2 en deux tours, scrutin
+du suppléant, report, deux PV). Quatre défauts, corrigés :
+30. **Le Δ du carnet imprimé à 2,16:1** sur les deux derniers paliers : `.pp-t small` impose `#333`,
+   qui l'emportait sur l'encre blanche de la case. → `td[class*="ob-"] small { color: inherit }`.
+31. **Le tiret « sans objet » de la grille imprimée à 4,48:1** (`#777`) → `#666`.
+32. **Le suppléant d'un élu non candidat, élu APRÈS le vote, figurait sur le PV comme s'il avait
+   été sur le bulletin** (« Mathis ROUSSEAU / Clara BERNARD » dans les candidats et le tableau du
+   siège 1). Un PV signé qui laisse croire à une candidature en binôme est faux. Invisible à tout
+   audit d'affichage : trouvé en LISANT le PV du scénario. → `_elCandNomSupBulletin`.
+33. **« Sont élus » au-dessus d'une seule élue** (PV du scrutin du suppléant) → accordé.
+⚠️ Leçon : la démo ne porte ni nom écrit ni scrutin de suppléant, donc l'audit des états ne les
+voyait pas — d'où le scénario. Et le parcours lui-même s'est trompé une fois (confirmation de
+clôture fermée par le script) : relire un résultat surprenant avant d'accuser l'app.
 
 **2026-10-02, v1.39.0 (Avis des collègues) : 0 écart**, clair et sombre — la liste des
 élèves, la modale (feuille relue et nouvelle feuille avec sa question « à rattacher »), la

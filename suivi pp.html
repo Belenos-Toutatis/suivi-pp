@@ -1929,6 +1929,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 .pp-t.pp-car tbody td.ob-6 { background: var(--obs-6); color: var(--obs-6-fg); }
 .pp-t.pp-car tbody td.ob-7 { background: var(--obs-7); color: var(--obs-7-fg); }
 .pp-t.pp-car tbody td.ob-8 { background: var(--obs-8); color: var(--obs-8-fg); }
+/* Le Δ sous le cumul prend l'encre de la case : le #333 des `small` tombait à 2,2:1 sur les deux derniers crans (audit papier, v1.53.2). */
+.pp-t.pp-car tbody td[class*="ob-"] small { color: inherit; }
 @page landscape { size: A4 landscape; margin: 12mm; }
 @page portrait  { size: A4 portrait;  margin: 15mm; }
 @media print {
@@ -1960,7 +1962,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   .print-c { text-align: center; font-size: 12pt; line-height: 1; }
   .print-c small { font-size: 7.5pt; font-weight: 400; }
   .print-doc-th { max-width: 30mm; }
-  .print-na { color: #777; }        /* « sans objet » : un tiret gris, jamais une case vide */
+  .print-na { color: #666; }        /* « sans objet » : un tiret gris, jamais une case vide — #777 faisait 4,48:1 (audit papier, v1.53.2) */
   .print-t tfoot th, .print-t tfoot td { background: #e4e4e4; font-size: 8.5pt; font-weight: 700; }
   .print-t tfoot tr:first-child th, .print-t tfoot tr:first-child td { border-top: 1.2pt solid #000; }
   .print-bilan th { border-right: 1.2pt solid #000; }
@@ -2982,8 +2984,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.53.1';
-const APP_BUILD_DATE = '2026-10-03T18:05:43Z';
+const APP_VERSION    = '1.53.2';
+const APP_BUILD_DATE = '2026-10-03T22:11:13Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12242,6 +12244,11 @@ function _elCand(el, candId) { return (el.candidats || []).find(c => c.id === ca
 // Identité figée : le PV reste lisible après suppression de l'élève.
 function _elCandNom(c) { return c ? (c.nomTitulaire || (S.eleves[c.sidTitulaire] ? `${S.eleves[c.sidTitulaire].prenom} ${S.eleves[c.sidTitulaire].nom}` : '?')) : '?'; }
 function _elCandNomSup(c) { return c && c.sidSuppleant !== null ? (c.nomSuppleant || (S.eleves[c.sidSuppleant] ? `${S.eleves[c.sidSuppleant].prenom} ${S.eleves[c.sidSuppleant].nom}` : '')) : ''; }
+// Le suppléant tel qu'il figurait SUR LE BULLETIN (audit v1.53.2) : celui d'un élu non candidat,
+// posé APRÈS le vote (`supNc` : élu par un scrutin, désigné), n'y était pas — la liste des
+// candidats, les tableaux de voix et le graphique d'un tour ne le montrent pas ; il est dit sous
+// « Élus » et dans le bloc du suppléant. Sinon le PV ferait croire à une candidature en binôme.
+function _elCandNomSupBulletin(c) { return c && c.supNc ? '' : _elCandNomSup(c); }
 // ── Accord en genre (v1.52.13, l'utilisateur : « accorde, en fonction du genre du candidat, tout ce
 // que tu écris dans les élections ») ──
 // La civilité de l'élève ('M' | 'F' | null) ; celle d'un candidat est FIGÉE sur la candidature
@@ -12792,7 +12799,7 @@ function _elLive(el, tourIdx) {
   let cands = t.candidats.map(id => {
     const c = _elCand(el, id) || { id, nomTitulaire: '?', color: '#7f8c8d', ordre: 0 };
     const voix = d.voix[id] || 0;
-    return { id, nom: _elCandNom(c), nomSup: _elCandNomSup(c), color: _safeColor(c.color), ordre: c.ordre ?? 0, retire: !!c.retire,
+    return { id, nom: _elCandNom(c), nomSup: _elCandNomSupBulletin(c), color: _safeColor(c.color), ordre: c.ordre ?? 0, retire: !!c.retire,
              voix, pct: depouilles ? Math.round(100 * voix / depouilles) : 0,
              dejaElu: va !== null && voix * 2 > va };
   });
@@ -13290,7 +13297,7 @@ function _elRenderCandidats(el, t) {
   const rows = el.candidats.slice().sort((a, b) => a.ordre - b.ordre).map(c => `<tr${c.retire ? ' class="inactive"' : ''}>
       <td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> <input type="color" value="${_escAttr(_safeColor(c.color))}" onchange="_elMut(e=>{_elCand(e,'${_escJsAttr(c.id)}').color=_safeColor(this.value)})" title="Couleur de la barre" style="width:26px;height:20px;padding:0;border:none;background:none;cursor:pointer;vertical-align:middle"></td>
       <td><strong>${_escName(_elCandNom(c))}</strong>${c.retire ? ` <span class="tb-hint">(${_acc(_civCand(c), 'retiré', 'retirée', 'retiré(e)')})</span>` : ''}${c.ecrit ? ` <span class="tb-hint" title="${_acc(_civCand(c), 'Non candidat', 'Non candidate', 'Non candidat(e)')} : son nom a été écrit sur un bulletin">(nom écrit${c.accepte === true ? ', a accepté son élection' : c.accepte === false ? ', a refusé son élection' : ''})</span>` : ''}</td>
-      <td>${_escName(_elCandNomSup(c)) || '<span class="tb-hint">—</span>'}</td>
+      <td>${_escName(_elCandNomSupBulletin(c)) || '<span class="tb-hint">—</span>'}</td>
       <td style="white-space:nowrap">
         ${canEdit ? `<button class="btn btn-g btn-sm" onclick="_elMut(e=>{const i=e.candidats.indexOf(_elCand(e,'${_escJsAttr(c.id)}'));if(i>0){[e.candidats[i-1].ordre,e.candidats[i].ordre]=[e.candidats[i].ordre,e.candidats[i-1].ordre];e.candidats.sort((a,b)=>a.ordre-b.ordre)}})" title="Monter">↑</button>
         <button class="btn btn-d btn-sm" onclick="_elMut(e=>{e.candidats=e.candidats.filter(x=>x.id!=='${_escJsAttr(c.id)}');e.tours.forEach(t=>{t.candidats=t.candidats.filter(x=>x!=='${_escJsAttr(c.id)}')})})" title="Retirer la candidature">✕</button>`
@@ -13512,7 +13519,7 @@ function _elRenderResultats(el) {
     const r = _elResultatTour(el, i);
     return `<div class="el-res"><strong>${_maj(_elTourLabel(el, t))}</strong> <span class="tb-hint">— ${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · majorité absolue ${d.majoriteAbsolue}${Number.isInteger(t.votantsAnnonces) && t.votantsAnnonces !== d.votants ? ` · <span style="color:var(--danger-fg)">${t.votantsAnnonces} annoncés dans l'urne</span>` : ''}</span>
       <table class="dt" style="max-width:520px;margin-top:4px"><thead><tr><th>Candidat</th><th style="text-align:right">Voix</th><th></th></tr></thead><tbody>
-      ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> ${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` <span class="tb-hint">/ ${_escName(_elCandNomSup(c))}</span>` : ''}</td><td style="text-align:right;font-family:var(--font-mono)">${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? `<span class="badge ok">${_acc(_civCand(c), 'élu', 'élue', 'élu(e)')}</span>` : ''}</td></tr>`).join('')}
+      ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> ${_escName(_elCandNom(c))}${_elCandNomSupBulletin(c) ? ` <span class="tb-hint">/ ${_escName(_elCandNomSupBulletin(c))}</span>` : ''}</td><td style="text-align:right;font-family:var(--font-mono)">${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? `<span class="badge ok">${_acc(_civCand(c), 'élu', 'élue', 'élu(e)')}</span>` : ''}</td></tr>`).join('')}
       </tbody></table>${_elDepartagesHTML(el, i, 'tb-hint')}</div>`;
   }).join('');
   const elus = (el.elus?.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
@@ -13775,7 +13782,7 @@ function electionPrintPV() {
       <tr><td>Blancs</td><td>${d.blancs}</td><td>Nuls</td><td>${d.nuls}</td></tr>
       <tr><td>Suffrages exprimés</td><td>${d.exprimes}</td><td>Majorité ${r.absolue ? 'absolue' : 'relative'}</td><td>${r.absolue ? d.majoriteAbsolue + ' voix' : '—'}</td></tr></table>
       <table class="pv-t"><tr><th>Candidat${el.binome !== false ? ' (titulaire / suppléant)' : ''}</th><th>Voix</th><th></th></tr>
-      ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td>${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}</td><td>${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? _acc(_civCand(c), 'élu', 'élue', 'élu(e)') : ''}</td></tr>`).join('')}</table>${_elDepartagesHTML(el, i, 'pv-mod')}`;
+      ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td>${_escName(_elCandNom(c))}${_elCandNomSupBulletin(c) ? ` / ${_escName(_elCandNomSupBulletin(c))}` : ''}</td><td>${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? _acc(_civCand(c), 'élu', 'élue', 'élu(e)') : ''}</td></tr>`).join('')}</table>${_elDepartagesHTML(el, i, 'pv-mod')}`;
   }).join('');
   const elus = (el.elus.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
   const sups = el.binome !== false ? elus.map(c => _elCandNomSup(c)) : (el.elus.suppleants || []).map(id => _elCandNom(_elCand(el, id)));
@@ -13783,14 +13790,17 @@ function electionPrintPV() {
   const ass = el.assesseursNoms?.length ? el.assesseursNoms : (el.assesseurs || []).map(sid => S.eleves[sid] ? `${S.eleves[sid].prenom} ${S.eleves[sid].nom}` : '?');
   const pa = document.getElementById('pa');
   const parentSup = el.supDe ? (S.elections[el.classId] || {})[el.supDe.elId] : null;
+  // « Sont élus » accordé, et au singulier pour un seul élu (audit v1.53.2 : « Sont élus » sur Clara seule).
+  const civsElus = [...elus.map(c => _civCand(c)), ...supsCiv.filter((_, i) => sups[i])];
+  const titreElus = civsElus.length === 1 ? _acc(civsElus[0], 'Est élu', 'Est élue', 'Est élu(e)') : _accPl(civsElus, 'Sont élus', 'Sont élues');
   pa.innerHTML = `<div class="pv">
     <h1>${_escName(el.supDe ? 'Procès-verbal de l\'élection d\'un suppléant' : _elType(el).pv)}</h1>
     <p class="pv-sub">${_escName(el.etablissement || '')}${el.etablissement ? ' — ' : ''}Classe de <strong>${_escName(cls?.nom || el.classId)}</strong> — année ${_escName(cls?.annee || '')} — scrutin du <strong>${_escName(_fmtDateFr(el.date))}</strong></p>
     ${el.supDe ? `<p class="pv-mod">Scrutin tenu pour élire le suppléant de <strong>${_escName(el.supDe.nom)}</strong>, ${_acc(_elSupDeCiv(el), 'élu', 'élue', 'élu(e)')}${parentSup ? ` le ${_escName(_fmtDateFr(parentSup.date))}` : ''} sans avoir été ${_acc(_elSupDeCiv(el), 'candidat', 'candidate', 'candidat(e)')} (aucun texte ne désigne alors son suppléant).</p>` : ''}
     <p class="pv-mod"><strong>Modalités :</strong> ${el.supDe ? '1 siège à pourvoir : le suppléant' : `${el.nbTitulaires} titulaire${el.nbTitulaires > 1 ? 's' : ''}${_elNbSup(el) ? ` et ${_elNbSup(el)} suppléant${_elNbSup(el) > 1 ? 's' : ''}` : ', sans suppléant'}`} · ${el.binome !== false ? 'candidatures en binôme (le suppléant est élu avec son titulaire)' : (_elNbSup(el) ? 'suppléants élus séparément' : 'candidatures individuelles')} · au plus ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin, bulletin vierge = blanc, trop de noms ou inscription inappropriée = nul · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue des suffrages exprimés au premier tour, relative au second' : 'majorité relative'} · départage ${el.departage === 'plusAge' ? 'par le candidat le plus âgé' : el.departage === 'manuel' ? 'à la main' : 'par le candidat le plus jeune'}${_elSecondTour(el).mode !== 'tous' ? ` · au second tour, ${_elSecondTourTexte(el)}` : ''}${_elParSiege(el) ? ' · un siège après l\'autre : un scrutin à deux tours par délégué' : (el.nomsParBulletin || 1) === 1 && el.nbTitulaires > 1 ? ' · les sièges pourvus dans une même élection' : ''} · nom d'un élève non candidat : ${el.nonCandidat === 'nul' ? 'le bulletin est nul' : 'la voix compte, élu s\'il accepte son élection'}. Tous les élèves de la division sont électeurs et éligibles.</p>
-    <h3>Candidats</h3><p>${el.candidats.map(c => `${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}${c.retire ? ` (${_acc(_civCand(c), 'retiré', 'retirée', 'retiré(e)')})` : ''}${c.ecrit ? ` (${_acc(_civCand(c), 'non candidat', 'non candidate', 'non candidat(e)')}, nom écrit sur un bulletin${c.accepte === true ? ' ; a accepté son élection' : c.accepte === false ? ' ; a refusé son élection' : ''})` : ''}`).join(' · ')}</p>
+    <h3>Candidats</h3><p>${el.candidats.map(c => `${_escName(_elCandNom(c))}${_elCandNomSupBulletin(c) ? ` / ${_escName(_elCandNomSupBulletin(c))}` : ''}${c.retire ? ` (${_acc(_civCand(c), 'retiré', 'retirée', 'retiré(e)')})` : ''}${c.ecrit ? ` (${_acc(_civCand(c), 'non candidat', 'non candidate', 'non candidat(e)')}, nom écrit sur un bulletin${c.accepte === true ? ' ; a accepté son élection' : c.accepte === false ? ' ; a refusé son élection' : ''})` : ''}`).join(' · ')}</p>
     ${tours}
-    <h3>Sont élus</h3>
+    <h3>${titreElus}</h3>
     <table class="pv-t"><tr><th>${el.supDe ? _accPl(elus.map(c => _civCand(c)), 'Suppléant élu', 'Suppléante élue') : `${_escName(_elType(el).elu)}s${_elNbSup(el) ? ' titulaires' : ''}`}</th>${_elNbSup(el) ? `<th>${_escName(_elType(el).elu)}s suppléants</th>` : ''}</tr>${elus.map((c, i) => `<tr><td>${_escName(_elCandNom(c))}</td>${_elNbSup(el) ? `<td>${_escName(sups[i] || '')}</td>` : ''}</tr>`).join('') || '<tr><td colspan="2">Aucun élu</td></tr>'}</table>
     ${(el.elus?.titulaires || []).map(id => _elCand(el, id)).filter(c => c && c.ecrit && el.binome !== false).map(c => `<p><strong>${_escName(_elCandNom(c))}</strong>, ${_acc(_civCand(c), 'élu sans avoir été candidat', 'élue sans avoir été candidate', 'élu(e) sans avoir été candidat(e)')} : ${_escName(_elSupNcTexte(el, c))}${c.sidSuppleant ? ` — ${_escName(_elCandNomSup(c))}` : ''}.</p>`).join('')}
     ${el.note ? `<p><strong>Observations :</strong> ${_escName(el.note)}</p>` : ''}

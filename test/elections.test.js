@@ -937,3 +937,37 @@ test('Sources hors Légifrance citées avec leur lien : justice.fr, circulaire d
   assert.match(SRC, /<strong>accepte son élection<\/strong> \(\$\{_elSrc\('circ2004'\)\}\)/, 'dans la question d’acceptation');
   assert.match(SRC, /usage de l'établissement — par exemple le \$\{_elSrc\('versailles'\)\}/, 'dans le bureau de vote');
 });
+
+test('PV : le suppléant d\'un élu non candidat, posé après le vote, n\'apparaît pas sur les bulletins ; « Est élue » pour un seul élu', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = 0, t = el.tours[ti];
+    electionPreparerBulletins(el, ti, null);
+    const libres = cls.eleves.filter(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    const c = electionAddEcrit(el, libres[0]);
+    for (let i = 0; i < 40; i++) electionAddBulletin(el, ti, [c.id]);
+    t.votantsAnnonces = t.bulletins.length; c.accepte = true;
+    electionCloreTour(el, ti);
+    let g = 0; while (!el.clos && g++ < 3) { const k = el.tours.length - 1; electionAddBulletin(el, k, [el.tours[k].candidats[0]]); el.tours[k].votantsAnnonces = el.tours[k].bulletins.length; electionCloreTour(el, k); }
+    const sub = electionCreerScrutinSuppleant(el, c.id);
+    S.eleves[libres[1]].civilite = 'F';
+    const a = electionAddCandidat(sub, libres[1], null);
+    electionPreparerBulletins(sub, 0, 3); [0, 1, 2].forEach(i => electionSetBulletin(sub, 0, i + 1, { voix: [a.id] }));
+    electionCloreTour(sub, 0); _elSupDeAppliquer(sub);
+    const pv = e => { const pa = { innerHTML: '', querySelector: () => null }, gid = document.getElementById;
+      document.getElementById = id => id === 'pa' ? pa : gid.call(document, id); _elView = e.id;
+      try { electionPrintPV(); } finally { document.getElementById = gid; } return pa.innerHTML; };
+    const nomSup = _elCandNomSup(_elCand(el, c.id)), nomTit = _elCandNom(_elCand(el, c.id));
+    const h = pv(el), hs = pv(sub);
+    const cands = h.slice(h.indexOf('<h3>Candidats</h3>'), h.indexOf('<h3>', h.indexOf('<h3>Candidats</h3>') + 5));
+    const tours = h.slice(h.indexOf('<h3>', h.indexOf('<h3>Candidats</h3>') + 5), h.indexOf('élus</h3>'));
+    return JSON.stringify({ nomSup, cands: cands.includes(nomTit + ' / '), tours: tours.includes(nomTit + ' / '), elus: h.slice(h.indexOf('élus</h3>')).includes(nomSup),
+      onglet: _elRenderCandidats(el, el.tours[0]).includes(nomSup), titreSub: (hs.match(/<h3>(Est|Sont) élu[^<]*<\\/h3>/) || [''])[0] });
+  })()`));
+  assert.ok(r.nomSup, 'le suppléant est bien posé');
+  assert.strictEqual(r.cands, false, 'pas dans la liste des candidats du PV');
+  assert.strictEqual(r.tours, false, 'pas dans le tableau des voix');
+  assert.strictEqual(r.elus, true, 'mais sous les élus');
+  assert.strictEqual(r.onglet, false, 'ni dans les candidatures de l\'onglet');
+  assert.strictEqual(r.titreSub, '<h3>Est élue</h3>');
+});
