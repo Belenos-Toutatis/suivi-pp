@@ -284,7 +284,12 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   carnet + observations MBN depuis le début de l'année (`_syntheseRow` : `mbnAn`, `obsTotal`),
   à la couleur du palier, puis « carnet n · MBN n » ; le Δ et la courbe restent ceux du carnet ;
   le tri par l'en-tête et le papier (« 14 (11 + 3 MBN) ») suivent le total ; sans MBN dans la
-  classe, rien ne change), carte de chaleur (groupe *Observations
+  classe, rien ne change. **v1.46.4** : ~~le Δ du dernier relevé~~ → « **+n S2** », ce que l'élève
+  a pris sur la période courante, carnet ET MBN (l'utilisateur : *« que ce soit plus quelque
+  chose sur une période, carnet et MBN confondus, ou ne pas le mettre »*) ; ▼ reste pour un
+  cumul en baisse ; la petite courbe (`_elevesSpark(cls, sid)`) est la **miniature** de celle de
+  la fiche — total carnet + MBN, du 1er septembre à aujourd'hui, à l'échelle du temps (avant :
+  le seul carnet, un point par relevé à intervalles égaux)), carte de chaleur (groupe *Observations
   MBN*, une case par mois, après le carnet), fiche (carte Carnet : *Notées dans MBN*, la liste ;
   un fait « n observations dans MBN : 2 travail non fait, 1 bavardage » insérable dans le bilan ;
   la chronologie les date ; chiffre clé), synthèse de période (« · MBN n » à côté du carnet,
@@ -306,7 +311,10 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   actuelle »*) : `_ficheCourbeFin` (pur) — la date du bilan écrit pour le moment choisi, sinon
   aujourd'hui, bornée à la période ; l'axe, les mois, la zone du moment et le repère de
   mi-période s'arrêtent là, et la légende au-dessus le dit (« carnet + MBN · jusqu'au 20/01
-  (bilan) »). Rien n'est dit quand c'est la fin de la période.
+  (bilan) »). Rien n'est dit quand c'est la fin de la période. **Et commence au 1er
+  septembre** (v1.46.4 — l'année de l'app part du 1er août, mais rien ne se passe en août) :
+  `_debutUtile`, appliqué à la courbe, à la frise de la chronologie et aux mois de la carte de
+  chaleur.
 - `postLoadHook` écarte les entrées illisibles et retire un champ qui n'est pas un tableau ;
   le champ n'est jamais créé d'office. Rien à purger à part : il part avec l'élève.
   Démo : onze observations MBN sur cinq élèves.
@@ -1268,6 +1276,17 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        **Vues** toutes faites (`ELEVES_VUES` : *Préparer le conseil*, *Appeler les familles*,
        *Papiers*, *Tout*) : elles écrivent `S.prefs.elevesColsOff` (le même réglage que ☰
        Colonnes, un cran d'undo, rien si rien ne change) ; « personnalisée » dès qu'on retouche.
+     - **▥ Carte de chaleur — bornée au MOMENT du bilan** (v1.46.4, l'utilisateur : *« il faudrait
+       aussi indiquer pour quel moment on réalise le bilan »*) : une barre *Synthèse pour* au-dessus
+       (les moments de la fiche, `chaleurMomentSet`), **le même choix que la fiche**
+       (`_ficheMoment`, partagé dans les deux sens) ; `_chaleurGroupes(cls, bcols, col)` borne tout
+       par `_ficheBornes` — relevés, mois (MBN, incidents, contacts), moyennes (au conseil le dernier
+       import de la période, sinon le dernier avant la fin du moment), feuille d'avis de cet
+       objectif, papiers distribués avant la fin ; le bilan du moment est marqué ▶. Avec des
+       observations MBN, le premier groupe s'appelle *Observations* et finit par une case
+       **Total** (carnet + MBN depuis la rentrée, au dernier jour du moment — `_obsTotalAn(cls,
+       sid, fin)`), qui est aussi sa synthèse repliée. Par défaut, le conseil de la période
+       courante : la période entière, comme avant.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
        discipline de la feuille d'avis (pleine / partielle), par papier (✓ ☐ —), par MOIS
@@ -1760,6 +1779,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 92 | **Carte de chaleur bornée au moment du bilan** (barre *Synthèse pour*, partagée avec la fiche) avec un **Total carnet + MBN** · liste : **« +n » de la période, carnet et MBN**, petite courbe = miniature de la fiche · dessins à partir du **1er septembre** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.4) |
 | 91 | **Liste : colonne Observations = total carnet + MBN de l'année**, détail des deux dessous, tri et papier sur le total ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.3) |
 | 90 | **Courbe de la fiche arrêtée à la date du bilan du moment, sinon aujourd'hui** (`_ficheCourbeFin`), légende au-dessus du dessin ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.46.2) |
 | 89 | **Fiche : courbe carnet + MBN** avec une coche par source, détail des relevés du carnet · **observations MBN sur la feuille imprimée du carnet** · colonne Bilans retirée quand aucun moment n'y est · un seul clic sur − pour un conseil remis ; 1 test, 1 test étendu. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.1) |

@@ -1528,6 +1528,7 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-meta { font-size: 13px; color: var(--pencil); }
 .fi-bar { gap: 8px 16px !important; }
 .pf-grp { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.ch-mom { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 8px; }
 .pf-sl { font-size: 12px; color: var(--pencil); margin-right: 6px; text-transform: uppercase; letter-spacing: .05em; }
 .pf-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule-line); border-radius: 6px; overflow: hidden; background: var(--pf-card); }
 .pf-seg button { border: 0; background: none; padding: 6px 11px; border-right: 1px solid var(--rule-line); white-space: nowrap; font-size: 14px; }
@@ -2743,8 +2744,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.3';
-const APP_BUILD_DATE = '2026-10-03T04:44:48Z';
+const APP_VERSION    = '1.46.4';
+const APP_BUILD_DATE = '2026-10-03T04:52:12Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5447,6 +5448,14 @@ function _obsMbnOf(sid) {
     .slice().sort((a, b) => (String(a.date) + (a.heure || '')).localeCompare(String(b.date) + (b.heure || '')));
 }
 function _obsMbnEntre(sid, a, b) { return _obsMbnOf(sid).filter(e => e.date >= a && e.date <= b); }
+// Le TOTAL de l'année d'un élève (v1.46.3) : le dernier cumul du carnet + les observations
+// MBN depuis le début de l'année scolaire. → { carnet, mbn, total } ; total null = rien des deux. PUR.
+function _obsTotalAn(cls, sid, fin) {
+  const ps = _periods(cls), a = ps[0]?.start || '0000', z = fin || ps[ps.length - 1]?.end || '9999';
+  const c = fin ? _cumulAu(cls.id, sid, fin) : (_relLast(cls.id, sid)?.n ?? null);
+  const mbn = _obsMbnOf(sid).filter(e => e.date >= a && e.date <= z).length;
+  return { carnet: c, mbn, total: c === null && !mbn ? null : (c || 0) + mbn };
+}
 function _obsMbnClasseAny(cls) { return !!cls && cls.eleves.some(id => _obsMbnOf(id).length); }
 function _obsMbnTexte(e) { return `${_fmtDateFr(e.date)}${e.heure ? ' ' + e.heure : ''} — ${e.motif || e.type || 'observation'}${e.par ? ` (${e.par})` : ''}${e.info ? ' : ' + e.info : ''}`; }
 // « 2 travail non fait, 1 bavardage » — les motifs, du plus fréquent au moins fréquent. PUR.
@@ -5621,12 +5630,18 @@ function _elevesThNomHTML() {
   return `${b('nom', 'Nom')} <span class="tb-hint">·</span> ${b('prenom', 'Prénom')}`;
 }
 // La petite courbe du cumul, sur l'année.
-function _elevesSpark(cid, sid) {
-  const m = _relMap(cid) || {};
-  const v = _relDates(cid).map(d => _relValue(m[d], sid)).filter(x => typeof x === 'number');
-  if (v.length < 2) return '';
-  const w = 44, h = 14, mx = Math.max(...v, 1);
-  const pts = v.map((x, i) => `${(i / (v.length - 1) * (w - 2) + 1).toFixed(1)},${(h - 1 - x / mx * (h - 2)).toFixed(1)}`).join(' ');
+// La petite courbe de la liste (v1.46.4) : la MINIATURE de la courbe de la fiche — le total
+// carnet + MBN (`_ficheCourbePoints`), sur l'année, du 1er septembre à aujourd'hui, à
+// l'échelle du temps. (Avant : le seul cumul du carnet, un point par relevé à intervalles égaux.)
+function _elevesSpark(cls, sid) {
+  const ps = _periods(cls);
+  if (!ps.length) return '';
+  const a = _debutUtile(ps[0].start), z0 = ps[ps.length - 1].end, auj = _todayYmd(), z = auj < z0 && auj > a ? auj : z0;
+  const P = _ficheCourbePoints(cls, sid, { start: a, end: z }, { carnet: true, mbn: _obsMbnClasseAny(cls) });
+  if (P.length < 2) return '';
+  const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(a), tb = Math.max(t(z), ta + 864e5);
+  const w = 44, h = 14, mx = Math.max(...P.map(q => q[1]), 1);
+  const pts = P.map(([d, x]) => `${((t(d) - ta) / (tb - ta) * (w - 2) + 1).toFixed(1)},${(h - 1 - x / mx * (h - 2)).toFixed(1)}`).join(' ');
   return `<svg class="el-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}"/></svg>`;
 }
 
@@ -5972,14 +5987,32 @@ function _moisDe(p) {
 }
 // Les groupes de colonnes de la carte, pour une classe. PUR (lit S). Chaque groupe :
 // { key, label, sub: [{ id, l, long }], cell(sid, id) → [classe, texte, infobulle], sum(sid) → idem }.
-function _chaleurGroupes(cls, bcols) {
-  const cid = cls.id, pIdx = _carnetCurrentPeriodIdx(cls), p = _periods(cls)[pIdx];
-  if (!p) return [];
+// ⚠️ Bornée au MOMENT du bilan (v1.46.4, l'utilisateur : « dans la carte de chaleur, il faudrait
+// aussi indiquer pour quel moment on réalise le bilan ») : le même choix que *Synthèse pour* de
+// la fiche (`_ficheMoment`, partagé), par défaut le conseil de la période courante — c'est-à-dire
+// la période entière, comme avant. `p` porte les bornes du moment (`_ficheBornes`), `p0` la période.
+function _chaleurGroupes(cls, bcols, colM) {
+  const cid = cls.id, col = colM || _ficheMomentCourant(cls);
+  const pIdx = col ? col.pIdx : _carnetCurrentPeriodIdx(cls), p0 = _periods(cls)[pIdx];
+  if (!p0) return [];
+  const B = col ? _ficheBornes(cls, col) : null;
+  const p = B ? { ...p0, start: B.start, end: B.end } : p0;
+  const nomM = col ? col.court : p0.label;
   const G = [];
   const dates = _relDates(cid).filter(d => d >= p.start && d <= p.end);
   const map = _relMap(cid) || {};
-  if (dates.length) G.push({ key: 'carnet', label: `Carnet ${p.label}`, sub: dates.map(d => ({ id: d, l: _fmtDateFr(d).slice(0, 5), long: 'Relevé du ' + _fmtDateFr(d) })),
+  // Avec des observations MBN dans la classe (v1.46.4, l'utilisateur : « dans la carte de chaleur
+  // aussi, mets le total des deux ») : le groupe s'appelle Observations, une dernière case
+  // *Total* donne carnet + MBN de l'année (couleur du palier), et c'est elle, replié.
+  const mbnAny = _obsMbnClasseAny(cls);
+  // Le total depuis la rentrée, arrêté à la fin du moment.
+  const totCase = sid => { const t = _obsTotalAn(cls, sid, p.end), b = t.total === null ? 0 : _obsBande(t.total);
+    return [b ? 'chob-' + b : (t.total === null ? 'ch-no' : ''), t.total === null ? '—' : String(t.total),
+      t.total === null ? 'Aucune observation' : `Total au ${_fmtDateFr(p.end)} : ${t.total} = ${t.carnet ?? 0} au carnet + ${t.mbn} dans MBN`]; };
+  if (dates.length || mbnAny) G.push({ key: 'carnet', label: `${mbnAny ? 'Observations' : 'Carnet'} ${nomM}`,
+    sub: [...dates.map(d => ({ id: d, l: _fmtDateFr(d).slice(0, 5), long: 'Relevé du ' + _fmtDateFr(d) })), ...(mbnAny ? [{ id: '__tot', l: 'Total', long: `Total depuis la rentrée au ${_fmtDateFr(p.end)} : cumul du carnet + observations MBN` }] : [])],
     cell: (sid, d) => {
+      if (d === '__tot') return totCase(sid);
       const v = _relValue(map[d], sid);
       if (v === REL_ABSENT) return ['ch-no', _codeA(), `Relevé du ${_fmtDateFr(d)} : absent`];
       if (v === null) return ['ch-no', '', `Relevé du ${_fmtDateFr(d)} : pas relevé`];
@@ -5988,16 +6021,22 @@ function _chaleurGroupes(cls, bcols) {
       return [dd > 0 ? 'chob-' + Math.min(8, Math.ceil(dd * 1.4)) : '', dd > 0 ? '+' + dd : (x?.decreasing ? '▼' : '·'),
         `Relevé du ${_fmtDateFr(d)} : cumul ${v}${dd > 0 ? ` (+${dd})` : x?.decreasing ? ' (en baisse : à vérifier)' : ' (inchangé)'}`];
     },
-    sum: sid => { const t = _relPeriodTotal(cid, sid, pIdx), l = _relLast(cid, sid), b = l ? _obsBande(l.n) : 0;
-      return [b ? 'chob-' + b : '', l ? `${l.n}${t ? ' +' + t : ''}` : '—', `${t ?? 0} observation(s) sur la période${l ? ` — cumul ${l.n} au ${_fmtDateFr(l.ymd)}` : ''}`]; } });
-  if (_obsMbnClasseAny(cls)) G.push({ key: 'mbn', label: `Observations MBN ${p.label}`, sub: _moisDe(p).map(([id, l]) => ({ id, l, long: l })),
-    cell: (sid, ym) => { const x = _obsMbnOf(sid).filter(e => String(e.date).startsWith(ym));
+    sum: sid => { if (mbnAny) return totCase(sid);
+      const t = _obsEntre(cid, sid, p.start, p.end), n = _cumulAu(cid, sid, p.end), b = n !== null ? _obsBande(n) : 0;
+      return [b ? 'chob-' + b : '', n !== null ? `${n}${t ? ' +' + t : ''}` : '—', `${t ?? 0} observation(s) sur le moment${n !== null ? ` — cumul ${n} au ${_fmtDateFr(p.end)}` : ''}`]; } });
+  const mois = _moisDe({ start: _debutUtile(p.start) < p.end ? _debutUtile(p.start) : p.start, end: p.end });
+  const dansM = e => e.date >= p.start && e.date <= p.end;
+  if (_obsMbnClasseAny(cls)) G.push({ key: 'mbn', label: `Observations MBN ${nomM}`, sub: mois.map(([id, l]) => ({ id, l, long: l })),
+    cell: (sid, ym) => { const x = _obsMbnOf(sid).filter(e => dansM(e) && String(e.date).startsWith(ym));
       return x.length ? ['chob-' + Math.min(8, x.length), String(x.length), x.map(_obsMbnTexte).join('\n')] : ['ch-no', '', '']; },
     sum: sid => { const x = _obsMbnEntre(sid, p.start, p.end);
       return [x.length ? 'chob-' + Math.min(8, x.length) : 'ch-no', x.length ? String(x.length) : '·', x.length ? `${x.length} observation(s) MBN sur la période\n` + x.map(_obsMbnTexte).join('\n') : 'Aucune observation MBN sur la période']; } });
-  const mp = _moyPourPeriode(cid, p);
-  if (mp) {
-    const rel = mp.dernier, mats = _moyColsOf([rel]);
+  // Moyennes : au conseil, le dernier import de la période (même daté après) ; sinon le dernier
+  // fait avant la fin du moment — la même règle que la fiche (`_ficheMoy`).
+  const mp = _moyPourPeriode(cid, p0);
+  const relM = mp ? (col && col.type !== 'conseil' ? mp.list.filter(r => r.date <= p.end).slice(-1)[0] : mp.dernier) : null;
+  if (relM) {
+    const rel = relM, mats = _moyColsOf([rel]);
     const fmt = v => typeof v === 'number' ? _fmtNote(v, 1) : String(v);
     G.push({ key: 'moy', label: `Moyennes du ${_fmtDateFr(rel.date)}`, sub: [...mats.map(m => ({ id: m.id, l: _moyAbbr(m.nom), long: m.nom })), { id: '__gen', l: 'Générale', long: 'Moyenne générale' }],
       cell: (sid, mid) => {
@@ -6010,7 +6049,9 @@ function _chaleurGroupes(cls, bcols) {
       sum: sid => { const g = _moyGen(rel, sid), n = _moySous10(rel, sid);
         return [typeof g === 'number' && g < 10 ? 'ch-lo' : '', typeof g === 'number' ? fmt(g) + (n ? ` · ${n}<10` : '') : '—', `Moyenne générale ${typeof g === 'number' ? fmt(g) : '—'}, ${n} matière(s) sous 10`]; } });
   }
-  const camp = _avisDeLaPeriode(cls, pIdx);
+  // Avis : la feuille de la période dont l'objectif est ce moment, sinon la première de la période.
+  const campsP = _avisCampagnes(cid).filter(c => c.cible >= p0.start && c.cible <= p0.end);
+  const camp = (col && campsP.find(c => _avisMsgReglages(c).moment === col.type)) || _avisDeLaPeriode(cls, pIdx);
   if (camp) {
     const cols = _avisCols(camp);
     G.push({ key: 'avis', label: `Avis — ${_avisObjectif(cls, camp).court}`, sub: camp.disciplines.map(d => ({ id: d.id, l: d.onglet, long: d.nom })),
@@ -6024,7 +6065,7 @@ function _chaleurGroupes(cls, bcols) {
       },
       sum: sid => { const r = _avisResume(camp, sid); return [r.n ? 'ch-av2' : 'ch-no', `${r.n}/${r.total}${r.cible ? ' ⭐' : ''}`, `${r.n} discipline(s) sur ${r.total}${r.cible ? ' — demandé en particulier' : ''}`]; } });
   }
-  const docs = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false);
+  const docs = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= p.end));
   if (docs.length) G.push({ key: 'docs', label: 'Papiers', sub: docs.map(d => ({ id: d.id, l: d.titre.length > 16 ? d.titre.slice(0, 15) + '…' : d.titre, long: d.titre })),
     cell: (sid, id) => {
       const d = docs.find(x => x.id === id);
@@ -6034,20 +6075,28 @@ function _chaleurGroupes(cls, bcols) {
     },
     sum: sid => { const n = docs.filter(d => _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu).length;
       return [n ? 'ch-miss' : 'ch-ok', n ? n + ' ☐' : '✓', n ? `${n} papier(s) à rendre` : 'tout est rendu']; } });
-  const mois = _moisDe(p);
   const parMois = (key, label, liste, cl, fmt) => G.push({ key, label, sub: mois.map(([id, l]) => ({ id, l, long: l })),
-    cell: (sid, ym) => { const x = liste(sid).filter(e => String(e.date).startsWith(ym)); return x.length ? [cl, String(x.length), x.map(fmt).join('\n')] : ['ch-no', '', ''] },
+    cell: (sid, ym) => { const x = liste(sid).filter(e => dansM(e) && String(e.date).startsWith(ym)); return x.length ? [cl, String(x.length), x.map(fmt).join('\n')] : ['ch-no', '', ''] },
     sum: sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? cl : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n')]; } });
   parMois('inc', 'Incidents', sid => (S.eleves[sid]?.incidents || []).filter(_isPlainObj), 'ch-inc', e => `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label} : ${e.objet || ''}`);
   parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`);
-  if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: c.court, long: c.long })),
+  if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: (col && c.key === col.key ? '▶ ' : '') + c.court, long: c.long + (col && c.key === col.key ? ' — le moment choisi' : '') })),
     cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c);
       return b ? ['ch-bil', '●', `${c.long} — ${_fmtDateFr(b.date)}\n${String(b.texte).slice(0, 400)}`] : ['ch-no', '○', `${c.long} : rien d'écrit`]; },
     sum: sid => ['ch-bil', bcols.map(c => _bilanDeColonne(cls, sid, c) ? '●' : '○').join(''), bcols.map(c => `${c.court} : ${_bilanDeColonne(cls, sid, c) ? 'écrit' : '—'}`).join('\n')] });
   return G;
 }
+function chaleurMomentSet(k) {
+  _ficheMoment = k;
+  renderStudents();
+  if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
+}
 function _elevesChaleurHTML(cls, rowsData, bcols) {
-  const G = _chaleurGroupes(cls, bcols);
+  const col = _ficheMomentCourant(cls), ms = _ficheMoments(cls);
+  const B = col ? _ficheBornes(cls, col) : null;
+  const barre = col ? `<div class="ch-mom"><span class="pf-sl">Synthèse pour</span><span class="pf-seg">${ms.map(c => `<button class="${c.key === col.key ? 'on' : ''}" aria-pressed="${c.key === col.key}" onclick="chaleurMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span>
+    <span class="tb-hint">${_escName(col.long)} — du ${_escName(_fmtDateFr(_debutUtile(B.start) < B.end ? _debutUtile(B.start) : B.start))} au ${_escName(_fmtDateFr(B.end))} · le même choix que dans la fiche</span></div>` : '';
+  const G = _chaleurGroupes(cls, bcols, col);
   const plis = _chaleurPlis();
   const td = ([c, t, tip], first) => `<td class="ch${first ? ' ch-g0' : ''}${c ? ' ' + c : ''}"${tip ? ` title="${_escAttr(tip)}"` : ''}>${_escName(t)}</td>`;
   const head1 = G.map(g => `<th class="ch-gh" colspan="${plis.has(g.key) ? 1 : g.sub.length}"><button class="ch-pli" onclick="chaleurPliToggle('${g.key}')" aria-expanded="${!plis.has(g.key)}" title="${plis.has(g.key) ? 'Déplier' : 'Replier'} ce groupe">${plis.has(g.key) ? '▸' : '▾'} ${_escName(g.label)}</button></th>`).join('');
@@ -6058,7 +6107,7 @@ function _elevesChaleurHTML(cls, rowsData, bcols) {
     G.map(g => plis.has(g.key) ? td(g.sum(s.id), true) : g.sub.map((x, i) => td(g.cell(s.id, x.id), i === 0)).join('')).join('')}</tr>`).join('');
   const leg = `<div class="ch-leg tb-hint"><span><i class="ch-sw chob-2"></i><i class="ch-sw chob-5"></i> observations gagnées au relevé</span><span><i class="ch-sw ch-lo"></i> sous 10</span><span><i class="ch-sw ch-av3"></i><i class="ch-sw ch-av2"></i><i class="ch-sw ch-av1"></i> avis : toutes les colonnes, la moitié, moins</span><span>☐ papier à rendre · — non concerné</span><span><i class="ch-sw ch-inc"></i> incidents · <i class="ch-sw ch-ct"></i> contacts du mois</span><span>● bilan écrit · ○ vide</span><span>Survol : le contenu · clic sur le nom : la fiche · ▾ replie un groupe</span></div>`;
   // Le cadre (.rel-wrap frozen) est posé par renderStudents, entre _wrapScrollKeep et keep().
-  return { table: `<table class="dt el-chaleur"><thead><tr class="ch-r1"><th rowspan="2" class="el-th-nom">${_elevesThNomHTML()}</th>${head1}</tr><tr class="ch-r2">${head2}</tr></thead><tbody>${body}</tbody></table>`, leg };
+  return { barre, table: `<table class="dt el-chaleur"><thead><tr class="ch-r1"><th rowspan="2" class="el-th-nom">${_elevesThNomHTML()}</th>${head1}</tr><tr class="ch-r2">${head2}</tr></thead><tbody>${body}</tbody></table>`, leg };
 }
 function renderStudents() {
   const el = document.getElementById('eleves-body');
@@ -6116,7 +6165,7 @@ function renderStudents() {
       `${_eleveFilter ? `Le filtre « ${_escName(_eleveFilter)} » ne trouve personne. ` : ''}${_elevesFiltres.size ? 'Les filtres choisis ne gardent personne. ' : ''}<button class="btn btn-g btn-sm" onclick="document.getElementById('eleve-search').value='';_elevesFiltres.clear();setEleveFilter('')">Tout afficher</button>`);
   if (aff === 'chaleur') {
     const ch = list.length ? _elevesChaleurHTML(cls, rowsData, bcols) : null;
-    el.innerHTML = affHTML + vuesHTML + tri + (ch ? `<div class="rel-wrap frozen">${ch.table}</div>${ch.leg}` : vide);
+    el.innerHTML = affHTML + vuesHTML + tri + (ch ? `${ch.barre}<div class="rel-wrap frozen">${ch.table}</div>${ch.leg}` : vide);
     keep();
     return;
   }
@@ -6136,7 +6185,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const th = (k, label, title) => { const sk = triCle[k] || k; const on = eleveSort.col === sk;
     return `<th class="${on ? 'el-sorted' + (eleveSort.dir < 0 ? ' up' : '') : ''}" onclick="sortEleves('${sk}')" title="${_escAttr(title)}">${label}</th>`; };
   const TITRES = {
-    grp: 'Groupe, options et aménagements', carnet: avecMbnL ? 'Observations de l\'année : le total carnet + MBN (couleur du palier), le détail des deux, l\'évolution au dernier relevé du carnet, la courbe du carnet' : 'Observations du carnet : le dernier cumul (couleur du palier), l\'évolution au dernier relevé, la courbe de l\'année',
+    grp: 'Groupe, options et aménagements', carnet: avecMbnL ? 'Observations de l\'année : le total carnet + MBN (couleur du palier), le détail des deux, « +n » pris sur la période en cours, la courbe de l\'année' : 'Observations du carnet : le dernier cumul (couleur du palier), « +n » pris sur la période en cours, la courbe de l\'année',
     moy: 'Dernière moyenne générale importée, son évolution, le nombre de matières sous 10 — la plus basse d\'abord', docs: 'Papiers à rendre',
     incidents: 'Incidents et instances : le nombre et la date du dernier — clic : en noter un', contacts: 'Contacts avec la famille : le nombre et la date du dernier — clic : en noter un',
     avis: campCour ? `Avis des collègues — feuille pour ${_avisObjectif(cls, campCour).long} : un trait par discipline, ⭐ demandé en particulier` : 'Aucune feuille d\'avis pour cette période',
@@ -6170,7 +6219,13 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
         r.deltaDecroissant ? '▼ le cumul du carnet a baissé : faute de frappe ?' : '',
         mb.length ? 'Notées dans MBN :\n' + mb.map(_obsMbnTexte).join('\n') : ''].filter(Boolean).join('\n');
       const det = avecMbnL ? `<span class="el-obd">carnet ${r.cumul ?? 0} · MBN ${r.mbnAn}</span>` : '';
-      return `<span title="${_escAttr(tip)}"><span class="ob-chip${_obsBandeCls(r.obsTotal)} el-ob">${r.obsTotal}</span>${det}<span class="el-dl${r.delta >= 3 ? ' up' : ''}">${r.deltaDecroissant ? '▼' : r.delta > 0 ? '+' + r.delta : ''}</span>${_elevesSpark(cid, sid)}</span>`;
+      // « +n S1 » (v1.46.4, l'utilisateur : « que ce soit plus quelque chose sur une période, carnet
+      // et MBN confondus ») : ce que l'élève a pris PENDANT la période courante — le total de la
+      // période au carnet + les observations MBN de la période. ▼ reste : un cumul en baisse.
+      const nP = per ? (r.periodeTotal || 0) + _obsMbnEntre(sid, per.start, per.end).length : 0;
+      const plTip = nP ? `${nP} observation${nP > 1 ? 's' : ''} sur la période ${per.label}` + (avecMbnL ? ` : ${r.periodeTotal || 0} au carnet + ${nP - (r.periodeTotal || 0)} dans MBN` : '') : '';
+      const pl = nP ? `<span class="el-dl" title="${_escAttr(plTip)}">+${nP} <small>${_escName(per.label)}</small></span>` : '';
+      return `<span title="${_escAttr(tip)}"><span class="ob-chip${_obsBandeCls(r.obsTotal)} el-ob">${r.obsTotal}</span>${det}${r.deltaDecroissant ? '<span class="el-dl up" title="Le cumul du carnet a baissé : faute de frappe ?">▼</span>' : ''}${pl}${_elevesSpark(cls, sid)}</span>`;
     };
     td.moy = () => {
       const m = r.moyenne;
@@ -7008,9 +7063,13 @@ function _ficheCourbeFin(cls, sid, col, auj) {
   if (d < p.start) return { fin: p.start, pourquoi: bil ? 'bilan' : 'aujourdhui' };
   return { fin: d, pourquoi: bil ? 'bilan' : 'aujourdhui' };
 }
+// Les dessins datés commencent au 1er SEPTEMBRE (v1.46.4, l'utilisateur : « ça ne sert à rien
+// de commencer le graphique avant le 1er septembre ») : l'année scolaire de l'app part du 1er
+// août, mais rien ne se passe en août. Une date d'août devient le 1er septembre. PUR.
+function _debutUtile(ymd) { return /^\d{4}-08-/.test(ymd) ? ymd.slice(0, 4) + '-09-01' : ymd; }
 // La courbe de la période jusqu'à `_ficheCourbeFin`, la zone du moment en clair, la mi-période marquée.
 function _ficheCourbeHTML(cls, stu, col) {
-  const b = _ficheBornes(cls, col), F = _ficheCourbeFin(cls, stu.id, col), p = { ...b.p, end: F.fin };
+  const b = _ficheBornes(cls, col), F = _ficheCourbeFin(cls, stu.id, col), p = { ...b.p, start: _debutUtile(b.p.start), end: F.fin };
   const avecMbn = _obsMbnClasseAny(cls);
   const src = { carnet: _ficheCourbeSrc.carnet, mbn: avecMbn && _ficheCourbeSrc.mbn };
   if (!src.carnet && !src.mbn) return '<p class="pf-empty">Aucune source cochée : cochez « Relevés du carnet » ou « Notées dans MBN ».</p>';
@@ -7024,8 +7083,8 @@ function _ficheCourbeHTML(cls, stu, col) {
   const mx = Math.max(10, ...pts.map(q => q[1])), Y = v => (y0 - v / mx * (y0 - y1)).toFixed(1);
   const mi = _ficheBornes(cls, { ...col, type: 'miperiode' }).end;
   let g = `<svg class="pf-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du cumul d'observations${quoi ? ' (' + quoi + ')' : ''}, période ${_escAttr(p.label)}">`;
-  const zFin = b.end < p.end ? b.end : p.end;
-  if (b.start <= zFin) g += `<rect class="ar" x="${X(b.start)}" y="${y1}" width="${Math.max(2, X(zFin) - X(b.start))}" height="${y0 - y1}"/>`;
+  const zFin = b.end < p.end ? b.end : p.end, zDeb = b.start > p.start ? b.start : p.start;
+  if (zDeb <= zFin) g += `<rect class="ar" x="${X(zDeb)}" y="${y1}" width="${Math.max(2, X(zFin) - X(zDeb))}" height="${y0 - y1}"/>`;
   g += `<line class="ax" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/>`;
   if (mi <= p.end) g += `<line class="mid" x1="${X(mi)}" y1="${y1}" x2="${X(mi)}" y2="${y0}"/><text x="${+X(mi) + 3}" y="${y1 + 9}">mi-${_escName(p.label)}</text>`;
   _moisDe(p).forEach(([ym, l]) => { g += `<text x="${X(ym + '-01' < p.start ? p.start : ym + '-01')}" y="${H - 6}">${_escName(l)}</text>`; });
@@ -7130,10 +7189,12 @@ function _ficheChronoHTML(cls, stu, col) {
     kpi('Incidents', nb('incid'), '')}${kpi('Contacts', nb('contact'), 'avec la famille')}${kpi('Avis', av ? `${av.items.length}/${av.camp.disciplines.length}` : '–', av && (av.camp.cibles || []).includes(stu.id) ? '★ demandé' : 'disciplines')}${kpi('Papiers', nr ? nr.html.split(':')[1].split(',').length : 0, 'à rendre')}</div>`;
   const LANES = [['obs', 'Carnet'], ['moy', 'Moyennes'], ['avis', 'Avis'], ['incid', 'Incidents'], ['contact', 'Contacts'], ['bilan', 'Bilans'], ['papier', 'Papiers']];
   const W = 1000, L = 100, R = 14, LH = 26, H = 22 + LANES.length * LH;
-  const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(b.start), tb = t(b.end) + 1;
-  const X = d => (L + (t(d) - ta) / (tb - ta) * (W - L - R)).toFixed(1);
-  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Frise du ${_escAttr(_fmtDateFr(b.start))} au ${_escAttr(_fmtDateFr(b.end))}">`;
-  _moisDe({ start: b.start, end: b.end }).forEach(([ym, l]) => { const d = ym + '-01' < b.start ? b.start : ym + '-01'; g += `<text class="pf-mois" x="${+X(d) + 2}" y="12">${_escName(l)}</text><line class="lane" x1="${X(d)}" y1="16" x2="${X(d)}" y2="${H}"/>`; });
+  // Comme la courbe : à partir du 1er septembre (un événement d'août se pose au bord gauche).
+  const d0 = _debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start;
+  const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(d0), tb = t(b.end) + 1;
+  const X = d => Math.max(L, L + (t(d) - ta) / (tb - ta) * (W - L - R)).toFixed(1);
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Frise du ${_escAttr(_fmtDateFr(d0))} au ${_escAttr(_fmtDateFr(b.end))}">`;
+  _moisDe({ start: d0, end: b.end }).forEach(([ym, l]) => { const d = ym + '-01' < d0 ? d0 : ym + '-01'; g += `<text class="pf-mois" x="${+X(d) + 2}" y="12">${_escName(l)}</text><line class="lane" x1="${X(d)}" y1="16" x2="${X(d)}" y2="${H}"/>`; });
   const mi = _ficheBornes(cls, { ...col, type: 'miperiode' }).end;
   if (mi > b.start && mi < b.end) g += `<line class="mid" x1="${X(mi)}" y1="16" x2="${X(mi)}" y2="${H}"/><text class="pf-mois" x="${+X(mi) + 3}" y="${H - 3}">mi-${_escName(b.p.label)}</text>`;
   LANES.forEach(([k, l], j) => { const y = 22 + j * LH + LH / 2; g += `<text x="0" y="${y + 4}">${l}</text><line class="lane" x1="${L}" y1="${y}" x2="${W - R}" y2="${y}"/>`; });
@@ -13288,9 +13349,7 @@ function _syntheseRow(cls, stu) {
     cumul: last ? last.n : null, cumulDate: last ? last.ymd : null,
     // Observations notées dans MBN depuis le début de l'année scolaire, et le TOTAL des deux
     // sources (v1.46.3) — ce qu'affiche et trie la colonne Observations de la liste.
-    ...(() => { const ps = _periods(cls), a = ps[0]?.start || '0000', z = ps[ps.length - 1]?.end || '9999';
-      const mbnAn = _obsMbnOf(stu.id).filter(e => e.date >= a && e.date <= z).length;
-      return { mbnAn, obsTotal: !last && !mbnAn ? null : (last ? last.n : 0) + mbnAn }; })(),
+    ...(() => { const t = _obsTotalAn(cls, stu.id); return { mbnAn: t.mbn, obsTotal: t.total }; })(),
     delta: delta ? delta.delta : null, deltaDecroissant: !!delta?.decreasing,
     periodeLabel: periode ? periode.label : '', periodeTotal: _relPeriodTotal(cid, stu.id, pIdx),
     // Dernière moyenne générale importée (onglet 📈 Moyennes), son évolution depuis

@@ -193,3 +193,46 @@ test('Liste : la colonne Observations affiche le total carnet + MBN de l\'année
   assert.match(ev(`_elevesPrintHTML(getCls())`), new RegExp(`${r.obsTotal}</span> <small>\\(${r.cumul} \\+ ${r.mbnAn} MBN\\)`));
   ev(`eleveSort = { col: 'nom', dir: 1 }`);
 });
+
+test('Carte de chaleur : case Total carnet + MBN (et synthèse repliée) ; liste : « +n » de la période, les deux sources ; dessins à partir du 1er septembre', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = '';`);
+  const sid = ev(`getCls().eleves.find(id => _obsMbnOf(id).length >= 3)`);
+  const t = evObj(`_obsTotalAn(getCls(), ${JSON.stringify(sid)})`);
+  assert.strictEqual(t.total, t.carnet + t.mbn);
+  const g = `_chaleurGroupes(getCls(), []).find(x => x.key === 'carnet')`;
+  assert.match(ev(`${g}.label`), /^Observations /);
+  assert.strictEqual(ev(`${g}.sub.slice(-1)[0].id`), '__tot');
+  assert.deepStrictEqual(evObj(`${g}.cell(${JSON.stringify(sid)}, '__tot').slice(1, 2)`), [String(t.total)]);
+  assert.deepStrictEqual(evObj(`${g}.sum(${JSON.stringify(sid)}).slice(1, 2)`), [String(t.total)]);
+  // « +n S2 » = total du carnet sur la période + MBN de la période.
+  const n = ev(`(() => { const cls = getCls(), pI = _carnetCurrentPeriodIdx(cls), p = _periods(cls)[pI]; return (_relPeriodTotal(cls.id, ${JSON.stringify(sid)}, pI) || 0) + _obsMbnEntre(${JSON.stringify(sid)}, p.start, p.end).length; })()`);
+  const lbl = ev(`_periods(getCls())[_carnetCurrentPeriodIdx(getCls())].label`);
+  const html = ev(`_elevesIndicHTML(getCls(), _elevesRows(getCls()), [], null)`);
+  if (n) assert.ok(html.includes(`>+${n} <small>${lbl}</small>`));
+  // 1er septembre.
+  assert.strictEqual(ev(`_debutUtile('2025-08-01')`), '2025-09-01');
+  assert.strictEqual(ev(`_debutUtile('2026-02-01')`), '2026-02-01');
+  const courbe = ev(`_ficheCourbeHTML(getCls(), S.eleves[${JSON.stringify(sid)}], _ficheMoments(getCls()).find(c => c.key === 'bil:conseil:0'))`);
+  assert.ok(!courbe.includes('>août<') && courbe.includes('>sept.<'));
+  const frise = ev(`_ficheChronoHTML(getCls(), S.eleves[${JSON.stringify(sid)}], _ficheMoments(getCls()).find(c => c.key === 'bil:conseil:0'))`);
+  assert.ok(!frise.includes('>août<'));
+});
+
+test('Carte de chaleur : bornée au moment choisi (le même que la fiche), dit dans la barre, le bilan du moment marqué', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = ''; _ficheMoment = null;`);
+  // Par défaut : le conseil de la période courante, donc la période entière.
+  const def = ev(`_ficheMomentCourant(getCls()).key`);
+  assert.match(def, /^bil:conseil:/);
+  ev(`_ficheMoment = 'bil:miperiode:0'`);
+  const b = evObj(`_ficheBornes(getCls(), _ficheMomentCourant(getCls()))`);
+  const G = `_chaleurGroupes(getCls(), _bilanColsVues(getCls(), _carnetCurrentPeriodIdx(getCls())))`;
+  const dates = evObj(`${G}.find(g => g.key === 'carnet').sub.map(x => x.id).filter(x => x !== '__tot')`);
+  assert.ok(dates.length && dates.every(d => d >= b.start && d <= b.end), 'seulement les relevés du moment');
+  assert.match(ev(`${G}.find(g => g.key === 'carnet').label`), /Mi-S1/);
+  assert.ok(evObj(`${G}.find(g => g.key === 'bil')?.sub.map(x => x.l) || []`).some(l => l === '▶ Mi-S1') || !ev(`_bilanColsVues(getCls(), _carnetCurrentPeriodIdx(getCls())).some(c => c.key === 'bil:miperiode:0')`));
+  const html = evObj(`_elevesChaleurHTML(getCls(), _elevesRows(getCls()), [])`);
+  assert.match(html.barre, /Synthèse pour/);
+  assert.match(html.barre, /class="on"[^>]*>Mi-S1</);
+  assert.match(html.barre, /chaleurMomentSet\('bil:conseil:0'\)/);
+  ev(`_ficheMoment = null`);
+});
