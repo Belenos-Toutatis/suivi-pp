@@ -767,6 +767,7 @@ L'utilisateur, le 2026-10-03 : *« je ne vois pas vraiment la différence entre 
 période et imprimer la liste, c'est très similaire »* — puis *« regroupe-les et supprime les
 résumés »*. La barre de 👥 Élèves n'a plus qu'**🖨 Imprimer…** (et Ctrl+P sur Élèves) → la
 fenêtre `mperiode`, qui demande d'abord **Quoi** (`_periodePrintOpts.quoi`, de séance) :
+- **Le trombinoscope** (v1.51.0, cf. *📷 Photos des élèves*) ;
 - **La liste telle qu'à l'écran** (défaut) — l'état du jour : colonnes, tri et filtres affichés
   (`printEleves({ format })`, l'ex-« 🖨 Imprimer la liste ») ; A4 en 8,5 pt, **A3 en 12 pt**
   (`_elevesPrintPt`), taille toujours FIXE ;
@@ -1168,6 +1169,16 @@ Les pièges de format MBN et de l'appariement sont documentés là-bas ; à reli
 - **Survol d'un nom** : tout nom qui ouvre la fiche porte `data-photo-sid` (`_nomFicheHTML`,
   liste, carte de chaleur) → `#photo-pop` après 250 ms. ⚠️ Toute nouvelle grille passe déjà par
   `_nomFicheHTML` : elle a la photo au survol sans rien faire.
+- **Le trombinoscope** (v1.51.0, l'utilisateur : *« prévois un endroit pour afficher le
+  trombinoscope et pouvoir l'imprimer »*) : **troisième affichage** de 👥 Élèves, *📷 Trombinoscope*
+  (`_ELEVES_AFFS`, retenu sur le poste comme les deux autres) — les élèves de la liste (tri,
+  recherche, filtres), une carte chacun (`_trombiCarteHTML` : photo posée après coup par
+  `_trombiPhotosPoser`, initiales en pointillés sans photo, nom surligné du délégué, groupe et
+  options), clic → la fiche. Bandeau (`_trombiVueBandeauHTML`) quand il n'y a pas de dossier, pas
+  d'autorisation (le bouton la demande) ou pas de photo. **Sur le papier** : troisième choix de
+  *🖨 Imprimer…* (`quoi: 'trombi'`, présélectionné depuis cette vue) — 4, 5 ou 6 photos par
+  rangée, groupe et options en option, A4 / A3 portrait (`_trombiPrintHTML`, `printTrombi`) ; 25
+  élèves à 5 par rangée tiennent sur une page A4.
 - ⚠️ **Supprimer un élève ne supprime PAS sa photo** (écart assumé avec Plan de classe) : Ctrl+Z
   rend l'élève, jamais un fichier — même règle que les PDF. *🧹 Orphelins…* (Données) liste aussi
   les `photos/<sid>.jpg` dont l'élève n'existe plus (`_photosOrphelines`) et les supprime sur
@@ -2014,6 +2025,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 112 | **📷 Trombinoscope** : troisième affichage de la liste des élèves (photos, initiales sans photo, clic vers la fiche) et troisième choix de 🖨 Imprimer… (4 à 6 par rangée, une page A4 pour 25 élèves) ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; papier simulé | ✅ **fait** (2026-10-03, v1.51.0) |
 | 111 | **Un seul « 🖨 Imprimer… » dans Élèves** : la liste du jour ou la synthèse d'un moment (tableau ou fiches), A3 pour la liste ; **« résumés » supprimés** ; Ctrl+P ouvre la fenêtre ; tests portés sur la fiche imprimée. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.50.0) |
 | 110 | **🖨 Fiche élève imprimée** : bouton dans la fiche et Ctrl+P (fenêtre `mficheprint` : moment, parties, photo, cet élève ou toute la classe, A4 / A3), une page par élève, bilan vide en lignes à remplir ; forme « fiche complète » dans la synthèse de période (« fiches » renommée « résumés ») ; 3 tests (`test/fiche-print.test.js`). Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; papier simulé depuis les deux thèmes | ✅ **fait** (2026-10-03, v1.49.0) |
 | 109 | **📷 Photos des élèves** (repris de Plan de classe) : import du trombinoscope PDF de MBN (lecteur PDF sans bibliothèque, appariement des noms, rattachement manuel), photos dans `photos/` du dossier des pièces jointes, case photo dans la carte Identité (fichier, glisser, Ctrl+V, 📋 Coller, retrait), vignette dans l'en-tête de la fiche, aperçu au survol des noms, orphelines dans 🧹 Orphelins… ; 7 tests (`test/photos.test.js`). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.48.0) |

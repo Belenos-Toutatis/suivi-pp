@@ -1603,6 +1603,16 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .fiche-photo-add:hover { border-color: var(--ink-blue); color: var(--ink-blue); }
 .pf-ph { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule-line); align-self: center; }
 .pf-ph[hidden] { display: none; }
+.tv-wrap { padding: 6px; }
+.tv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+.tv-card { display: flex; flex-direction: column; align-items: center; gap: 3px; background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; padding: 6px 6px 8px; font: inherit; color: var(--ink-deep); cursor: pointer; text-align: center; min-width: 0; }
+.tv-card:hover, .tv-card:focus-visible { border-color: var(--ink-blue); }
+.tv-card.parti .tv-nom { color: var(--pencil); font-style: italic; }
+.tv-ph { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: var(--paper-deep); }
+.tv-ph:not([src]) { visibility: hidden; }
+.tv-none { visibility: visible !important; display: flex; align-items: center; justify-content: center; font-size: 1.8em; color: var(--pencil); background: var(--paper-warm); border: 1.5px dashed var(--rule-line); box-sizing: border-box; }
+.tv-nom { font-size: .9em; line-height: 1.25; overflow-wrap: anywhere; }
+.tv-sub { font-size: .76em; color: var(--pencil); }
 #photo-pop { position: fixed; z-index: 10050; display: none; pointer-events: none; background: var(--paper); border: 1px solid var(--rule-line); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); padding: 5px; text-align: center; font-size: .8em; color: var(--ink-deep); max-width: 150px; }
 #photo-pop img { display: block; width: 120px; height: 120px; object-fit: cover; border-radius: 3px; margin-bottom: 3px; }
 .trombi-head { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; padding: 8px 12px; background: var(--paper-warm); border-radius: 6px; }
@@ -1933,6 +1943,13 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   .fp-gen td { border-top: 1px solid #000; font-weight: 700; }
   .fp-courbe svg { width: 100%; max-width: 85mm; height: auto; }
   .fp-courbe .pf-chart-cap { font-size: 8pt; }
+  /* Le trombinoscope imprimé (v1.51.0) : une grille de photos, jamais une carte coupée. */
+  .tp-g { display: grid; gap: 6mm 4mm; }
+  .tp-c { break-inside: avoid; text-align: center; font-size: 9.5pt; line-height: 1.2; }
+  .tp-ph { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid #999; border-radius: 2pt; }
+  .tp-none { border-style: dashed; }
+  .tp-n { margin-top: 2pt; }
+  .tp-s { font-size: 8pt; color: #444; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2652,7 +2669,13 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="fg"><label>Quoi</label>
       <div class="mfp-opts">
         <label><input type="radio" name="mper-quoi" value="liste" onchange="_periodePrintRefresh()"> <span><strong>La liste telle qu'à l'écran</strong> — où en est-on aujourd'hui : les colonnes, le tri et les filtres affichés</span></label>
-        <label><input type="radio" name="mper-quoi" value="moment" onchange="_periodePrintRefresh()"> <span><strong>La synthèse d'un moment</strong> — conseil, mi-période ou point du mois : tout est borné à ce moment, son bilan et ses décisions</span></label></div></div>
+        <label><input type="radio" name="mper-quoi" value="moment" onchange="_periodePrintRefresh()"> <span><strong>La synthèse d'un moment</strong> — conseil, mi-période ou point du mois : tout est borné à ce moment, son bilan et ses décisions</span></label>
+        <label><input type="radio" name="mper-quoi" value="trombi" onchange="_periodePrintRefresh()"> <span><strong>Le trombinoscope</strong> — les photos des élèves de la liste, avec leur nom</span></label></div></div>
+    <div id="mper-tzone" hidden style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div class="fg" style="max-width:200px"><label for="mper-tcols">Photos par rangée</label>
+        <select id="mper-tcols" onchange="_periodePrintRefresh()"><option value="4">4 — grandes</option><option value="5">5</option><option value="6">6 — petites</option></select></div>
+      <div class="fg mfp-opts"><label><input type="checkbox" id="mper-tdet" onchange="_periodePrintRefresh()"> groupe et options sous le nom</label></div>
+    </div>
     <div id="mper-zone">
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div class="fg" style="flex:1;min-width:240px"><label for="mper-moment">Moment</label>
@@ -2896,8 +2919,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.50.0';
-const APP_BUILD_DATE = '2026-10-03T09:45:24Z';
+const APP_VERSION    = '1.51.0';
+const APP_BUILD_DATE = '2026-10-03T10:01:40Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6163,8 +6186,17 @@ function _matchFilter(stu, q) {
 // de la maison, les indicateurs sur la tablette en conseil.
 const _LS_ELEVES_AFF = 'suiviPP_elevesAffichage';
 const _LS_CHALEUR_PLIS = 'suiviPP_chaleurPlis';
-function _elevesAffichage() { try { return localStorage.getItem(_LS_ELEVES_AFF) === 'chaleur' ? 'chaleur' : 'indic'; } catch (_) { return 'indic'; } }
-function elevesAffichageSet(v) { try { localStorage.setItem(_LS_ELEVES_AFF, v === 'chaleur' ? 'chaleur' : 'indic'); } catch (_) { } renderStudents(); }
+// 📷 Trombinoscope (v1.51.0, l'utilisateur : « prévois un endroit pour afficher le
+// trombinoscope et pouvoir l'imprimer ») : un troisième affichage de la même liste — mêmes
+// élèves, même tri, mêmes filtres —, une carte par élève (photo, nom, groupe et options).
+const _ELEVES_AFFS = ['indic', 'chaleur', 'trombi'];
+function _elevesAffichage() { try { const v = localStorage.getItem(_LS_ELEVES_AFF); return _ELEVES_AFFS.includes(v) ? v : 'indic'; } catch (_) { return 'indic'; } }
+function elevesAffichageSet(v) {
+  try { localStorage.setItem(_LS_ELEVES_AFF, _ELEVES_AFFS.includes(v) ? v : 'indic'); } catch (_) { }
+  renderStudents();
+  // Le clic est un geste : on peut demander l'accès au dossier des photos, une fois.
+  if (v === 'trombi' && pjDirHandle && !_photos.ready) _photosRefresh(true).then(ok => { if (ok) renderStudents(); });
+}
 // ── « +n » : les observations PRISES sur une durée, carnet et MBN confondus (v1.46.5) ──
 // L'utilisateur : « choisir depuis quelle durée — une icône calendrier à côté du titre
 // Observations : depuis une semaine, deux semaines, un mois, deux mois, le début du semestre
@@ -6543,7 +6575,7 @@ function renderStudents() {
   const filtrage = [_eleveFilter ? `recherche « ${_escName(_eleveFilter)} »` : '', ...ELEVES_FILTRES.filter(f => _elevesFiltres.has(f.key)).map(f => _escName(f.label.toLowerCase()))].filter(Boolean).join(' · ');
   const compte = `<span class="tb-hint">${list.length} élève${list.length > 1 ? 's' : ''} sur ${all.length}${list.length !== all.length ? ` — ${filtrage}` : ''}</span>`;
   // Ligne 1 : l'affichage et les filtres. Ligne 2 (indicateurs) : la vue et les colonnes.
-  const affHTML = `<div class="tb el-aff-tb"><span class="el-aff" role="group" aria-label="Affichage de la liste">${[['indic', '▦ Indicateurs', 'Une case par sujet : un repère court, le contenu au survol'], ['chaleur', '▥ Carte de chaleur', 'Une case par relevé, matière, discipline, papier, mois et bilan : ce qui est rempli, et quand']].map(([k, l, t]) =>
+  const affHTML = `<div class="tb el-aff-tb"><span class="el-aff" role="group" aria-label="Affichage de la liste">${[['indic', '▦ Indicateurs', 'Une case par sujet : un repère court, le contenu au survol'], ['chaleur', '▥ Carte de chaleur', 'Une case par relevé, matière, discipline, papier, mois et bilan : ce qui est rempli, et quand'], ['trombi', '📷 Trombinoscope', 'Les photos de la classe — clic sur un élève : sa fiche ; 🖨 Imprimer… le met sur le papier']].map(([k, l, t]) =>
       `<button class="${aff === k ? 'on' : ''}" aria-pressed="${aff === k}" onclick="elevesAffichageSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     ${_elevesFiltresHTML(cls)}<span style="margin-left:auto">${compte}</span></div>`;
   // Carte de chaleur : pas de seconde ligne — le compte est à droite des filtres (v1.46.7,
@@ -6564,6 +6596,12 @@ function renderStudents() {
   const keep = _wrapScrollKeep(el);
   const vide = _emptyStateHTML('🔍', 'Aucun élève ne correspond',
       `${_eleveFilter ? `Le filtre « ${_escName(_eleveFilter)} » ne trouve personne. ` : ''}${_elevesFiltres.size ? 'Les filtres choisis ne gardent personne. ' : ''}<button class="btn btn-g btn-sm" onclick="document.getElementById('eleve-search').value='';_elevesFiltres.clear();setEleveFilter('')">Tout afficher</button>`);
+  if (aff === 'trombi') {
+    el.innerHTML = affHTML + _trombiVueBandeauHTML() + (list.length ? `<div class="rel-wrap frozen tv-wrap"><div class="tv-grid">${list.map(_trombiCarteHTML).join('')}</div></div>` : vide);
+    keep();
+    _trombiPhotosPoser(el);
+    return;
+  }
   if (aff === 'chaleur') {
     const ch = list.length ? _elevesChaleurHTML(cls, rowsData, bcols) : null;
     el.innerHTML = affHTML + vuesHTML + tri + (ch ? `${ch.barre}<div class="rel-wrap frozen">${ch.table}</div>${ch.leg}` : vide);
@@ -6573,6 +6611,53 @@ function renderStudents() {
   el.innerHTML = affHTML + vuesHTML + tri + (list.length ? `<div class="rel-wrap frozen">${_elevesIndicHTML(cls, rowsData, bcols, campCour)}</div>` : vide);
   keep();
 }
+// ── 📷 Trombinoscope : la vue (v1.51.0) ──
+// Une carte par élève, la photo posée après coup (lecture asynchrone du fichier). Sans photo :
+// les initiales dans un carré pointillé — la photo s'ajoute depuis la fiche.
+function _trombiCarteHTML(s) {
+  const sid = s.id, ini = `${String(s.prenom || '').charAt(0)}${String(s.nom || '').charAt(0)}`.toUpperCase();
+  const sub = [s.groupe ? 'G' + s.groupe : '', _studentTags(s).map(x => x.abbr).join(' ')].filter(Boolean).join(' · ');
+  const tip = _photoHas(sid) ? 'Ouvrir la fiche' : 'Pas de photo — à ajouter depuis la fiche (fichier, image glissée, Ctrl+V)';
+  return `<button type="button" class="tv-card${_isStudentActive(s) ? '' : ' parti'}" onclick="openFiche('${_escJsAttr(sid)}')" title="${_escAttr(tip)}">${
+    _photoHas(sid) ? `<img class="tv-ph" data-tv-sid="${_escAttr(sid)}" alt="">` : `<span class="tv-ph tv-none" aria-hidden="true">${_escName(ini)}</span>`}<span class="tv-nom">${_civHTML(sid)}${_nomHTML(sid, s.nom, s.prenom)}</span>${sub ? `<span class="tv-sub">${_escName(sub)}</span>` : ''}</button>`;
+}
+function _trombiPhotosPoser(root) {
+  for (const im of root.querySelectorAll('img[data-tv-sid]')) {
+    _photoUrl(im.getAttribute('data-tv-sid')).then(u => { if (u) im.src = u; else im.replaceWith(Object.assign(document.createElement('span'), { className: 'tv-ph tv-none', textContent: '📷' })); });
+  }
+}
+// Ce qui manque pour voir des photos, dit en tête de la vue — avec le geste qui y remédie.
+function _trombiVueBandeauHTML() {
+  if (!pjDirHandle) return `<div class="al al-w">📷 Les photos sont rangées dans le sous-dossier <code>photos/</code> du dossier des pièces jointes, qui n'est pas choisi sur ce poste. <button class="btn btn-g btn-sm" onclick="choosePjDir().then(() => _photosRefresh(false)).then(renderStudents)">📂 Choisir le dossier</button> <button class="btn btn-g btn-sm" onclick="openTrombiImport()">📥 Importer des photos</button></div>`;
+  if (!_photos.ready) return `<div class="al al-w">📷 Le navigateur demande votre accord pour lire le dossier des photos. <button class="btn btn-p btn-sm" onclick="_photosRefresh(true).then(renderStudents)">📂 Autoriser la lecture</button></div>`;
+  if (!_photos.sids.size) return `<div class="al al-i">📷 Aucune photo pour l'instant. <button class="btn btn-g btn-sm" onclick="openTrombiImport()">📥 Importer des photos</button> depuis le trombinoscope PDF de Mon Bureau Numérique, ou une à la fois depuis la fiche d'un élève.</div>`;
+  return '';
+}
+// ── 📷 Trombinoscope : le papier ──
+// Les élèves de la liste à l'écran (tri et filtres), N par rangée, en portrait. `urls` : les
+// photos déjà lues (sid → URL). Tout est échappé.
+const TROMBI_COLS = [4, 5, 6];
+function _trombiPrintHTML(cls, sids, o, urls) {
+  const cols = TROMBI_COLS.includes(+o.cols) ? +o.cols : 5;
+  const cartes = sids.map(sid => { const s = S.eleves[sid]; if (!s) return '';
+    const sub = o.details ? [s.groupe ? 'G' + s.groupe : '', _studentTags(s).map(x => x.abbr).join(' ')].filter(Boolean).join(' · ') : '';
+    const u = urls[sid];
+    return `<div class="tp-c">${u ? `<img class="tp-ph" src="${_escAttr(u)}" alt="">` : '<div class="tp-ph tp-none"></div>'}<div class="tp-n"><strong>${_escName(s.nom)}</strong><br>${_escName(s.prenom)}</div>${sub ? `<div class="tp-s">${_escName(sub)}</div>` : ''}</div>`; }).join('');
+  const titre = `Trombinoscope — ${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}`;
+  const sub = `${_pl(sids.length, 'élève')} · imprimé le ${_fmtDateFr(_todayYmd())}`;
+  return `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}</p><div class="tp-g" style="grid-template-columns:repeat(${cols},1fr)">${cartes}</div>`;
+}
+async function printTrombi(o) {
+  const cls = getCls();
+  if (!cls) return;
+  const sids = _elevesRows(cls).map(x => x.s.id);
+  if (!sids.length) return toast('⚠️ Aucun élève à imprimer.', 'warn');
+  if (pjDirHandle && !_photos.ready) await _photosRefresh(true);
+  const urls = {};
+  for (const sid of sids) if (_photoHas(sid)) urls[sid] = await _photoUrl(sid);
+  _printHTML(_trombiPrintHTML(cls, sids, o, urls), 'portrait', { format: o.format });
+}
+
 // Le tableau des INDICATEURS (le prototype A, v1.44.2). Le cadre (.rel-wrap frozen) est
 // posé par renderStudents, entre _wrapScrollKeep et keep().
 function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
@@ -16365,7 +16450,7 @@ const _PERIODE_BLOCS = [
 // `quoi` (v1.50.0) : la liste du jour (ex-« 🖨 Imprimer la liste ») ou la synthèse d'un moment —
 // un seul bouton « 🖨 Imprimer… » pour les deux (l'utilisateur : « je ne vois pas vraiment la
 // différence entre synthèse de période et imprimer la liste »).
-let _periodePrintOpts = { quoi: 'liste', blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc' && k !== 'avis'), type: 'conseil', forme: 'tableau', format: 'A4' };
+let _periodePrintOpts = { tcols: 5, tdet: true, quoi: 'liste', blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc' && k !== 'avis'), type: 'conseil', forme: 'tableau', format: 'A4' };
 function _periodeTitre(type, p) { return `${type === 'miperiode' ? 'Bilan de mi-période' : 'Conseil de classe'} ${p.label}`; }
 // Le HTML de la feuille : un tableau paysage (une ligne par élève). ~~Ou des fiches portrait
 // (un bloc court par élève)~~ — retirées en v1.50.0 (l'utilisateur : « je n'ai pas la fiche
@@ -16455,7 +16540,11 @@ function openPeriodePrint() {
   const choisi = ms.find(c => c.key === _periodePrintOpts.moment) || cur;
   document.getElementById('mper-moment').innerHTML = _momentsOptionsHTML(cls, choisi ? choisi.key : null);
   document.getElementById('mper-forme').value = _periodePrintOpts.forme === 'complete' ? 'complete' : 'tableau';
-  document.querySelector(`input[name="mper-quoi"][value="${_periodePrintOpts.quoi === 'moment' ? 'moment' : 'liste'}"]`).checked = true;
+  // Depuis la vue trombinoscope, c'est lui qu'on veut d'abord imprimer.
+  const quoi0 = _elevesAffichage() === 'trombi' ? 'trombi' : ['moment', 'trombi'].includes(_periodePrintOpts.quoi) ? _periodePrintOpts.quoi : 'liste';
+  document.querySelector(`input[name="mper-quoi"][value="${quoi0}"]`).checked = true;
+  document.getElementById('mper-tcols').value = String(_periodePrintOpts.tcols || 5);
+  document.getElementById('mper-tdet').checked = _periodePrintOpts.tdet !== false;
   document.getElementById('mper-format').value = _periodePrintOpts.format === 'A3' ? 'A3' : 'A4';
   document.getElementById('mper-blocs').innerHTML = _PERIODE_BLOCS.map(b =>
     `<label class="tagpick" style="background:var(--paper-warm)" title="${_escAttr(b.hint)}"><input type="checkbox" data-ck="${_escAttr(b.key)}"${_periodePrintOpts.blocs.includes(b.key) ? ' checked' : ''} onchange="_periodePrintRefresh()"> ${_escName(b.label)}</label>`).join('');
@@ -16471,7 +16560,9 @@ function _periodePrintLire() {
     idx: col ? col.pIdx : 0,
     type: col ? col.type : 'conseil',
     col,
-    quoi: document.querySelector('input[name="mper-quoi"]:checked')?.value === 'moment' ? 'moment' : 'liste',
+    quoi: (v => ['moment', 'trombi'].includes(v) ? v : 'liste')(document.querySelector('input[name="mper-quoi"]:checked')?.value),
+    tcols: +document.getElementById('mper-tcols')?.value || 5,
+    tdet: !!document.getElementById('mper-tdet')?.checked,
     forme: document.getElementById('mper-forme').value === 'complete' ? 'complete' : 'tableau',
     format: document.getElementById('mper-format').value === 'A3' ? 'A3' : 'A4',
     blocs: [...document.querySelectorAll('#mper-blocs input[data-ck]')].filter(c => c.checked).map(c => c.dataset.ck),
@@ -16480,8 +16571,17 @@ function _periodePrintLire() {
 function _periodePrintRefresh() {
   const cls = getCls();
   const o = _periodePrintLire();
-  const zone = document.getElementById('mper-zone');
-  if (zone) zone.hidden = o.quoi === 'liste';
+  const zone = document.getElementById('mper-zone'), tz = document.getElementById('mper-tzone');
+  if (zone) zone.hidden = o.quoi !== 'moment';
+  if (tz) { tz.hidden = o.quoi !== 'trombi'; tz.style.display = o.quoi === 'trombi' ? 'flex' : 'none'; }
+  if (o.quoi === 'trombi') {
+    const h = document.getElementById('mper-hint');
+    const ids = cls ? _elevesRows(cls).map(x => x.s.id) : [];
+    const avec = ids.filter(_photoHas).length;
+    const lignes = Math.ceil(ids.length / o.tcols);
+    if (h) h.textContent = `${_pl(ids.length, 'élève')} (ceux de la liste à l'écran) · ${pjDirHandle ? (_photos.ready ? `${avec} avec photo` : 'photos lues à l\'impression') : '⚠️ pas de dossier des photos choisi : des cases vides'} · ${o.format} portrait, ${o.tcols} par rangée, ${_pl(lignes, 'rangée')}`;
+    return;
+  }
   if (o.quoi === 'liste') {
     const h = document.getElementById('mper-hint');
     const n = cls ? _elevesRows(cls).length : 0;
@@ -16519,6 +16619,11 @@ function periodePrintOk() {
   const cls = getCls();
   const o = _periodePrintLire();
   if (!cls) return;
+  if (o.quoi === 'trombi') {
+    _periodePrintOpts = { ..._periodePrintOpts, quoi: 'trombi', format: o.format, tcols: o.tcols, tdet: o.tdet };
+    closeMod2('mperiode');
+    return printTrombi({ cols: o.tcols, details: o.tdet, format: o.format });
+  }
   if (o.quoi === 'liste') {
     _periodePrintOpts = { ..._periodePrintOpts, quoi: 'liste', format: o.format };
     closeMod2('mperiode');
@@ -17666,6 +17771,7 @@ function _photoHas(sid) { return _photos.sids.has(sid); }
 // Après un import, un ajout ou un retrait : la fiche ouverte se redessine (la liste n'a pas de photo).
 function _photosChanged() {
   if (_ficheSid && document.getElementById('mfiche')?.classList.contains('on')) _fichePhotoFill(_ficheSid);
+  if (_elevesAffichage() === 'trombi' && document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
 }
 async function _photoUrl(sid) {
   if (!_photos.sids.has(sid)) return null;

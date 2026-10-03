@@ -109,3 +109,29 @@ test('photos : survol des noms, case de la fiche, import dans Données et Élèv
   const del = SRC.slice(SRC.indexOf('function deleteStudent('), SRC.indexOf('function deleteStudent(') + 2000);
   assert.ok(!/_photoDelete/.test(del));
 });
+
+test('trombinoscope (vue et papier) : une carte par élève de la liste, photo ou initiales, tout échappé', () => {
+  const r = JSON.parse(ev(`(() => {
+    createDemo({ force: true });
+    const cls = getCls(), ids = _elevesRows(cls).map(x => x.s.id);
+    S.eleves[ids[0]].nom = '<img src=x onerror=alert(1)>';
+    _photos.sids = new Set([ids[1]]);
+    const carte0 = _trombiCarteHTML(S.eleves[ids[0]]), carte1 = _trombiCarteHTML(S.eleves[ids[1]]);
+    const papier = _trombiPrintHTML(cls, ids, { cols: 6, details: true }, { [ids[1]]: 'blob:y' });
+    _photos.sids = new Set();
+    return JSON.stringify({ n: ids.length, carte0, carte1, papier,
+      cartes: (papier.match(/class="tp-c"/g) || []).length, imgs: (papier.match(/<img class="tp-ph"/g) || []).length });
+  })()`));
+  assert.ok(!r.carte0.includes('<img src=x') && !r.papier.includes('<img src=x'), 'nom échappé');
+  assert.match(r.carte0, /tv-none/, 'sans photo : les initiales');
+  assert.match(r.carte1, /<img class="tv-ph" data-tv-sid=/, 'avec photo : posée après coup');
+  assert.strictEqual(r.cartes, r.n, 'une carte par élève de la liste');
+  assert.strictEqual(r.imgs, 1);
+  assert.match(r.papier, /repeat\(6,1fr\)/);
+});
+
+test('trombinoscope : troisième affichage de la liste, troisième choix de 🖨 Imprimer…', () => {
+  assert.match(SRC, /\['trombi', '📷 Trombinoscope'/);
+  assert.match(SRC, /<input type="radio" name="mper-quoi" value="trombi"/);
+  assert.match(SRC, /if \(o\.quoi === 'trombi'\) \{[\s\S]{0,300}printTrombi\(/);
+});
