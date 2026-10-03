@@ -2963,8 +2963,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.6';
-const APP_BUILD_DATE = '2026-10-03T16:21:26Z';
+const APP_VERSION    = '1.52.7';
+const APP_BUILD_DATE = '2026-10-03T16:27:15Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12151,6 +12151,7 @@ function _elCandNomSup(c) { return c && c.sidSuppleant !== null ? (c.nomSupplean
 function electionAddCandidat(el, sidT, sidS) {
   const t = S.eleves[sidT];
   if (!t) return null;
+  if (el.supDe && _elSupDeExclus(el).has(sidT)) return null;   // déjà élu dans l'élection d'origine
   const s = sidS ? S.eleves[sidS] : null;
   const c = { id: uid('c'), sidTitulaire: sidT, sidSuppleant: s ? sidS : null,
               nomTitulaire: `${t.prenom} ${t.nom}`, nomSuppleant: s ? `${s.prenom} ${s.nom}` : '',
@@ -12177,6 +12178,7 @@ function electionAddEcrit(el, sid) {
   const s = S.eleves[sid];
   if (el.clos || !t || t.clos || !s || !cls || !cls.eleves.includes(sid) || !_isStudentActive(s, el.date)) return null;
   if (el.candidats.some(c => c.sidTitulaire === sid || c.sidSuppleant === sid)) return null;
+  if (_elSupDeExclus(el).has(sid)) return null;
   const c = electionAddCandidat(el, sid, null);
   if (!c) return null;
   c.ecrit = true;
@@ -12234,6 +12236,21 @@ function electionCreerScrutinSuppleant(el, candId) {
   S.elections[el.classId][sub.id] = sub;
   c.supNc = { mode: 'election', scrutinId: sub.id };
   return sub;
+}
+// Les élèves DÉJÀ ÉLUS dans l'élection d'origine d'un scrutin de suppléant (v1.52.7, remontée de
+// l'utilisateur : « dans la liste des candidats, ils me proposent ceux qui ont déjà été élus ») :
+// titulaires (l'élu non candidat compris) et suppléants. Ils ne se présentent pas au scrutin du
+// suppléant — ni candidats, ni nom écrit. Ensemble vide hors scrutin de suppléant.
+function _elSupDeExclus(el) {
+  const out = new Set();
+  const parent = el && el.supDe ? (S.elections[el.classId] || {})[el.supDe.elId] : null;
+  if (!parent) return out;
+  for (const id of parent.elus?.titulaires || []) { const c = _elCand(parent, id); if (c) { out.add(c.sidTitulaire); if (c.sidSuppleant) out.add(c.sidSuppleant); } }
+  if (parent.binome === false) for (const id of parent.elus?.suppleants || []) { const c = _elCand(parent, id); if (c) out.add(c.sidTitulaire); }
+  // Le suppléant posé par CE scrutin ne s'exclut pas lui-même (rouvrir et reclore le scrutin).
+  const c0 = _elCand(parent, el.supDe.candId);
+  if (c0 && c0.supNc?.scrutinId === el.id && c0.sidSuppleant) out.delete(c0.sidSuppleant);
+  return out;
 }
 // À la clôture d'un scrutin de suppléant : son élu devient le suppléant dans l'élection d'origine.
 // Rend un avertissement (texte) ou ''.
@@ -12988,7 +13005,8 @@ function _elWinResultatHTML(el) {
 function _elRenderCandidats(el, t) {
   const cls = getCls();
   const taken = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
-  const eligibles = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !taken.has(s.id))
+  const exclus = _elSupDeExclus(el);   // scrutin de suppléant : pas les élus de l'élection d'origine
+  const eligibles = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !taken.has(s.id) && !exclus.has(s.id))
     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
   const opt = s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`;
   const canEdit = !el.clos && !t.bulletins.length && t.n === 1;
@@ -13009,7 +13027,7 @@ function _elRenderCandidats(el, t) {
       <button class="btn btn-g btn-sm" onclick="_elMut(e=>{const ids=e.candidats.map(c=>c.id).sort(()=>Math.random()-.5);e.candidats.forEach(c=>{c.ordre=ids.indexOf(c.id)});e.candidats.sort((a,b)=>a.ordre-b.ordre)})" title="Tirage au sort de l'ordre d'affichage, figé ensuite">🎲 Tirer l'ordre</button>
     </div>` : '';
   return `<details class="el-block" ${t.bulletins.length && !el.clos ? '' : 'open'}><summary>👥 Candidatures — ${el.candidats.length} ${el.binome !== false ? 'binôme' : 'candidat'}${el.candidats.length > 1 ? 's' : ''}</summary>
-    ${el.candidats.length ? `<div class="rel-wrap"><table class="dt"><thead><tr><th></th><th>Titulaire</th><th>Suppléant</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="tb-hint">Aucune candidature. Tous les élèves de la division sont éligibles.</div>'}${add}</details>`;
+    ${el.candidats.length ? `<div class="rel-wrap"><table class="dt"><thead><tr><th></th><th>Titulaire</th><th>Suppléant</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="tb-hint">Aucune candidature. ${exclus.size ? `Tous les élèves de la division sont éligibles, sauf les ${exclus.size} déjà élus dans l'élection d'origine.` : 'Tous les élèves de la division sont éligibles.'}</div>`}${add}</details>`;
 }
 function electionAddCandidatUI() {
   const sidT = document.getElementById('el-add-t')?.value, sidS = document.getElementById('el-add-s')?.value || null;
@@ -13057,7 +13075,8 @@ function _elEcritHTML(el) {
   const cls = getCls(), t = el.tours[el.tours.length - 1];
   if (!cls || el.clos || !t || t.clos) return '';
   const pris = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
-  const libres = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !pris.has(s.id))
+  const exclus = _elSupDeExclus(el);
+  const libres = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !pris.has(s.id) && !exclus.has(s.id))
     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
   if (!libres.length) return '';
   return `<span class="el-ecrit"><select id="el-ecrit" aria-label="Élève dont le nom est écrit sur le bulletin"><option value="">— nom écrit, non candidat —</option>${libres.map(s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select><button class="btn btn-g btn-sm" onclick="electionAddEcritUI()" title="${el.nonCandidat === 'nul' ? 'Un bulletin porte le nom d\'un élève non candidat : il devient une colonne, et tout bulletin où il est coché est NUL (modalité de cette élection).' : 'Un bulletin porte le nom d\'un élève qui n\'était pas candidat (feuille blanche) : il devient une colonne, sans suppléant. Élu, il doit accepter son élection.'}">✍️ + Nouveau nom${el.nonCandidat === 'nul' ? ' (bulletin nul)' : ''}</button></span>`;

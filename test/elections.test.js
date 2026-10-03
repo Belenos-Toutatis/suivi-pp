@@ -666,3 +666,31 @@ test('Scrutin du suppléant tenu dans l\'app : une élection rattachée, son él
   assert.strictEqual(r.delegueSup, 'suppleant');
   assert.strictEqual(r.nonDelegue, null);
 });
+
+test('Scrutin du suppléant : les élus de l\'élection d\'origine ne sont ni proposés ni acceptés comme candidats', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = 0, t = el.tours[ti];
+    electionPreparerBulletins(el, ti, null);
+    const libres = cls.eleves.filter(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    const c = electionAddEcrit(el, libres[0]);
+    for (let i = 0; i < 40; i++) electionAddBulletin(el, ti, [c.id]);
+    t.votantsAnnonces = t.bulletins.length; c.accepte = true;
+    electionCloreTour(el, ti);
+    let g = 0; while (!el.clos && g++ < 3) { const k = el.tours.length - 1; electionAddBulletin(el, k, [el.tours[k].candidats[0]]); el.tours[k].votantsAnnonces = el.tours[k].bulletins.length; electionCloreTour(el, k); }
+    const elus = el.elus.titulaires.map(id => _elCand(el, id)).flatMap(x => [x.sidTitulaire, x.sidSuppleant]).filter(Boolean);
+    const sub = electionCreerScrutinSuppleant(el, c.id);
+    _elView = sub.id;
+    const html = _elRenderCandidats(sub, sub.tours[0]) + _elEcritHTML(sub);
+    const proposes = elus.filter(sid => html.includes('value="' + sid + '"'));
+    const refus = elus.map(sid => electionAddCandidat(sub, sid, null)).every(x => x === null);
+    const refusEcrit = electionAddEcrit(sub, elus[0]) === null;
+    const libre = electionAddCandidat(sub, libres[1], null) !== null;
+    return JSON.stringify({ nbElus: elus.length, proposes, refus, refusEcrit, libre });
+  })()`));
+  assert.ok(r.nbElus >= 3, 'titulaires et suppléants élus');
+  assert.deepStrictEqual(r.proposes, [], 'aucun élu dans les listes de choix');
+  assert.strictEqual(r.refus, true, 'refusés aussi par le modèle');
+  assert.strictEqual(r.refusEcrit, true);
+  assert.strictEqual(r.libre, true, 'un élève non élu reste candidat');
+});

@@ -685,6 +685,11 @@ non candidat) — question posée à l'utilisateur le 2026-10-03.
   « l'élection des délégués »** : `_delegueOf` et la désignation sans vote l'écartent (`!e.supDe`) —
   sans cela, le plus récent des scrutins clos aurait fait de son élu le seul délégué. La liste des
   élections le dit (« ↳ scrutin du suppléant de … »), son en-tête a *↩ Élection d'origine*.
+  **v1.52.7** (remontée de l'utilisateur : *« dans la liste des candidats, ils me proposent ceux
+  qui ont déjà été élus »*) : `_elSupDeExclus(el)` — titulaires (l'élu non candidat compris) et
+  suppléants de l'élection d'origine — retire ces élèves des candidatures et du *nom écrit* du
+  scrutin, et `electionAddCandidat` / `electionAddEcrit` les refusent. L'état vide le dit (« sauf
+  les 3 déjà élus »). Le suppléant posé par ce scrutin ne s'exclut pas lui-même (rouvrir, reclore).
 
 #### ⚠️ Un pourcentage en cours de dépouillement est trompeur
 
@@ -2136,6 +2141,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 123 | **Scrutin du suppléant : les élus de l'élection d'origine ne sont plus proposés** (ni candidats, ni nom écrit ; refusés par le modèle) ; 1 test | ✅ **fait** (2026-10-03, v1.52.7) |
 | 122 | **Suppléant élu par un scrutin** : guidage et bouton grisé ; **scrutin tenu dans l'app** (élection rattachée, élu reporté à la clôture, jamais prise pour l'élection des délégués, PV propre et cité dans celui d'origine) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.6) |
 | 121 | **Bulletins préparés d'après le compte de l'urne** (lignes « à lire », qui ne comptent qu'une fois lues ; Entrée ou Blanc = blanc ; clôture refusée tant qu'il en reste) ; démo ; 1 test, 2 tests adaptés. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.5) |
 | 120 | **Suppléant d'un élu non candidat** : aucun, élu ensuite par un scrutin, ou désigné par l'élu ; dit au PV ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.4) |
