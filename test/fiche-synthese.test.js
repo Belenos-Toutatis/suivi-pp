@@ -183,3 +183,35 @@ test('« Modifier l\'élève » : par-dessus la fiche ; civilité, groupe, demi-
     assert.match(ev(`__els.get('es-title').textContent`), new RegExp(s.nom));
   } finally { ev(`document.getElementById = __gid`); }
 });
+
+test('« + Ajouter » : la même fenêtre que la modification, vierge ; Ajouter crée l\'élève dans la classe choisie', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); undoStack.length = 0;
+      window.__els = new Map(); window.__gid = document.getElementById;
+      document.getElementById = id => { if (!__els.has(id)) __els.set(id, document.createElement('div')); return __els.get(id); };`);
+  try {
+    const n0 = ev(`getCls().eleves.length`);
+    ev(`openAddStudent()`);
+    assert.strictEqual(ev(`__els.get('es-title').textContent`), '+ Nouvel élève');
+    assert.strictEqual(ev(`__els.get('es-ok').textContent`), '✓ Ajouter');
+    assert.strictEqual(ev(`__els.get('es-id').value`), '');
+    assert.strictEqual(ev(`__els.get('es-nom').value`), '');
+    // Sans nom : refusé, rien de créé.
+    ev(`saveEdit()`);
+    assert.strictEqual(ev(`getCls().eleves.length`), n0);
+    ev(`__els.get('es-nom').value = 'NOUVEAU'; __els.get('es-prn').value = 'Inès'; __els.get('es-cls').value = getCls().id;
+        __els.get('es-grp').value = '2';
+        __els.get('es-civ').value = 'F'; __els.get('es-regime').value = 'DP';`);
+    ev(`saveEdit()`);
+    assert.strictEqual(ev(`getCls().eleves.length`), n0 + 1);
+    const s = evObj(`S.eleves[getCls().eleves.slice(-1)[0]]`);
+    assert.deepStrictEqual([s.nom, s.prenom, s.civilite, s.groupe, s.regime, s.classe_id], ['NOUVEAU', 'Inès', 'F', 2, 'DP', ev(`getCls().id`)]);
+    assert.strictEqual(ev(`undoStack.length`), 1, 'un cran d\'undo');
+  } finally { ev(`document.getElementById = __gid`); }
+});
+
+test('La fiche se ferme quand on quitte Élèves, Observations ou Moyennes', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  assert.match(src, /const FICHE_ONGLETS = \['eleves', 'carnets', 'moyennes'\];/);
+  const f = src.slice(src.indexOf('function showTab('), src.indexOf('function switchTab('));
+  assert.match(f, /!FICHE_ONGLETS\.includes\(name\)[^\n]*closeMod2\('mfiche'\)/);
+});

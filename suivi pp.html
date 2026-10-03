@@ -2145,30 +2145,12 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
-<!-- ═══════════════ NOUVEL ÉLÈVE ═══════════════ -->
-<div id="ms" class="mo" onclick="closeMod(this,event)">
-  <div class="mb">
-    <h2>+ Nouvel élève</h2>
-    <div class="fg"><label for="ms-nom">Nom(s)</label><input id="ms-nom" data-autofocus onkeydown="if(event.key==='Enter'){event.preventDefault();addStudent()}"></div>
-    <div class="fg"><label for="ms-prn">Prénom(s)</label><input id="ms-prn" onkeydown="if(event.key==='Enter'){event.preventDefault();addStudent()}"></div>
-    <div class="fg"><label for="ms-civ">Civilité <span style="font-weight:400;font-size:.85em">(optionnel)</span></label>
-      <select id="ms-civ"><option value="">— Non spécifié —</option><option value="M">♂ Garçon (M)</option><option value="F">♀ Fille (F)</option></select>
-    </div>
-    <div class="fg"><label for="ms-grp">Groupe</label>
-      <select id="ms-grp"><option value="">— Aucun groupe —</option><option value="1">🔵 Groupe 1</option><option value="2">🟠 Groupe 2</option><option value="3">🟣 Groupe 3</option></select>
-    </div>
-    <div class="ma">
-      <button class="btn btn-g" onclick="closeMod2('ms')">Annuler</button>
-      <button class="btn btn-p" onclick="addStudent()">✓ Ajouter</button>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════════════ MODIFIER L'ÉLÈVE ═══════════════ -->
 <!-- v1.46.11 (l'utilisateur : « l'endroit où on était change ; la présentation est un peu
      fouillis, on ne voit pas tout d'un coup — repenser son affichage ») : cinq blocs en deux
      colonnes, tout visible d'un coup ; choix courts en boutons, aménagements en puces ;
-     ouverte PAR-DESSUS la fiche, qui reste derrière. Les ids des champs ne changent pas. -->
+     ouverte PAR-DESSUS la fiche, qui reste derrière. Les ids des champs ne changent pas.
+     v1.46.12 : la MÊME fenêtre sert à l'ajout (« sur le même modèle ») — `es-id` vide. -->
 <div id="me" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:860px;width:100%">
     <h2 id="es-title">✏️ Modifier l'élève</h2>
@@ -2227,7 +2209,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
     <div class="ma es-ma">
       <button class="btn btn-g" onclick="closeMod2('me')">Annuler</button>
-      <button class="btn btn-p" onclick="saveEdit()">✓ Enregistrer</button>
+      <button class="btn btn-p" id="es-ok" onclick="saveEdit()">✓ Enregistrer</button>
     </div>
   </div>
 </div>
@@ -2783,8 +2765,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.11';
-const APP_BUILD_DATE = '2026-10-03T05:44:51Z';
+const APP_VERSION    = '1.46.12';
+const APP_BUILD_DATE = '2026-10-03T05:53:35Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3904,7 +3886,12 @@ function switchClass(id) {
 // ═══════════════════════════════════════════════════════════
 // ONGLETS
 // ═══════════════════════════════════════════════════════════
+// La fiche (ouverte à côté de la liste) n'a de sens que près des grilles d'élèves (v1.46.12,
+// l'utilisateur : « sur Élèves, Observations et Moyennes, très bien ; vers Retours, Vie de
+// classe, Avis… ça ne sert à rien qu'elle reste affichée, au contraire ») : ailleurs, elle se ferme.
+const FICHE_ONGLETS = ['eleves', 'carnets', 'moyennes'];
 function showTab(name, btn) {
+  if (!FICHE_ONGLETS.includes(name) && document.getElementById('mfiche')?.classList.contains('on')) closeMod2('mfiche');
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
   document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
   const tab = document.getElementById('tab-' + name);
@@ -7690,43 +7677,23 @@ function saveRemarque() {
 }
 
 // ─── Ajout / édition / suppression ───
+// L'ajout passe par la fenêtre de modification (v1.46.12, l'utilisateur : « refais la
+// fenêtre d'ajout sur le même modèle ») : un élève vierge de la classe courante, `es-id` vide.
 function openAddStudent() {
   if (!getCls()) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
-  document.getElementById('ms-nom').value = '';
-  document.getElementById('ms-prn').value = '';
-  document.getElementById('ms-civ').value = '';
-  document.getElementById('ms-grp').value = '';
-  openMod('ms');
+  openEdit(null);
 }
-function addStudent() {
-  const cls = getCls();
-  if (!cls) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
-  const nom = document.getElementById('ms-nom').value.trim();
-  const prn = document.getElementById('ms-prn').value.trim();
-  if (!nom || !prn) { toast('⚠️ Nom et prénom sont obligatoires.', 'warn'); document.getElementById(nom ? 'ms-prn' : 'ms-nom').focus(); return; }
-  pushUndo();
-  const id = uid('e');
-  S.eleves[id] = {
-    id, nom, prenom: prn, classe_id: cls.id,
-    civilite: document.getElementById('ms-civ').value || null,
-    groupe: +document.getElementById('ms-grp').value || null,
-    tags: [], arrivalDate: null, departureDate: null,
-  };
-  cls.eleves.push(id);
-  save();
-  closeMod2('ms');
-  renderStudents();
-  toast(`${prn} ${nom} ajouté(e).`);
-}
-
 function openEdit(sid) {
-  const s = S.eleves[sid];
+  const nouveau = !sid;
+  const s = nouveau ? { classe_id: getCls()?.id || '', tags: [] } : S.eleves[sid];
   if (!s) return;
-  document.getElementById('es-id').value = sid;
+  document.getElementById('es-id').value = sid || '';
+  const ok = document.getElementById('es-ok');
+  if (ok) ok.textContent = nouveau ? '✓ Ajouter' : '✓ Enregistrer';
   document.getElementById('es-nom').value = s.nom || '';
   document.getElementById('es-prn').value = s.prenom || '';
   const ti = document.getElementById('es-title');
-  if (ti) ti.textContent = `✏️ ${s.prenom || ''} ${s.nom || ''}`.trim();
+  if (ti) ti.textContent = nouveau ? '+ Nouvel élève' : `✏️ ${s.prenom || ''} ${s.nom || ''}`.trim();
   _esSeg('es-civ', [['', '—', 'Non renseignée'], ['M', '♂ Garçon'], ['F', '♀ Fille']], s.civilite || '');
   _esSeg('es-grp', [['', 'Aucun'], ['1', 'G1'], ['2', 'G2'], ['3', 'G3']], s.groupe ? String(s.groupe) : '');
   document.getElementById('es-naissance').value = s.naissance || '';
@@ -7811,12 +7778,15 @@ function moveStudentToClass(sid, newCid) {
   return true;
 }
 function saveEdit() {
-  const sid = document.getElementById('es-id').value;
-  const s = S.eleves[sid];
-  if (!s) return closeMod2('me');
+  let sid = document.getElementById('es-id').value;
+  const nouveau = !sid;
+  let s = nouveau ? null : S.eleves[sid];
+  if (!s && !nouveau) return closeMod2('me');
   const nom = document.getElementById('es-nom').value.trim();
   const prn = document.getElementById('es-prn').value.trim();
-  if (!nom || !prn) { toast('⚠️ Nom et prénom sont obligatoires.', 'warn'); return; }
+  if (!nom || !prn) { toast('⚠️ Nom et prénom sont obligatoires.', 'warn'); document.getElementById(nom ? 'es-prn' : 'es-nom')?.focus(); return; }
+  const clsNouv = nouveau ? (S.classes[document.getElementById('es-cls').value] || getCls()) : null;
+  if (nouveau && !clsNouv) { toast('⚠️ Sélectionnez d\'abord une classe.', 'warn'); return; }
   const arr = document.getElementById('es-arrival').value || null;
   const dep = document.getElementById('es-departure').value || null;
   const naiBrut = document.getElementById('es-naissance').value;
@@ -7831,6 +7801,11 @@ function saveEdit() {
   // l'arrivée est cohérent (présent zéro jour), un départ AVANT ne l'est pas.
   if (arr && dep && dep < arr) { toast('⚠️ Le départ ne peut pas précéder l\'arrivée.', 'warn'); return; }
   pushUndo();
+  if (nouveau) {   // créé ici, dans la classe choisie, puis rempli comme une modification
+    sid = uid('e');
+    s = S.eleves[sid] = { id: sid, nom, prenom: prn, classe_id: clsNouv.id, tags: [], arrivalDate: null, departureDate: null };
+    clsNouv.eleves.push(sid);
+  }
   s.nom = nom; s.prenom = prn;
   s.civilite = document.getElementById('es-civ').value || null;
   s.groupe = +document.getElementById('es-grp').value || null;
@@ -7849,11 +7824,12 @@ function saveEdit() {
   }
   s.tags = [...document.querySelectorAll('#es-tags input[data-tag]')].filter(c => c.checked).map(c => c.dataset.tag);
   const newCid = document.getElementById('es-cls').value;
-  const moved = moveStudentToClass(sid, newCid);
+  const moved = !nouveau && moveStudentToClass(sid, newCid);
   save();
   closeMod2('me');
   refreshSelector();
   renderStudents();
+  if (nouveau) return toast(`${prn} ${nom} ajouté(e).`);
   toast(moved ? `${prn} ${nom} déplacé(e) vers ${S.classes[newCid].nom}. Ses relevés restent rattachés à son ancienne classe.` : 'Élève modifié.');
 }
 

@@ -1464,6 +1464,14 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        (`es-civ`, `es-grp`, `es-regime`…) et `saveEdit` n'ont pas changé. Une option cochée prend
        sa couleur tout de suite (`_esTagCouleur`) ; ⚠️ la puce d'option garde son encre dérivée
        — la règle « puce cochée » des aménagements l'écrasait (3,03:1, vu par l'audit).
+       **v1.46.12** (*« refais la fenêtre d'ajout sur le même modèle »*) : **la même fenêtre sert
+       à l'ajout** — `openAddStudent` → `openEdit(null)` (élève vierge de la classe courante,
+       `es-id` vide, titre *+ Nouvel élève*, bouton *✓ Ajouter*), `saveEdit` crée l'élève dans la
+       classe choisie puis le remplit comme une modification (un cran d'undo). L'ancienne
+       fenêtre `ms` (nom, prénom, civilité, groupe) est supprimée.
+     - **La fiche se ferme quand on quitte Élèves, Observations ou Moyennes** (v1.46.12,
+       l'utilisateur : *« vers Retours, Vie de classe, Avis des collègues… ça ne sert à rien
+       qu'elle reste affichée, au contraire »*) : `FICHE_ONGLETS`, dans `showTab`.
      - ⚠️ La classe `.mo` du prototype (les mois de la frise) est celle des FENÊTRES de
        l'app (`display: none`) : les mois ne s'affichaient pas. Renommée `pf-mois`. Toute
        classe reprise d'un prototype se vérifie contre les classes de l'app.
@@ -1842,6 +1850,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 100 | **Ajout d'un élève par la même fenêtre que la modification** (ancienne fenêtre supprimée) · **la fiche se ferme en quittant Élèves, Observations, Moyennes** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.12) |
 | 99 | **Fenêtre « Modifier l'élève » refaite** (par-dessus la fiche, cinq blocs sur deux colonnes, choix courts en boutons, aménagements en puces) · **avis des collègues avec leurs paragraphes sur le papier** ; 1 test, 2 tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut (un contraste trouvé et corrigé) | ✅ **fait** (2026-10-03, v1.46.11) |
 | 98 | **Fiche : les paragraphes des textes libres se voient** (remarque, bilans, avis des collègues — `white-space: pre-line`) ; 1 test | ✅ **fait** (2026-10-03, v1.46.10) |
 | 97 | **Fiche : plus de « Dossier complet »** — classe, naissance, civilité, présence, place, élections dans Identité ; relevés, bilans, incidents (📎), contacts, papiers (choix lus, réponses corrigeables) dans leurs cartes, derrière **✎** ; 1 test. Audit 13 états d'édition, 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.9) |
