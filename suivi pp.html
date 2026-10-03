@@ -1450,8 +1450,8 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .rel-wrap.frozen .el-chaleur thead tr.ch-r2 th { top: 30px; }
 .el-chaleur th.ch-gh { border-left: 2px solid var(--rule-line); padding: 0 4px; text-align: left; }
 .ch-pli { border: 0; background: none; font-weight: 700; white-space: nowrap; padding: 3px 4px; color: var(--ink-deep); }
-.el-chaleur th.ch-sh { height: 78px; vertical-align: bottom; padding-bottom: 4px; font-weight: 400; font-size: .8em; }
-.el-chaleur th.ch-sh span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; max-height: 72px; overflow: hidden; text-overflow: ellipsis; }
+.el-chaleur th.ch-sh { height: 126px; vertical-align: bottom; padding-bottom: 4px; font-weight: 400; font-size: .8em; }
+.el-chaleur th.ch-sh span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; max-height: 120px; overflow: hidden; text-overflow: ellipsis; }
 .el-chaleur td.ch { min-width: 30px; height: 26px; text-align: center; font-family: var(--font-mono); font-size: .8em; border-bottom: 1px solid var(--rule-line-soft); border-right: 1px solid var(--paper); }
 .el-chaleur .ch-g0 { border-left: 2px solid var(--rule-line); }
 .el-chaleur td.ch-no { color: var(--pencil); }
@@ -1942,12 +1942,12 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <strong>Données personnelles d'élèves</strong> — cette app stocke localement noms, prénoms,
     dates de naissance, aménagements pédagogiques, relevés de carnet, moyennes par matière,
     retours de documents administratifs, réponses des familles, un journal des contacts avec elles, et les
-    incidents et instances (commission éducative…) avec, si tu les joins, les PDF des fiches —
-    ceux-ci dans le dossier que tu choisis, pas dans le navigateur —, et les avis des collègues :
-    la feuille qui les recueille (noms des élèves compris) vit dans ton Nuage académique, ouverte
-    à qui a le lien que tu leur envoies.
-    En cadre professionnel, déclare-la à ton DPO d'établissement (souvent <code>dpo@ac-&lt;ton-académie&gt;.fr</code>).
-    Rien ne sort de ton navigateur : aucun serveur, aucune télémétrie.
+    incidents et instances (commission éducative…) avec, si vous les joignez, les PDF des fiches —
+    ceux-ci dans le dossier que vous choisissez, pas dans le navigateur —, et les avis des collègues :
+    la feuille qui les recueille (noms des élèves compris) vit dans votre Nuage académique, ouverte
+    à qui a le lien que vous leur envoyez.
+    En cadre professionnel, déclarez-la à votre DPO d'établissement (souvent <code>dpo@ac-&lt;votre-académie&gt;.fr</code>).
+    Rien ne sort de votre navigateur : aucun serveur, aucune télémétrie.
   </span>
   <button id="rgpd-banner-ok" onclick="dismissRgpdBanner()">J'ai compris</button>
 </div>
@@ -2347,7 +2347,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <div id="mpjnom" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%">
     <h2>📎 Sous quel nom ranger ce PDF ?</h2>
-    <div class="tb-hint" style="margin-bottom:10px">Dans le dossier des PDF, tel que tu le retrouveras dans Nextcloud. Un nom déjà pris reçoit un « (2) ».</div>
+    <div class="tb-hint" style="margin-bottom:10px">Dans le dossier des PDF, tel que vous le retrouverez dans Nextcloud. Un nom déjà pris reçoit un « (2) ».</div>
     <div class="st-group" style="display:flex;flex-direction:column;gap:8px">
       <label><input type="radio" name="pjn" value="garder"> Garder le nom du fichier : <code id="pjn-garder-l"></code></label>
       <label><input type="radio" name="pjn" value="auto" checked data-autofocus> Nom automatique — date, type, qui : <code id="pjn-auto-l"></code></label>
@@ -2464,7 +2464,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <div id="mcarprint" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();carPrintOk()}">
     <h2>🖨 Imprimer les observations du carnet</h2>
-    <div class="tb-hint" style="margin-bottom:8px">La grille affichée — même tri, mêmes élèves — sur une page. La taille du texte est calculée pour tenir sur une page du papier choisi. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF ») ; garde l'échelle « par défaut ».</div>
+    <div class="tb-hint" style="margin-bottom:8px">La grille affichée — même tri, mêmes élèves — sur une page. La taille du texte est calculée pour tenir sur une page du papier choisi. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF ») ; gardez l'échelle « par défaut ».</div>
     <div class="fg"><label for="mcarp-periode">Relevés</label>
       <select id="mcarp-periode" data-autofocus onchange="_carPrintRefresh()" style="max-width:100%"></select></div>
     <div class="fg" style="display:flex;flex-direction:column;gap:5px">
@@ -2496,7 +2496,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <div id="mmoyprint" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();moyPrintOk()}">
     <h2>🖨 Imprimer les moyennes</h2>
-    <div class="tb-hint" style="margin-bottom:8px">Le tableau affiché — même import, même tri — sur une page paysage. La taille du texte est calculée pour tenir sur une page du papier choisi. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF ») ; garde l'échelle « par défaut ».</div>
+    <div class="tb-hint" style="margin-bottom:8px">Le tableau affiché — même import, même tri — sur une page paysage. La taille du texte est calculée pour tenir sur une page du papier choisi. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF ») ; gardez l'échelle « par défaut ».</div>
     <div class="fg" id="mmoyp-stats-wrap"><label>Statistiques en pied du tableau</label>
       <div id="mmoyp-stats" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       <div class="tb-hint" style="margin-top:4px">Le même choix vaut pour l'écran.</div></div>
@@ -2746,7 +2746,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <p style="font-size:.9em;line-height:1.45;margin-bottom:8px">
       Cet appareil <strong>et</strong> un autre ont modifié les données <strong>séparément</strong> depuis la dernière synchro.
       Impossible de fusionner automatiquement — mais <strong>aucune version ne sera perdue</strong> :
-      celle que tu n'actives pas est <strong>archivée</strong> dans un fichier daté (<code>suivi-pp-conflit-…json</code>).
+      celle que vous n'activez pas est <strong>archivée</strong> dans un fichier daté (<code>suivi-pp-conflit-…json</code>).
     </p>
     <div id="mconflict-info" class="tb-hint" style="background:var(--paper-warm);border-radius:var(--radius-md);padding:8px 10px;margin-bottom:12px;font-family:var(--font-mono);white-space:pre-line"></div>
     <div class="ma" style="flex-direction:column;gap:8px;align-items:stretch">
@@ -2795,8 +2795,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.47.1';
-const APP_BUILD_DATE = '2026-10-03T07:57:23Z';
+const APP_VERSION    = '1.47.2';
+const APP_BUILD_DATE = '2026-10-03T08:34:09Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3319,7 +3319,7 @@ function _logRuntimeError(kind, detail) {
     if (window.__suiviPPErrors.length > 50) window.__suiviPPErrors.shift();
     console.warn('⚠️ Erreur runtime', rec);
     if (typeof toast === 'function' && document.getElementById('toast')) {
-      toast('⚠️ Une erreur est survenue (détails en console F12). Tes données restent sauvegardées.', 'error');
+      toast('⚠️ Une erreur est survenue (détails en console F12). Vos données restent sauvegardées.', 'error');
     }
   } catch (_) { /* le gestionnaire d'erreurs ne doit jamais lever lui-même */ }
 }
@@ -4014,7 +4014,7 @@ function _renderDonneesInner(el) {
       <div class="pref-help">Toutes les feuilles imprimées : listes, moyennes, synthèse de période, retours de documents, procès-verbal. Les feuilles qui tiennent sur une page recalculent leur taille de texte avec cette police.</div>
     </div>
     <h3 style="margin-bottom:10px">🏷 Options suivies</h3>
-    <div class="pref-help" style="margin-bottom:8px">Les codes de groupes de Pronote (<code>LATIN</code>, <code>BIL</code>, <code>DNL</code>…), matière des choix d'orientation. ${_pdcOrigine(getCls()) ? '🪑 <strong>Un import depuis <em>Plan de classe</em> réécrit les options de chaque élève</strong> (le catalogue, lui, n\'est que complété) : une option cochée ici à la main est à cocher aussi là-bas.' : 'Un import (Pronote ou Plan de classe) peut en ajouter, il ne renomme ni ne supprime les tiennes.'}</div>
+    <div class="pref-help" style="margin-bottom:8px">Les codes de groupes de Pronote (<code>LATIN</code>, <code>BIL</code>, <code>DNL</code>…), matière des choix d'orientation. ${_pdcOrigine(getCls()) ? '🪑 <strong>Un import depuis <em>Plan de classe</em> réécrit les options de chaque élève</strong> (le catalogue, lui, n\'est que complété) : une option cochée ici à la main est à cocher aussi là-bas.' : 'Un import (Pronote ou Plan de classe) peut en ajouter, il ne renomme ni ne supprime les vôtres.'}</div>
     <div style="max-width:760px">${_tagsTableHTML()}${_tagsFormHTML('dtags')}</div>
     <h3 style="margin:18px 0 10px">🪑 Salles et placements</h3>
     ${_sallesEditorHTML()}
@@ -4036,13 +4036,13 @@ function _renderDonneesInner(el) {
       <div>${pjDirHandle ? `<code>${_escName(pjDirHandle.name)}</code>` : '<span class="tb-hint">aucun — les fiches incident ne pourront pas être jointes</span>'}
         <button class="btn btn-g btn-sm" onclick="choosePjDir()">📂 ${pjDirHandle ? 'Changer' : 'Choisir un dossier'}</button>${
         pjDirHandle ? ` <button class="btn btn-g btn-sm" onclick="pjNettoyerUI()" title="Lister puis supprimer les PDF que plus aucune entrée ne référence">🧹 Orphelins…</button>` : ''}</div>
-      <div class="pref-help">Les PDF joints aux incidents sont <strong>copiés</strong> dans ce dossier, jamais dans la sauvegarde JSON (trop lourds pour la mémoire du navigateur). Choisis un dossier <strong>synchronisé par Nextcloud</strong>, distinct du dossier de sauvegarde : sur l'autre poste, il suffira de choisir le même. L'app n'y efface rien d'elle-même.</div>
+      <div class="pref-help">Les PDF joints aux incidents sont <strong>copiés</strong> dans ce dossier, jamais dans la sauvegarde JSON (trop lourds pour la mémoire du navigateur). Choisissez un dossier <strong>synchronisé par Nextcloud</strong>, distinct du dossier de sauvegarde : sur l'autre poste, il suffira de choisir le même. L'app n'y efface rien d'elle-même.</div>
     </div>
     <h3 style="margin-bottom:10px">⚖️ Instances et incidents</h3>
-    <div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renomme, décris, décoche celles que ton établissement n'utilise pas, ajoute les tiennes. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>
+    <div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renommez, décrivez, décochez celles que votre établissement n'utilise pas, ajoutez les vôtres. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>
     ${_instancesTableHTML()}
     <h3 style="margin-bottom:10px">🗣 Disciplines — avis des collègues</h3>
-    <div class="pref-help" style="margin-bottom:8px">Les onglets de la feuille d'avis envoyée aux collègues. Renomme, décoche, ajoute les tiennes (Latin, LCE…). Une discipline d'office se décoche, elle ne se supprime pas.</div>
+    <div class="pref-help" style="margin-bottom:8px">Les onglets de la feuille d'avis envoyée aux collègues. Renommez, décochez, ajoutez les vôtres (Latin, LCE…). Une discipline d'office se décoche, elle ne se supprime pas.</div>
     <div style="margin-bottom:10px"><button class="btn btn-p btn-sm" onclick="openAvis()" title="Préparer la feuille d'avis, la relire, revoir les changements — la même fenêtre que 👥 Élèves → 🗣 Avis des collègues">🗣 Ouvrir les avis des collègues…</button></div>
     ${_disciplinesTableHTML()}
     <h3 style="margin-bottom:10px">💾 Mémoire locale</h3>
@@ -4627,8 +4627,13 @@ function _ficheAge(naissance, ref) {
 // Le nom qui OUVRE LA FICHE, le même dans toutes les grilles d'élèves (v1.47.0, audit C2 :
 // il ne l'ouvrait ni dans Observations, ni dans le tableau d'un document, ni au ramassage, et
 // son allure changeait d'un onglet à l'autre).
+// Le genre devant (v1.47.2, audit C14) : ♂ ♀ n'apparaissait que dans la liste des élèves.
+function _civHTML(sid) {
+  const c = S.eleves[sid]?.civilite;
+  return `<span class="el-civ${c === 'M' ? ' m' : c === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(c))}">${c ? civiliteLabel(c) : '·'}</span>`;
+}
 function _nomFicheHTML(sid, nom, prenom) {
-  return `<a href="#" class="el-nom" onclick="openFiche('${_escJsAttr(sid)}');return false" title="Ouvrir la fiche">${_nomHTML(sid, nom, prenom)}</a>`;
+  return `${_civHTML(sid)}<a href="#" class="el-nom" onclick="openFiche('${_escJsAttr(sid)}');return false" title="Ouvrir la fiche">${_nomHTML(sid, nom, prenom)}</a>`;
 }
 function _nomHTML(sid, nom, prenom) {
   const del = _delegueOf(sid);
@@ -5543,7 +5548,7 @@ function _mbnRender() {
     ch.map(c => `<tr><td>${_escName(nom(c.sid))}</td><td>${_MBN_CHAMPS[c.champ]}</td><td class="tb-hint">${_escName(_mbnVal(c.champ, c.avant))}</td><td><strong>${_escName(_mbnVal(c.champ, c.apres))}</strong></td></tr>`).join('')}</tbody></table></div>`
     : '<div class="al">✓ Rien à changer : l\'app dit déjà la même chose que l\'export.</div>';
   const opts = l => `<option value="">— ignorer —</option>${cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => `<option value="${_escAttr(s.id)}"${l.sid === s.id ? ' selected' : ''}>${_escName(s.nom + ' ' + s.prenom)}</option>`).join('')}`;
-  const rat = sans.length ? `<div class="al al-w" style="margin-top:8px"><strong>${sans.length} ligne${sans.length > 1 ? 's' : ''} à rattacher</strong> (nom introuvable${sans.some(l => l.homonyme) ? ' ou homonymes' : ''}) — choisis l'élève, ou laisse « ignorer » :
+  const rat = sans.length ? `<div class="al al-w" style="margin-top:8px"><strong>${sans.length} ligne${sans.length > 1 ? 's' : ''} à rattacher</strong> (nom introuvable${sans.some(l => l.homonyme) ? ' ou homonymes' : ''}) — choisissez l'élève, ou laissez « ignorer » :
       <div style="display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);gap:4px 10px;margin-top:6px;align-items:center">${sans.map(l => `<span>${_escName(l.nom)}${l.classe ? ` (${_escName(l.classe)})` : ''}</span><select onchange="mbnRattacherUI(${l.ligne}, this.value)" style="max-width:100%">${opts(l)}</select>`).join('')}</div></div>` : '';
   box.innerHTML = intro + `<div class="tb-hint" style="margin-bottom:6px">📄 ${_escName(_mbn.fichier)} · ${L.length} ligne${L.length > 1 ? 's' : ''} · ${L.length - sans.length} élève${L.length - sans.length > 1 ? 's' : ''} reconnu${L.length - sans.length > 1 ? 's' : ''} · <strong>${ch.length} changement${ch.length > 1 ? 's' : ''}</strong> sur ${parEleve.length} élève${parEleve.length > 1 ? 's' : ''}</div>
     ${table}${rat}${absents.length ? `<div class="tb-hint" style="margin-top:6px">Absents de l'export : ${absents.map(s => _escName(s.nom + ' ' + s.prenom)).join(', ')}.</div>` : ''}
@@ -5766,7 +5771,7 @@ function _obsMbnRender() {
   const sans = [...new Map(L.filter(l => !l.sid).map(l => [l.nom, l])).values()];
   const opts = l => `<option value="">— ignorer —</option>${cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => `<option value="${_escAttr(s.id)}"${l.sid === s.id ? ' selected' : ''}>${_escName(s.nom + ' ' + s.prenom)}</option>`).join('')}`;
   const nb = n => L.filter(l => l.nom === n).length;
-  const rat = sans.length ? `<div class="al al-w" style="margin-top:8px"><strong>${pl(sans.length, 'nom')} à rattacher</strong> (introuvable${sans.some(l => l.homonyme) ? ' ou homonymes' : ''}) — choisis l'élève, ou laisse « ignorer » :
+  const rat = sans.length ? `<div class="al al-w" style="margin-top:8px"><strong>${pl(sans.length, 'nom')} à rattacher</strong> (introuvable${sans.some(l => l.homonyme) ? ' ou homonymes' : ''}) — choisissez l'élève, ou laissez « ignorer » :
       <div style="display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);gap:4px 10px;margin-top:6px;align-items:center">${sans.map(l => `<span>${_escName(l.nom)}${l.classe ? ` (${_escName(l.classe)})` : ''} · ${pl(nb(l.nom), 'observation')}</span><select onchange="obsMbnRattacherUI('${_escJsAttr(l.nom)}', this.value)" style="max-width:100%">${opts(l)}</select>`).join('')}</div></div>` : '';
   const ret = bil.retirables.length ? `<div class="al" style="margin-top:8px"><strong>${pl(bil.retirables.length, 'observation')} de l'app ne ${bil.retirables.length > 1 ? 'figurent' : 'figure'} plus dans l'export</strong> (entre le ${_escName(_fmtDateFr(bil.debut))} et le ${_escName(_fmtDateFr(bil.fin))}) — effacée${bil.retirables.length > 1 ? 's' : ''} dans MBN ? Rien n'est retiré sans être coché :
       <div style="display:flex;flex-direction:column;gap:3px;margin-top:6px">${bil.retirables.map(x => `<label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer"><input type="checkbox"${I.retirer.has(x.ev.id) ? ' checked' : ''} onchange="obsMbnRetirerUI('${_escJsAttr(x.ev.id)}', this.checked)"> <span>${_escName(nom(x.sid))} · ${_escName(_obsMbnTexte(x.ev))}</span></label>`).join('')}</div></div>` : '';
@@ -6283,7 +6288,8 @@ function _chaleurGroupes(cls, bcols, colM) {
     const cols = _avisCols(camp);
     // Une feuille d'un AUTRE moment, faute de mieux : le dire (v1.47.1, audit C10).
     const autre = col && _avisMsgReglages(camp).moment !== col.type;
-    G.push({ key: 'avis', label: `Avis — ${_avisObjectif(cls, camp).court}${autre ? ` (pas de feuille pour ${col.court})` : ''}`, sub: camp.disciplines.map(d => ({ id: d.id, l: d.onglet, long: d.nom })),
+    // L'intitulé le plus court (« Phys.-chimie » plutôt que « Physique-chimie ») : les en-têtes sont verticaux.
+    G.push({ key: 'avis', label: `Avis — ${_avisObjectif(cls, camp).court}${autre ? ` (pas de feuille pour ${col.court})` : ''}`, sub: camp.disciplines.map(d => ({ id: d.id, l: [d.onglet, _moyAbbr(d.nom)].sort((a, b) => a.length - b.length)[0], long: d.nom })),
       cell: (sid, did) => {
         const a = camp.avis?.[sid]?.[did], d = camp.disciplines.find(x => x.id === did);
         const pleins = a ? cols.filter(c => a[c.key]) : [];
@@ -6295,7 +6301,7 @@ function _chaleurGroupes(cls, bcols, colM) {
       sum: sid => { const r = _avisResume(camp, sid); return [r.n ? 'ch-av2' : 'ch-no', `${r.n}/${r.total}${r.cible ? ' ⭐' : ''}`, `${r.n} discipline(s) sur ${r.total}${r.cible ? ' — demandé en particulier' : ''}`]; } });
   }
   const docs = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= p.end));
-  if (docs.length) G.push({ key: 'docs', label: 'Papiers', sub: docs.map(d => ({ id: d.id, l: d.titre.length > 16 ? d.titre.slice(0, 15) + '…' : d.titre, long: d.titre })),
+  if (docs.length) G.push({ key: 'docs', label: 'Papiers', sub: docs.map(d => ({ id: d.id, l: d.titre.length > 13 ? d.titre.slice(0, 12) + '…' : d.titre, long: d.titre })),
     cell: (sid, id) => {
       const d = docs.find(x => x.id === id);
       if (!_docExpected(d).some(x => x.id === sid)) return ['ch-no', '—', `${d.titre} : non concerné`];
@@ -6749,7 +6755,7 @@ function _fichePdcHint(cls) {
   const importe = !!(cls && cls.pdcImportAt) || Object.keys(S.salles || {}).some(id => String(id).startsWith('pdc_'));
   if (!importe) return '';
   const quand = cls && cls.pdcImportAt ? ` (dernier import le ${_escName(_fmtDateFr(cls.pdcImportAt))})` : '';
-  return `<div class="fi-pdc">🪑 Cette classe se met à jour depuis <em>Plan de classe</em>${quand} : un nouvel import remplacera cette valeur — corrige-la aussi là-bas.</div>`;
+  return `<div class="fi-pdc">🪑 Cette classe se met à jour depuis <em>Plan de classe</em>${quand} : un nouvel import remplacera cette valeur — corrigez-la aussi là-bas.</div>`;
 }
 // Les deux boutons de pied de fiche mènent aux écrans de saisie, et y REVIENNENT :
 // on ouvre une fiche, on corrige un détail, on retombe sur la fiche.
@@ -7508,7 +7514,7 @@ function _ficheFaitsHTML(cls, stu, col) {
   const av = _ficheAvis(cls, stu.id, col);
   const faits = F.map((f, i) => `<div class="pf-fact">${_pfSw(f.k)}<span>${f.html}</span>${f.phrase ? `<button class="pf-ins" onclick="ficheInsererFait(${i})" title="Ajouter à la fin du bilan">＋ insérer</button>` : '<span></span>'}</div>`).join('');
   return `<div class="pf-three">
-    <section class="pf-card"><h3>Ce que disent les faits <span class="pf-k">${_escName(col.long.toLowerCase())} · du ${_escName(_fmtDateFr(b.start).slice(0, 5))} au ${_escName(_fmtDateFr(b.end).slice(0, 5))}</span></h3>${faits || '<p class="pf-empty">Rien sur ce moment.</p>'}
+    <section class="pf-card"><h3>Ce que disent les faits <span class="pf-k">${_escName(col.long.toLowerCase())} · du ${_escName(_fmtDateFr(_debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start).slice(0, 5))} au ${_escName(_fmtDateFr(b.end).slice(0, 5))}</span></h3>${faits || '<p class="pf-empty">Rien sur ce moment.</p>'}
       <div style="margin-top:10px">${_ficheCourbeHTML(cls, stu, col)}</div></section>
     <section class="pf-card"><h3>${_pfSw('avis')}Avis des collègues ${av && (av.camp.cibles || []).includes(stu.id) ? '<span class="pf-star">★</span>' : ''}<span class="pf-k">${av ? _escName(_avisObjectif(cls, av.camp).long) : ''}</span></h3>${_ficheAvisTableHTML(av)}</section>
     <section class="pf-card pf-redac"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col, `<div class="pf-row"><button class="pf-btnp" onclick="ficheBrouillonUI()">Proposer un brouillon à partir des faits</button><span class="pf-mu">Assemble les faits en phrases, à réécrire ensuite.</span></div>`)}${_ficheBilansAutresHTML(cls, stu, col)}${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_escName(stu.remarque)}</div>` : ''}</section>
@@ -7640,13 +7646,13 @@ async function saveIncident() {
   if (d && d !== champD.value) champD.value = d;
   if (!_ymdValid(d)) return toast('⚠️ Date illisible.', 'warn');
   const objet = document.getElementById('minc-objet').value.trim();
-  if (!objet) { toast('⚠️ Dis en quelques mots de quoi il s\'agit : c\'est ce qu\'on lira au conseil de classe.', 'warn'); document.getElementById('minc-objet').focus(); return; }
+  if (!objet) { toast('⚠️ Dites en quelques mots de quoi il s\'agit : c\'est ce qu\'on lira au conseil de classe.', 'warn'); document.getElementById('minc-objet').focus(); return; }
   const type = document.getElementById('minc-type').value;
   const texte = document.getElementById('minc-txt').value;
   const f = document.getElementById('minc-pdf');
   const file = f && f.files && f.files[0] ? f.files[0] : null;
   if (file && !(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return toast('⚠️ Seul un PDF peut être joint.', 'warn');
-  if (file && !pjDirHandle) return toast('⚠️ Choisis d\'abord le dossier où ranger les PDF (💾 Données et réglages).', 'warn');
+  if (file && !pjDirHandle) return toast('⚠️ Choisissez d\'abord le dossier où ranger les PDF (💾 Données et réglages).', 'warn');
   if (file && !(await _pjReady('readwrite'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
   // Le nom du fichier se choisit AVANT d'écrire quoi que ce soit : renoncer ici laisse le
   // formulaire tel quel, on peut reprendre.
@@ -8824,8 +8830,8 @@ function _impRenderMapping(res) {
   const opts = key => `<option value="">— ignorer —</option>` + _IMP_FIELDS.map(f =>
     `<option value="${_escAttr(f.key)}"${f.key === key ? ' selected' : ''}>${_escName(f.label)}</option>`).join('');
   box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0">
-      <span class="tb-hint">Colonnes — corrige ici ce qui a été mal reconnu :</span>
-      <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Décoche si la première ligne est déjà un élève ; coche si c'est une ligne de titres que la détection n'a pas reconnue">
+      <span class="tb-hint">Colonnes — corrigez ici ce qui a été mal reconnu :</span>
+      <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Décochez si la première ligne est déjà un élève ; cochez si c'est une ligne de titres que la détection n'a pas reconnue">
         <input type="checkbox" ${res.header ? 'checked' : ''} onchange="_impSetHeader(this.checked)"> La 1re ligne est un en-tête
       </label>
     </div>
@@ -8895,7 +8901,7 @@ function _impRenderCodes(res) {
       <td style="padding:2px 6px;white-space:nowrap">${abbrCell}</td>
     </tr>`;
   }).join('');
-  box.innerHTML = `<div class="tb-hint" style="margin:6px 0 2px">Codes de groupes rencontrés — <code>GP1</code>/<code>GP2</code> font le groupe, le reste devient une option (préfixe de classe retiré). Corrige l'interprétation ou le code de l'option (plusieurs possibles, séparés par un espace ; ✚ = option qui sera créée) :</div>
+  box.innerHTML = `<div class="tb-hint" style="margin:6px 0 2px">Codes de groupes rencontrés — <code>GP1</code>/<code>GP2</code> font le groupe, le reste devient une option (préfixe de classe retiré). Corrigez l'interprétation ou le code de l'option (plusieurs possibles, séparés par un espace ; ✚ = option qui sera créée) :</div>
     <div id="imp-codes-scroll" style="max-height:170px;overflow:auto;border:1px solid var(--rule-line);border-radius:3px;background:var(--paper)">
       <table style="border-collapse:collapse;font-size:.86em;width:100%">
         <thead style="position:sticky;top:0;background:var(--paper-warm)"><tr>
@@ -8979,7 +8985,7 @@ function _impRenderPreview(res, cls) {
         <tbody>${rowsHtml}</tbody>
       </table>${more}
     </div>
-    ${dupSkipped ? `<div class="tb-hint" style="margin-top:4px">${dupSkipped} élève${dupSkipped > 1 ? 's' : ''} déjà présent${dupSkipped > 1 ? 's' : ''} — décoche « Ignorer les élèves déjà présents » pour les réimporter quand même.</div>` : ''}
+    ${dupSkipped ? `<div class="tb-hint" style="margin-top:4px">${dupSkipped} élève${dupSkipped > 1 ? 's' : ''} déjà présent${dupSkipped > 1 ? 's' : ''} — décochez « Ignorer les élèves déjà présents » pour les réimporter quand même.</div>` : ''}
     ${Object.keys(res.newClasses || {}).length ? `<div style="font-size:.84em;color:var(--ok-fg);margin-top:4px">✚ Classes à créer : ${Object.entries(res.newClasses).map(([id, lab]) => `<strong>${_escName(id)}</strong>${lab !== id ? ` <span style="color:var(--pencil)">(« ${_escName(lab)} »)</span>` : ''}`).join(', ')}</div>` : ''}`;
   if (btn) {
     btn.disabled = ok.length === 0;
@@ -9392,14 +9398,14 @@ function _sallesEditorHTML() {
   if (_salleEd.id && !S.salles[_salleEd.id]) _salleEd.id = null;
   if (!_salleEd.id) _salleEd.id = (cls && cls.salleCur && S.salles[cls.salleCur]) ? cls.salleCur : (salles[0] ? salles[0].id : null);
   const avert = _pdcOrigine(cls)
-    ? `<div class="pref-help" style="margin-bottom:8px">🪑 <strong>Ces salles viennent de <em>Plan de classe</em></strong>${cls && cls.pdcImportAt ? ` (dernier import le ${_escName(_fmtDateFr(cls.pdcImportAt))})` : ''} : un nouvel import (bouton <em>Depuis Plan de classe…</em> ci-dessus) <strong>remplace la salle homonyme, son placement et ses ordres de ramassage</strong>. Ce que tu corriges ici est à reporter là-bas — ou à ne plus importer.</div>`
-    : `<div class="pref-help" style="margin-bottom:8px">Une grille de rangs × colonnes vue depuis ton bureau (le rang 1 juste devant toi, en bas), qui est assis où, et l'ordre dans lequel tu passes dans les rangs pour ramasser. Sert au tri <em>par place</em> et <em>ramassage</em> des grilles. Un import depuis <em>Plan de classe</em> remplacerait tout cela.</div>`;
+    ? `<div class="pref-help" style="margin-bottom:8px">🪑 <strong>Ces salles viennent de <em>Plan de classe</em></strong>${cls && cls.pdcImportAt ? ` (dernier import le ${_escName(_fmtDateFr(cls.pdcImportAt))})` : ''} : un nouvel import (bouton <em>Depuis Plan de classe…</em> ci-dessus) <strong>remplace la salle homonyme, son placement et ses ordres de ramassage</strong>. Ce que vous corrigez ici est à reporter là-bas — ou à ne plus importer.</div>`
+    : `<div class="pref-help" style="margin-bottom:8px">Une grille de rangs × colonnes vue depuis votre bureau (le rang 1 juste devant vous, en bas), qui est assis où, et l'ordre dans lequel vous passez dans les rangs pour ramasser. Sert au tri <em>par place</em> et <em>ramassage</em> des grilles. Un import depuis <em>Plan de classe</em> remplacerait tout cela.</div>`;
   const nouvelle = `<div class="tb" style="margin-bottom:8px;border-radius:var(--radius-md)">
       <select onchange="_salleEd.id=this.value;_salleEd.pat=null;renderDonnees()" style="max-width:240px" title="Salle à régler">${
         salles.length ? salles.map(sa => `<option value="${_escAttr(sa.id)}"${sa.id === _salleEd.id ? ' selected' : ''}>${_escName(sa.nom)} (${sa.rows} × ${sa.cols})</option>`).join('') : '<option value="">— aucune salle —</option>'}</select>
       <button class="btn btn-s btn-sm" onclick="salleAddUI()">+ Nouvelle salle</button></div>`;
   const sa = _salle(_salleEd.id);
-  if (!sa) return avert + nouvelle + `<div class="tb-hint" style="margin-bottom:18px">Aucune salle : crée-en une, ou importe un placement depuis <em>Plan de classe</em>.</div>`;
+  if (!sa) return avert + nouvelle + `<div class="tb-hint" style="margin-bottom:18px">Aucune salle : créez-en une, ou importez un placement depuis <em>Plan de classe</em>.</div>`;
   const regl = `<div class="prefs" style="grid-template-columns:max-content 1fr;max-width:620px;margin-bottom:10px">
       <label>Nom</label><div class="prefs-row"><input type="text" value="${_escAttr(sa.nom)}" maxlength="40" style="max-width:220px;min-width:0;flex:1" onchange="salleSetUI('${_escJsAttr(sa.id)}',{nom:this.value})">
         <button class="btn btn-d btn-sm" onclick="salleRemoveUI('${_escJsAttr(sa.id)}')" title="Supprimer la salle et son placement dans toutes les classes">🗑</button></div>
@@ -9407,7 +9413,7 @@ function _sallesEditorHTML() {
         <input type="number" min="1" max="${SALLE_DIM_MAX}" value="${sa.cols}" style="width:64px" onchange="salleSetUI('${_escJsAttr(sa.id)}',{cols:+this.value})">
         <span class="tb-hint">rétrécir refuse tant qu'une place ou une table d'un ordre serait dehors</span></div>
     </div>`;
-  if (!cls) return avert + nouvelle + regl + `<div class="tb-hint" style="margin-bottom:18px">Choisis une classe en tête de page pour placer ses élèves.</div>`;
+  if (!cls) return avert + nouvelle + regl + `<div class="tb-hint" style="margin-bottom:18px">Choisissez une classe en tête de page pour placer ses élèves.</div>`;
   // Mode
   const pats = sa.patterns || [];
   if (_salleEd.pat && !pats.some(p => p.id === _salleEd.pat)) _salleEd.pat = null;
@@ -9423,8 +9429,8 @@ function _sallesEditorHTML() {
         <button class="btn btn-g btn-sm" onclick="patternClearUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Vider l'ordre pour le refaire">↺</button>
         <button class="btn btn-d btn-sm" onclick="patternRemoveUI('${_escJsAttr(sa.id)}','${_escJsAttr(pat.id)}')" title="Supprimer cet ordre">🗑</button>` : ''}` : ''}
       <span class="tb-hint" style="margin-left:auto">${_salleEd.mode === 'placer'
-        ? 'Glisse un élève de la liste sur une case ; un élève sur un autre pour échanger ; sur la liste pour libérer.'
-        : (pat ? 'Clique les tables dans l\'ordre où tu passes — ou glisse d\'une table à la suivante pour les enchaîner ; recliquer une table la retire.' : 'Crée un ordre pour commencer.')}</span></div>`;
+        ? 'Glissez un élève de la liste sur une case ; un élève sur un autre pour échanger ; sur la liste pour libérer.'
+        : (pat ? 'Cliquez les tables dans l\'ordre où vous passez — ou glissez d\'une table à la suivante pour les enchaîner ; recliquer une table la retire.' : 'Créez un ordre pour commencer.')}</span></div>`;
   // Grille
   const room = _room(cls, sa.id);
   const seating = room ? room.seating : {};
@@ -9456,12 +9462,12 @@ function _sallesEditorHTML() {
     }
     grille += '</tr>';
   }
-  grille += `<tr><td class="salle-bureau" colspan="${sa.cols}" title="Vue depuis ton bureau : le rang 1 est juste devant toi, la place 1 à ta droite">🧑‍🏫 Bureau</td></tr>`;
+  grille += `<tr><td class="salle-bureau" colspan="${sa.cols}" title="Vue depuis votre bureau : le rang 1 est juste devant vous, la place 1 à votre droite">🧑‍🏫 Bureau</td></tr>`;
   grille += '</tbody></table></div>';
   const nonPlaces = eleves.filter(e => !_seatOf(cls, sa.id, e.id));
   // À droite, les élèves SANS place, à glisser sur une case ; la zone reçoit aussi un
   // élève tiré de la grille, pour libérer sa place.
-  const liste = _salleEd.mode !== 'placer' ? '' : `<div class="salle-liste" data-liste="1" title="Glisse un élève sur une case ; dépose ici un élève de la grille pour libérer sa place">
+  const liste = _salleEd.mode !== 'placer' ? '' : `<div class="salle-liste" data-liste="1" title="Glissez un élève sur une case ; déposez ici un élève de la grille pour libérer sa place">
       <h4>Sans place <span class="tb-hint">(${nonPlaces.length})</span></h4>
       ${nonPlaces.length ? nonPlaces.map(e => `<span class="salle-chip" data-sid="${_escAttr(e.id)}" title="${_escAttr(e.nom + ' ' + e.prenom)} — glisser sur une case"
           onpointerdown="salleDragStart(event,'${_escJsAttr(e.id)}',null)" onpointermove="salleDragMove(event)" onpointerup="salleDragEnd(event)" onpointercancel="salleDragCancel()">${_escName(court(e))}</span>`).join('')
@@ -9627,7 +9633,7 @@ function _instancesTableHTML() {
   const rows = _instancesParFamille(_instancesAll()).map(g => `<tr class="inst-fam"><td colspan="4">${_escName(g.titre)}</td></tr>` + g.items.map(i => `<tr${i.actif ? '' : ' class="inactive"'}>
       <td style="text-align:center"><input type="checkbox"${i.actif ? ' checked' : ''} onchange="instanceSetUI('${_escJsAttr(i.id)}',{actif:this.checked})" title="${i.actif ? 'Proposée à la saisie — décocher pour la retirer' : 'Retirée de la saisie'}"></td>
       <td style="min-width:180px"><input type="text" value="${_escAttr(i.label)}" maxlength="60" onchange="instanceSetUI('${_escJsAttr(i.id)}',{label:this.value})"></td>
-      <td style="width:99%"><input type="text" value="${_escAttr(i.description)}" maxlength="240" placeholder="description, à ta main" onchange="instanceSetUI('${_escJsAttr(i.id)}',{description:this.value})"></td>
+      <td style="width:99%"><input type="text" value="${_escAttr(i.description)}" maxlength="240" placeholder="description, à votre main" onchange="instanceSetUI('${_escJsAttr(i.id)}',{description:this.value})"></td>
       <td style="white-space:nowrap">${i.builtin ? '<span class="tb-hint" title="Instance d\'office : se décoche, ne se supprime pas">d\'office</span>'
         : `<button class="btn btn-d btn-sm" onclick="instanceRemoveUI('${_escJsAttr(i.id)}')" title="${_instanceUsee(i.id) ? 'Utilisée par au moins une entrée — décocher plutôt' : 'Supprimer cette instance'}"${_instanceUsee(i.id) ? ' disabled' : ''}>🗑</button>`}</td>
     </tr>`).join('')).join('');
@@ -9636,7 +9642,7 @@ function _instancesTableHTML() {
          onkeydown="if(event.key==='Enter'){event.preventDefault();instanceAddUI()}"> <button class="btn btn-s btn-sm" onclick="instanceAddUI()">+ Ajouter</button></div>`;
 }
 function instanceSetUI(id, patch) {
-  if (patch && typeof patch.label === 'string' && !patch.label.trim()) { toast('⚠️ Une instance sans nom ne se propose pas — décoche-la plutôt.', 'warn'); renderDonnees(); return; }
+  if (patch && typeof patch.label === 'string' && !patch.label.trim()) { toast('⚠️ Une instance sans nom ne se propose pas — décochez-la plutôt.', 'warn'); renderDonnees(); return; }
   pushUndo();
   instanceSet(id, patch);
   save();
@@ -9644,7 +9650,7 @@ function instanceSetUI(id, patch) {
 }
 function instanceAddUI() {
   const inp = document.getElementById('inst-new');
-  if (!inp || !inp.value.trim()) return toast('⚠️ Donne un nom à l\'instance.', 'warn');
+  if (!inp || !inp.value.trim()) return toast('⚠️ Donnez un nom à l\'instance.', 'warn');
   pushUndo();
   instanceAdd(inp.value, '');
   save();
@@ -10191,7 +10197,7 @@ function _carFitTexte(fit, o) {
   const pt = String(fit.size).replace('.', ',');
   const ori = o.kind === 'portrait' ? 'portrait' : 'paysage';
   return fit.fits ? `tient sur une page ${o.format} ${ori}, texte en ${pt} pt${o.format === 'A4' && fit.size < 7 ? ' — petit : l\'A3 le rendra plus lisible' : ''}`
-    : `⚠️ trop long pour une page ${o.format} ${ori}, même en ${pt} pt (≈ ${fit.pages} pages) — ${o.format === 'A4' ? 'passe en A3, ' : ''}${o.kind === 'portrait' ? 'en paysage, ' : ''}ou ne garde qu'une période`;
+    : `⚠️ trop long pour une page ${o.format} ${ori}, même en ${pt} pt (≈ ${fit.pages} pages) — ${o.format === 'A4' ? 'passez en A3, ' : ''}${o.kind === 'portrait' ? 'en paysage, ' : ''}ou ne gardez qu'une période`;
 }
 function carPrintOk() {
   const cls = getCls();
@@ -12337,7 +12343,7 @@ function _pvBlocHTML(cible, id, pv) {
        <button class="btn btn-g btn-sm" onclick="pvRemoveUI('${_escJsAttr(cible)}','${_escJsAttr(id)}')" title="Détacher le PV — le fichier reste dans le dossier">✕ retirer</button>`
     : (dispo
         ? `<label class="btn btn-g btn-sm" style="cursor:pointer">📎 Joindre le PV signé (PDF) <input type="file" accept="application/pdf,.pdf" style="display:none" onchange="pvAttachUI('${_escJsAttr(cible)}','${_escJsAttr(id)}',this)"></label>${
-            pjDirHandle ? '' : ` <span class="tb-hint">⚠️ choisis d'abord le dossier des PDF dans 💾 Données et réglages</span>`}`
+            pjDirHandle ? '' : ` <span class="tb-hint">⚠️ choisissez d'abord le dossier des PDF dans 💾 Données et réglages</span>`}`
         : '<span class="tb-hint">Les pièces jointes demandent Chrome, Edge ou un navigateur Chromium récent.</span>');
   return `<div class="pv-bloc tb-hint" style="margin-top:6px">${piece}</div>`;
 }
@@ -12352,7 +12358,7 @@ async function pvAttachUI(cible, id, input) {
   const file = input && input.files && input.files[0];
   if (!obj || !file) return;
   if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) return toast('⚠️ Seul un PDF peut être joint.', 'warn');
-  if (!pjDirHandle) return toast('⚠️ Choisis d\'abord le dossier où ranger les PDF (💾 Données et réglages).', 'warn');
+  if (!pjDirHandle) return toast('⚠️ Choisissez d\'abord le dossier où ranger les PDF (💾 Données et réglages).', 'warn');
   if (!(await _pjReady('readwrite'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
   const cls = getCls();
   const auto = cible === 'el' ? _pjAutoNom('pv', { date: obj.date, classe: cls?.nom, eco: _elType(obj).key === 'eco' }) : _pjAutoNom('pvdd', { date: obj.date, classe: cls?.nom, eco: cible === 'de' });
@@ -12406,7 +12412,7 @@ function _deleguesDirectHTML(cls, list, kind) {
       <button class="btn btn-p btn-sm" onclick="deleguesSetUI('${ty.key}')">✓ Enregistrer</button> <button class="btn btn-g btn-sm" onclick="_delDirectOpen.${ty.key}=false;renderDelegues()">Annuler</button></div>`;
   const quoi = ty.key === 'eco' ? 'éco-délégués' : 'délégués';
   return `<div class="fi-sec" style="margin-top:22px"><h3>✍️ ${ty.icon} ${ty.key === 'eco' ? 'Éco-délégués' : 'Délégués'} désignés sans vote dans l'app</h3>
-    <div class="tb-hint" style="margin-bottom:6px">Élection tenue sur papier, ou classe reprise en cours d'année : indique ici qui sont les ${quoi} — la fiche et la liste des élèves les afficheront. Si une élection close dans l'app est plus récente, c'est elle qui fait foi.</div>
+    <div class="tb-hint" style="margin-bottom:6px">Élection tenue sur papier, ou classe reprise en cours d'année : indiquez ici qui sont les ${quoi} — la fiche et la liste des élèves les afficheront. Si une élection close dans l'app est plus récente, c'est elle qui fait foi.</div>
     ${etat}${form}${ouvert ? '' : `<button class="btn btn-s btn-sm" onclick="_delDirectOpen.${ty.key}=true;renderDelegues()">${d ? '✏️ Modifier' : `+ Désigner les ${quoi}`}</button>${
       d ? ` <button class="btn btn-d btn-sm" onclick="deleguesClearUI('${ty.key}')" title="Retirer la désignation (Ctrl+Z pour la rétablir)">🗑</button>` : ''}`}</div>`;
 }
@@ -12421,7 +12427,7 @@ function deleguesSetUI(kind) {
   const titulaires = [v('t1'), v('t2')].filter(Boolean), suppleants = [v('s1'), v('s2')].filter(Boolean);
   if (new Set([...titulaires, ...suppleants]).size !== titulaires.length + suppleants.length) return toast('⚠️ Un même élève ne peut pas tenir deux rôles.', 'warn');
   pushUndo();
-  if (!deleguesSet(cls, { date, titulaires, suppleants, note: v('note') }, ty.key)) { undoLast(); return toast('⚠️ Désigne au moins un élève.', 'warn'); }
+  if (!deleguesSet(cls, { date, titulaires, suppleants, note: v('note') }, ty.key)) { undoLast(); return toast('⚠️ Désignez au moins un élève.', 'warn'); }
   save();
   _delDirectOpen[ty.key] = false;
   renderDelegues(); renderStudents();
@@ -15095,7 +15101,7 @@ const _AVIS_FS = () => typeof window !== 'undefined' && typeof window.showOpenFi
 async function _avisChoisirHandle() {
   const [h] = await window.showOpenFilePicker({ multiple: false,
     types: [{ description: 'Feuille de calcul du Nuage (.ods)', accept: { 'application/vnd.oasis.opendocument.spreadsheet': ['.ods'] } }] });
-  if (!/\.ods$/i.test(h.name)) throw new Error('choisis une feuille .ods — c\'est le format des feuilles de calcul du Nuage');
+  if (!/\.ods$/i.test(h.name)) throw new Error('choisissez une feuille .ods — c\'est le format des feuilles de calcul du Nuage');
   return h;
 }
 async function _avisLireOctets(bytes) {
@@ -15118,11 +15124,16 @@ function renderAvisTab() {
   const cls = getCls();
   if (!cls) { el.innerHTML = _needClassHTML('récolter les avis des collègues'); return; }
   if (!document.getElementById('mavis-body')) el.innerHTML = `<div class="av-tab"><aside class="av-liste" id="avis-liste" aria-label="Les feuilles d'avis"></aside><section class="av-detail"><div id="mavis-body"></div></section></div>`;
-  if (_avisCampId === undefined || (_avisCampId && !_avisMap(cls.id)?.[_avisCampId])) _avisCampId = _avisCampagnes(cls.id)[0]?.id || null;
+  // ⚠️ null = « Nouvelle feuille » — seulement si on l'a CHOISIE (v1.47.2, audit C14) : avant des
+  // données, l'onglet restait sur le formulaire une fois les feuilles arrivées.
+  if (_avisCampId === undefined || (_avisCampId && !_avisMap(cls.id)?.[_avisCampId]) || (_avisCampId === null && !_avisNouvelleVoulue))
+    _avisCampId = _avisCampagnes(cls.id)[0]?.id || null;
   _avisRender();
 }
+let _avisNouvelleVoulue = false;
 function avisChoisirFeuille(id) {
   _avisCampId = id || null;
+  _avisNouvelleVoulue = !id;
   if (_avisRevue && _avisRevue.campId !== _avisCampId) _avisRevue = null;
   _avisRender();
   if (_avisCampId) avisRelire(_avisCampId, { demander: false, silencieux: true });
@@ -15189,7 +15200,7 @@ function _avisGrilleHTML(cls, camp) {
       const niv = pleins.length >= cols.length ? 3 : pleins.length * 2 >= cols.length ? 2 : 1;
       return `<td class="ch ch-av${niv}${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + '\n' + pleins.map(c => (cols.length > 1 ? c.label + ' : ' : '') + String(a[c.key]).slice(0, 400)).join('\n'))}">${cols.length > 1 ? pleins.length : '✓'}</td>`;
     }).join('');
-    return `<tr><td><a href="#" class="el-nom" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche">${_nomHTML(s.id, s.nom, s.prenom)}</a>${cibles.has(s.id) ? ' <span title="Demandé en particulier">⭐</span>' : ''}</td>${cells}<td class="ch ch-g0"><strong>${n}</strong></td></tr>`;
+    return `<tr><td>${_nomFicheHTML(s.id, s.nom, s.prenom)}${cibles.has(s.id) ? ' <span title="Demandé en particulier">⭐</span>' : ''}</td>${cells}<td class="ch ch-g0"><strong>${n}</strong></td></tr>`;
   }).join('');
   const pied = `<tr><td class="tb-hint">élèves</td>${camp.disciplines.map((d, i) => `<td class="ch${i === 0 ? ' ch-g0' : ''}"><strong>${parDisc[d.id]}</strong></td>`).join('')}<td class="ch ch-g0"></td></tr>`;
   return `<h4 class="av-sous">Qui a écrit sur qui <span class="tb-hint">— survol : l'avis · clic sur un nom : la fiche</span></h4>
@@ -15202,7 +15213,7 @@ function _avisRattacherHTML(cls) {
   if (!liste.length) return '';
   const opts = m => `<option value="__" selected>— à rattacher —</option>${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}">${_escName(d.nom)}</option>`).join('')}
       <option value="new">＋ Nouvelle discipline « ${_escName(_avisTitre(m.nom))} »</option><option value="">Ignorer (pas d'avis à demander)</option>`;
-  return `<div class="al al-w" style="margin-bottom:10px"><strong>Matières des moyennes sans discipline</strong> — dis-moi où les ranger ; le choix se garde (et se corrige dans 💾 Données).
+  return `<div class="al al-w" style="margin-bottom:10px"><strong>Matières des moyennes sans discipline</strong> — dites-moi où les ranger ; le choix se garde (et se corrige dans 💾 Données).
     <div style="display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);gap:6px 10px;align-items:center;margin-top:6px">${liste.map(m =>
       `<span>${_escName(m.nom)}</span><select onchange="avisRattacherUI('${_escJsAttr(m.id)}',this.value)" style="max-width:100%">${opts(m)}</select>`).join('')}</div></div>`;
 }
@@ -15231,7 +15242,7 @@ function _avisDiscPickHTML(cls, coches) {
     return `<div class="av-pick-i"><input type="checkbox" id="avd-${_escAttr(d.id)}" data-disc="${_escAttr(d.id)}"${coches.includes(d.id) ? ' checked' : ''}>
       <span style="min-width:0;flex:1"><label for="avd-${_escAttr(d.id)}"><span class="av-sw" style="background:${_discCouleur(d.id)}"></span><strong>${_escName(d.nom)}</strong></label>${mats.length ? `<small>${_escName(mats.join(', '))}</small>` : ''}
         <input type="text" class="av-prof" value="${_escAttr(_discProfs(cls.id, d.id))}" maxlength="120" placeholder="${auto ? _escAttr(auto) : 'professeur(s) — à saisir'}"
-          title="Le ou les professeurs, en tête de l'onglet. Repris des moyennes quand elles le donnent ; ce que tu tapes passe avant." onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)"></span></div>`;
+          title="Le ou les professeurs, en tête de l'onglet. Repris des moyennes quand elles le donnent ; ce que vous tapez passe avant." onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)"></span></div>`;
   }).join('')}</div>
     <div class="tb-hint" style="margin-top:4px">Un onglet par discipline cochée, avec son professeur en titre — repris du dernier import de moyennes, ou tapé ici quand elles ne le donnent pas. La liste des disciplines se règle dans 💾 Données.</div>`;
 }
@@ -15252,8 +15263,8 @@ function _avisDiscCoches() { return [...document.querySelectorAll('#mavis-body i
 function _avisNouvelleHTML(cls) {
   const ps = _periods(cls);
   const cur = _carnetCurrentPeriodIdx(cls);
-  return `<div class="tb-hint" style="margin-bottom:10px">Une feuille de calcul du Nuage, un onglet par discipline, que les collègues remplissent par un lien de partage — sans compte. L'app la prépare, puis relit leurs réponses dans la copie que le client Nextcloud garde sur ton ordinateur.
-      <br><strong>Avant</strong> : crée une feuille de calcul vide dans le Nuage, dans un dossier synchronisé, et partage-la par lien public <em>en modification</em>.</div>
+  return `<div class="tb-hint" style="margin-bottom:10px">Une feuille de calcul du Nuage, un onglet par discipline, que les collègues remplissent par un lien de partage — sans compte. L'app la prépare, puis relit leurs réponses dans la copie que le client Nextcloud garde sur votre ordinateur.
+      <br><strong>Avant</strong> : créez une feuille de calcul vide dans le Nuage, dans un dossier synchronisé, et partagez-la par lien public <em>en modification</em>.</div>
     <div class="fg"><label for="mavis-per">Pour la période</label>
       <select id="mavis-per" style="max-width:100%">${ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('')}</select></div>
     ${_avisObjectifHTML(cls, null)}
@@ -15265,8 +15276,8 @@ function _avisNouvelleHTML(cls) {
     <div class="fg"><label for="mavis-lien">Lien de partage de la feuille <span class="tb-hint">(facultatif — il ira dans le message aux collègues)</span></label>
       <input id="mavis-lien" type="text" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%"></div>
     <div class="ma" style="flex-wrap:wrap">
-      ${_AVIS_FS() ? '' : '<button class="btn btn-s" onclick="avisPreparerUI(true)" title="Ton navigateur ne sait pas écrire dans un fichier : la feuille se télécharge, à déposer ensuite dans le Nuage à la place de la feuille vide">⬇ Télécharger la feuille</button>'}
-      ${_AVIS_FS() ? '<button class="btn btn-p" onclick="avisPreparerUI(false)" title="Choisis la copie locale de la feuille vide (dans ton dossier Nextcloud) : l\'app y écrit les onglets et les élèves">📝 Choisir la feuille et la préparer…</button>' : ''}
+      ${_AVIS_FS() ? '' : '<button class="btn btn-s" onclick="avisPreparerUI(true)" title="Votre navigateur ne sait pas écrire dans un fichier : la feuille se télécharge, à déposer ensuite dans le Nuage à la place de la feuille vide">⬇ Télécharger la feuille</button>'}
+      ${_AVIS_FS() ? '<button class="btn btn-p" onclick="avisPreparerUI(false)" title="Choisissez la copie locale de la feuille vide (dans votre dossier Nextcloud) : l\'app y écrit les onglets et les élèves">📝 Choisir la feuille et la préparer…</button>' : ''}
     </div>`;
 }
 // Le choix de l'objectif : en tête d'une feuille existante (un changement se reporte sur la
@@ -15316,7 +15327,7 @@ function _avisCampHTML(cls, camp) {
     <details class="av-det" style="margin-top:8px" data-det="disc" ontoggle="_avisDetToggle(this)"${_avisOuverts.has('disc') ? ' open' : ''}><summary><strong>🗂 Disciplines de la feuille</strong> <span class="tb-hint">— en ajouter, en retirer, puis mettre la feuille à jour</span></summary>
       ${_avisRattacherHTML(cls)}
       ${_avisDiscPickHTML(cls, camp.disciplines.map(d => d.id))}
-      <div class="tb-hint" style="margin-top:6px">⚠️ Mettre à jour réécrit la feuille (les avis déjà écrits sont gardés). Fais-le quand personne n'y écrit : une modification faite pendant la mise à jour peut créer un conflit dans le Nuage.</div>
+      <div class="tb-hint" style="margin-top:6px">⚠️ Mettre à jour réécrit la feuille (les avis déjà écrits sont gardés). Faites-le quand personne n'y écrit : une modification faite pendant la mise à jour peut créer un conflit dans le Nuage.</div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-s btn-sm" onclick="avisMettreAJourUI('${_escJsAttr(camp.id)}')">📝 Mettre la feuille à jour</button>
         ${_AVIS_FS() ? '' : `<button class="btn btn-g btn-sm" onclick="avisTelecharger('${_escJsAttr(camp.id)}')">⬇ Télécharger la feuille</button>`}
@@ -15606,7 +15617,7 @@ function _avisMessageHTML(cls, camp) {
       <label>Avant le <input type="date" value="${_escAttr(r.echeance)}" style="min-width:140px" onchange="avisMsgReglageUI('${id}','echeance',this.value)"></label></div>
     <div class="fg"><label for="mavis-lien">Lien de partage de la feuille</label>
       <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${id}',this.value)"></div>
-    <div class="tb-hint" style="margin-bottom:6px">Coche les parties à garder, réécris celles que tu veux : ton texte devient le modèle des prochaines feuilles (↺ pour revenir au texte proposé). Remplacés tout seuls : <code>${_escName(AVIS_REPERES)}</code>. <code>**entre deux paires d'étoiles**</code> = en gras ; une ligne qui commence par « – » = une puce.</div>
+    <div class="tb-hint" style="margin-bottom:6px">Cochez les parties à garder, réécrivez celles que vous voulez : votre texte devient le modèle des prochaines feuilles (↺ pour revenir au texte proposé). Remplacés tout seuls : <code>${_escName(AVIS_REPERES)}</code>. <code>**entre deux paires d'étoiles**</code> = en gras ; une ligne qui commence par « – » = une puce.</div>
     ${parties}
     <div class="fi-form" style="margin:6px 0">
       <label>Votre nom <input type="text" value="${_escAttr(_prefs().avisNom || '')}" placeholder="M. ou Mme NOM" style="min-width:160px" onchange="avisSignatureUI('avisNom',this.value)"></label>
@@ -15620,7 +15631,7 @@ function _avisMessageHTML(cls, camp) {
     </details>
     <div class="fg" style="margin-top:8px"><label for="mavis-objet">Objet du courriel</label>
       <input id="mavis-objet" type="text" value="${_escAttr(_avisMsgModele('objet', r.moment))}" style="width:100%" onchange="avisMsgTexteUI('${id}','objet',this.value)">
-      <div class="av-objet"><span class="tb-hint">Donne :</span> <strong id="mavis-objet-rendu">${_escName(_avisObjetMail(cls, camp))}</strong></div>
+      <div class="av-objet"><span class="tb-hint">Aperçu :</span> <strong id="mavis-objet-rendu">${_escName(_avisObjetMail(cls, camp))}</strong></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
         <button class="btn btn-s btn-sm" onclick="avisCopierObjet('${id}')">📋 Copier l'objet</button>
         ${_avisMsgModele('objet', r.moment) !== AVIS_MSG_OBJET ? `<button class="btn btn-g btn-sm" onclick="avisMsgTexteUI('${id}','objet',null)" title="Revenir à l'objet proposé">↺ Objet proposé</button>` : ''}</div></div>
@@ -15677,7 +15688,7 @@ function avisLienUI(campId, val) {
   const camp = _avisMap(getCls()?.id)?.[campId];
   if (!camp) return;
   const l = _avisLienSur(val);
-  if (String(val || '').trim() && !l) { toast('⚠️ Le lien doit commencer par https:// — copie-le depuis « Partager » dans le Nuage.', 'warn'); return _avisRender(); }
+  if (String(val || '').trim() && !l) { toast('⚠️ Le lien doit commencer par https:// — copiez-le depuis « Partager » dans le Nuage.', 'warn'); return _avisRender(); }
   if (l === (camp.lien || '')) return;
   pushUndo(); camp.lien = l; save();
   _avisRender();
@@ -15829,7 +15840,7 @@ async function avisCopierMessage(campId, brut) {
   const cls = getCls(), camp = _avisCampOf(campId);
   if (!cls || !camp) return;
   const texte = _avisMessage(cls, camp);
-  const ok = () => toast(brut ? '📋 Message copié en texte brut.' : '📋 Message copié avec sa mise en forme — colle-le dans un courriel aux collègues.');
+  const ok = () => toast(brut ? '📋 Message copié en texte brut.' : '📋 Message copié avec sa mise en forme — collez-le dans un courriel aux collègues.');
   try {
     if (brut) { await navigator.clipboard.writeText(texte); return ok(); }
     if (typeof ClipboardItem === 'function' && navigator.clipboard && navigator.clipboard.write) {
@@ -15849,7 +15860,7 @@ async function avisCopierMessage(campId, brut) {
     if (fait) { sel.removeAllRanges(); return ok(); }
     return toast('Message sélectionné : Ctrl+C pour le copier.');
   }
-  toast('Copie impossible ici — sélectionne le message à la main.', 'warn');
+  toast('Copie impossible ici — sélectionnez le message à la main.', 'warn');
 }
 
 // ── Préparer ── écrire les onglets dans la feuille. ⚠️ Le sélecteur de fichier s'ouvre
@@ -15859,9 +15870,9 @@ async function avisPreparerUI(telecharger) {
   if (!cls) return;
   const pIdx = +(document.getElementById('mavis-per')?.value || 0);
   const dids = _avisDiscCoches();
-  if (!dids.length) return toast('⚠️ Coche au moins une discipline.', 'warn');
+  if (!dids.length) return toast('⚠️ Cochez au moins une discipline.', 'warn');
   const lien = document.getElementById('mavis-lien')?.value || '';
-  if (String(lien).trim() && !_avisLienSur(lien)) return toast('⚠️ Le lien doit commencer par https:// — copie-le depuis « Partager » dans le Nuage.', 'warn');
+  if (String(lien).trim() && !_avisLienSur(lien)) return toast('⚠️ Le lien doit commencer par https:// — copiez-le depuis « Partager » dans le Nuage.', 'warn');
   let h = null;
   if (!telecharger) {
     try { h = await _avisChoisirHandle(); }
@@ -15923,7 +15934,7 @@ async function avisMettreAJourUI(campId) {
   const camp = _avisMap(cls?.id)?.[campId];
   if (!camp) return;
   const dids = _avisDiscCoches();
-  if (!dids.length) return toast('⚠️ Coche au moins une discipline.', 'warn');
+  if (!dids.length) return toast('⚠️ Cochez au moins une discipline.', 'warn');
   const neuves = _avisOngletsUniques(_avisDidsOrdonnes(dids.filter(did => S.disciplines[did])).map(did => _avisDisc(cls, did)));
   if (JSON.stringify(neuves) !== JSON.stringify(camp.disciplines)) { pushUndo(); avisCampagneDisciplines(cls, campId, dids); save(); }
   if (!_AVIS_FS()) return avisTelecharger(campId);
@@ -15952,7 +15963,7 @@ function avisTelecharger(campId) {
   const a = document.createElement('a');
   a.href = url; a.download = nom; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast('⬇ Feuille téléchargée — dépose-la dans le Nuage à la place de la feuille vide, puis partage-la.');
+  toast('⬇ Feuille téléchargée — déposez-la dans le Nuage à la place de la feuille vide, puis partagez-la.');
 }
 
 // ── Relire ── ce que les collègues ont écrit. `demander: false` : sans redemander la
@@ -15962,7 +15973,7 @@ async function avisRelire(campId, { demander = true, silencieux = false } = {}) 
   const camp = _avisMap(cls?.id)?.[campId];
   if (!camp) return;
   const h = await _avisHandle(campId);
-  if (!h) { if (!silencieux) toast('📂 Choisis d\'abord la feuille (sa copie dans ton dossier Nextcloud).', 'warn'); return; }
+  if (!h) { if (!silencieux) toast('📂 Choisissez d\'abord la feuille (sa copie dans votre dossier Nextcloud).', 'warn'); return; }
   if (!await _avisPermission(h, 'read', demander)) { if (!silencieux) toast('⚠️ Lecture refusée par le navigateur.', 'warn'); return; }
   let sheets;
   try { sheets = await _avisLireOctets(new Uint8Array(await (await h.getFile()).arrayBuffer())); }
@@ -16010,9 +16021,9 @@ function _avisRevueHTML(cls, camp) {
   const disc = did => camp.disciplines.find(d => d.id === did) || { nom: did };
   const crit = key => _avisCols(camp).find(c => c.key === key)?.label || key;
   const intro = {
-    relire: `<strong>${n} changement${n > 1 ? 's' : ''} dans la feuille</strong> depuis ce que l'app a rangé. Coche ce que tu reprends ; ce que tu ne coches pas reste dans la feuille et te sera reproposé à la prochaine relecture.`,
-    ecrire: `<strong>La feuille porte ${n} différence${n > 1 ? 's' : ''}</strong> avec ce que l'app a rangé. Coche ce que tu gardes ; ce que tu ne coches pas sera <strong>remplacé dans la feuille</strong> par la version de l'app quand elle la mettra à jour.`,
-    nouvelle: `<strong>Ce fichier contient déjà ${n} réponse${n > 1 ? 's' : ''}</strong> — sans doute celles d'une autre période. Coche celles à reprendre dans la nouvelle feuille ; les autres seront <strong>effacées du fichier</strong> quand l'app le préparera.`,
+    relire: `<strong>${n} changement${n > 1 ? 's' : ''} dans la feuille</strong> depuis ce que l'app a rangé. Cochez ce que vous reprenez ; ce que vous ne cochez pas reste dans la feuille et vous sera reproposé à la prochaine relecture.`,
+    ecrire: `<strong>La feuille porte ${n} différence${n > 1 ? 's' : ''}</strong> avec ce que l'app a rangé. Cochez ce que vous gardez ; ce que vous ne cochez pas sera <strong>remplacé dans la feuille</strong> par la version de l'app quand elle la mettra à jour.`,
+    nouvelle: `<strong>Ce fichier contient déjà ${n} réponse${n > 1 ? 's' : ''}</strong> — sans doute celles d'une autre période. Cochez celles à reprendre dans la nouvelle feuille ; les autres seront <strong>effacées du fichier</strong> quand l'app le préparera.`,
   }[r.mode];
   const typeLbl = { ajout: 'nouveau', modif: 'modifié', suppr: 'effacé dans la feuille' };
   let dernier = '';
@@ -16090,7 +16101,7 @@ function _disciplinesTableHTML() {
       <td style="min-width:190px;white-space:nowrap"><span class="av-sw" style="background:${_discCouleur(d.id)}" title="La couleur de son onglet dans la feuille"></span><input type="text" value="${_escAttr(d.nom)}" maxlength="60" style="width:calc(100% - 22px)" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{nom:this.value})"></td>
       <td><select onchange="disciplineSetUI('${_escJsAttr(d.id)}',{domaine:this.value})" title="Le domaine donne la couleur de l'onglet ; chaque discipline en prend une nuance">${Object.entries(DOMAINES).map(([k, v]) => `<option value="${k}"${_discDomaine(d.id) === k ? ' selected' : ''}>${_escName(v.label)}</option>`).join('')}</select></td>
       <td style="min-width:120px"><input type="text" value="${_escAttr(d.onglet)}" maxlength="31" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{onglet:this.value})" title="Le nom de l'onglet dans la feuille (31 caractères au plus)"></td>
-      <td style="min-width:150px"><input type="text" value="${_escAttr(cls ? _discProfs(cls.id, d.id) : (d.profs || ''))}" maxlength="120" placeholder="${_escAttr(cls && _discProfsAuto(cls.id, d.id) || 'à saisir')}" onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)" title="Repris des moyennes quand elles le donnent ; ce que tu tapes passe avant"></td>
+      <td style="min-width:150px"><input type="text" value="${_escAttr(cls ? _discProfs(cls.id, d.id) : (d.profs || ''))}" maxlength="120" placeholder="${_escAttr(cls && _discProfsAuto(cls.id, d.id) || 'à saisir')}" onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)" title="Repris des moyennes quand elles le donnent ; ce que vous tapez passe avant"></td>
       <td class="tb-hint" style="width:99%">${ms.length ? _escName(ms.join(' · ')) : '—'}</td>
       <td style="white-space:nowrap">${d.builtin ? '<span class="tb-hint" title="Discipline d\'office : se décoche, ne se supprime pas">d\'office</span>'
         : `<button class="btn btn-d btn-sm" onclick="disciplineRemoveUI('${_escJsAttr(d.id)}')" title="Supprimer cette discipline">🗑</button>`}</td></tr>`;
@@ -16111,12 +16122,12 @@ function _disciplinesTableHTML() {
     : '<div class="pref-help" style="margin-bottom:18px">Les matières des moyennes apparaîtront ici après un import (📈 Moyennes).</div>'}`;
 }
 function disciplineSetUI(id, patch) {
-  if (patch && typeof patch.nom === 'string' && !patch.nom.trim()) { toast('⚠️ Une discipline sans nom ne se propose pas — décoche-la plutôt.', 'warn'); renderDonnees(); return; }
+  if (patch && typeof patch.nom === 'string' && !patch.nom.trim()) { toast('⚠️ Une discipline sans nom ne se propose pas — décochez-la plutôt.', 'warn'); renderDonnees(); return; }
   pushUndo(); disciplineSet(id, patch); save(); renderDonnees();
 }
 function disciplineAddUI() {
   const inp = document.getElementById('disc-new');
-  if (!inp || !inp.value.trim()) return toast('⚠️ Donne un nom à la discipline.', 'warn');
+  if (!inp || !inp.value.trim()) return toast('⚠️ Donnez un nom à la discipline.', 'warn');
   if (_disciplinesAll().some(d => _moyNorm(d.nom) === _moyNorm(inp.value))) return toast('⚠️ Cette discipline existe déjà.', 'warn');
   pushUndo();
   disciplineAdd(inp.value);
@@ -16385,13 +16396,13 @@ function _periodeFitTexte(fit, format) {
   if (!fit) return '';
   const pt = String(fit.size).replace('.', ',');
   return fit.fits ? `tient sur une page ${format} paysage, texte en ${pt} pt${format === 'A4' && fit.size < 7 ? ' — petit : l\'A3 le rendra plus lisible' : ''}`
-    : `⚠️ trop long pour une page ${format}, même en ${pt} pt (≈ ${fit.pages} pages) — ${format === 'A4' ? 'passe en A3, ou ' : ''}décoche un bloc`;
+    : `⚠️ trop long pour une page ${format}, même en ${pt} pt (≈ ${fit.pages} pages) — ${format === 'A4' ? 'passez en A3, ou ' : ''}décochez un bloc`;
 }
 function periodePrintOk() {
   const cls = getCls();
   const o = _periodePrintLire();
   if (!cls) return;
-  if (!o.blocs.length) return toast('⚠️ Choisis au moins un bloc.', 'warn');
+  if (!o.blocs.length) return toast('⚠️ Choisissez au moins un bloc.', 'warn');
   _periodePrintOpts = { blocs: o.blocs, type: o.type, forme: o.forme, format: o.format };
   const out = _periodePrintHTML(cls, o.idx, o);
   if (!out) return toast('⚠️ Période inconnue.', 'warn');
@@ -16653,7 +16664,7 @@ function pjChooseNameOk() {
   const nom = mode === 'garder' ? document.getElementById('pjn-garder-l').textContent
             : mode === 'auto' ? document.getElementById('pjn-auto-l').textContent
             : _pjSafeName(document.getElementById('pjn-nom').value);
-  if (mode === 'autre' && nom === 'document.pdf' && !document.getElementById('pjn-nom').value.trim()) return toast('⚠️ Donne un nom au fichier.', 'warn');
+  if (mode === 'autre' && nom === 'document.pdf' && !document.getElementById('pjn-nom').value.trim()) return toast('⚠️ Donnez un nom au fichier.', 'warn');
   const f = _pjNomResolve; _pjNomResolve = null;
   closeMod2('mpjnom');
   if (f) f(nom);
@@ -16666,7 +16677,7 @@ function pjChooseNameOk() {
 // Une seule URL de blob vivante à la fois : révoquée à la fermeture.
 let _pjUrl = null;
 async function pjOpen(pdf) {
-  if (!pjDirHandle) return toast('⚠️ Choisis le dossier des PDF dans 💾 Données.', 'warn');
+  if (!pjDirHandle) return toast('⚠️ Choisissez le dossier des PDF dans 💾 Données.', 'warn');
   if (!(await _pjReady('read'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
   let f;
   try { f = await (await pjDirHandle.getFileHandle(pdf.fichier)).getFile(); }
@@ -16783,7 +16794,7 @@ function _autoSaveErrLabel(e) {
 
 async function toggleAutoSync() {
   if (!autoSyncEnabled) {
-    if (!dirHandle) { appAlert('📂 Dossier requis', 'Choisis d\'abord un dossier via « 📂 Dossier » — c\'est là que la sync auto écrira.', 'warn'); return; }
+    if (!dirHandle) { appAlert('📂 Dossier requis', 'Choisissez d\'abord un dossier via « 📂 Dossier » — c\'est là que la sync auto écrira.', 'warn'); return; }
     autoSyncEnabled = true;
     try { localStorage.setItem(LS_AUTOSYNC_KEY, '1'); } catch (_) {}
     updateAutoSyncUI();
@@ -16850,7 +16861,7 @@ async function autoSaveDoIt(isRetry) {
             json = JSON.stringify(S, null, 2);
             toast(`Version distante déclinée archivée : « ${stashed} ».`);
           } else if (rel === 'ahead') {
-            _showAutoSyncStatus('⏸ sync suspendue', 'Le fichier de sync a été modifié par un autre appareil. Écriture suspendue — choisis de recharger via la fenêtre proposée.');
+            _showAutoSyncStatus('⏸ sync suspendue', 'Le fichier de sync a été modifié par un autre appareil. Écriture suspendue — choisissez de recharger via la fenêtre proposée.');
             autoReloadCheck();
             return;
           } else if (rel === 'diverged') {
@@ -16903,11 +16914,11 @@ async function autoSaveDoIt(isRetry) {
       const label = _autoSaveErrLabel(e);
       if (!isRetry) {
         // 1re tentative ratée : souvent transitoire (verrou Nextcloud) → une reprise auto.
-        _showAutoSyncStatus('⚠️ écriture KO', `⚠️ Écriture du fichier de sync échouée : ${label}.\nNouvelle tentative dans 6 s… Tes données sont déjà sauvegardées dans le navigateur.`);
+        _showAutoSyncStatus('⚠️ écriture KO', `⚠️ Écriture du fichier de sync échouée : ${label}.\nNouvelle tentative dans 6 s… Vos données sont déjà sauvegardées dans le navigateur.`);
         if (_autoSaveRetryTimer) clearTimeout(_autoSaveRetryTimer);
         _autoSaveRetryTimer = setTimeout(() => { _autoSaveRetryTimer = null; autoSaveDoIt(true); }, 6000);
       } else {
-        _showAutoSyncStatus('⚠️ écriture KO', `⚠️ Écriture du fichier de sync échouée : ${label}.\nÉchec après reprise. Tes données restent dans le navigateur ; la prochaine modification réessaiera. Détails dans la console (F12).`);
+        _showAutoSyncStatus('⚠️ écriture KO', `⚠️ Écriture du fichier de sync échouée : ${label}.\nÉchec après reprise. Vos données restent dans le navigateur ; la prochaine modification réessaiera. Détails dans la console (F12).`);
       }
     }
   } finally {
@@ -17110,7 +17121,7 @@ function _conflictKeepMine() {
   const ctx = _conflictCtx;
   if (!ctx) { closeMod2('mconflict'); return; }
   _stashVersionToFile(ctx.diskData, 'autre').then(name => {
-    if (!name) { toast('⚠️ Impossible d\'archiver l\'autre version — résolution annulée, réessaie.', 'error'); return; }
+    if (!name) { toast('⚠️ Impossible d\'archiver l\'autre version — résolution annulée, réessayez.', 'error'); return; }
     // Mon horloge doit DOMINER celle du disque pour superséder la version divergente.
     if (!S.clock || typeof S.clock !== 'object') S.clock = {};
     _clockMergeMax(S.clock, ctx.diskData && ctx.diskData.clock);
@@ -17120,7 +17131,7 @@ function _conflictKeepMine() {
     _conflictPending = false; _conflictCtx = null;
     closeMod2('mconflict');
     save();
-    toast(`Ta version est conservée. L'autre archivée : « ${name} ».`);
+    toast(`Votre version est conservée. L'autre archivée : « ${name} ».`);
   });
 }
 function _conflictTakeOther() {
@@ -17128,12 +17139,12 @@ function _conflictTakeOther() {
   if (!ctx) { closeMod2('mconflict'); return; }
   const mine = JSON.parse(JSON.stringify(S));
   _stashVersionToFile(mine, 'mienne').then(name => {
-    if (!name) { toast('⚠️ Impossible d\'archiver ta version — résolution annulée, réessaie.', 'error'); return; }
+    if (!name) { toast('⚠️ Impossible d\'archiver votre version — résolution annulée, réessayez.', 'error'); return; }
     delete _modalReturnTo['mconflict'];
     _conflictPending = false; _conflictCtx = null;
     closeMod2('mconflict');
     _applyReloadedData(ctx.diskData, ctx.f);
-    toast(`Version de l'autre appareil chargée. La tienne archivée : « ${name} ».`);
+    toast(`Version de l'autre appareil chargée. La vôtre archivée : « ${name} ».`);
   });
 }
 
@@ -17249,7 +17260,7 @@ function _checkpointSafeLabel(label) {
 // Retourne true si le point a bien été écrit. ⚠️ Le booléen n'est pas décoratif :
 // un remplacement d'état (démo, effacement) s'annule si le point n'a pas pu l'être.
 async function _makeNamedCheckpoint(label) {
-  if (!dirHandle) { toast('Choisis un dossier de sync pour créer un point.', 'warn'); return false; }
+  if (!dirHandle) { toast('Choisissez un dossier de sync pour créer un point.', 'warn'); return false; }
   const name = `${CHECKPOINT_PREFIX}${_checkpointSafeLabel(label)}-${_conflictStamp()}.json`;
   try {
     let perm = await dirHandle.queryPermission({ mode: 'readwrite' });
@@ -17332,7 +17343,7 @@ async function listAndShowFiles() {
       const oldName = dirHandle?.name || '';
       dirHandle = null;
       try { await idbSaveHandle(null); } catch (_) {}
-      toast(`Dossier « ${oldName} » introuvable — choisis-en un autre.`, 4000);
+      toast(`Dossier « ${oldName} » introuvable — choisissez-en un autre.`, 4000);
       await changeDirAndList();
       return;
     }
@@ -17343,7 +17354,7 @@ async function listAndShowFiles() {
     } catch (e2) {
       dirHandle = null;
       try { await idbSaveHandle(null); } catch (_) {}
-      toast('Accès au dossier perdu — choisis-en un autre.', 4000);
+      toast('Accès au dossier perdu — choisissez-en un autre.', 4000);
       await changeDirAndList();
       return;
     }
@@ -17577,8 +17588,8 @@ function _purgeLegacyStorage() {
   _uiConfirm({
     title: '🗑 Supprimer les anciennes versions du stockage', okLabel: '🗑 Supprimer', okClass: 'btn-d',
     message: `${found.map(r => '• ' + r.key + ' — ' + _fmtBytes(r.bytes)).join('\n')}\n\n`
-      + `Ces clés sont des copies laissées par d'anciennes versions de l'application, plus jamais relues : tes données actives sont dans « ${LS_KEY} » et ne seront pas touchées.\n\n`
-      + `Cela libérera ${_fmtBytes(total)}. Exporte d'abord si tu veux en garder une trace.\n\n⚠️ Non annulable par Ctrl+Z (hors état de l'application).`,
+      + `Ces clés sont des copies laissées par d'anciennes versions de l'application, plus jamais relues : vos données actives sont dans « ${LS_KEY} » et ne seront pas touchées.\n\n`
+      + `Cela libérera ${_fmtBytes(total)}. Exportez d'abord si vous voulez en garder une trace.\n\n⚠️ Non annulable par Ctrl+Z (hors état de l'application).`,
     onOk: () => {
       let freed = 0;
       for (const r of found) { try { localStorage.removeItem(r.key); freed += r.bytes; } catch (_) {} }
@@ -17631,7 +17642,7 @@ async function _renderStorageGauge(force) {
   box.querySelector('.sto-note')?.remove();
 
   if (!total || total <= 0) {
-    sum.textContent = `tes données : ${_fmtBytes(dataBytes)}`;
+    sum.textContent = `vos données : ${_fmtBytes(dataBytes)}`;
     fill.style.width = '0'; fill.classList.remove('warn', 'crit');
     box.insertAdjacentHTML('beforeend', detail + `<div class="sto-note" style="color:var(--pencil)"><strong>${_fmtBytes(lsBytes)}</strong> en mémoire locale. Impossible de mesurer la place disponible sur ce navigateur. La sauvegarde reste protégée : en cas de saturation, un bandeau rouge s'affiche avec un export immédiat. ${bouton}</div>`);
     return;
@@ -17640,7 +17651,7 @@ async function _renderStorageGauge(force) {
   fill.style.width = Math.max(0.6, pct).toFixed(2) + '%';
   fill.classList.toggle('warn', pct >= 60 && pct < 85);
   fill.classList.toggle('crit', pct >= 85);
-  sum.textContent = `tes données : ${_fmtBytes(dataBytes)}`;
+  sum.textContent = `vos données : ${_fmtBytes(dataBytes)}`;
   const pctTxt = pct < 0.1 ? '< 0,1' : pct < 1 ? pct.toFixed(2).replace('.', ',') : Math.round(pct);
   // Décomposition « tes données » vs « le reste » : sans elle, voir 1,1 Mo en haut et
   // 2,1 Mo en bas est incompréhensible.
@@ -17651,7 +17662,7 @@ async function _renderStorageGauge(force) {
     const rest = keys.filter(r => r.key !== LS_KEY);
     const mine = rest.filter(r => _isAppLsKey(r.key)), other = rest.filter(r => !_isAppLsKey(r.key));
     const tot = arr => arr.reduce((n, r) => n + r.bytes, 0);
-    compo = `<br>Dont ${_fmtBytes(mainBytes)} pour tes données actives (<span class="sto-k">${_escName(LS_KEY)}</span>)`;
+    compo = `<br>Dont ${_fmtBytes(mainBytes)} pour vos données actives (<span class="sto-k">${_escName(LS_KEY)}</span>)`;
     if (mine.length) compo += ` et ${_fmtBytes(tot(mine))} dans d'autres clés de l'application : ${_lsKeyList(mine)}.`;
     if (other.length) compo += ` ${_fmtBytes(tot(other))} appartiennent à un autre outil servi depuis la même adresse — la mémoire locale est partagée par origine, pas par page : ${_lsKeyList(other)}.`;
   }
@@ -17670,7 +17681,7 @@ async function _renderStorageGauge(force) {
     prov += ` La copie du dernier fichier chargé (${_fmtBytes(lastMeta.bytes)}) est rangée à part, hors mémoire locale : elle ne pèse pas sur le plafond ci-dessus.`;
   }
   let note;
-  if (pct >= 85) note = `<div class="sto-note" style="color:var(--danger-fg);font-weight:600">⚠️ ${occupe} Exporte tes données, puis allège : archive des documents, ou supprime les classes des années passées.<br><span style="font-weight:400">${prov} ${bouton}</span></div>`;
+  if (pct >= 85) note = `<div class="sto-note" style="color:var(--danger-fg);font-weight:600">⚠️ ${occupe} Exportez vos données, puis allégez : archivez des documents, ou supprimez les classes des années passées.<br><span style="font-weight:400">${prov} ${bouton}</span></div>`;
   else if (pct >= 60) note = `<div class="sto-note" style="color:var(--warn-fg);font-weight:600">${occupe} À surveiller en fin d'année ; un export régulier reste la meilleure sécurité.<br><span style="color:var(--pencil);font-weight:400">${prov} ${bouton}</span></div>`;
   else note = `<div class="sto-note" style="color:var(--pencil)">${occupe} Marge confortable.${prov} ${bouton}</div>`;
   box.insertAdjacentHTML('beforeend', detail + note);

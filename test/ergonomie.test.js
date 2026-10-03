@@ -57,7 +57,7 @@ test('C2 — le nom ouvre la fiche dans toutes les grilles d\'élèves, avec la 
   const doc = ev(`Object.values(S.documents).find(d => /orientation/i.test(d.titre)).id`);
   assert.ok(rendu('documents-body', `openDoc(${JSON.stringify(doc)})`).includes(lien), 'tableau d\'un document');
   assert.ok(rendu('documents-body', `openRamassage(); _ramSel = [${JSON.stringify(doc)}]; renderDocuments()`).includes(lien), 'ramassage');
-  assert.match(ev(`_nomFicheHTML('x', 'NOM', 'Prénom')`), /^<a href="#" class="el-nom"/);
+  assert.match(ev(`_nomFicheHTML('x', 'NOM', 'Prénom')`), /^<span class="el-civ[^"]*"[^>]*>[^<]*<\/span><a href="#" class="el-nom"/, 'genre puis nom (v1.47.2)');
 });
 
 test('C3 — chaque total dit ce qu\'il compte, dans son en-tête', () => {
@@ -140,4 +140,20 @@ test('Points moyens (C6–C12) : moments dits indépendants, MBN corrigeable, im
   const liste = rendu('documents-body', `closeRamassage(); _docView = null; renderDocuments()`);
   assert.match(liste, /📋 Retours<\/button>/);
   assert.match(liste, /⧉ Dupliquer<\/button>/);
+});
+
+test('Points mineurs (C14) : genre dans toutes les grilles, faits à partir du 1er septembre, onglet Avis sur la dernière feuille', () => {
+  ev(DEMO);
+  const sid = ev(`getCls().eleves[0]`);
+  assert.match(rendu('carnets-body', 'renderCarnets()'), /<span class="el-civ/);
+  assert.match(rendu('moyennes-body', 'renderMoyennes()'), /<span class="el-civ/);
+  const faits = ev(`_ficheFaitsHTML(getCls(), S.eleves[${JSON.stringify(sid)}], _ficheMoments(getCls()).find(c => c.key === 'bil:conseil:0'))`);
+  assert.match(faits, /du 01\/09 au/);
+  // Onglet Avis : une feuille choisie d'office tant qu'on n'a pas demandé « Nouvelle feuille ».
+  ev(`_avisCampId = null; _avisNouvelleVoulue = false;`);
+  rendu('avis-body', 'renderAvisTab()');
+  assert.ok(ev(`!!_avisCampId`));
+  ev(`avisRelire = () => {}; avisChoisirFeuille(null)`);
+  rendu('avis-body', 'renderAvisTab()');
+  assert.strictEqual(ev(`_avisCampId`), null, '« Nouvelle feuille » choisie : on y reste');
 });
