@@ -133,3 +133,25 @@ test('Chronologie : les événements du moment, datés et triés, et la barre de
   assert.match(bar, /chaleurMomentVu\('[^']+', this\.checked, 'fi'\)/);
   assert.match(bar, /onclick="ficheMomentSet\('bil:conseil:0'\)"[^>]*>Conseil S1</);
 });
+
+test('Fiche : plus de « dossier complet » — ses éléments sont dans les cartes, derrière ✎ (corrections en place)', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _ficheMoment = null; try { localStorage.removeItem(_LS_FICHE_VUE); } catch (_) {}`);
+  const sid = ev(`getCls().eleves.find(id => _ficheDocuments(getCls(), id).some(d => d.reponses.length))`);
+  const rendu = edit => ev(`(() => { _ficheSid = ${JSON.stringify(sid)}; _ficheEdit = ${JSON.stringify(edit)};
+    const z = document.createElement('div'); const o = document.getElementById; document.getElementById = x => x === 'mfiche-body' ? z : o.call(document, x);
+    try { _ficheRender(); return z.innerHTML; } finally { document.getElementById = o; _ficheEdit = null; } })()`);
+  const h = rendu(null);
+  assert.ok(!/Dossier complet/.test(h));
+  for (const k of ['classe', 'naissance', 'groupe', 'options', 'amen', 'presence', 'place', 'releves', 'bilans', 'incidents', 'contacts', 'papiers'])
+    assert.match(h, new RegExp(`class="pf-ed[^"]*" onclick="ficheEdit\\('${k}'\\)"`), `✎ ${k}`);
+  assert.match(h, /onclick="ficheCycleCivilite\(\)"/);
+  // Les choix portés sur les papiers se lisent dans la carte.
+  const ch = evObj(`_ficheDocuments(getCls(), ${JSON.stringify(sid)}).flatMap(d => d.reponses.map(r => r.valeurs[0]))`);
+  assert.ok(ch.some(v => h.includes(v)));
+  // ✎ ouvre la correction en place.
+  assert.match(rendu('papiers'), /ficheDocReponse\(|ficheDocToggle\(/);
+  assert.match(rendu('releves'), /ficheSetCumul\(/);
+  assert.match(rendu('place'), /ficheSetPlace\(/);
+  assert.match(rendu('naissance'), /ficheSetDate\(this,'naissance'\)/);
+  assert.match(rendu('presence'), /ficheSetDate\(this,'arrivalDate'\)/);
+});

@@ -1554,6 +1554,10 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-src input { width: 15px; height: 15px; margin: 0; cursor: pointer; }
 .pf-add { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 50%; min-width: 24px; height: 24px; line-height: 20px; padding: 0 3px; font-weight: 700; color: var(--link-fg); }
 .pf-add.pf-del { color: var(--danger-fg); }
+/* ✎ : une correction faite sur place (v1.46.9) — discret, au bout de la valeur ou du titre. */
+.pf-ed { border: 0; background: none; padding: 0 3px; font-size: 13px; line-height: 1; color: var(--link-fg); cursor: pointer; border-radius: 4px; vertical-align: baseline; }
+.pf-ed:hover, .pf-ed.on { background: var(--chip-on-bg); color: var(--chip-on-fg); }
+.pf-edbox { margin-top: 6px; font-size: 13.5px; }
 .pf-sw { width: 16px; height: 12px; border-radius: 2px; display: inline-block; flex: none; }
 .pf-kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: 13.5px; margin: 0; }
 .pf-kv dt { color: var(--pencil); } .pf-kv dd { margin: 0; }
@@ -1642,8 +1646,6 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .pf-words button.on { background: var(--highlighter); border-color: var(--highlighter); color: var(--ink-blue); }
 .pf-btnp { border: 0; background: var(--g1); color: var(--g1-on); border-radius: 6px; padding: 6px 12px; font-weight: 700; }
 .pf-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-block: 8px; }
-.pf-dossier { margin-top: 4px; }
-.pf-dossier > summary { cursor: pointer; color: var(--pencil); font-size: 13px; padding: 6px 0; }
 /* Fiche refondue (v1.44.0) : plein écran, ou ancrée à droite de la liste. */
 #mfiche.plein { padding: 0; }
 #mfiche.plein .fi-mb { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; padding: 0 22px 14px; }
@@ -2749,8 +2751,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.8';
-const APP_BUILD_DATE = '2026-10-03T05:23:12Z';
+const APP_VERSION    = '1.46.9';
+const APP_BUILD_DATE = '2026-10-03T05:30:11Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6817,12 +6819,15 @@ function _ficheRender() {
   const vue = _ficheVue();
   const bar = document.getElementById('mfiche-bar');
   if (bar) bar.innerHTML = _ficheBarHTML(cls, stu, col);
-  // Le TABLEAU DE BORD est celui du prototype (v1.44.3) ; le dossier d'avant (réponses aux
-  // documents, places, élections, cumuls modifiables…) reste au pied, replié.
-  const dossier = `<details class="pf-dossier"${_ficheDossierOpen ? ' open' : ''} ontoggle="_ficheDossierOpen=this.open"><summary>📁 Dossier complet — réponses aux documents, places, élections, chaque relevé du carnet (modifiables)</summary><div class="fi-cols">${secs}</div></details>`;
+  // Le TABLEAU DE BORD est celui du prototype (v1.44.3). ~~Le dossier d'avant reste au pied,
+  // replié.~~ v1.46.9 (l'utilisateur : « pourquoi ne pas inclure dans la première partie ce qui
+  // n'y figurait pas, et le supprimer ? ») : ce que seul le dossier montrait (réponses aux
+  // documents, places, élections, corrections en place) est rattaché à sa carte, derrière ✎.
+  const ed = { remHTML, contactForm, edClasse, edGroupe, edOptions, edAmen, edPlace, dateInp, age, places, eco,
+    presence: _ficheePresence(stu), els, elsHTML, relevesHTML, jHTML, incHTML, bilHTML, docsHTML, docsInfo: docs };
   box.innerHTML = vue === 'chrono' && col ? _ficheChronoHTML(cls, stu, col)
     : vue === 'faits' && col ? _ficheFaitsHTML(cls, stu, col)
-    : col ? _ficheTableauHTML(cls, stu, col, { remHTML, contactForm }) + dossier : `<div class="fi-cols">${secs}</div>`;
+    : col ? _ficheTableauHTML(cls, stu, col, ed) : `<div class="fi-cols">${secs}</div>`;
   const f = box.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
 }
@@ -6841,7 +6846,6 @@ function _ficheRender() {
 // ═══════════════════════════════════════════════════════════════════════════
 const _LS_FICHE_VUE = 'suiviPP_ficheVue';
 const FICHE_VUES = [['dossier', '1 · Tableau de bord', 'Une carte par sujet, sur le moment choisi'], ['chrono', '2 · Chronologie', 'Le moment choisi : chiffres clés, frise, journal'], ['faits', '3 · Faits et rédaction', 'Les faits en phrases, les avis en tableau, un brouillon de synthèse']];
-let _ficheDossierOpen = false;  // le « dossier complet » replié au pied du tableau de bord (session)
 let _ficheFeuille = null;       // l'onglet de feuille d'avis choisi dans la carte (session)
 // Les couleurs des sujets (prototype) : carrés de la liste des faits, frise, journal.
 const PF_ICO = { obs: 'var(--i-obs)', moy: 'var(--i-moy)', incid: 'var(--i-incid)', contact: 'var(--i-contact)', avis: 'var(--i-avis)', bilan: 'var(--i-bilan)', papier: 'var(--pencil)' };
@@ -7197,13 +7201,14 @@ function _ficheCourbeHTML(cls, stu, col) {
 }
 // ── Vue 1 : le TABLEAU DE BORD du prototype — une carte par sujet, sur le moment choisi ──
 function _ficheTableauHTML(cls, stu, col, ed) {
+  ed = Object.assign({ places: [], els: [], elsHTML: '', docsInfo: [], dateInp: () => '', presence: '', age: null }, ed || {});
   const b = _ficheBornes(cls, col), sid = stu.id;
   const dans = d => d && d >= b.start && d <= b.end;
   const o = _obsEntre(cls.id, sid, b.start, b.end);
   const mbn = _obsMbnEntre(sid, b.start, b.end), avecMbn = _obsMbnClasseAny(cls);
   // Carnet + MBN (v1.46.1) : deux sections sous la courbe, chacune avec sa coche « additionnée
   // dans le graphique » ; le détail des relevés du carnet faits à la main sur le moment.
-  const srcH = (k, titre, n) => `<h3 class="pf-h3b"><label class="pf-src" title="Additionnées dans le graphique — décocher pour n'afficher que l'autre source"><input type="checkbox"${_ficheCourbeSrc[k] ? ' checked' : ''} onchange="ficheCourbeSrcUI('${k}', this.checked)"> ${titre}</label><span class="pf-k">${n}</span></h3>`;
+  const srcH = (k, titre, n, crayon) => `<h3 class="pf-h3b"><label class="pf-src" title="Additionnées dans le graphique — décocher pour n'afficher que l'autre source"><input type="checkbox"${_ficheCourbeSrc[k] ? ' checked' : ''} onchange="ficheCourbeSrcUI('${k}', this.checked)"> ${titre}</label>${crayon ? ' ' + crayon : ''}<span class="pf-k">${n}</span></h3>`;
   const rm = _relMap(cls.id) || {};
   const rels = _relDates(cls.id).filter(dans).filter(d => _relValue(rm[d], sid) !== null);
   const relevesHTML = rels.length ? rels.map(d => { const v = _relValue(rm[d], sid), x = _relDelta(cls.id, d, sid);
@@ -7232,18 +7237,40 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const card = (k, titre, k2, corps, plus) => `<section class="pf-card"><h3>${k ? _pfSw(k) : ''}${titre}${k2 !== '' && k2 !== null ? `<span class="pf-k">${k2}</span>` : ''}${plus || ''}</h3>${corps}</section>`;
   const add = (onclick, title, ic) => `<button class="pf-add" onclick="${onclick}" title="${_escAttr(title)}">${ic || '+'}</button>`;
   const dlg = _delegueOf(sid);
-  const ident = `<dl class="pf-kv"><dt>Né(e) le</dt><dd>${stu.naissance ? _escName(_fmtDateFr(stu.naissance)) : '–'}</dd><dt>Groupe</dt><dd>${stu.groupe ? 'G' + stu.groupe : '–'}</dd><dt>Options</dt><dd>${_escName(_studentTags(stu).map(x => x.abbr).join(', ')) || '–'}</dd><dt>Aménagements</dt><dd>${_escName(_amenLabel(stu, false)) || '–'}</dd><dt>Régime</dt><dd>${_escName((_regimeOf(stu.regime)?.label || '') + (stu.joursDP?.length ? ' (' + _joursTexte(stu.joursDP) + ')' : '')) || '–'}</dd><dt>Entrée</dt><dd>${stu.entree ? _escName(stu.entree + (_entreeLabel(stu.entree) ? ' — ' + _entreeLabel(stu.entree) : '')) : '–'}</dd><dt>Sortie</dt><dd>${stu.sortie ? _escName(stu.sortie + (_sortieLabel(stu.sortie) ? ' — ' + _sortieLabel(stu.sortie) : '')) : '–'}</dd><dt>Délégué</dt><dd>${dlg ? (dlg === 'titulaire' ? 'titulaire' : 'suppléant') : '–'}</dd></dl>
+  // ✎ : les corrections faites sur place (v1.46.9) — ce que portait le « dossier complet »,
+  // rattaché à sa carte. Un seul éditeur ouvert à la fois (`_ficheEdit`), refermé par le même ✎.
+  const pen = (k, title) => `<button class="pf-ed${_ficheEdit === k ? ' on' : ''}" onclick="ficheEdit('${k}')" title="${_escAttr(title)}" aria-label="${_escAttr(title)}" aria-pressed="${_ficheEdit === k}">✎</button>`;
+  const penF = (onclick, title) => `<button class="pf-ed" onclick="${onclick}" title="${_escAttr(title)}" aria-label="${_escAttr(title)}">✎</button>`;
+  const kv = (dt, dd, crayon, editeur) => `<dt>${dt}</dt><dd>${dd}${crayon ? ' ' + crayon : ''}${editeur || ''}</dd>`;
+  const ouEdit = k => _ficheEdit === k;
+  const ident = `<dl class="pf-kv">${
+    kv('Classe', `${_escName(cls.nom)}${cls.annee ? ` <span class="pf-mu">${_escName(cls.annee)}</span>` : ''}`, pen('classe', 'Corriger le nom ou l\'année de la classe'), ed.edClasse)}${
+    kv('Né(e) le', stu.naissance ? `${_escName(_fmtDateFr(stu.naissance))}${ed.age !== null ? ` <span class="pf-mu">${ed.age} ans</span>` : ''}` : '–', pen('naissance', 'Corriger la date de naissance'), ouEdit('naissance') ? `<div class="fi-editor">${ed.dateInp('naissance', stu.naissance)}</div>` : '')}${
+    kv('Civilité', stu.civilite ? _escName(civiliteFullLabel(stu.civilite)) : '–', penF('ficheCycleCivilite()', 'Changer : garçon → fille → non renseignée'))}${
+    kv('Groupe', stu.groupe ? 'G' + stu.groupe : '–', pen('groupe', 'Changer de groupe'), ed.edGroupe)}${
+    kv('Options', _escName(_studentTags(stu).map(x => x.abbr).join(', ')) || '–', pen('options', 'Cocher ou décocher des options'), ed.edOptions)}${
+    kv('Aménagements', _escName(_amenLabel(stu, false)) || '–', pen('amen', 'Régler les aménagements'), ed.edAmen)}${
+    kv('Régime', _escName((_regimeOf(stu.regime)?.label || '') + (stu.joursDP?.length ? ' (' + _joursTexte(stu.joursDP) + ')' : '')) || '–', penF('ficheVersEdition()', 'Régime, entrée, sortie : dans la fenêtre de l\'élève'))}${
+    kv('Entrée', stu.entree ? _escName(stu.entree + (_entreeLabel(stu.entree) ? ' — ' + _entreeLabel(stu.entree) : '')) : '–')}${
+    kv('Sortie', stu.sortie ? _escName(stu.sortie + (_sortieLabel(stu.sortie) ? ' — ' + _sortieLabel(stu.sortie) : '')) : '–')}${
+    kv('Présence', ed.presence, pen('presence', 'Corriger la date d\'arrivée ou de départ'), ouEdit('presence') ? `<div class="fi-editor"><label class="tb-hint">arrivée ${ed.dateInp('arrivalDate', stu.arrivalDate)}</label><label class="tb-hint">départ ${ed.dateInp('departureDate', stu.departureDate)}</label></div>` : '')}${
+    kv('Place', ed.places.length ? ed.places.map(x => `${_escName(x.salleNom)} <span class="pf-mu">rang ${x.rang}, place ${x.colonne}</span>`).join('<br>') : '–', pen('place', 'Changer de place'), ed.edPlace)}${
+    kv('Délégué', dlg ? (dlg === 'titulaire' ? 'titulaire' : 'suppléant') : '–')}${
+    ed.eco ? kv('Éco-délégué', ed.eco === 'titulaire' ? 'titulaire' : 'suppléant') : ''}${
+    ed.els.length ? kv('Élections', ed.elsHTML) : ''}</dl>
     <h3 class="pf-h3b">Remarque ${add("ficheEdit('remarque')", stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque', '✎')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<p class="pf-p">${_escName(stu.remarque)}</p>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
+  // Papiers : les choix portés sur chaque document (Devoirs Faits, options…), lus d'un coup d'œil.
+  const choixDoc = id => (ed.docsInfo.find(x => x.docId === id)?.reponses || []).map(r => `${r.champ} : ${r.valeurs.join(', ')}`).join(' · ');
   return `<div class="pf-grid">
     ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="pf-add" onclick="ficheVersEdition()" title="Modifier l'élève : nom, civilité, groupe, options, aménagements, dates">✏️</button><button class="pf-add pf-del" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑</button>`)}
-    ${card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + _ficheBilansAutresHTML(cls, stu, col))}
-    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o) + relevesHTML + srcH('mbn', 'Notées dans MBN', mbn.length) + (mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
+    ${card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + (ouEdit('bilans') ? `<div class="pf-edbox">${ed.bilHTML}</div>` : _ficheBilansAutresHTML(cls, stu, col)), pen('bilans', 'Modifier ou supprimer un bilan écrit — tous les bilans de l\'année'))}
+    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length) + (mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
-    ${card('incid', 'Incidents', inc.length, inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span><br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident'))}
-    ${card('contact', 'Contacts avec la famille', ct.length, (_ficheEdit === 'contact' ? ed.contactForm : '') + (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add("ficheEdit('contact')", 'Noter un contact'))}
-    ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false;
-      return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : `<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>')}
+    ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
+    ${card('contact', 'Contacts avec la famille', ct.length, (_ficheEdit === 'contact' ? ed.contactForm : '') + (ouEdit('contacts') ? `<div class="pf-edbox">${ed.jHTML}</div>` : ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add("ficheEdit('contact')", 'Noter un contact') + pen('contacts', 'Corriger ou supprimer un contact — toute l\'année'))}
+    ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
+      return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : `<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
   </div>`;
 }
 // ── Vue « Faits et rédaction » ──

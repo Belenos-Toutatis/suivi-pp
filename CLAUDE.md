@@ -1426,9 +1426,23 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        collègues (un onglet par feuille de la période, `ficheFeuilleUI`), Incidents (+),
        Contacts (+), Papiers (cochables d'un clic). Ce que le prototype n'avait pas et qu'il
        ne faut pas perdre se RATTACHE sans changer l'allure : ✏️ et 🗑 dans l'en-tête de la
-       carte Identité (l'édition complète et la suppression), et le **dossier d'avant**
+       carte Identité (l'édition complète et la suppression), et ~~le **dossier d'avant**
        (réponses aux documents, places, élections, chaque relevé modifiable) dans un volet
-       *📁 Dossier complet* replié au pied (`_ficheDossierOpen`).
+       *📁 Dossier complet* replié au pied (`_ficheDossierOpen`)~~.
+     - ⚠️ **Révisé en v1.46.9 — plus de dossier complet** (l'utilisateur : *« pourquoi ne pas
+       inclure dans la première partie les éléments qui n'y figuraient pas, et le supprimer ?
+       Ajoute le petit crayon pour les corrections faites sur place »*). Ce que seul le dossier
+       montrait est rattaché à sa carte, derrière un **✎** (`pen(k)` → `ficheEdit(k)`, un seul
+       éditeur ouvert, refermé par le même ✎ ; les éditeurs viennent de `_ficheRender` par
+       l'objet `ed`) : **Identité** — classe, naissance (+ âge), civilité (✎ cycle), groupe,
+       options, aménagements, régime (✎ → la fenêtre de l'élève), présence (arrivée, départ),
+       **place** dans chaque salle, délégué, éco-délégué, **élections** ; **Observations** —
+       ✎ *Relevés du carnet* : chaque cumul de l'année corrigeable ; **Bilans** — ✎ : tous les
+       bilans, ✏️ 🗑 ; **Incidents** — 📎 du PDF sur l'entrée, ✎ : toute l'année, ✏️ 🗑 ;
+       **Contacts** — ✎ : texte corrigeable, 🗑 ; **Papiers** — les **choix portés** lus sous
+       chaque papier (« Participation : ULYSS »), ✎ : réponses, date de retour, note, documents
+       archivés compris. Ce qui faisait doublon (identité, remarque, moyennes, avis) n'est plus
+       qu'une fois. Les cartes restent bornées au moment ; ✎ ouvre l'année entière.
      - ⚠️ La classe `.mo` du prototype (les mois de la frise) est celle des FENÊTRES de
        l'app (`display: none`) : les mois ne s'affichaient pas. Renommée `pf-mois`. Toute
        classe reprise d'un prototype se vérifie contre les classes de l'app.
@@ -1807,6 +1821,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 97 | **Fiche : plus de « Dossier complet »** — classe, naissance, civilité, présence, place, élections dans Identité ; relevés, bilans, incidents (📎), contacts, papiers (choix lus, réponses corrigeables) dans leurs cartes, derrière **✎** ; 1 test. Audit 13 états d'édition, 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.9) |
 | 96 | **La fiche a la sélection de moments de la carte de chaleur** (même liste, même titre *Synthèse pour ▾*) ; 🗓 Moments ne règle plus que la colonne Bilans ; tests mis à jour. Audit 3 vues, 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.8) |
 | 95 | **Carte de chaleur : moments de « Synthèse pour » à elle** (tous les mois proposables, liste à cocher sous le titre, indépendante de 🗓 Moments) · **compte d'élèves à droite des filtres** (une ligne de moins) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.7) |
 | 94 | **Carte de chaleur : Observations du carnet, puis MBN, puis Total des observations** (trois groupes) ; tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.6) |
