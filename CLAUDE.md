@@ -582,6 +582,17 @@ majorité absolue    = strictement plus de la moitié des suffrages exprimés
 - **Majorité absolue = strictement supérieure à la moitié.** Sur 24 exprimés il faut 13 voix, pas 12. Écrire le test en entiers (`voix * 2 > exprimes`) plutôt qu'en flottants.
 - Sont élus titulaires les `nbTitulaires` candidats en tête **qui satisfont la règle du tour** — majorité absolue au premier, majorité relative au second. ⚠️ Un tour peut n'élire **qu'un seul** titulaire sur deux : un candidat atteint la majorité absolue, l'autre non. Le second tour ne porte alors que sur le siège restant. **Ne pas supposer que les deux sièges se pourvoient au même tour.**
 - ⚠️ **`votantsAnnonces` n'est pas `bulletins.length`.** Le premier est le comptage de l'urne par les assesseurs avant ouverture, le second l'avancement du dépouillement. Les confondre rend l'axe de la projection élastique et supprime le contrôle contre le bourrage. **Un écart entre les deux à la clôture est signalé** — c'est précisément l'anomalie que ce double comptage existe pour détecter.
+- **Le compte de l'urne PRÉPARE les lignes** (v1.52.5, l'utilisateur : *« prévois tout de suite un
+  nombre de bulletins équivalent à celui renseigné par le nombre des bulletins dans l'urne »*) :
+  `electionPreparerBulletins` (champ *Bulletins dans l'urne*, `electionUrneUI`) pose
+  `votantsAnnonces` et complète la grille par des lignes **« à lire »** (`lu: false`). ⚠️ **Une ligne
+  à lire n'est ni un votant ni un blanc** (`_elStatut` → `alire`, `_elDepouillement` l'ignore) :
+  sans cela, la projection afficherait « 25 dépouillés » et 25 blancs avant le premier bulletin.
+  Cocher un nom, « nul », **Entrée** ou le bouton **Blanc** la marque lue (`electionSetBulletin`
+  efface alors le champ : un bulletin lu n'a pas de `lu`, les fichiers d'avant sont inchangés).
+  Un compte plus bas ne retire QUE des lignes à lire, en fin de grille — jamais un bulletin lu.
+  On ne clôt pas un tour qui a des lignes à lire. *+ Bulletin* mène d'abord à la ligne à lire
+  suivante. Démo : 18 lus sur 25 préparés.
 - **Vérité disponible en cours de dépouillement** : `voix × 2 > votantsAnnonces` ⇒ le candidat est **définitivement** au-dessus de la majorité absolue, puisque `exprimés ≤ votants`. C'est le seul verdict anticipé que l'app s'autorise (cf. *Projection en direct*).
 - **Départage** : appliqué seulement si l'égalité porte sur le dernier siège attribuable. Depuis le 2026-09-09, `stu.naissance` existe et `_elDepartageAge` tranche automatiquement en `plusJeune` / `plusAge`.
   - ⚠️ La date est **FIGÉE sur la candidature** (`cand.naissanceTitulaire`), comme l'est déjà le nom : les élections sont l'exception assumée à la purge, et un PV signé doit rester relisible — motif de départage compris — après le départ de l'élève. La date figée PRIME sur celle de l'élève vivant.
@@ -2112,6 +2123,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 121 | **Bulletins préparés d'après le compte de l'urne** (lignes « à lire », qui ne comptent qu'une fois lues ; Entrée ou Blanc = blanc ; clôture refusée tant qu'il en reste) ; démo ; 1 test, 2 tests adaptés. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.5) |
 | 120 | **Suppléant d'un élu non candidat** : aucun, élu ensuite par un scrutin, ou désigné par l'élu ; dit au PV ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.4) |
 | 119 | **Élu non candidat** : modalité « compte / bulletin nul » (compte par défaut), acceptation demandée à la clôture, refus = siège au suivant ; 2 tests. Audit de la question et des modalités, 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.3) |
 | 118 | **Vie de classe : barre de l'élection, ligne des candidats et graphique collés au défilement** · **nom écrit sur un bulletin** (non candidat, sans suppléant) · **pas de filet rouge à l'écran projeté** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.2) |

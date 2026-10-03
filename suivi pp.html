@@ -1287,6 +1287,8 @@ details.el-block > summary { cursor: pointer; font-weight: 600; color: var(--ink
 .bul-badge.valide { background: var(--com-pos-bg); color: var(--com-pos-fg); }
 .bul-badge.blanc  { background: var(--paper-deep);  color: var(--ink-blue-soft); }
 .bul-badge.nul    { background: var(--alert-bg);    color: var(--alert-fg); }
+.bul-badge.alire  { background: transparent; color: var(--pencil); border: 1px dashed var(--rule-line); }
+.bul-table tr.alire td.bul-n { color: var(--pencil); font-style: italic; }
 .bul-table tr.nul td.bul-c { opacity: .45; }
 
 /* Graphique : voix en longueur de barre, axe fixe sur les votants annoncés,
@@ -2961,8 +2963,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.4';
-const APP_BUILD_DATE = '2026-10-03T16:04:31Z';
+const APP_VERSION    = '1.52.5';
+const APP_BUILD_DATE = '2026-10-03T16:13:51Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12239,6 +12241,7 @@ function electionAddEcritUI() {
 // ⚠️ Un bulletin nul pour inscription inappropriée porte des noms valides et ne peut
 // pas être déduit — d'où `nul: true` + `motifNul` posés à la main.
 function _elStatut(b, el) {
+  if (b.lu === false) return 'alire';   // préparé d'avance, pas encore lu (v1.52.5) : ne compte pas
   if (b.nul) return 'nul';
   // Modalité « nom d'un non-candidat » (v1.52.3) : `compte` (défaut — circulaire n° 2004-114
   // § 6.1, fiche service-public) ou `nul` (lecture stricte du binôme de R421-28).
@@ -12265,7 +12268,27 @@ function electionSetBulletin(el, tourIdx, n, patch) {
   if (patch.voix) { const ok = new Set(t.candidats); b.voix = [...new Set(patch.voix.filter(id => ok.has(id)))]; }
   if ('nul' in patch) b.nul = !!patch.nul;
   if ('motifNul' in patch) b.motifNul = String(patch.motifNul || '');
+  // Toucher un bulletin, c'est l'avoir lu (v1.52.5) : un nom coché, « nul », ou Entrée / Blanc.
+  b.lu = patch.lu === false ? false : true;
+  if (b.lu) delete b.lu;   // un bulletin lu n'a pas de champ : les fichiers d'avant restent identiques
   return true;
+}
+// Les bulletins PRÉPARÉS d'après le compte de l'urne (v1.52.5, l'utilisateur : « prévois tout de
+// suite un nombre de bulletins équivalent à celui renseigné par le nombre de bulletins dans
+// l'urne »). Pose `votantsAnnonces` et complète la grille par des lignes « à lire » (`lu: false`) ;
+// un compte plus bas ne retire que des lignes à lire, en fin de grille — JAMAIS un bulletin lu.
+// ⚠️ Une ligne à lire n'est ni un blanc ni un votant : `_elDepouillement` l'ignore, la projection
+// garde son « dépouillés X / Y ». Rend { ajoutes, retires }.
+function electionPreparerBulletins(el, tourIdx, n) {
+  const t = el.tours[tourIdx];
+  if (!t || t.clos) return null;
+  const v = n === null || n === '' || n === undefined ? null : Math.max(0, Math.min(99, parseInt(n, 10) || 0));
+  t.votantsAnnonces = v;
+  let ajoutes = 0, retires = 0;
+  const cible = v === null ? 0 : v;
+  while (t.bulletins.length > cible && t.bulletins[t.bulletins.length - 1].lu === false) { t.bulletins.pop(); retires++; }
+  while (v !== null && t.bulletins.length < v) { t.bulletins.push({ n: t.bulletins.length + 1, voix: [], nul: false, motifNul: '', lu: false }); ajoutes++; }
+  return { ajoutes, retires };
 }
 function electionRemoveBulletin(el, tourIdx, n) {
   const t = el.tours[tourIdx];
@@ -12321,16 +12344,17 @@ function _elDepouillement(el, tourIdx) {
   const t = el.tours[tourIdx];
   const voix = {};
   for (const id of t.candidats) voix[id] = 0;
-  let blancs = 0, nuls = 0;
+  let blancs = 0, nuls = 0, alire = 0;
   for (const b of t.bulletins) {
     const st = _elStatut(b, el);
+    if (st === 'alire') { alire++; continue; }
     if (st === 'blanc') { blancs++; continue; }
     if (st === 'nul') { nuls++; continue; }
     for (const id of b.voix) if (id in voix) voix[id]++;
   }
-  const votants = t.bulletins.length;
+  const votants = t.bulletins.length - alire;
   const exprimes = votants - blancs - nuls;
-  return { votants, blancs, nuls, exprimes, voix, votantsAnnonces: t.votantsAnnonces ?? null, majoriteAbsolue: _elMajoriteAbsolue(exprimes) };
+  return { votants, blancs, nuls, exprimes, voix, alire, votantsAnnonces: t.votantsAnnonces ?? null, majoriteAbsolue: _elMajoriteAbsolue(exprimes) };
 }
 // Attribution des sièges du tour. Règle du tour : majorité absolue au 1er (si réglé),
 // relative ensuite. ⚠️ Un tour peut ne pourvoir qu'une partie des sièges.
@@ -12380,6 +12404,8 @@ function electionCloreTour(el, tourIdx) {
     const noms = r.egalite.candIds.map(id => _elCandNom(_elCand(el, id))).join(' et ');
     return { bloque: true, warnings: [`Égalité entre ${noms} pour ${r.egalite.sieges} siège${r.egalite.sieges > 1 ? 's' : ''} : à départager (${el.departage === 'manuel' ? 'à la main' : 'la règle de l\'âge ne suffit pas ici — dates manquantes ou identiques'}).`] };
   }
+  const nonLus = t.bulletins.filter(b => b.lu === false).length;
+  if (nonLus) return { bloque: true, warnings: [`${_pl(nonLus, 'bulletin')} pas encore ${nonLus > 1 ? 'lus' : 'lu'} : lisez-${nonLus > 1 ? 'les' : 'le'} (Entrée ou « Blanc » sur une ligne vide = blanc), ou supprimez les lignes en trop.`] };
   // Un élu dont le nom a été ÉCRIT (non candidat) doit accepter : on le lui demande avant de clore.
   const aDemander = r.elus.map(id => _elCand(el, id)).find(c => c && c.ecrit && c.accepte === undefined);
   if (aDemander) return { bloque: true, accepter: aDemander.id, warnings: [`${_elCandNom(aDemander)} n'était pas candidat : demandez-lui s'il accepte son élection.`] };
@@ -12958,7 +12984,7 @@ function _elRenderDepouillement(el, tourIdx, live) {
     return `<tr class="bul ${st}">
       <td class="bul-n">${b.n}</td>
       ${cands.map(c => `<td class="bul-c"><input type="checkbox" data-n="${b.n}" data-c="${_escAttr(c.id)}"${b.voix.includes(c.id) ? ' checked' : ''} onchange="electionToggleVoix(${b.n},'${_escJsAttr(c.id)}',this.checked)" onkeydown="electionBulKey(event)" title="${_escAttr(_elCandNom(c))}"></td>`).join('')}
-      <td class="bul-st"><span class="bul-badge ${st}">${st}</span>
+      <td class="bul-st"><span class="bul-badge ${st}">${st === 'alire' ? 'à lire' : st}</span>${st === 'alire' ? `<button class="btn btn-g btn-sm" onclick="_elMut(e=>electionSetBulletin(e,${tourIdx},${b.n},{lu:true}))" title="Bulletin vierge : le compter blanc (Entrée fait pareil)">Blanc</button>` : ''}
         <label class="tb-hint" title="Inscription inappropriée, marque distinctive… un bulletin qui porte des noms valides mais doit être annulé"><input type="checkbox"${b.nul ? ' checked' : ''} onchange="_elMut(e=>electionSetBulletin(e,${tourIdx},${b.n},{nul:this.checked}))"> nul</label>
         ${b.nul ? `<input type="text" value="${_escAttr(b.motifNul)}" placeholder="motif" maxlength="60" style="width:110px;font-size:.8em;padding:2px 5px" onchange="_elMut(e=>electionSetBulletin(e,${tourIdx},${b.n},{motifNul:this.value}),false)">` : ''}</td>
       <td><button class="btn btn-g btn-sm" onclick="_elMut(e=>electionRemoveBulletin(e,${tourIdx},${b.n}))" title="Supprimer ce bulletin (mal lu)">✕</button></td>
@@ -12968,15 +12994,15 @@ function _elRenderDepouillement(el, tourIdx, live) {
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
       <strong>🗳 Dépouillement — tour ${t.n}</strong> <span class="tb-hint">${t.siegesAPourvoir} siège${t.siegesAPourvoir > 1 ? 's' : ''} à pourvoir</span>
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px;margin-left:auto">Bulletins dans l'urne
-        <input type="number" min="0" max="99" value="${Number.isInteger(t.votantsAnnonces) ? t.votantsAnnonces : ''}" style="width:64px" onchange="_elMut(e=>{e.tours[${tourIdx}].votantsAnnonces=this.value===''?null:Math.max(0,parseInt(this.value,10)||0)})" title="Comptés par les assesseurs AVANT ouverture — c'est l'axe du graphique et le contrôle contre le bourrage"></label>
+        <input type="number" min="0" max="99" value="${Number.isInteger(t.votantsAnnonces) ? t.votantsAnnonces : ''}" style="width:64px" onchange="electionUrneUI(${tourIdx}, this.value)" title="Comptés par les assesseurs AVANT ouverture — c'est l'axe du graphique et le contrôle contre le bourrage"></label>
     </div>${rappel}
     <div class="rel-wrap frozen bul-wrap"><table class="dt bul-table"><thead><tr><th class="bul-n" title="Numéro d'ordre — pour l'audit, jamais projeté">#</th>${cands.map(c => `<th title="${_escAttr(_elCandNom(c) + (_elCandNomSup(c) ? ' / ' + _elCandNomSup(c) : ''))}"><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c).split(' ')[0])}</th>`).join('')}<th>Statut</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     <div class="tb" style="margin-top:6px">
       <button class="btn btn-p btn-sm" id="el-bul-add" onclick="electionNewBulletinUI()" title="Un nouveau bulletin (Entrée depuis la dernière ligne fait pareil)">+ Bulletin</button>
       ${_elEcritHTML(el)}
-      <span class="tb-hint">Cochez les noms lus ; 0 nom = blanc, plus de ${el.nomsParBulletin} = nul. Chaque bulletin s'annule seul par Ctrl+Z.</span>
-      <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="electionCloreUI()" ${t.bulletins.length ? '' : 'disabled'}>✓ Clore le tour ${t.n}</button>
+      <span class="tb-hint">Le compte de l'urne prépare les lignes « à lire ». Cochez les noms lus, Entrée valide le bulletin (vide = blanc) ; plus de ${el.nomsParBulletin} noms = nul. Chaque bulletin s'annule seul par Ctrl+Z.</span>
+      <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="electionCloreUI()" ${t.bulletins.some(b => b.lu !== false) ? '' : 'disabled'}>✓ Clore le tour ${t.n}</button>
     </div></div>`;
 }
 // Le choix d'un élève NON candidat dont le nom est écrit sur un bulletin (feuille blanche).
@@ -12988,6 +13014,16 @@ function _elEcritHTML(el) {
     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
   if (!libres.length) return '';
   return `<span class="el-ecrit"><select id="el-ecrit" aria-label="Élève dont le nom est écrit sur le bulletin"><option value="">— nom écrit, non candidat —</option>${libres.map(s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select><button class="btn btn-g btn-sm" onclick="electionAddEcritUI()" title="${el.nonCandidat === 'nul' ? 'Un bulletin porte le nom d\'un élève non candidat : il devient une colonne, et tout bulletin où il est coché est NUL (modalité de cette élection).' : 'Un bulletin porte le nom d\'un élève qui n\'était pas candidat (feuille blanche) : il devient une colonne, sans suppléant. Élu, il doit accepter son élection.'}">✍️ + Nouveau nom${el.nonCandidat === 'nul' ? ' (bulletin nul)' : ''}</button></span>`;
+}
+// Le compte de l'urne : il fixe l'axe du graphique ET prépare autant de lignes à lire (v1.52.5).
+function electionUrneUI(tourIdx, v) {
+  let r = null;
+  _elMut(e => { r = electionPreparerBulletins(e, tourIdx, v === '' ? null : v); });
+  if (r && r.ajoutes) toast(`🗳 ${_pl(r.ajoutes, 'bulletin')} à lire ${r.ajoutes > 1 ? 'préparés' : 'préparé'} — Entrée sur une ligne vide la compte blanche.`);
+  const el = _elCurrent(), t = el && el.tours[tourIdx];
+  if (t && v !== '' && t.bulletins.filter(b => b.lu !== false).length > (parseInt(v, 10) || 0)) toast('⚠️ Plus de bulletins déjà lus que le compte de l\'urne : l\'écart sera signalé à la clôture.', 'warn');
+  const first = document.querySelector('.bul-table tbody tr.alire .bul-c input');
+  if (first) first.focus();
 }
 function electionToggleVoix(n, candId, on) {
   _elMut(e => {
@@ -13001,6 +13037,9 @@ function electionToggleVoix(n, candId, on) {
   if (again) again.focus();
 }
 function electionNewBulletinUI() {
+  // Une ligne préparée attend encore : c'est elle qu'on lit (pas un bulletin de plus).
+  const alire = document.querySelector('.bul-table tbody tr.alire .bul-c input');
+  if (alire) { alire.focus(); return; }
   _elMut(e => electionAddBulletin(e, e.tours.length - 1, []));
   const inputs = document.querySelectorAll('.bul-table tbody tr:last-child .bul-c input');
   if (inputs[0]) inputs[0].focus();
@@ -13020,9 +13059,13 @@ function electionBulKey(e) {
   if (e.key === 'ArrowUp') return go(i - cols);
   if (e.key === 'Enter') {
     e.preventDefault();
-    const rows = document.querySelectorAll('.bul-table tbody tr');
-    if (n >= rows.length) electionNewBulletinUI();
-    else go(i - ((i % cols)) + cols);
+    // Entrée VALIDE le bulletin : une ligne à lire laissée vide devient un blanc (v1.52.5). La
+    // grille se redessine : la case suivante se retrouve par ses données, jamais par référence.
+    const el = _elCurrent(), ti = el ? el.tours.length - 1 : -1;
+    const b = el && el.tours[ti].bulletins.find(x => x.n === n);
+    if (b && b.lu === false) _elMut(x => electionSetBulletin(x, ti, n, { lu: true }));
+    const next = document.querySelector(`.bul-c input[data-n="${n + 1}"]`);
+    if (next) next.focus(); else electionNewBulletinUI();
   }
 }
 
@@ -13059,6 +13102,8 @@ function electionCloreUI() {
   const el = _elCurrent();
   if (!el) return;
   const tourIdx = el.tours.length - 1;
+  const nonLus = el.tours[tourIdx].bulletins.filter(b => b.lu === false).length;
+  if (nonLus) return appAlert('Bulletins à lire', `${_pl(nonLus, 'bulletin')} pas encore ${nonLus > 1 ? 'lus' : 'lu'}. Lisez-${nonLus > 1 ? 'les' : 'le'} (Entrée ou « Blanc » sur une ligne vide = bulletin blanc), ou supprimez les lignes en trop (✕).`, 'warn');
   const r = _elResultatTour(el, tourIdx);
   if (r.egalite) {
     const noms = r.egalite.candIds.map(id => `<strong>${_escName(_elCandNom(_elCand(el, id)))}</strong>`).join(', ');
@@ -20250,6 +20295,8 @@ function createDemo(opts) {
     // Nul DÉDUIT, lui : trois noms alors que le bulletin en admet deux. L'autre forme.
     seq3.splice(11, 0, [[c2[0].id, c2[1].id, c2[2].id], null]);
     poser(el2, seq3, 0);
+    // Les 7 bulletins restants de l'urne : préparés, « à lire » (v1.52.5).
+    electionPreparerBulletins(el2, 0, 25);
   }
 
   S.cur = cls.id;

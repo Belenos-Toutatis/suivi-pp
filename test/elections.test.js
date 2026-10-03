@@ -554,6 +554,7 @@ test('Élu non candidat : la clôture demande s\'il accepte ; refusé, le siège
     S = _emptyState(); postLoadHook(); createDemo({ force: true });
     const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = el.tours.length - 1, t = el.tours[ti];
     const libre = cls.eleves.find(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    electionPreparerBulletins(el, ti, null);   // les lignes « à lire » de la démo retirées
     const c = electionAddEcrit(el, libre);
     for (let i = 0; i < 40; i++) electionAddBulletin(el, ti, [c.id]);
     t.votantsAnnonces = t.bulletins.length;
@@ -582,6 +583,7 @@ test('Suppléant d\'un élu non candidat (binôme) : aucun, élu ensuite ou dés
     S = _emptyState(); postLoadHook(); createDemo({ force: true });
     const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = el.tours.length - 1, t = el.tours[ti];
     const libres = cls.eleves.filter(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    electionPreparerBulletins(el, ti, null);
     const c = electionAddEcrit(el, libres[0]);
     for (let i = 0; i < 40; i++) electionAddBulletin(el, ti, [c.id]);
     t.votantsAnnonces = t.bulletins.length;
@@ -607,4 +609,28 @@ test('Suppléant d\'un élu non candidat (binôme) : aucun, élu ensuite ou dés
   assert.ok(r.ui, 'le choix est proposé sous les élus');
   assert.strictEqual(r.raz, true);
   assert.strictEqual(r.apres, null, 'revenir à « aucun » retire le suppléant');
+});
+
+test('Compte de l\'urne : des lignes « à lire » préparées, qui ne comptent qu\'une fois lues ; un compte plus bas ne retire jamais un bulletin lu', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = 0, t = el.tours[ti];
+    const demo = { n: t.bulletins.length, alire: t.bulletins.filter(b => b.lu === false).length, votants: _elDepouillement(el, ti).votants };
+    const bloque = electionCloreTour(el, ti).bloque;
+    const p = electionPreparerBulletins(el, ti, 30);
+    const apres30 = { n: t.bulletins.length, votants: _elDepouillement(el, ti).votants, live: _elLive(el, ti).depouilles };
+    const premier = t.bulletins.find(b => b.lu === false);
+    electionSetBulletin(el, ti, premier.n, { lu: true });
+    const blanc = { st: _elStatut(premier, el), blancs: _elDepouillement(el, ti).blancs, champ: 'lu' in premier };
+    const moins = electionPreparerBulletins(el, ti, 5);
+    return JSON.stringify({ demo, bloque, p, apres30, blanc, moins, reste: t.bulletins.length, lus: t.bulletins.filter(b => b.lu !== false).length });
+  })()`));
+  assert.deepStrictEqual(r.demo, { n: 25, alire: 7, votants: 18 }, 'la démo : 18 lus sur 25 préparés');
+  assert.strictEqual(r.bloque, true, 'on ne clôt pas avec des bulletins à lire');
+  assert.deepStrictEqual(r.p, { ajoutes: 5, retires: 0 });
+  assert.deepStrictEqual(r.apres30, { n: 30, votants: 18, live: 18 }, 'les lignes à lire ne sont ni votants ni dépouillés');
+  assert.deepStrictEqual(r.blanc, { st: 'blanc', blancs: 2, champ: false }, 'Entrée / Blanc : un bulletin blanc, sans champ « lu »');
+  assert.strictEqual(r.moins.retires, 11, 'seules les lignes à lire partent');
+  assert.strictEqual(r.reste, 19);
+  assert.strictEqual(r.lus, 19, 'aucun bulletin lu retiré, même sous le compte');
 });
