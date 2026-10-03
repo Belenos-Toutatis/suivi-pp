@@ -532,3 +532,47 @@ test('Nom écrit sur un bulletin : une colonne de plus en cours de dépouillemen
   assert.strictEqual(r.apres, false);
   assert.strictEqual(r.clos, null, 'élection close : refus');
 });
+
+test('Nom d\'un non-candidat : la modalité « nul » annule le bulletin, « compte » (défaut) le garde', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = el.tours.length - 1;
+    const libre = cls.eleves.find(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    const c = electionAddEcrit(el, libre);
+    const b = electionAddBulletin(el, ti, [c.id]);
+    const defaut = _elStatut(b, el);
+    el.nonCandidat = 'nul';
+    const strict = _elStatut(b, el), voix = _elDepouillement(el, ti).voix[c.id] || 0;
+    const autre = electionAddBulletin(el, ti, [el.tours[ti].candidats[0]]);
+    return JSON.stringify({ defaut, strict, voix, autre: _elStatut(autre, el) });
+  })()`));
+  assert.deepStrictEqual(r, { defaut: 'valide', strict: 'nul', voix: 0, autre: 'valide' });
+});
+
+test('Élu non candidat : la clôture demande s\'il accepte ; refusé, le siège va au suivant selon la règle du tour', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = el.tours.length - 1, t = el.tours[ti];
+    const libre = cls.eleves.find(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    const c = electionAddEcrit(el, libre);
+    for (let i = 0; i < 40; i++) electionAddBulletin(el, ti, [c.id]);
+    t.votantsAnnonces = t.bulletins.length;
+    const q = electionCloreTour(el, ti);
+    const snap = JSON.stringify(el);
+    c.accepte = true;
+    const oui = electionCloreTour(el, ti);
+    const eluOui = el.elus.titulaires.includes(c.id);
+    const el2 = JSON.parse(snap); S.elections[cls.id][el2.id] = el2;
+    _elCand(el2, c.id).accepte = false;
+    const non = electionCloreTour(el2, ti);
+    return JSON.stringify({ bloque: q.bloque, accepter: q.accepter === c.id, ouiBloque: oui.bloque, eluOui, nonBloque: non.bloque,
+      eluNon: el2.elus.titulaires.includes(c.id), autres: el2.elus.titulaires.length, second: el2.tours.length });
+  })()`));
+  assert.strictEqual(r.bloque, true, 'la clôture attend la réponse');
+  assert.strictEqual(r.accepter, true);
+  assert.strictEqual(r.ouiBloque, false);
+  assert.strictEqual(r.eluOui, true, 'il accepte : il est élu');
+  assert.strictEqual(r.nonBloque, false);
+  assert.strictEqual(r.eluNon, false, 'il refuse : pas de siège');
+  assert.ok(r.autres >= 1 || r.second === 2, 'le siège va au suivant, ou à un second tour');
+});

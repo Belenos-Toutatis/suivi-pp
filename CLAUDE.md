@@ -643,6 +643,17 @@ bulletin ne le porte. Sans suppléant, élu en binôme : un siège sans suppléa
 est vacant. ⚠️ **Les textes divergent sur ce cas** (cf. *Cadre réglementaire* : R421-28 veut un
 suppléant pour chaque candidat ; la fiche service-public et la circulaire de 2004 admettent l'élu
 non candidat) — question posée à l'utilisateur le 2026-10-03.
+**v1.52.3, arbitré par l'utilisateur (*« fais les deux, avec compte par défaut »*)** :
+- **Modalité `el.nonCandidat`** (⚙ Modalités, figée dès le premier bulletin comme l'arithmétique,
+  rappelée au PV) : `compte` (défaut, absent = compte — circulaire § 6.1, service-public) ou `nul`
+  (lecture stricte de R421-28) — `_elStatut` rend alors NUL tout bulletin où un nom écrit est coché.
+- **Acceptation** (*« … et s'il accepte son élection »*) : `electionCloreTour` refuse de clore
+  (`{ bloque, accepter: candId }`) tant qu'un élu `ecrit` n'a pas répondu ; `electionCloreUI` pose
+  la question devant la classe (*✓ Il accepte* / *✗ Il refuse*), `cand.accepte = true | false`.
+  Un refus l'écarte de l'attribution (`_elResultatTour`) : le siège va au suivant selon la règle
+  du tour, ou à un second tour. Dit dans les candidatures et au PV.
+- ⚠️ **Le suppléant d'un élu non candidat en binôme : AUCUN texte ne le désigne.** L'app ne
+  l'invente pas : siège sans suppléant (la question le dit avant qu'il accepte).
 
 #### ⚠️ Un pourcentage en cours de dépouillement est trompeur
 
@@ -2094,6 +2105,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 119 | **Élu non candidat** : modalité « compte / bulletin nul » (compte par défaut), acceptation demandée à la clôture, refus = siège au suivant ; 2 tests. Audit de la question et des modalités, 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.3) |
 | 118 | **Vie de classe : barre de l'élection, ligne des candidats et graphique collés au défilement** · **nom écrit sur un bulletin** (non candidat, sans suppléant) · **pas de filet rouge à l'écran projeté** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.2) |
 | 117 | **Résultat final dans la fenêtre détachée** (élus, tours, majorité relative au second tour ; sans les remplacements) ; 1 test. Audit dans la fenêtre, 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.1) |
 | 116 | **🖥 Fenêtre détachée du dépouillement** (pour le second écran : plein écran, suit chaque bulletin, Ctrl+Z depuis elle, repli si bloquée) ; 2 tests (`test/projection-fenetre.test.js`) | ✅ **fait** (2026-10-03, v1.52.0) |

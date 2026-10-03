@@ -2861,6 +2861,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbs">Suppléants</label><select id="mel-nbs" onchange="_elNbsChange()" title="En binôme, chaque titulaire a le sien : en choisir un autre nombre défait le binôme (les suppléants sont alors les mieux placés après les élus)"><option value="0">aucun</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-npb">Noms max par bulletin</label><select id="mel-npb"><option value="1" selected>1 (uninominal)</option><option value="2">2 (plurinominal)</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:160px"><label for="mel-dep">Départage d'une égalité</label><select id="mel-dep"><option value="plusJeune">le plus jeune</option><option value="plusAge">le plus âgé</option><option value="manuel">à la main</option></select></div>
+      <div class="fg" style="flex:1;min-width:220px"><label for="mel-noncand">Nom d'un élève non candidat</label><select id="mel-noncand" title="Un bulletin porte le nom d'un élève qui ne s'était pas présenté (feuille blanche). Circulaire n° 2004-114 § 6.1 et fiche service-public : il peut être élu s'il accepte. Lecture stricte du binôme de R421-28 : le bulletin est nul."><option value="compte">compte — élu s'il accepte (circulaire, service-public)</option><option value="nul">rend le bulletin nul (lecture stricte de R421-28)</option></select></div>
     </div>
     <div class="st-group">
       <label style="color:var(--ink-deep)"><input type="checkbox" id="mel-binome" checked onchange="_elBinomeChange()"> Candidatures en binôme — le suppléant est élu avec son titulaire</label>
@@ -2958,8 +2959,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.2';
-const APP_BUILD_DATE = '2026-10-03T15:49:47Z';
+const APP_VERSION    = '1.52.3';
+const APP_BUILD_DATE = '2026-10-03T15:58:48Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12203,6 +12204,9 @@ function electionAddEcritUI() {
 // pas être déduit — d'où `nul: true` + `motifNul` posés à la main.
 function _elStatut(b, el) {
   if (b.nul) return 'nul';
+  // Modalité « nom d'un non-candidat » (v1.52.3) : `compte` (défaut — circulaire n° 2004-114
+  // § 6.1, fiche service-public) ou `nul` (lecture stricte du binôme de R421-28).
+  if (el.nonCandidat === 'nul' && (b.voix || []).some(id => _elCand(el, id)?.ecrit)) return 'nul';
   const n = (b.voix || []).length;
   if (n === 0) return 'blanc';
   if (n > (el.nomsParBulletin || 2)) return 'nul';    // repli 2 : les fichiers d'avant le champ ont été créés avec ce défaut-là
@@ -12301,7 +12305,9 @@ function _elResultatTour(el, tourIdx) {
   const d = _elDepouillement(el, tourIdx);
   const absolue = t.n === 1 && el.majoriteAbsolueT1 !== false;
   let sieges = t.siegesAPourvoir;
-  const cands = t.candidats.filter(id => !_elCand(el, id)?.retire)
+  // Un non-candidat qui REFUSE son élection (`accepte === false`, v1.52.3) ne prend pas de siège :
+  // la règle du tour s'applique aux autres (circulaire n° 2004-114 § 6.1 : « … et s'il accepte »).
+  const cands = t.candidats.filter(id => !_elCand(el, id)?.retire && _elCand(el, id)?.accepte !== false)
     .map(id => ({ id, voix: d.voix[id] || 0 }))
     .filter(c => !absolue || _elAtteintMajorite(c.voix, d.exprimes))
     .filter(c => c.voix > 0 || !absolue)
@@ -12338,6 +12344,9 @@ function electionCloreTour(el, tourIdx) {
     const noms = r.egalite.candIds.map(id => _elCandNom(_elCand(el, id))).join(' et ');
     return { bloque: true, warnings: [`Égalité entre ${noms} pour ${r.egalite.sieges} siège${r.egalite.sieges > 1 ? 's' : ''} : à départager (${el.departage === 'manuel' ? 'à la main' : 'la règle de l\'âge ne suffit pas ici — dates manquantes ou identiques'}).`] };
   }
+  // Un élu dont le nom a été ÉCRIT (non candidat) doit accepter : on le lui demande avant de clore.
+  const aDemander = r.elus.map(id => _elCand(el, id)).find(c => c && c.ecrit && c.accepte === undefined);
+  if (aDemander) return { bloque: true, accepter: aDemander.id, warnings: [`${_elCandNom(aDemander)} n'était pas candidat : demandez-lui s'il accepte son élection.`] };
   if (Number.isInteger(t.votantsAnnonces) && t.votantsAnnonces !== t.bulletins.length) {
     warnings.push(`${t.votantsAnnonces} bulletins annoncés dans l'urne, ${t.bulletins.length} dépouillés : écart de ${Math.abs(t.votantsAnnonces - t.bulletins.length)} à expliquer sur le PV.`);
   }
@@ -12876,7 +12885,7 @@ function _elRenderCandidats(el, t) {
   const canEdit = !el.clos && !t.bulletins.length && t.n === 1;
   const rows = el.candidats.slice().sort((a, b) => a.ordre - b.ordre).map(c => `<tr${c.retire ? ' class="inactive"' : ''}>
       <td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> <input type="color" value="${_escAttr(_safeColor(c.color))}" onchange="_elMut(e=>{_elCand(e,'${_escJsAttr(c.id)}').color=_safeColor(this.value)})" title="Couleur de la barre" style="width:26px;height:20px;padding:0;border:none;background:none;cursor:pointer;vertical-align:middle"></td>
-      <td><strong>${_escName(_elCandNom(c))}</strong>${c.retire ? ' <span class="tb-hint">(retiré)</span>' : ''}${c.ecrit ? ' <span class="tb-hint" title="Non candidat : son nom a été écrit sur un bulletin">(nom écrit)</span>' : ''}</td>
+      <td><strong>${_escName(_elCandNom(c))}</strong>${c.retire ? ' <span class="tb-hint">(retiré)</span>' : ''}${c.ecrit ? ` <span class="tb-hint" title="Non candidat : son nom a été écrit sur un bulletin">(nom écrit${c.accepte === true ? ', a accepté son élection' : c.accepte === false ? ', a refusé son élection' : ''})</span>` : ''}</td>
       <td>${_escName(_elCandNomSup(c)) || '<span class="tb-hint">—</span>'}</td>
       <td style="white-space:nowrap">
         ${canEdit ? `<button class="btn btn-g btn-sm" onclick="_elMut(e=>{const i=e.candidats.indexOf(_elCand(e,'${_escJsAttr(c.id)}'));if(i>0){[e.candidats[i-1].ordre,e.candidats[i].ordre]=[e.candidats[i].ordre,e.candidats[i-1].ordre];e.candidats.sort((a,b)=>a.ordre-b.ordre)}})" title="Monter">↑</button>
@@ -12942,7 +12951,7 @@ function _elEcritHTML(el) {
   const libres = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !pris.has(s.id))
     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
   if (!libres.length) return '';
-  return `<span class="el-ecrit"><select id="el-ecrit" aria-label="Élève dont le nom est écrit sur le bulletin"><option value="">— nom écrit, non candidat —</option>${libres.map(s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select><button class="btn btn-g btn-sm" onclick="electionAddEcritUI()" title="Un bulletin porte le nom d'un élève qui n'était pas candidat (feuille blanche) : il devient une colonne, sans suppléant. S'il est élu, il doit accepter le mandat.">✍️ + Nouveau nom</button></span>`;
+  return `<span class="el-ecrit"><select id="el-ecrit" aria-label="Élève dont le nom est écrit sur le bulletin"><option value="">— nom écrit, non candidat —</option>${libres.map(s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select><button class="btn btn-g btn-sm" onclick="electionAddEcritUI()" title="${el.nonCandidat === 'nul' ? 'Un bulletin porte le nom d\'un élève non candidat : il devient une colonne, et tout bulletin où il est coché est NUL (modalité de cette élection).' : 'Un bulletin porte le nom d\'un élève qui n\'était pas candidat (feuille blanche) : il devient une colonne, sans suppléant. Élu, il doit accepter son élection.'}">✍️ + Nouveau nom${el.nonCandidat === 'nul' ? ' (bulletin nul)' : ''}</button></span>`;
 }
 function electionToggleVoix(n, candId, on) {
   _elMut(e => {
@@ -13027,6 +13036,20 @@ function electionCloreUI() {
         const id = document.querySelector('input[name="el-dep"]:checked')?.value;
         if (!id) return toast('⚠️ Cochez un candidat.', 'warn');
         _elMut(e => { e.departageManuel = e.departageManuel || {}; e.departageManuel[e.tours[tourIdx].n] = [id]; });
+        electionCloreUI();
+      });
+    return;
+  }
+  // Un élu non candidat (nom écrit) : il accepte ou refuse, devant la classe, avant la clôture.
+  const nc = r.elus.map(id => _elCand(el, id)).find(c => c && c.ecrit && c.accepte === undefined);
+  if (nc) {
+    const nom = _elCandNom(nc);
+    _appDialogShow({ title: '✍️ Élu sans avoir été candidat', type: 'question',
+      message: `<strong>${_escName(nom)}</strong> n'était pas candidat : son nom a été écrit sur ${_pl(_elDepouillement(el, tourIdx).voix[nc.id] || 0, 'bulletin')}. Il est élu s'il <strong>accepte son élection</strong> (circulaire n° 2004-114, § 6.1).${el.binome !== false ? '<br><br>Candidatures en binôme : il n\'a pas de suppléant, et aucun texte ne dit qui le supplée — son siège restera sans suppléant.' : ''}<br><br>S'il refuse, le siège revient au suivant selon la règle du tour.`,
+      buttons: [{ label: 'Annuler', value: null }, { label: '✗ Il refuse', value: 'non' }, { label: '✓ Il accepte', primary: true, value: 'oui' }] })
+      .then(v => {
+        if (v !== 'oui' && v !== 'non') return;
+        _elMut(e => { const c = _elCand(e, nc.id); if (c) c.accepte = v === 'oui'; });
         electionCloreUI();
       });
     return;
@@ -13157,7 +13180,7 @@ function _elDefautsReset() {
   if (g('mel-nbt').disabled) return;
   const ty = _EL_TYPES[g('mel-type').value] || _EL_TYPES.delegues;
   g('mel-nbt').value = ty.defaults.nbTitulaires; g('mel-binome').checked = ty.defaults.binome; g('mel-nbs').value = ty.defaults.nbSupplants; g('mel-npb').value = ty.defaults.nomsParBulletin;
-  g('mel-maj').checked = true; g('mel-dep').value = 'plusJeune';
+  g('mel-maj').checked = true; g('mel-dep').value = 'plusJeune'; g('mel-noncand').value = 'compte';
 }
 // ⚠️ Le nombre de suppléants reste RÉGLABLE (v1.30.1, demande de l'utilisateur) — il n'est
 // plus grisé en binôme. Le binôme veut dire « chaque titulaire est élu avec SON
@@ -13193,6 +13216,7 @@ function _elFillSettings(el) {
   g('mel-npb').value = el?.nomsParBulletin || ty.defaults.nomsParBulletin;
   g('mel-maj').checked = el ? el.majoriteAbsolueT1 !== false : true;
   g('mel-dep').value = el?.departage || 'plusJeune';
+  g('mel-noncand').value = el?.nonCandidat === 'nul' ? 'nul' : 'compte';
   g('mel-inscrits').value = el?.inscrits ?? _elInscrits(cls.id, g('mel-date').value);
   g('mel-ordre').value = el?.affichage?.ordre || 'tirage';
   g('mel-pct').checked = el ? el.affichage?.pourcentages !== false : true;
@@ -13202,7 +13226,7 @@ function _elFillSettings(el) {
     g(k).innerHTML = '<option value="">— assesseur —</option>' + students.map(s => `<option value="${_escAttr(s.id)}"${s.id === cur ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('');
   }
   const locked = !!(el && (el.tours.some(t => t.bulletins.length) || el.clos));
-  ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj', 'mel-nbs', 'mel-defauts'].forEach(k => { g(k).disabled = locked; });
+  ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj', 'mel-nbs', 'mel-noncand', 'mel-defauts'].forEach(k => { g(k).disabled = locked; });
   g('mel-locked').style.display = locked ? '' : 'none';
   _elBinomeChange();
 }
@@ -13219,12 +13243,14 @@ function electionSettingsOk() {
   if (!_elSettingsId) {
     const el = electionCreate(S.cur, opts);
     el.affichage.ordre = g('mel-ordre').value; el.affichage.pourcentages = g('mel-pct').checked;
+    el.nonCandidat = g('mel-noncand').value === 'nul' ? 'nul' : 'compte';
     _elView = el.id;
   } else {
     const el = _elCurrent();
     Object.assign(el, { date, type: (_EL_TYPES[opts.type] || _EL_TYPES.delegues).key, titre: opts.titre.trim() || el.titre, etablissement: opts.etablissement, departage: opts.departage, inscrits: Number.isInteger(opts.inscrits) ? opts.inscrits : el.inscrits,
                         assesseurs: opts.assesseurs, assesseursNoms: opts.assesseurs.map(sid => `${S.eleves[sid].prenom} ${S.eleves[sid].nom}`) });
     el.affichage = { ...el.affichage, ordre: g('mel-ordre').value, pourcentages: g('mel-pct').checked };
+    if (!g('mel-noncand').disabled) el.nonCandidat = g('mel-noncand').value === 'nul' ? 'nul' : 'compte';
     if (!g('mel-nbt').disabled) { el.nbTitulaires = Math.max(1, Math.min(4, opts.nbTitulaires)); el.binome = opts.binome; el.nbSupplants = opts.binome ? el.nbTitulaires : Math.max(0, Math.min(4, opts.nbSupplants || 0)); el.nomsParBulletin = Math.max(1, Math.min(4, opts.nomsParBulletin)); el.majoriteAbsolueT1 = opts.majoriteAbsolueT1; el.tours[0].siegesAPourvoir = el.nbTitulaires; }
   }
   save(); closeMod2('mel'); renderDelegues();
@@ -13253,8 +13279,8 @@ function electionPrintPV() {
   pa.innerHTML = `<div class="pv">
     <h1>${_escName(_elType(el).pv)}</h1>
     <p class="pv-sub">${_escName(el.etablissement || '')}${el.etablissement ? ' — ' : ''}Classe de <strong>${_escName(cls?.nom || el.classId)}</strong> — année ${_escName(cls?.annee || '')} — scrutin du <strong>${_escName(_fmtDateFr(el.date))}</strong></p>
-    <p class="pv-mod"><strong>Modalités :</strong> ${el.nbTitulaires} titulaire${el.nbTitulaires > 1 ? 's' : ''}${_elNbSup(el) ? ` et ${_elNbSup(el)} suppléant${_elNbSup(el) > 1 ? 's' : ''}` : ', sans suppléant'} · ${el.binome !== false ? 'candidatures en binôme (le suppléant est élu avec son titulaire)' : (_elNbSup(el) ? 'suppléants élus séparément' : 'candidatures individuelles')} · au plus ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin, bulletin vierge = blanc, trop de noms ou inscription inappropriée = nul · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue des suffrages exprimés au premier tour, relative au second' : 'majorité relative'} · départage ${el.departage === 'plusAge' ? 'par le candidat le plus âgé' : el.departage === 'manuel' ? 'à la main' : 'par le candidat le plus jeune'}. Tous les élèves de la division sont électeurs et éligibles.</p>
-    <h3>Candidats</h3><p>${el.candidats.map(c => `${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}${c.retire ? ' (retiré)' : ''}${c.ecrit ? ' (non candidat, nom écrit sur un bulletin)' : ''}`).join(' · ')}</p>
+    <p class="pv-mod"><strong>Modalités :</strong> ${el.nbTitulaires} titulaire${el.nbTitulaires > 1 ? 's' : ''}${_elNbSup(el) ? ` et ${_elNbSup(el)} suppléant${_elNbSup(el) > 1 ? 's' : ''}` : ', sans suppléant'} · ${el.binome !== false ? 'candidatures en binôme (le suppléant est élu avec son titulaire)' : (_elNbSup(el) ? 'suppléants élus séparément' : 'candidatures individuelles')} · au plus ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin, bulletin vierge = blanc, trop de noms ou inscription inappropriée = nul · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue des suffrages exprimés au premier tour, relative au second' : 'majorité relative'} · départage ${el.departage === 'plusAge' ? 'par le candidat le plus âgé' : el.departage === 'manuel' ? 'à la main' : 'par le candidat le plus jeune'} · nom d'un élève non candidat : ${el.nonCandidat === 'nul' ? 'le bulletin est nul' : 'la voix compte, élu s\'il accepte son élection'}. Tous les élèves de la division sont électeurs et éligibles.</p>
+    <h3>Candidats</h3><p>${el.candidats.map(c => `${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}${c.retire ? ' (retiré)' : ''}${c.ecrit ? ` (non candidat, nom écrit sur un bulletin${c.accepte === true ? ' ; a accepté son élection' : c.accepte === false ? ' ; a refusé son élection' : ''})` : ''}`).join(' · ')}</p>
     ${tours}
     <h3>Sont élus</h3>
     <table class="pv-t"><tr><th>${_escName(_elType(el).elu)}s${_elNbSup(el) ? ' titulaires' : ''}</th>${_elNbSup(el) ? `<th>${_escName(_elType(el).elu)}s suppléants</th>` : ''}</tr>${elus.map((c, i) => `<tr><td>${_escName(_elCandNom(c))}</td>${_elNbSup(el) ? `<td>${_escName(sups[i] || '')}</td>` : ''}</tr>`).join('') || '<tr><td colspan="2">Aucun élu</td></tr>'}</table>
