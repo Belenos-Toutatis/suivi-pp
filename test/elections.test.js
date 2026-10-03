@@ -576,3 +576,35 @@ test('Élu non candidat : la clôture demande s\'il accepte ; refusé, le siège
   assert.strictEqual(r.eluNon, false, 'il refuse : pas de siège');
   assert.ok(r.autres >= 1 || r.second === 2, 'le siège va au suivant, ou à un second tour');
 });
+
+test('Suppléant d\'un élu non candidat (binôme) : aucun, élu ensuite ou désigné — il devient le suppléant en exercice', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = el.tours.length - 1, t = el.tours[ti];
+    const libres = cls.eleves.filter(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    const c = electionAddEcrit(el, libres[0]);
+    for (let i = 0; i < 40; i++) electionAddBulletin(el, ti, [c.id]);
+    t.votantsAnnonces = t.bulletins.length;
+    c.accepte = true;
+    electionCloreTour(el, ti);
+    let g = 0; while (!el.clos && g++ < 3) { const k = el.tours.length - 1; electionAddBulletin(el, k, [el.tours[k].candidats[0]]); el.tours[k].votantsAnnonces = el.tours[k].bulletins.length; electionCloreTour(el, k); }
+    const aucun = _elSupNcTexte(el, c);
+    const avant = electionSuppleantNC(el, c.id, { mode: 'designe', sid: libres[1], date: '1999-01-01' });
+    const pris = electionSuppleantNC(el, c.id, { mode: 'election', sid: _elCand(el, el.elus.titulaires.find(id => id !== c.id)).sidTitulaire, date: el.date });
+    const ok = electionSuppleantNC(el, c.id, { mode: 'election', sid: libres[1], date: el.date });
+    const eff = _elEffectifs(el);
+    const texte = _elSupNcTexte(el, c);
+    const ui = _elSupNcHTML(el);
+    const raz = electionSuppleantNC(el, c.id, { mode: 'aucun' });
+    return JSON.stringify({ aucun, avant, pris, ok, supEff: eff.suppleants.some(x => x.sid === libres[1]), texte, ui: ui.includes('elsn-m-0'), raz, apres: c.sidSuppleant });
+  })()`));
+  assert.match(r.aucun, /sans suppléant/);
+  assert.strictEqual(r.avant, false, 'pas avant le scrutin');
+  assert.strictEqual(r.pris, false, 'pas un élu de cette élection');
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.supEff, true, 'il est le suppléant en exercice');
+  assert.match(r.texte, /élu par un scrutin le/);
+  assert.ok(r.ui, 'le choix est proposé sous les élus');
+  assert.strictEqual(r.raz, true);
+  assert.strictEqual(r.apres, null, 'revenir à « aucun » retire le suppléant');
+});
