@@ -165,6 +165,8 @@ stu = {
   joursDP,                 // ['lun', 'mar', …] | absent — jours de demi-pension (v1.45.2, DP seulement)
   entree,                  // code du régime d'ENTRÉE de l'établissement ('A1', 'A2') | absent (v1.45.2)
   sortie,                  // code du régime de SORTIE ('D1', 'D2', 'D3') | absent (v1.45.1, révisé v1.45.2)
+  // Observations notées dans Mon Bureau Numérique (v1.46.0) — des ÉVÉNEMENTS, pas un cumul.
+  obsMbn: [ { id, ts, date: 'YYYY-MM-DD', heure: 'HH:MM' | '', type, motif, par, info } ],   // absent = aucune
   // Journal des contacts avec la famille — DATÉ et qualifié, à côté du texte libre.
   journal: [ { id, date: 'YYYY-MM-DD', ts, type: 'appel'|'rencontre'|'courriel'|'mot'|'autre', texte } ],
   // Incidents et instances (2026-09-11) : fiche incident, punition, commission éducative…
@@ -247,6 +249,43 @@ retour = {
   ⚠️ La couleur de palier doit battre la rangée grisée : `.pp-t.pp-car tbody td.ob-N`
   (0,3,2) contre `.pp-t tbody tr:nth-child(even) td` (0,2,3).
 - **Total de période** : somme des deltas des relevés dont la date tombe dans la période — c'est-à-dire `cumul(dernier relevé de la période) − cumul(dernier relevé d'avant la période)`. ⚠️ Ne PAS additionner les cumuls, faute classique qui compte chaque observation autant de fois qu'il y a eu de relevés depuis.
+
+### Observations notées dans MBN — la seconde source (v1.46.0)
+
+Demandé le 2026-10-03 : *« tant qu'on ne s'est pas mis d'accord, on note les observations à
+deux endroits : le carnet de correspondance (je relève en passant dans les rangs) et, depuis
+cette année, MBN, où des enseignants en saisissent. Il faut que je puisse tenir le compte des
+deux. »* L'export MBN (vu sur un export anonymisé fourni par l'utilisateur, hors du dépôt) :
+`Élève · Civilité · Classe · Type · Motif · Demandeur · Donnée le · Informations complémentaires`,
+une ligne par observation, « Donnée le » en **nombre de série** Excel dans le .xlsx.
+
+- ⚠️ **Deux modèles différents, gardés SÉPARÉS** : le carnet est un cumul relevé
+  (`S.releves`), MBN une liste d'événements datés (`stu.obsMbn`) qu'on **compte** sur une
+  période (`_obsMbnEntre`). Partout, les deux s'affichent côte à côte, jamais fondus : un
+  collègue peut noter la même observation aux deux endroits. Seule la grille donne leur somme,
+  dans une colonne à part *Carnet + MBN* de la période courante, dont l'infobulle le dit.
+- **Import** (`openObsMbnImport`, modale `mobsmbn` — bouton *📥 Observations MBN…* de l'onglet
+  Observations, et dans 💾 Données) : `_tableurLire` → `_obsMbnLire` (colonnes par leur
+  EN-TÊTE ; `_obsMbnDate` lit le nombre de série, « jj/mm/aaaa hh:mm » et l'ISO ; une ligne
+  sans date lisible est écartée et nommée) → `_mbnRapprocher` (le même rattachement que les
+  régimes : rien n'est deviné, rattachement manuel **par nom**, « ignorer » par défaut) →
+  `_obsMbnBilan` (pur) → `_obsMbnAppliquer`, un cran d'undo.
+  - ⚠️ **Réimporter n'ajoute que le nouveau** : l'export couvre l'année, on le reprend
+    plusieurs fois. Une observation se reconnaît à `date · heure · type · motif · demandeur ·
+    texte` (normalisés), en **multiensemble** : deux observations identiques à la même minute
+    restent deux.
+  - ⚠️ **Une observation de l'app absente de l'export** (dans les dates qu'il couvre) est
+    proposée au retrait — effacée dans MBN ? — mais **jamais cochée d'office**.
+- **Où on les voit** : onglet Observations (une colonne *MBN S1* par période, cliquable vers la
+  fiche, détail en infobulle ; *Carnet + MBN* ; tri « par observations MBN »), liste des élèves
+  (pastille *MBN n* de la période dans la case Carnet), carte de chaleur (groupe *Observations
+  MBN*, une case par mois, après le carnet), fiche (carte Carnet : *Notées dans MBN*, la liste ;
+  un fait « n observations dans MBN : 2 travail non fait, 1 bavardage » insérable dans le bilan ;
+  la chronologie les date ; chiffre clé), synthèse de période (« · MBN n » à côté du carnet,
+  tableau et fiches). Pas sur la feuille imprimée de la grille du carnet.
+- `postLoadHook` écarte les entrées illisibles et retire un champ qui n'est pas un tableau ;
+  le champ n'est jamais créé d'office. Rien à purger à part : il part avec l'élève.
+  Démo : onze observations MBN sur cinq élèves.
 
 ### Documents — un même papier porte plusieurs réponses
 
@@ -1123,7 +1162,11 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
      qu'on clique (`_elMomOpen`) et se ferme au clic ailleurs. Ajouté et encore vide : il disparaît (rien dans `S`).
      Avec des bilans : MASQUÉ (`S.prefs.bilansMasques`, un cran d'undo), les bilans restent
      dans les fiches, *＋* le remet (« (retiré) »). `_bilanColsVues` = la liste, la carte de
-     chaleur, le tri, le papier ; la fiche garde tous les moments. Au passage : « Point
+     chaleur, le tri, le papier. ~~La fiche garde tous les moments.~~ **Révisé en v1.46.0**
+     (l'utilisateur : *« dans la fiche, on peut aussi masquer un moment ? »*) : la fiche suit le
+     même réglage — un moment retiré ne s'y propose plus dans *Synthèse pour* (`_ficheMoments`),
+     ses bilans restent lus dans la carte Bilans parmi les autres ; tout retiré, la fiche garde
+     la liste entière. Au passage : « Point
      d'avril » (`_deMois`), et le repère `{demois}` dans le message aux collègues.
      **Périodes précédentes aussi** (v1.41.1, demande de l'utilisateur) : `_bilanColonnesListe`
      (pur) — les colonnes de la période courante, précédées de celles des périodes passées
@@ -1690,6 +1733,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 88 | **Observations notées dans MBN** : import de l'export (.xlsx, dates en nombre de série, réimport sans doublon, retrait seulement coché), comptées à côté du carnet dans la grille (MBN par période, *Carnet + MBN*), la liste, la carte de chaleur, la fiche et la synthèse de période ; démo · **la fiche suit les moments retirés** ; 3 tests (`test/obs-mbn.test.js`). Vérifié sur l'export fourni (hors dépôt, 7 observations). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.0) |
 | 87 | **Liste « 🗓 Moments »** à la place des menus ＋ / − : chaque moment de bilan avec − (dans la colonne) ou + (à ajouter) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.45.4) |
 | 86 | **Grille des bulletins figée** (ligne des candidats en place, position gardée) ; **retirer un moment de bilan** (vide : disparaît ; écrit : masqué, retenu) ; « Point d'avril » ; test du cadre figé étendu aux renderers qui délèguent la garde ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.3) |
 | 85 | **Régimes d'entrée ET de sortie** séparés (catalogues, migration), jours de ½ pension ; **import de l'export MBN** (.xlsx, avant / après, rattachement manuel) ; **lecture .xlsx** (`_xlsxRead`), import d'élèves en .xlsx / .ods ; **Retours** : seule la grille défile ; 3 tests. Vérifié sur le vrai export (hors dépôt). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-02, v1.45.2) |

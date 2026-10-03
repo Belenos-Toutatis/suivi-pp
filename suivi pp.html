@@ -1053,6 +1053,10 @@ td.rel-delta.hot  { background: var(--alert-bg);   color: var(--alert-fg); }
 .rel-table td.rel-period, .rel-table th.rel-period { text-align: center; font-family: var(--font-mono); color: var(--pencil); }
 .rel-table td.rel-period.cur { color: var(--ink-deep); font-weight: 700; }
 .rel-table th.rel-period.cur { color: var(--ink-blue); }
+/* Observations MBN (v1.46.0) : à part du carnet, séparées d'un filet ; la somme en dernier. */
+.rel-table td.rel-mbn, .rel-table th.rel-mbn { border-left: 1px dashed var(--rule-line); }
+.rel-table th.rel-somme, .rel-table td.rel-somme { border-left: 2px solid var(--rule-line); }
+.rel-mbn-n { border: 0; background: none; padding: 0 4px; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
 .rel-table tbody tr.inactive td.rel-name { font-style: italic; }
 
 /* ─── Cadre FIGÉ : première ligne et première colonne restent en vue ───
@@ -1406,6 +1410,7 @@ body.el-projecting #main { padding-top: 8px; }
 .el-ob { min-width: 2.2em; text-align: center; }
 .el-dl { font-family: var(--font-mono); font-size: .85em; color: var(--pencil); margin-left: 4px; }
 .el-dl.up { color: var(--danger-fg); font-weight: 700; }
+.el-mbn { font-family: var(--font-mono); font-size: .8em; margin-left: 6px; padding: 0 5px; border-radius: 8px; border: 1px solid var(--rule-line); color: var(--ink-deep); white-space: nowrap; }
 button.el-dl { border: 0; background: none; padding: 0; text-decoration: underline dotted; text-underline-offset: 2px; }
 .el-spark { vertical-align: middle; margin-left: 5px; }
 .el-spark polyline { fill: none; stroke: var(--obs-5); stroke-width: 1.5; }
@@ -2392,6 +2397,14 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
+<!-- ═══════════════ OBSERVATIONS — import de l'export MBN (v1.46.0) ═══════════════ -->
+<div id="mobsmbn" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:780px;width:100%">
+    <h2>📥 Observations depuis Mon Bureau Numérique</h2>
+    <div id="mobsmbn-body"></div>
+  </div>
+</div>
+
 <!-- ═══════════════ OBSERVATIONS DU CARNET — impression ═══════════════ -->
 <div id="mcarprint" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();carPrintOk()}">
@@ -2726,8 +2739,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.45.4';
-const APP_BUILD_DATE = '2026-10-02T22:11:38Z';
+const APP_VERSION    = '1.46.0';
+const APP_BUILD_DATE = '2026-10-03T04:13:52Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3534,6 +3547,8 @@ function _sanitizeCoreSections() {
     e.incidents = e.incidents.filter(_isPlainObj);
     if (!Array.isArray(e.bilans)) e.bilans = [];
     e.bilans = e.bilans.filter(_isPlainObj);
+    // Observations notées dans MBN (v1.46.0) : absent = aucune ; jamais créé d'office.
+    if (e.obsMbn !== undefined) { if (Array.isArray(e.obsMbn)) e.obsMbn = e.obsMbn.filter(x => _isPlainObj(x) && _ymdValid(x.date)); else delete e.obsMbn; }
   }
   for (const byId of Object.values(S.moyennes)) {
     for (const r of Object.values(byId)) {
@@ -3904,7 +3919,7 @@ function _renderDonneesInner(el) {
       <div class="pref-help">Les codes d'entrée de l'établissement, un par ligne, avec leur signification après « = » (par exemple <code>A1 = arrivée à la première heure de cours</code>).</div>
       <label for="pref-sorties">Régimes de sortie</label>
       <textarea id="pref-sorties" rows="4" style="max-width:420px;font-family:var(--font-mono)" onchange="regimesCodesUI('regimesSortie', this.value)">${_escName(_sortieCodes().map(c => c.code + (c.label ? ' = ' + c.label : '')).join('\n'))}</textarea>
-      <div class="pref-help">Les codes de sortie, de même. Ils se choisissent sur chaque élève (✏️, ou la puce 🍽 Régimes de la liste des élèves), s'affichent dans la colonne Groupe · options, et se reprennent de l'export de Mon Bureau Numérique : <button class="btn btn-g btn-sm" onclick="openMbnImport()">📥 Régimes depuis MBN…</button></div>
+      <div class="pref-help">Les codes de sortie, de même. Ils se choisissent sur chaque élève (✏️, ou la puce 🍽 Régimes de la liste des élèves), s'affichent dans la colonne Groupe · options, et se reprennent de l'export de Mon Bureau Numérique : <button class="btn btn-g btn-sm" onclick="openMbnImport()">📥 Régimes depuis MBN…</button> — de même que les observations saisies par les collègues dans MBN : <button class="btn btn-g btn-sm" onclick="openObsMbnImport()">📥 Observations MBN…</button></div>
       <label for="pref-police-ecran">Police de l'écran</label>
       <select id="pref-police-ecran" onchange="setPref('policeEcran', this.value)" style="max-width:220px">
         ${Object.entries(_POLICES).map(([k, v]) => `<option value="${k}"${_applyPolices().ecran === k ? ' selected' : ''}>${_escName(v.label)}${k === 'andika' ? ' (par défaut)' : ''}</option>`).join('')}
@@ -5404,6 +5419,197 @@ async function _tableurLire(file) {
   return det.rows || [];
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// OBSERVATIONS NOTÉES DANS MBN (v1.46.0)
+// ═══════════════════════════════════════════════════════════════════════════
+// Dans l'établissement de l'utilisateur, les observations se notent À DEUX ENDROITS tant
+// que le conseil pédagogique n'a pas tranché : le carnet de correspondance (relevé en
+// passant dans les rangs — onglet Observations, un CUMUL lu) et, depuis cette année, Mon
+// Bureau Numérique, où des collègues les saisissent une par une. Il faut tenir le compte
+// des deux. L'export MBN (vu sur un export anonymisé, 2026-10-03) :
+//   Élève · Civilité · Classe · Type · Motif · Demandeur · Donnée le · Informations complémentaires
+// « Élève » = « NOM Prénom » ; « Donnée le » = une date-heure (nombre de série Excel dans
+// un .xlsx, « jj/mm/aaaa hh:mm » ailleurs) ; Type = « Observation négative »…
+// ⚠️ Ici, ce sont des ÉVÉNEMENTS, pas un cumul : `stu.obsMbn = [{ id, date, heure, type,
+// motif, par, info }]`, et ils se COMPTENT sur une période. Les deux sources restent
+// séparées partout (un collègue peut noter la même observation aux deux endroits : les
+// additionner en silence la compterait deux fois) ; la grille donne leur somme à part, en le disant.
+// Réimporter le même export (il couvre l'année) n'ajoute que le nouveau : une observation se
+// reconnaît à son élève, sa date, son heure, son type, son motif, son demandeur et son texte.
+// Une observation de l'app ABSENTE de l'export (effacée dans MBN ?) n'est retirée que si on
+// la coche — jamais d'office.
+function _obsMbnOf(sid) {
+  return (S.eleves[sid]?.obsMbn || []).filter(_isPlainObj)
+    .slice().sort((a, b) => (String(a.date) + (a.heure || '')).localeCompare(String(b.date) + (b.heure || '')));
+}
+function _obsMbnEntre(sid, a, b) { return _obsMbnOf(sid).filter(e => e.date >= a && e.date <= b); }
+function _obsMbnClasseAny(cls) { return !!cls && cls.eleves.some(id => _obsMbnOf(id).length); }
+function _obsMbnTexte(e) { return `${_fmtDateFr(e.date)}${e.heure ? ' ' + e.heure : ''} — ${e.motif || e.type || 'observation'}${e.par ? ` (${e.par})` : ''}${e.info ? ' : ' + e.info : ''}`; }
+// « 2 travail non fait, 1 bavardage » — les motifs, du plus fréquent au moins fréquent. PUR.
+function _obsMbnMotifs(list) {
+  const n = new Map();
+  for (const e of list) { const k = String(e.motif || e.type || 'observation').trim(); n.set(k, (n.get(k) || 0) + 1); }
+  return [...n.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr')).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ');
+}
+// Une date-heure de tableur → { date: 'YYYY-MM-DD', heure: 'HH:MM' | '' } | null. PUR.
+function _obsMbnDate(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return null;
+  const p2 = n => String(n).padStart(2, '0');
+  if (/^\d{4,6}(\.\d+)?$/.test(s)) {           // nombre de série (Excel, système 1900)
+    const x = Number(s), j = Math.floor(x), mn = Math.round((x - j) * 1440);
+    const d = new Date(Date.UTC(1899, 11, 30) + j * 864e5);
+    if (d.getUTCFullYear() < 1990 || d.getUTCFullYear() > 2100) return null;
+    return { date: `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}`, heure: mn ? `${p2(Math.floor(mn / 60) % 24)}:${p2(mn % 60)}` : '' };
+  }
+  let m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?:[ T]+(\d{1,2})[:h](\d{2}))?/.exec(s);
+  if (m) {
+    const y = m[3].length === 2 ? '20' + m[3] : m[3];
+    const ymd = `${y}-${p2(m[2])}-${p2(m[1])}`;
+    return _ymdValid(ymd) ? { date: ymd, heure: m[4] ? `${p2(m[4])}:${m[5]}` : '' } : null;
+  }
+  m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(s);
+  if (m) { const ymd = `${m[1]}-${m[2]}-${m[3]}`; return _ymdValid(ymd) ? { date: ymd, heure: m[4] ? `${m[4]}:${m[5]}` : '' } : null; }
+  return null;
+}
+function _obsMbnColonnes(entete) {
+  const n = entete.map(h => _impNormHeader(h));
+  const trouve = test => n.findIndex(test);
+  return {
+    eleve:  trouve(h => /^(eleve|eleves|nom prenom|nom et prenom|identite)$/.test(h)),
+    classe: trouve(h => /^(classe|division)$/.test(h)),
+    type:   trouve(h => /^type/.test(h)),
+    motif:  trouve(h => /^motif/.test(h)),
+    par:    trouve(h => /demandeur|auteur|saisi par|donnee par|enseignant|professeur/.test(h)),
+    date:   trouve(h => /^(donnee le|date)/.test(h) || /^date/.test(h)),
+    info:   trouve(h => /information|commentaire|complement|detail/.test(h)),
+  };
+}
+// Les lignes d'un export : [{ ligne, nom, classe, type, motif, par, info, date, heure }]. PUR.
+function _obsMbnLire(rows) {
+  const h = (rows || []).findIndex(r => (r || []).some(c => /^(eleve|eleves|nom prenom|nom et prenom)$/.test(_impNormHeader(c))));
+  if (h < 0) return { ok: false, err: 'Colonne « Élève » introuvable : est-ce bien l\'export des observations de MBN ?' };
+  const col = _obsMbnColonnes(rows[h]);
+  if (col.date < 0 || (col.motif < 0 && col.type < 0)) return { ok: false, err: 'Il faut au moins une colonne de date (« Donnée le ») et une colonne « Motif » ou « Type » : ce tableau n\'est pas un export d\'observations.' };
+  const v = (r, k) => col[k] >= 0 ? String((r || [])[col[k]] ?? '').trim() : '';
+  const lignes = [], illisibles = [];
+  rows.slice(h + 1).forEach((r, i) => {
+    const brut = v(r, 'eleve');
+    if (!brut) return;
+    const ligne = h + i + 2;
+    const d = _obsMbnDate(v(r, 'date'));
+    if (!d) { illisibles.push(ligne); return; }
+    const nom = brut.replace(/\s*\((M\.?|Mme|Mlle|Mr\.?)\)\s*$/i, '').trim();
+    lignes.push({ ligne, nom, classe: v(r, 'classe'), type: v(r, 'type'), motif: v(r, 'motif'), par: v(r, 'par'), info: v(r, 'info'), date: d.date, heure: d.heure });
+  });
+  return { ok: true, lignes, illisibles };
+}
+const _obsMbnCle = e => [e.date, e.heure || '', e.type, e.motif, e.par, e.info].map(x => _impNormHeader(String(x || ''))).join('|');
+// Ce que l'import changerait. `lignes` sont rattachées (`sid`, ou null = ignorée).
+// → { nouveaux: [{ sid, ev }], connus, retirables: [{ sid, ev }], debut, fin }. Les retirables
+// sont les observations de l'app, d'un élève de la classe, DANS les dates couvertes par
+// l'export, qui n'y figurent plus. Comptage en multiensemble : deux observations identiques
+// à la même minute restent deux. PUR.
+function _obsMbnBilan(cls, lignes) {
+  const L = lignes.filter(l => l.sid && S.eleves[l.sid]);
+  const dates = lignes.map(l => l.date).sort();
+  const debut = dates[0] || null, fin = dates[dates.length - 1] || null;
+  const nouveaux = [], retirables = [];
+  let connus = 0;
+  for (const sid of cls.eleves) {
+    const app = _obsMbnOf(sid), dispo = new Map();
+    for (const e of app) { const k = _obsMbnCle(e); dispo.set(k, [...(dispo.get(k) || []), e]); }
+    for (const l of L.filter(x => x.sid === sid)) {
+      const k = _obsMbnCle(l), pile = dispo.get(k);
+      if (pile && pile.length) { pile.shift(); connus++; }
+      else nouveaux.push({ sid, ev: { date: l.date, heure: l.heure, type: l.type, motif: l.motif, par: l.par, info: l.info } });
+    }
+    if (debut) for (const pile of dispo.values()) for (const e of pile) if (e.date >= debut && e.date <= fin) retirables.push({ sid, ev: e });
+  }
+  return { nouveaux, connus, retirables, debut, fin };
+}
+// Sans pushUndo ni save : l'appelant s'en charge. `retirer` = ids d'observations à ôter.
+function _obsMbnAppliquer(nouveaux, retirer) {
+  const ote = new Set(retirer || []);
+  if (ote.size) for (const s of Object.values(S.eleves)) if (Array.isArray(s.obsMbn)) s.obsMbn = s.obsMbn.filter(e => !ote.has(e?.id));
+  for (const { sid, ev } of nouveaux) {
+    const s = S.eleves[sid];
+    if (!s) continue;
+    if (!Array.isArray(s.obsMbn)) s.obsMbn = [];
+    s.obsMbn.push({ id: uid(), ts: Date.now(), ...ev });
+  }
+}
+let _obsMbnImp = null;   // { fichier, lignes, manuel: { nom: sid|'' }, retirer: Set(id), illisibles } — la séance d'import
+function openObsMbnImport() {
+  if (!getCls()) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
+  _obsMbnImp = null;
+  _obsMbnRender();
+  openMod('mobsmbn');
+}
+async function obsMbnFichierUI(input) {
+  const f = input?.files?.[0];
+  if (!f) return;
+  input.value = '';
+  try {
+    const lu = _obsMbnLire(await _tableurLire(f));
+    if (!lu.ok) { _obsMbnImp = { fichier: f.name, err: lu.err }; return _obsMbnRender(); }
+    _obsMbnImp = { fichier: f.name, lignes: _mbnRapprocher(getCls(), lu.lignes), manuel: {}, retirer: new Set(), illisibles: lu.illisibles };
+  } catch (e) { _obsMbnImp = { fichier: f.name, err: 'Lecture impossible : ' + (e && e.message || e) }; }
+  _obsMbnRender();
+}
+function _obsMbnLignes() { return (_obsMbnImp?.lignes || []).map(l => _obsMbnImp.manuel[l.nom] !== undefined ? { ...l, sid: _obsMbnImp.manuel[l.nom] || null } : l); }
+function obsMbnRattacherUI(nom, sid) { if (!_obsMbnImp) return; _obsMbnImp.manuel[nom] = sid || ''; _obsMbnRender(); }
+function obsMbnRetirerUI(id, on) { if (!_obsMbnImp) return; if (on) _obsMbnImp.retirer.add(id); else _obsMbnImp.retirer.delete(id); _obsMbnRender(); }
+function _obsMbnRender() {
+  const box = document.getElementById('mobsmbn-body');
+  const cls = getCls();
+  if (!box || !cls) return;
+  const I = _obsMbnImp;
+  const choix = `<label class="btn btn-p" style="cursor:pointer">📂 Choisir l'export MBN… <input type="file" accept=".xlsx,.ods,.csv,.tsv,.txt" style="display:none" onchange="obsMbnFichierUI(this)"></label>`;
+  const intro = `<div class="tb-hint" style="margin-bottom:10px">Dans Mon Bureau Numérique, l'export des <strong>observations</strong> de la classe (.xlsx) : élève, type, motif, demandeur, date. Elles sont gardées <strong>à part</strong> du relevé du carnet, et comptées à côté de lui. Réimporter le même export n'ajoute que les nouvelles.</div>`;
+  const fermer = `<div class="ma"><button class="btn btn-g" onclick="closeMod2('mobsmbn')">Fermer</button></div>`;
+  if (!I) { box.innerHTML = intro + `<div class="ma" style="justify-content:flex-start">${choix}</div>` + fermer; return; }
+  if (I.err) { box.innerHTML = intro + `<div class="al al-w">⚠️ ${_escName(I.err)}</div><div class="ma" style="justify-content:flex-start">${choix}</div>` + fermer; return; }
+  const L = _obsMbnLignes();
+  const bil = _obsMbnBilan(cls, L);
+  const nom = sid => { const s = S.eleves[sid]; return s ? `${s.nom} ${s.prenom}` : sid; };
+  const pl = (n, m) => `${n} ${m}${n > 1 ? 's' : ''}`;
+  const parEleve = new Map();
+  for (const x of bil.nouveaux) parEleve.set(x.sid, [...(parEleve.get(x.sid) || []), x.ev]);
+  const table = bil.nouveaux.length ? `<div class="rel-wrap" style="max-height:38vh;overflow:auto"><table class="dt"><thead><tr><th>Élève</th><th>Nouvelles</th><th>Détail</th></tr></thead><tbody>${
+    [...parEleve.entries()].sort((a, b) => nom(a[0]).localeCompare(nom(b[0]), 'fr')).map(([sid, evs]) => `<tr><td>${_escName(nom(sid))}</td><td style="text-align:center"><strong>${evs.length}</strong></td><td class="tb-hint">${evs.map(e => _escName(_obsMbnTexte(e))).join('<br>')}</td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="al">✓ Aucune observation nouvelle : l\'app a déjà tout ce que contient l\'export.</div>';
+  const sans = [...new Map(L.filter(l => !l.sid).map(l => [l.nom, l])).values()];
+  const opts = l => `<option value="">— ignorer —</option>${cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => `<option value="${_escAttr(s.id)}"${l.sid === s.id ? ' selected' : ''}>${_escName(s.nom + ' ' + s.prenom)}</option>`).join('')}`;
+  const nb = n => L.filter(l => l.nom === n).length;
+  const rat = sans.length ? `<div class="al al-w" style="margin-top:8px"><strong>${pl(sans.length, 'nom')} à rattacher</strong> (introuvable${sans.some(l => l.homonyme) ? ' ou homonymes' : ''}) — choisis l'élève, ou laisse « ignorer » :
+      <div style="display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);gap:4px 10px;margin-top:6px;align-items:center">${sans.map(l => `<span>${_escName(l.nom)}${l.classe ? ` (${_escName(l.classe)})` : ''} · ${pl(nb(l.nom), 'observation')}</span><select onchange="obsMbnRattacherUI('${_escJsAttr(l.nom)}', this.value)" style="max-width:100%">${opts(l)}</select>`).join('')}</div></div>` : '';
+  const ret = bil.retirables.length ? `<div class="al" style="margin-top:8px"><strong>${pl(bil.retirables.length, 'observation')} de l'app ne ${bil.retirables.length > 1 ? 'figurent' : 'figure'} plus dans l'export</strong> (entre le ${_escName(_fmtDateFr(bil.debut))} et le ${_escName(_fmtDateFr(bil.fin))}) — effacée${bil.retirables.length > 1 ? 's' : ''} dans MBN ? Rien n'est retiré sans être coché :
+      <div style="display:flex;flex-direction:column;gap:3px;margin-top:6px">${bil.retirables.map(x => `<label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer"><input type="checkbox"${I.retirer.has(x.ev.id) ? ' checked' : ''} onchange="obsMbnRetirerUI('${_escJsAttr(x.ev.id)}', this.checked)"> <span>${_escName(nom(x.sid))} · ${_escName(_obsMbnTexte(x.ev))}</span></label>`).join('')}</div></div>` : '';
+  const nRet = bil.retirables.filter(x => I.retirer.has(x.ev.id)).length;
+  const n = bil.nouveaux.length + nRet;
+  box.innerHTML = intro + `<div class="tb-hint" style="margin-bottom:6px">📄 ${_escName(I.fichier)} · ${pl(L.length, 'observation')}${bil.debut ? ` du ${_escName(_fmtDateFr(bil.debut))} au ${_escName(_fmtDateFr(bil.fin))}` : ''} · ${bil.connus} déjà dans l'app · <strong>${pl(bil.nouveaux.length, 'nouvelle')}</strong></div>
+    ${I.illisibles?.length ? `<div class="al al-w">⚠️ ${pl(I.illisibles.length, 'ligne')} sans date lisible, écartée${I.illisibles.length > 1 ? 's' : ''} (ligne${I.illisibles.length > 1 ? 's' : ''} ${I.illisibles.join(', ')}).</div>` : ''}
+    ${table}${rat}${ret}
+    <div class="ma" style="flex-wrap:wrap"><span style="margin-right:auto">${choix.replace('btn-p', 'btn-g').replace('Choisir l\'export MBN…', 'Un autre fichier…')}</span>
+      <button class="btn btn-g" onclick="closeMod2('mobsmbn')">Annuler</button>
+      <button class="btn btn-p" onclick="obsMbnAppliquerUI()"${n ? '' : ' disabled'}>✓ ${bil.nouveaux.length ? `Ajouter ${pl(bil.nouveaux.length, 'observation')}` : ''}${bil.nouveaux.length && nRet ? ' · ' : ''}${nRet ? `retirer ${nRet}` : ''}${n ? '' : 'Rien à faire'}</button></div>`;
+}
+function obsMbnAppliquerUI() {
+  const cls = getCls();
+  if (!_obsMbnImp || !_obsMbnImp.lignes || !cls) return;
+  const bil = _obsMbnBilan(cls, _obsMbnLignes());
+  const ret = bil.retirables.map(x => x.ev.id).filter(id => _obsMbnImp.retirer.has(id));
+  if (!bil.nouveaux.length && !ret.length) return;
+  pushUndo();
+  _obsMbnAppliquer(bil.nouveaux, ret);
+  save();
+  closeMod2('mobsmbn');
+  renderCarnets();
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+  toast(`✓ ${bil.nouveaux.length} observation${bil.nouveaux.length > 1 ? 's' : ''} MBN ajoutée${bil.nouveaux.length > 1 ? 's' : ''}${ret.length ? `, ${ret.length} retirée${ret.length > 1 ? 's' : ''}` : ''} — Ctrl+Z pour annuler.`);
+}
+
 // L'en-tête de la colonne des élèves : deux tris, par NOM et par PRÉNOM (v1.44.4).
 function _elevesThNomHTML() {
   const b = (k, l) => { const on = eleveSort.col === k;
@@ -5774,6 +5980,11 @@ function _chaleurGroupes(cls, bcols) {
     },
     sum: sid => { const t = _relPeriodTotal(cid, sid, pIdx), l = _relLast(cid, sid), b = l ? _obsBande(l.n) : 0;
       return [b ? 'chob-' + b : '', l ? `${l.n}${t ? ' +' + t : ''}` : '—', `${t ?? 0} observation(s) sur la période${l ? ` — cumul ${l.n} au ${_fmtDateFr(l.ymd)}` : ''}`]; } });
+  if (_obsMbnClasseAny(cls)) G.push({ key: 'mbn', label: `Observations MBN ${p.label}`, sub: _moisDe(p).map(([id, l]) => ({ id, l, long: l })),
+    cell: (sid, ym) => { const x = _obsMbnOf(sid).filter(e => String(e.date).startsWith(ym));
+      return x.length ? ['chob-' + Math.min(8, x.length), String(x.length), x.map(_obsMbnTexte).join('\n')] : ['ch-no', '', '']; },
+    sum: sid => { const x = _obsMbnEntre(sid, p.start, p.end);
+      return [x.length ? 'chob-' + Math.min(8, x.length) : 'ch-no', x.length ? String(x.length) : '·', x.length ? `${x.length} observation(s) MBN sur la période\n` + x.map(_obsMbnTexte).join('\n') : 'Aucune observation MBN sur la période']; } });
   const mp = _moyPourPeriode(cid, p);
   if (mp) {
     const rel = mp.dernier, mats = _moyColsOf([rel]);
@@ -5934,10 +6145,14 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     const td = {};
     td.grp = () => `${s.groupe ? `<span class="gbdg g${s.groupe}">G${s.groupe}</span>` : ''} ${_studentTags(s).map(_tagBadgeHTML).join('')} ${_amenBadgesHTML(s)} <span class="el-regs">${_regimeBadgesHTML(s)}</span>`;
     td.carnet = () => {
-      if (r.cumul === null) return '<span class="el-0">·</span>';
+      // Les observations MBN de la période (v1.46.0), à côté du carnet, jamais additionnées.
+      const mb = per ? _obsMbnEntre(sid, per.start, per.end) : [];
+      const mbTip = mb.length ? `${mb.length} observation${mb.length > 1 ? 's' : ''} notée${mb.length > 1 ? 's' : ''} dans MBN sur la période ${per.label}\n` + mb.map(_obsMbnTexte).join('\n') : '';
+      const mbn = mb.length ? `<span class="el-mbn" title="${_escAttr(mbTip)}">MBN ${mb.length}</span>` : '';
+      if (r.cumul === null) return mbn || '<span class="el-0">·</span>';
       const m = _relMap(cid) || {};
       const tip = `Relevés : ${_relDates(cid).map(d => `${_fmtDateFr(d).slice(0, 5)} ${(v => v === null ? '—' : v)(_relValue(m[d], sid))}`).join(' · ')}${r.periodeTotal !== null ? `\nSur la période ${per ? per.label : ''} : ${r.periodeTotal}` : ''}${r.deltaDecroissant ? '\n▼ le cumul a baissé : faute de frappe ?' : ''}`;
-      return `<span title="${_escAttr(tip)}"><span class="ob-chip${_obsBandeCls(r.cumul)} el-ob">${r.cumul}</span><span class="el-dl${r.delta >= 3 ? ' up' : ''}">${r.deltaDecroissant ? '▼' : r.delta > 0 ? '+' + r.delta : ''}</span>${_elevesSpark(cid, sid)}</span>`;
+      return `<span title="${_escAttr(tip)}"><span class="ob-chip${_obsBandeCls(r.cumul)} el-ob">${r.cumul}</span><span class="el-dl${r.delta >= 3 ? ' up' : ''}">${r.deltaDecroissant ? '▼' : r.delta > 0 ? '+' + r.delta : ''}</span>${_elevesSpark(cid, sid)}</span>${mbn}`;
     };
     td.moy = () => {
       const m = r.moyenne;
@@ -6508,11 +6723,16 @@ function _ficheKey(e) {
 
 // ── Les MOMENTS d'une synthèse ── les colonnes de bilan de la liste (conseil, mi-période,
 // points du mois), période par période jusqu'à la courante, mi-période toujours proposée.
+// ⚠️ Un moment RETIRÉ par la liste 🗓 Moments (`prefs.bilansMasques`) ne s'y propose plus
+// (v1.46.0) : un seul réglage pour la liste et la fiche. Ses bilans restent lus dans la carte
+// Bilans, parmi les autres. Tout retiré : on garde la liste entière, une fiche sans moment
+// n'a plus rien à résumer.
 function _ficheMoments(cls) {
   const pCour = _carnetCurrentPeriodIdx(cls), out = [];
   for (let i = 0; i <= pCour; i++)
     out.push(..._bilanColonnes(cls, i, [`bil:miperiode:${i}`, ...(i === pCour ? [..._bilanColsAjout] : [])]).map(c => ({ ...c, pIdx: i })));
-  return out;
+  const m = new Set(_bilansMasques()), vus = out.filter(c => !m.has(c.key));
+  return vus.length ? vus : out;
 }
 function _ficheMomentCourant(cls) {
   const ms = _ficheMoments(cls);
@@ -6607,6 +6827,10 @@ function _ficheFaits(cls, stu, col) {
     F.push({ k: 'obs', html: o ? `<strong>${pl(o, 'observation')}</strong> au carnet${mi !== null ? `, dont ${mi} depuis la mi-période` : ''} — ${rang === 1 ? 'le plus haut de la classe' : `${rang}<sup>e</sup> de la classe`}.` : 'Aucune observation au carnet sur la période.',
       phrase: o ? `${pl(o, 'observation')} au carnet${mi !== null ? ` dont ${mi} depuis la mi-période` : ''}` : 'aucune observation au carnet' });
   }
+  const mb = _obsMbnEntre(sid, b.start, b.end);
+  if (mb.length || _obsMbnClasseAny(cls))
+    F.push({ k: 'obs', html: mb.length ? `<strong>${pl(mb.length, 'observation')}</strong> dans MBN : ${e(_obsMbnMotifs(mb))}.` : 'Aucune observation dans MBN sur la période.',
+      phrase: mb.length ? `${pl(mb.length, 'observation')} dans MBN (${_obsMbnMotifs(mb)})` : '' });
   const m = _ficheMoy(cls, sid, col, b);
   if (m && m.g !== null) {
     F.push({ k: 'moy', html: `Moyenne générale <strong>${e(_fmtNote(m.g, 1))}</strong>${m.delta !== null ? ` (${e(_fmtDelta(m.delta))} depuis le ${e(_fmtDateFr(m.depuis))})` : ''}, au ${e(_fmtDateFr(m.last.date))}.`,
@@ -6762,6 +6986,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const b = _ficheBornes(cls, col), sid = stu.id;
   const dans = d => d && d >= b.start && d <= b.end;
   const o = _obsEntre(cls.id, sid, b.start, b.end);
+  const mbn = _obsMbnEntre(sid, b.start, b.end);
   const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
@@ -6790,7 +7015,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   return `<div class="pf-grid">
     ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="pf-add" onclick="ficheVersEdition()" title="Modifier l'élève : nom, civilité, groupe, options, aménagements, dates">✏️</button><button class="pf-add pf-del" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑</button>`)}
     ${card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + _ficheBilansAutresHTML(cls, stu, col))}
-    ${card('obs', 'Carnet', o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col))}
+    ${card('obs', 'Carnet', [o === null ? '' : `${o} sur la période`, mbn.length ? `MBN ${mbn.length}` : ''].filter(Boolean).join(' · '), _ficheCourbeHTML(cls, stu, col) + (mbn.length || _obsMbnClasseAny(cls) ? `<h3 class="pf-h3b">Notées dans MBN <span class="pf-k">${mbn.length}</span></h3>${mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>'}` : ''))}
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
     ${card('incid', 'Incidents', inc.length, inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span><br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident'))}
@@ -6818,6 +7043,7 @@ function _ficheEvenements(cls, stu, col) {
   const dans = d => d && d >= b.start && d <= b.end;
   const m = _relMap(cid) || {};
   _relDates(cid).filter(dans).forEach(d => { const x = _relDelta(cid, d, sid); if (x && x.delta > 0) E.push({ date: d, k: 'obs', n: x.delta, html: `Carnet : +${x.delta} (cumul ${x.n})` }); else if (_relValue(m[d], sid) === REL_ABSENT) E.push({ date: d, k: 'obs', n: 0, html: 'Carnet : absent au relevé' }); });
+  _obsMbnEntre(sid, b.start, b.end).forEach(x => E.push({ date: x.date, k: 'obs', n: 1, html: `MBN : <strong>${_escName(x.motif || x.type || 'observation')}</strong>${x.par ? ' — ' + _escName(x.par) : ''}${x.info ? ` · ${_escName(x.info)}` : ''}` }));
   const mp = _moyPourPeriode(cid, b.p);
   (mp ? mp.list : []).filter(r => dans(r.date)).forEach(r => { const g = _moyGen(r, sid); if (g !== null) E.push({ date: r.date, k: 'moy', html: `Moyennes : générale ${_escName(typeof g === 'number' ? _fmtNote(g, 1) : g)}${_moySous10(r, sid) ? `, ${_moySous10(r, sid)} matière(s) sous 10` : ''}` }); });
   _avisCampagnes(cid).filter(c => dans(c.date) && c.avis?.[sid]).forEach(c => { const items = c.disciplines.filter(d => c.avis[sid][d.id]).map(d => ({ disc: d, ...c.avis[sid][d.id] }));
@@ -6837,7 +7063,7 @@ function _ficheChronoHTML(cls, stu, col) {
   const nb = k => E.filter(x => x.k === k).length;
   const nr = _ficheFaits(cls, stu, col).find(f => f.k === 'papier');
   const kpi = (l, v, sub) => `<div class="pf-kpi"><small>${l}</small><b>${v}</b><span>${sub || ''}</span></div>`;
-  const kpis = `<div class="pf-kpis">${kpi('Carnet', o ?? '–', 'observations sur la période')}${kpi('Moyenne', m && m.g !== null ? _escName(_fmtNote(m.g, 1)) : '–', m ? `${m.delta !== null ? _escName(_fmtDelta(m.delta)) + ' · ' : ''}${m.mats.filter(x => typeof x.v === 'number' && x.v < 10).length} sous 10` : 'pas encore d\'import')}${
+  const kpis = `<div class="pf-kpis">${kpi('Carnet', o ?? '–', (n => n ? `+ ${n} dans MBN` : 'observations sur la période')(_obsMbnEntre(stu.id, b.start, b.end).length))}${kpi('Moyenne', m && m.g !== null ? _escName(_fmtNote(m.g, 1)) : '–', m ? `${m.delta !== null ? _escName(_fmtDelta(m.delta)) + ' · ' : ''}${m.mats.filter(x => typeof x.v === 'number' && x.v < 10).length} sous 10` : 'pas encore d\'import')}${
     kpi('Incidents', nb('incid'), '')}${kpi('Contacts', nb('contact'), 'avec la famille')}${kpi('Avis', av ? `${av.items.length}/${av.camp.disciplines.length}` : '–', av && (av.camp.cibles || []).includes(stu.id) ? '★ demandé' : 'disciplines')}${kpi('Papiers', nr ? nr.html.split(':')[1].split(',').length : 0, 'à rendre')}</div>`;
   const LANES = [['obs', 'Carnet'], ['moy', 'Moyennes'], ['avis', 'Avis'], ['incid', 'Incidents'], ['contact', 'Contacts'], ['bilan', 'Bilans'], ['papier', 'Papiers']];
   const W = 1000, L = 100, R = 14, LH = 26, H = 22 + LANES.length * LH;
@@ -9179,7 +9405,10 @@ function _carnetRows(cls) {
   const lastDelta = s => _carnetLastDelta(cls.id, s.id);
   const curTotal = s => _relPeriodTotal(cls.id, s.id, curIdx);
   const descNullLast = (fa, fb) => (fa === null ? -Infinity : fa) < (fb === null ? -Infinity : fb) ? 1 : (fa === fb ? 0 : -1);
-  if (carnetSort === 'delta' || carnetSort === 'total') {
+  const curP = _periods(cls)[curIdx];
+  const curMbn = s => curP ? _obsMbnEntre(s.id, curP.start, curP.end).length : 0;
+  if (carnetSort === 'mbn') rows.sort((a, b) => (curMbn(b) - curMbn(a)) || byName(a, b));
+  else if (carnetSort === 'delta' || carnetSort === 'total') {
     rows.sort((a, b) => carnetSort === 'delta'
       ? (descNullLast(lastDelta(a), lastDelta(b)) || byName(a, b))
       : (descNullLast(curTotal(a), curTotal(b)) || byName(a, b)));
@@ -9216,12 +9445,15 @@ function renderCarnets() {
   const periods = _periods(cls);
   const curIdx = _carnetCurrentPeriodIdx(cls);
   const today = _todayYmd();
+  const mbnAny = _obsMbnClasseAny(cls);
 
   const toolbar = `<div class="tb">
       <button class="btn btn-p btn-sm" onclick="openReleveNew()" title="Ajouter une colonne : la date du jour où vous relevez les carnets">+ Relever les carnets</button>
+      <button class="btn btn-g btn-sm" onclick="openObsMbnImport()" title="Reprendre les observations saisies par les collègues dans Mon Bureau Numérique (export .xlsx) : comptées à part, à côté du carnet">📥 Observations MBN…</button>
       ${_sortPickerHTML(carnetSort, 'setCarnetSort(this.value)', cls, [
         { key: 'delta', label: 'par Δ du dernier relevé — à voir en priorité' },
-        { key: 'total', label: `par total ${periods[curIdx]?.label || ''}` }])}
+        { key: 'total', label: `par total ${periods[curIdx]?.label || ''}` },
+        ...(mbnAny ? [{ key: 'mbn', label: `par observations MBN ${periods[curIdx]?.label || ''}` }] : [])])}
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer">
         <input type="checkbox"${_carnetShowGone ? ' checked' : ''} onchange="setCarnetShowGone(this.checked)"> élèves partis
       </label>
@@ -9229,7 +9461,7 @@ function renderCarnets() {
       <span class="tb-hint" style="margin-left:auto">Cumul lu dans le carnet · <code>${_escName(codeA)}</code> = absent · vide = non relevé · ▼ = inférieur au relevé précédent</span>
     </div>${dates.length && _obsPalier() ? `<div class="tb-hint" style="margin:-4px 0 8px">Couleurs : une par tranche de ${_obsPalier()} observation${_obsPalier() > 1 ? 's' : ''} ${_obsLegendeHTML(_obsMaxCumul(cls.id))} <span style="white-space:nowrap">— palier réglable dans 💾 Données</span></div>` : ''}`;
 
-  if (!dates.length) {
+  if (!dates.length && !mbnAny) {
     el.innerHTML = toolbar + _emptyStateHTML('📓', 'Aucun relevé pour l\'instant',
       'Cliquez sur <strong>+ Relever les carnets</strong> : une colonne à la date du jour, où vous tapez pour chaque élève le <strong>total</strong> d\'observations lu dans son carnet. Au relevé suivant, l\'évolution se calcule toute seule.');
     return;
@@ -9238,8 +9470,18 @@ function renderCarnets() {
   const rows = _carnetRows(cls);
   const lastDelta = s => _carnetLastDelta(cls.id, s.id);
 
-  // Colonnes de période : seulement celles qui portent au moins un relevé.
-  const periodsShown = periods.filter(p => dates.some(d => d >= p.start && d <= p.end));
+  // Colonnes de période : seulement celles qui portent au moins un relevé (ou une
+  // observation MBN). Les observations MBN ont leur colonne par période, à côté du total du
+  // carnet, et « Carnet + MBN » de la période courante en dernier (v1.46.0).
+  const periodsShown = periods.filter(p => dates.some(d => d >= p.start && d <= p.end) || (mbnAny && rows.some(s => _obsMbnEntre(s.id, p.start, p.end).length)));
+  const pCur = periods[curIdx];
+  const mbnTip = p => `Observations notées dans Mon Bureau Numérique pendant la période ${p.label} (${_fmtDateFr(p.start)} → ${_fmtDateFr(p.end)}) — importées par 📥 Observations MBN…, comptées une par une`;
+  const mbnTh = p => `<th class="rel-period rel-mbn${p.n - 1 === curIdx ? ' cur' : ''}" title="${_escAttr(mbnTip(p))}">MBN ${_escName(p.label)}</th>`;
+  const mbnTd = (s, p) => { const x = _obsMbnEntre(s.id, p.start, p.end);
+    return `<td class="rel-period rel-mbn${p.n - 1 === curIdx ? ' cur' : ''}">${x.length ? `<button class="rel-mbn-n" onclick="openFiche('${_escJsAttr(s.id)}')" title="${_escAttr(x.map(_obsMbnTexte).join('\n') + '\nClic : la fiche')}">${x.length}</button>` : '<span class="tb-hint">—</span>'}</td>`; };
+  const sommeTip = pCur ? `Carnet + MBN sur la période ${pCur.label} : le total du carnet plus les observations MBN. ⚠️ Une observation notée aux deux endroits y compte deux fois.` : '';
+  const sommeTd = s => { const t = _relPeriodTotal(cls.id, s.id, curIdx), n = _obsMbnEntre(s.id, pCur.start, pCur.end).length;
+    return `<td class="rel-period rel-somme cur">${t === null && !n ? '<span class="tb-hint">—</span>' : (t || 0) + n}</td>`; };
 
   const head = `<tr>
       <th class="rel-name">Élève</th>
@@ -9254,7 +9496,8 @@ function renderCarnets() {
         </th>`;
       }).join('')}
       <th class="rel-delta" title="Évolution au dernier relevé chiffré de l'élève, par rapport au précédent (les absents et les vides sont sautés)">Δ dernier</th>
-      ${periodsShown.map(p => `<th class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}" title="Total de la période ${_escAttr(p.label)} (${_escAttr(_fmtDateFr(p.start))} → ${_escAttr(_fmtDateFr(p.end))}) = dernier cumul de la période − dernier cumul d'avant">${_escName(p.label)}</th>`).join('')}
+      ${periodsShown.map(p => `<th class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}" title="Total de la période ${_escAttr(p.label)} (${_escAttr(_fmtDateFr(p.start))} → ${_escAttr(_fmtDateFr(p.end))}) = dernier cumul de la période − dernier cumul d'avant">${mbnAny ? 'Carnet ' : ''}${_escName(p.label)}</th>${mbnAny ? mbnTh(p) : ''}`).join('')}
+      ${mbnAny && pCur ? `<th class="rel-period rel-somme cur" title="${_escAttr(sommeTip)}">Carnet + MBN ${_escName(pCur.label)}</th>` : ''}
     </tr>`;
 
   const body = rows.map(s => {
@@ -9281,7 +9524,8 @@ function renderCarnets() {
       <td class="rel-name">${_nomHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${_ageSubHTML(s)}</td>
       ${cells}
       <td class="rel-delta${ldCls}">${ld === null ? '<span class="tb-hint">—</span>' : (ld > 0 ? '+' + ld : ld)}</td>
-      ${periodsShown.map(p => { const t = _relPeriodTotal(cls.id, s.id, p.n - 1); return `<td class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}">${t === null ? '<span class="tb-hint">—</span>' : t}</td>`; }).join('')}
+      ${periodsShown.map(p => { const t = _relPeriodTotal(cls.id, s.id, p.n - 1); return `<td class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}">${t === null ? '<span class="tb-hint">—</span>' : t}</td>${mbnAny ? mbnTd(s, p) : ''}`; }).join('')}
+      ${mbnAny && pCur ? sommeTd(s) : ''}
     </tr>`;
   }).join('');
 
@@ -15410,6 +15654,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
       arrive: stu.arrivalDate && stu.arrivalDate > p.start ? stu.arrivalDate : null,
       parti: stu.departureDate && stu.departureDate <= p.end ? stu.departureDate : null,
       cumulFin, cumulFinDate, totalPeriode: _relPeriodTotal(cid, stu.id, periodIdx), absents,
+      mbn: _obsMbnEntre(stu.id, p.start, p.end).length,
       nonRendus, incidents, contacts,
       moyennes: _moyPeriodeEleve(mp, stu.id),
       bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
@@ -15425,7 +15670,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
 }
 // Les blocs qu'on peut mettre ou non sur la feuille — dans cet ordre.
 const _PERIODE_BLOCS = [
-  { key: 'obs',       label: 'Observations',        hint: 'Cumul en fin de période, total de la période, relevés où l\'élève était absent' },
+  { key: 'obs',       label: 'Observations',        hint: 'Cumul en fin de période, total de la période, relevés où l\'élève était absent — et, à côté, les observations notées dans MBN' },
   { key: 'moy',       label: 'Moyennes',            hint: 'Moyenne générale du dernier import de la période, son évolution depuis le premier, et les matières — sous 10 en gras' },
   { key: 'docs',      label: 'Documents non rendus', hint: 'Papiers distribués jusqu\'à la fin de la période et toujours pas rendus' },
   { key: 'incidents', label: 'Incidents',           hint: 'Incidents, punitions, sanctions, instances DE la période' },
@@ -15470,8 +15715,10 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const nomCell = r => `<strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}${
     r.arrive ? `<br><small>arrivé le ${_escName(_fmtDateFr(r.arrive))}</small>` : ''}${r.parti ? `<br><small>parti le ${_escName(_fmtDateFr(r.parti))}</small>` : ''}`;
   const identCell = r => [r.groupe ? 'G' + r.groupe : '', r.options.join(' '), r.amenagements].filter(Boolean).map(_escName).join(' · ');
-  const obsCell = r => r.cumulFin === null ? (r.absents ? `<small>absent à ${r.absents} relevé${r.absents > 1 ? 's' : ''}</small>` : '')
-    : `<strong>${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</strong> <small>(cumul ${cumulHTML(r.cumulFin)} au ${_escName(_fmtDateFr(r.cumulFinDate))}${r.absents ? `, absent ×${r.absents}` : ''})</small>`;
+  // Les observations MBN de la période (v1.46.0) : à côté, jamais additionnées au carnet.
+  const mbnTxt = r => r.mbn ? ` · <strong>MBN ${r.mbn}</strong>` : '';
+  const obsCell = r => (r.cumulFin === null ? (r.absents ? `<small>absent à ${r.absents} relevé${r.absents > 1 ? 's' : ''}</small>` : '')
+    : `<strong>${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</strong> <small>(cumul ${cumulHTML(r.cumulFin)} au ${_escName(_fmtDateFr(r.cumulFinDate))}${r.absents ? `, absent ×${r.absents}` : ''})</small>`) + mbnTxt(r);
   // Moyennes : sur le papier, « sous 10 » en GRAS, jamais en couleur (feuille en noir et blanc).
   const moyGenHTML = m => m.generale === null ? '' : typeof m.generale === 'string' ? `<em>${_escName(m.generale)}</em>`
     : `<strong>${_escName(_fmtNote(m.generale))}</strong>${m.delta ? ` <small>(${_escName(_fmtDelta(m.delta.delta))} depuis le ${_escName(_fmtDateFr(m.delta.depuis))})</small>` : ''}`;
@@ -15524,8 +15771,8 @@ function _periodePrintHTML(cls, periodIdx, opts) {
       r.delegue || r.eco ? ` <small>${[r.delegue ? (r.delegue === 'titulaire' ? 'délégué' : 'délégué suppléant') : '', r.eco ? (r.eco === 'suppleant' ? 'éco-délégué suppléant' : 'éco-délégué') : ''].filter(Boolean).join(' · ')}</small>` : ''}${
       r.arrive ? ` <small>arrivé le ${_escName(jm(r.arrive))}</small>` : ''}${r.parti ? ` <small>parti le ${_escName(jm(r.parti))}</small>` : ''}`,
     ident: r => `<small>${identCell(r)}</small>`,
-    obs: r => r.cumulFin === null ? (r.absents ? `<small>abs. ×${r.absents}</small>` : '')
-      : `<span class="pp-big">${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</span> <small>(${cumulHTML(r.cumulFin)}${r.absents ? `, abs.×${r.absents}` : ''})</small>`,
+    obs: r => (r.cumulFin === null ? (r.absents ? `<small>abs. ×${r.absents}</small>` : '')
+      : `<span class="pp-big">${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</span> <small>(${cumulHTML(r.cumulFin)}${r.absents ? `, abs.×${r.absents}` : ''})</small>`) + (r.mbn ? ` <small>· MBN ${r.mbn}</small>` : ''),
     moy: r => { const m = r.moyennes; if (!m) return '';
       const g = m.generale === null ? '' : typeof m.generale === 'string' ? `<em>${_escName(m.generale)}</em>`
         : `<span class="pp-big">${_escName(_fmtNote(m.generale))}</span>${m.delta ? ` <small>${_escName(_fmtDelta(m.delta.delta))}${m.delta.depuis !== premier ? ` depuis le ${_escName(jm(m.delta.depuis))}` : ''}</small>` : ''}`;
@@ -17323,6 +17570,20 @@ function createDemo(opts) {
   incidents.forEach(([i, md, type, objet, texte], k) => {
     const e = incidentAdd(sids[i], { date: D(md), type, objet, texte });
     if (e) { e.id = `demo_i${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
+  });
+  // ── Observations notées dans MBN (v1.46.0) — à côté du carnet, une par une. Ids et
+  // horodatages déterministes, comme le reste de la démo.
+  const obsMbn = [
+    [0, '09-15', '10:05', 'Bavardage', 'M. Durand', ''], [0, '10-02', '14:10', 'Travail non fait', 'Mme Leroy', 'Exercices 3 et 4'],
+    [0, '11-20', '09:00', 'Bavardage', 'M. Durand', ''], [0, '02-03', '11:15', 'Oubli de matériel', 'Mme Petit', 'Calculatrice'],
+    [3, '09-22', '08:30', 'Oubli de matériel', 'Mme Petit', 'Oubli du TD'], [3, '01-12', '15:20', 'Travail non fait', 'Mme Leroy', ''],
+    [9, '10-14', '10:50', 'Bavardage', 'M. Durand', ''], [9, '11-06', '13:40', 'Comportement', 'M. Garnier', 'Bousculade en rang'], [9, '03-10', '10:00', 'Bavardage', 'M. Durand', ''],
+    [14, '12-01', '09:45', 'Travail non fait', 'Mme Leroy', ''], [20, '03-24', '14:00', 'Oubli de matériel', 'Mme Petit', ''],
+  ];
+  obsMbn.forEach(([i, md, heure, motif, par, info], k) => {
+    const s = S.eleves[sids[i]];
+    if (!s) return;
+    (s.obsMbn = s.obsMbn || []).push({ id: `demo_m${String(k + 1).padStart(2, '0')}`, ts: Date.parse(D(md) + 'T12:00:00'), date: D(md), heure, type: 'Observation négative', motif, par, info });
   });
   // ── Heures de vie de classe — le journal de la classe, une par mois environ.
   const hvcs = [

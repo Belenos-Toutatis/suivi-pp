@@ -247,7 +247,7 @@ test('Carte de chaleur : une case par relevé, matière, discipline, papier, moi
   ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = '';`);
   const g = evObj(`(() => { const cls = getCls(); const bc = _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), new Set());
     return _chaleurGroupes(cls, bc).map(x => ({ key: x.key, n: x.sub.length })); })()`);
-  assert.deepStrictEqual(g.map(x => x.key), ['carnet', 'moy', 'avis', 'docs', 'inc', 'ct', 'bil']);
+  assert.deepStrictEqual(g.map(x => x.key), ['carnet', 'mbn', 'moy', 'avis', 'docs', 'inc', 'ct', 'bil']);
   assert.ok(g.every(x => x.n > 0));
   // Un nom piégé ne passe pas en clair.
   ev(`const s = S.eleves[getCls().eleves[0]]; s.nom = '<img src=x onerror=alert(1)>'`);
@@ -292,7 +292,10 @@ test('Liste : retirer un moment de bilan — vide et ajouté : il disparaît ; a
   assert.strictEqual(ev(`undoStack.length`), u + 1);
   assert.strictEqual(ev(`_bilansOf('s1').length`), 1, 'le bilan est toujours là');
   assert.ok(!ev(`_elevesPrintHTML(S.classes['5C'])`).includes('Mi-S1'), 'pas sur le papier non plus');
-  assert.ok(evObj(`_ficheMoments(S.classes['5C']).map(c => c.key)`).includes('bil:miperiode:0'), 'la fiche garde tous les moments');
+  // v1.46.0 : la fiche suit le même réglage — le moment ne s'y propose plus, son bilan se lit
+  // parmi les autres de la carte Bilans.
+  assert.ok(!evObj(`_ficheMoments(S.classes['5C']).map(c => c.key)`).includes('bil:miperiode:0'), 'la fiche suit la liste');
+  assert.ok(ev(`(() => { const cls = S.classes['5C'], col = _ficheMomentCourant(cls); return _ficheBilansAutresHTML(cls, S.eleves.s1, col); })()`).includes('Mi-S1 de Léa'), 'le bilan reste lisible dans la fiche');
   // ＋ le remet.
   ev(`elevesBilanColAjout('bil:miperiode:0')`);
   assert.ok(vues().includes('bil:miperiode:0'));
