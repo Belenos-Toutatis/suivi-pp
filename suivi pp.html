@@ -2923,8 +2923,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.51.1';
-const APP_BUILD_DATE = '2026-10-03T15:16:09Z';
+const APP_VERSION    = '1.51.2';
+const APP_BUILD_DATE = '2026-10-03T15:18:37Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6199,7 +6199,7 @@ function elevesAffichageSet(v) {
   try { localStorage.setItem(_LS_ELEVES_AFF, _ELEVES_AFFS.includes(v) ? v : 'indic'); } catch (_) { }
   renderStudents();
   // Le clic est un geste : on peut demander l'accès au dossier des photos, une fois.
-  if ((v === 'trombi' || v === 'chaleur') && pjDirHandle && !_photos.ready) _photosRefresh(true).then(ok => { if (ok) renderStudents(); });
+  if (pjDirHandle && !_photos.ready) _photosRefresh(true).then(ok => { if (ok) renderStudents(); });
 }
 // ── « +n » : les observations PRISES sur une durée, carnet et MBN confondus (v1.46.5) ──
 // L'utilisateur : « choisir depuis quelle durée — une icône calendrier à côté du titre
@@ -6543,8 +6543,7 @@ function _elevesChaleurHTML(cls, rowsData, bcols) {
   // chaleur aussi ») — dès qu'un élève de la classe a une photo ; une case vide garde l'alignement.
   // Dans le lien : son survol agrandit la photo, son clic ouvre la fiche, comme le nom.
   const avecPh = cls.eleves.some(_photoHas);
-  const ph = sid => !avecPh ? '' : _photoHas(sid) ? `<img class="ch-ph" data-tv-sid="${_escAttr(sid)}" alt="">` : '<span class="ch-ph tv-none" aria-hidden="true"></span>';
-  const body = rowsData.map(({ s }) => `<tr${_isStudentActive(s) ? '' : ' class="inactive"'} onclick="_elevesLigneClic(event,'${_escJsAttr(s.id)}')"><td>${ph(s.id) ? `<a href="#" class="ch-pha" onclick="openFiche('${_escJsAttr(s.id)}');return false" data-photo-sid="${_escAttr(s.id)}" tabindex="-1" aria-hidden="true">${ph(s.id)}</a>` : ''}<span class="el-civ${s.civilite === 'M' ? ' m' : s.civilite === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(s.civilite))}">${s.civilite ? civiliteLabel(s.civilite) : '·'}</span><a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète" class="el-nom" data-photo-sid="${_escAttr(s.id)}">${_nomHTML(s.id, s.nom, s.prenom)}</a>${camp && (camp.cibles || []).includes(s.id) ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}</td>${
+  const body = rowsData.map(({ s }) => `<tr${_isStudentActive(s) ? '' : ' class="inactive"'} onclick="_elevesLigneClic(event,'${_escJsAttr(s.id)}')"><td>${_vignetteHTML(s.id, avecPh)}<span class="el-civ${s.civilite === 'M' ? ' m' : s.civilite === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(s.civilite))}">${s.civilite ? civiliteLabel(s.civilite) : '·'}</span><a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète" class="el-nom" data-photo-sid="${_escAttr(s.id)}">${_nomHTML(s.id, s.nom, s.prenom)}</a>${camp && (camp.cibles || []).includes(s.id) ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}</td>${
     G.map(g => plis.has(g.key) ? td(g.sum(s.id), true) : g.sub.map((x, i) => td(g.cell(s.id, x.id), i === 0)).join('')).join('')}</tr>`).join('');
   const leg = `<div class="ch-leg tb-hint"><span><i class="ch-sw chob-2"></i><i class="ch-sw chob-5"></i> observations gagnées au relevé</span><span><i class="ch-sw ch-lo"></i> sous 10</span><span><i class="ch-sw ch-av3"></i><i class="ch-sw ch-av2"></i><i class="ch-sw ch-av1"></i> avis : toutes les colonnes, la moitié, moins</span><span>☐ papier à rendre · — non concerné</span><span><i class="ch-sw ch-inc"></i> incidents · <i class="ch-sw ch-ct"></i> contacts du mois</span><span>● bilan écrit · ◉ avec décisions · ○ vide</span><span>Survol : le contenu · clic sur le nom : la fiche · ▾ replie un groupe</span></div>`;
   // Le cadre (.rel-wrap frozen) est posé par renderStudents, entre _wrapScrollKeep et keep().
@@ -6620,6 +6619,15 @@ function renderStudents() {
   }
   el.innerHTML = affHTML + vuesHTML + tri + (list.length ? `<div class="rel-wrap frozen">${_elevesIndicHTML(cls, rowsData, bcols, campCour)}</div>` : vide);
   keep();
+  _trombiPhotosPoser(el);
+}
+// La vignette devant un nom (carte de chaleur v1.51.1, indicateurs v1.51.2) : dans un lien vers
+// la fiche qui porte `data-photo-sid` (survol = la photo en grand) ; case pointillée vide pour un
+// élève sans photo ; rien du tout quand aucun élève de la classe n'en a (`avecPh`).
+function _vignetteHTML(sid, avecPh) {
+  if (!avecPh) return '';
+  const ph = _photoHas(sid) ? `<img class="ch-ph" data-tv-sid="${_escAttr(sid)}" alt="">` : '<span class="ch-ph tv-none"></span>';
+  return `<a href="#" class="ch-pha" onclick="openFiche('${_escJsAttr(sid)}');return false" data-photo-sid="${_escAttr(sid)}" tabindex="-1" aria-hidden="true">${ph}</a>`;
 }
 // ── 📷 Trombinoscope : la vue (v1.51.0) ──
 // Une carte par élève, la photo posée après coup (lecture asynchrone du fichier). Sans photo :
@@ -6678,6 +6686,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)];
   const triCle = { carnet: 'cumul' };
   const avecMbnL = _obsMbnClasseAny(cls), fenL = _obsFenetre(cls);
+  const avecPhI = cls.eleves.some(_photoHas);   // 📷 une vignette devant chaque nom (v1.51.2)
   const th = (k, label, title) => { const sk = triCle[k] || k; const on = eleveSort.col === sk;
     return `<th class="${on ? 'el-sorted' + (eleveSort.dir < 0 ? ' up' : '') : ''}" onclick="sortEleves('${sk}')" title="${_escAttr(title)}">${label}</th>`; };
   const TITRES = {
@@ -6750,7 +6759,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     }).join('')}</span>`;
     td.rem = () => s.remarque ? `<button class="el-rem" onclick="openRemarque('${j}')" title="${_escAttr(s.remarque)}">${_escName(s.remarque)}</button>` : dot('Pas de remarque — clic : en écrire une', `openRemarque('${j}')`);
     return `<tr class="${isFuture || isGone ? 'inactive' : ''}${fiche === sid ? ' el-cur' : ''}" onclick="_elevesLigneClic(event,'${j}')">
-      <td>${civ}<a href="#" onclick="openFiche('${j}');return false" title="Ouvrir la fiche" class="el-nom" data-photo-sid="${_escAttr(sid)}">${_nomHTML(sid, s.nom, s.prenom)}</a>${cible ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}${_ageSubHTML(s, 'age-' + sid)}${life}</td>
+      <td>${_vignetteHTML(sid, avecPhI)}${civ}<a href="#" onclick="openFiche('${j}');return false" title="Ouvrir la fiche" class="el-nom" data-photo-sid="${_escAttr(sid)}">${_nomHTML(sid, s.nom, s.prenom)}</a>${cible ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}${_ageSubHTML(s, 'age-' + sid)}${life}</td>
       ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(sid)}" max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)" title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
       ${_elevesReg ? _regimeSelectsHTML(s) : ''}
       ${cols.map(c => `<td class="el-c-${c.key}"${c.key === 'grp' ? ` data-sid="${_escAttr(sid)}"` : ''}>${td[c.key]()}</td>`).join('')}</tr>`;
@@ -17781,7 +17790,7 @@ function _photoHas(sid) { return _photos.sids.has(sid); }
 // Après un import, un ajout ou un retrait : la fiche ouverte se redessine (la liste n'a pas de photo).
 function _photosChanged() {
   if (_ficheSid && document.getElementById('mfiche')?.classList.contains('on')) _fichePhotoFill(_ficheSid);
-  if (_elevesAffichage() !== 'indic' && document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
 }
 async function _photoUrl(sid) {
   if (!_photos.sids.has(sid)) return null;

@@ -1184,6 +1184,10 @@ Les pièges de format MBN et de l'appariement sont documentés là-bas ; à reli
   dans un lien vers la fiche qui porte `data-photo-sid` (survol = la photo en grand) ; une case
   pointillée vide pour un élève sans photo ; **rien du tout** tant qu'aucun élève de la classe
   n'en a. Passer à la carte de chaleur demande, comme au trombinoscope, l'accès au dossier.
+- **Indicateurs** (v1.51.2, *« ajoute aussi les photos dans la vue Indicateurs »*) : la même
+  vignette (`_vignetteHTML(sid, avecPh)`, partagée avec la carte de chaleur) ; la ligne passe de
+  43 à 46 px. Les trois affichages de la liste ont donc les photos ; ouvrir l'un d'eux demande
+  l'accès au dossier quand il n'est pas encore accordé.
 - ⚠️ **Supprimer un élève ne supprime PAS sa photo** (écart assumé avec Plan de classe) : Ctrl+Z
   rend l'élève, jamais un fichier — même règle que les PDF. *🧹 Orphelins…* (Données) liste aussi
   les `photos/<sid>.jpg` dont l'élève n'existe plus (`_photosOrphelines`) et les supprime sur
@@ -2030,6 +2034,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 114 | **Photos dans la vue Indicateurs** (vignette partagée avec la carte de chaleur) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.51.2) |
 | 113 | **Photos dans la carte de chaleur** : une vignette devant chaque nom, case vide sans photo, rien sans aucune photo ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.51.1) |
 | 112 | **📷 Trombinoscope** : troisième affichage de la liste des élèves (photos, initiales sans photo, clic vers la fiche) et troisième choix de 🖨 Imprimer… (4 à 6 par rangée, une page A4 pour 25 élèves) ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; papier simulé | ✅ **fait** (2026-10-03, v1.51.0) |
 | 111 | **Un seul « 🖨 Imprimer… » dans Élèves** : la liste du jour ou la synthèse d'un moment (tableau ou fiches), A3 pour la liste ; **« résumés » supprimés** ; Ctrl+P ouvre la fenêtre ; tests portés sur la fiche imprimée. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.50.0) |

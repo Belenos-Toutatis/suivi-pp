@@ -151,3 +151,16 @@ test('carte de chaleur : une vignette devant chaque nom dès qu\'un élève a un
   assert.strictEqual(r.img, 1);
   assert.strictEqual(r.vides, r.n - 1, 'une case vide garde l\'alignement');
 });
+
+test('indicateurs : la même vignette devant chaque nom, rien sans aucune photo', () => {
+  const r = JSON.parse(ev(`(() => {
+    createDemo({ force: true });
+    const cls = getCls(), rows = _elevesRows(cls), bcols = _bilanColsVues(cls, _carnetCurrentPeriodIdx(cls));
+    const sans = _elevesIndicHTML(cls, rows, bcols, null);
+    _photos.sids = new Set([rows[0].s.id]);
+    const avec = _elevesIndicHTML(cls, rows, bcols, null);
+    _photos.sids = new Set();
+    return JSON.stringify({ sans: /ch-ph/.test(sans), img: (avec.match(/<img class="ch-ph"/g) || []).length, vides: (avec.match(/<span class="ch-ph tv-none"/g) || []).length, n: rows.length });
+  })()`));
+  assert.deepStrictEqual(r, { sans: false, img: 1, vides: r.n - 1, n: r.n });
+});
