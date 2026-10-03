@@ -215,3 +215,32 @@ test('La fiche se ferme quand on quitte Élèves, Observations ou Moyennes', () 
   const f = src.slice(src.indexOf('function showTab('), src.indexOf('function switchTab('));
   assert.match(f, /!FICHE_ONGLETS\.includes\(name\)[^\n]*closeMod2\('mfiche'\)/);
 });
+
+test('Décisions d\'un moment de bilan : une par moment, sous le bilan (fiche), datées (chronologie), sur la synthèse de période', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _ficheMoment = null;`);
+  const sid = ev(`getCls().eleves[3]`), J = JSON.stringify(sid);
+  const p0 = evObj(`_periods(getCls())[0]`);
+  const mode = `{ type: 'conseil', date: ${JSON.stringify(p0.end)} }`;
+  assert.strictEqual(ev(`decisionSet(getCls(), ${J}, ${mode}, '  ')`), null, 'vide et rien avant : rien');
+  assert.strictEqual(ev(`decisionSet(getCls(), ${J}, ${mode}, 'PPRE en maths.')`), 'ajout');
+  assert.strictEqual(ev(`decisionSet(getCls(), ${J}, { type: 'conseil', date: ${JSON.stringify(p0.start)} }, 'PPRE en maths, tutorat.')`), 'modif', 'même période : la même décision');
+  assert.strictEqual(ev(`decisionSet(getCls(), ${J}, { type: 'miperiode', date: ${JSON.stringify(p0.start)} }, 'Se placer devant.')`), 'ajout', 'autre moment : une autre');
+  assert.strictEqual(ev(`_decisionsOf(${J}).length`), 2);
+  assert.strictEqual(ev(`decisionSet(getCls(), ${J}, ${mode}, 'PPRE en maths, tutorat.')`), null, 'rien ne change');
+  // La fiche : le champ sous le bilan, pour le moment choisi.
+  ev(`_ficheMoment = 'bil:conseil:0'`);
+  const red = ev(`_ficheRedacHTML(getCls(), S.eleves[${J}], _ficheMomentCourant(getCls()))`);
+  assert.match(red, /id="fi-bil"[\s\S]*Décisions · à mettre en place[\s\S]*id="fi-dec"[^>]*>PPRE en maths, tutorat\.</);
+  // Chronologie et synthèse de période.
+  assert.ok(evObj(`_ficheEvenements(getCls(), S.eleves[${J}], _ficheMomentCourant(getCls())).map(e => e.html)`).some(h => /Décisions/.test(h) && /tutorat/.test(h)));
+  assert.strictEqual(ev(`_periodeSynthese(getCls(), 0, { type: 'conseil' }).rows.find(r => r.sid === ${J}).decisions`), 'PPRE en maths, tutorat.');
+  assert.match(ev(`_periodePrintHTML(getCls(), 0, { type: 'conseil', blocs: ['bilan'], forme: 'tableau' }).html`), /<strong>Décisions :<\/strong> PPRE en maths, tutorat\./);
+  // Vider : retirée.
+  assert.strictEqual(ev(`decisionSet(getCls(), ${J}, ${mode}, '')`), 'suppr');
+  assert.strictEqual(ev(`_decisionsOf(${J}).length`), 1);
+  // Chargement : une entrée illisible est écartée ; la démo en porte.
+  ev(`S.eleves[${J}].decisions.push('x', { date: 'hier' }); postLoadHook();`);
+  assert.strictEqual(ev(`S.eleves[${J}].decisions.length`), 1);
+  assert.ok(ev(`getCls().eleves.filter(id => _decisionsOf(id).length).length`) >= 3);
+  ev(`_ficheMoment = null`);
+});

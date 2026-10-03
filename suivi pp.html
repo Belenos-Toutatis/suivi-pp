@@ -1581,6 +1581,11 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: 13.5px; margin: 0; }
 .pf-kv dt { color: var(--pencil); } .pf-kv dd { margin: 0; }
 .pf-p { margin: 0; }
+/* Les décisions d'un moment (v1.46.13), sous le bilan. */
+.pf-lab-dec { margin-top: 10px; }
+.pf-ta.pf-ta-dec { min-height: 3.4em; }
+.pf-dec { margin-top: 4px; }
+.pf-dec-l { font-size: 12px; font-weight: 700; color: var(--pencil); }
 /* Les textes libres gardent leurs paragraphes (v1.46.10, l'utilisateur : « dans la remarque, on ne
    voit pas s'il y a plusieurs paragraphes ») : remarque, bilans, avis des collègues (Ctrl+Entrée). */
 .pf-p, .pf-bil, .pf-cr > span, .pf-mx td, .pf-avd > div:not(.pf-dnm):not(.pf-cr) { white-space: pre-line; }
@@ -2765,8 +2770,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.12';
-const APP_BUILD_DATE = '2026-10-03T05:53:35Z';
+const APP_VERSION    = '1.46.13';
+const APP_BUILD_DATE = '2026-10-03T06:18:53Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3573,6 +3578,8 @@ function _sanitizeCoreSections() {
     e.incidents = e.incidents.filter(_isPlainObj);
     if (!Array.isArray(e.bilans)) e.bilans = [];
     e.bilans = e.bilans.filter(_isPlainObj);
+    // Décisions d'un moment de bilan (v1.46.13) : absent = aucune.
+    if (e.decisions !== undefined) { if (Array.isArray(e.decisions)) e.decisions = e.decisions.filter(x => _isPlainObj(x) && _ymdValid(x.date)); else delete e.decisions; }
     // Observations notées dans MBN (v1.46.0) : absent = aucune ; jamais créé d'office.
     if (e.obsMbn !== undefined) { if (Array.isArray(e.obsMbn)) e.obsMbn = e.obsMbn.filter(x => _isPlainObj(x) && _ymdValid(x.date)); else delete e.obsMbn; }
   }
@@ -4852,6 +4859,36 @@ function bilanRemove(sid, id) {
   if (i < 0) return false;
   stu.bilans.splice(i, 1);
   return true;
+}
+// ── DÉCISIONS d'un moment de bilan (v1.46.13) ── l'utilisateur : « lors des bilans de
+// mi-semestre ou de fin de semestre, quand on se réunit, on prend des décisions ou on veut
+// mettre des choses en place ; juste en dessous du bilan, de quoi le noter ». Une entrée par
+// élève et par MOMENT (même règle que `_bilanCible` : même type, même période — même mois pour
+// un point du mois), à côté du bilan et non dedans : le bilan est ce que JE dis, la décision
+// ce que l'équipe a arrêté. `stu.decisions = [{ id, ts, date, type, texte }]`.
+function _decisionsOf(sid) {
+  const stu = S.eleves[sid];
+  return (stu && Array.isArray(stu.decisions) ? stu.decisions.filter(_isPlainObj) : []).slice()
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || ((b.ts || 0) - (a.ts || 0)));
+}
+function _decisionCible(cls, sid, mode) {
+  if (!mode) return null;
+  const p = _periodOf(cls, mode.date);
+  return _decisionsOf(sid).find(e => e.type === mode.type && (mode.type === 'mois'
+    ? String(e.date).slice(0, 7) === String(mode.date).slice(0, 7)
+    : !!p && e.date >= p.start && e.date <= p.end)) || null;
+}
+// Écrit (ou crée) la décision du moment ; un texte vide la RETIRE. → 'ajout' | 'modif' |
+// 'suppr' | null (rien ne change). Sans pushUndo ni save : l'appelant s'en charge.
+function decisionSet(cls, sid, mode, texte) {
+  const stu = S.eleves[sid];
+  if (!stu || !mode || !_ymdValid(mode.date)) return null;
+  const txt = String(texte || '').trim(), e = _decisionCible(cls, sid, mode);
+  if (!txt) { if (!e) return null; stu.decisions = stu.decisions.filter(x => x !== e); return 'suppr'; }
+  if (e) { if (e.texte === txt) return null; e.texte = txt; return 'modif'; }
+  if (!Array.isArray(stu.decisions)) stu.decisions = [];
+  stu.decisions.push({ id: uid('d'), ts: Date.now(), date: mode.date, type: _bilanType(mode.type).key, texte: txt });
+  return 'ajout';
 }
 // Le bilan d'UNE période : le plus récent dont la date tombe dedans — du type demandé
 // s'il y en a un, sinon de l'autre (un bilan de mi-période vaut mieux que rien quand on
@@ -6918,6 +6955,7 @@ function ficheNav(k) {
   if (!n) return;
   const ta = document.getElementById('fi-bil');
   if (ta && document.activeElement === ta) ficheBilanSave();
+  if (document.activeElement?.id === 'fi-dec') ficheDecisionSave();
   _ficheSid = n; _ficheEdit = null; _ficheMot = null;
   _ficheRender();
   if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
@@ -6936,7 +6974,7 @@ function _ficheKey(e) {
 // titre) — plus ceux de 🗓 Moments (v1.46.0 → v1.46.7). Le moment choisi reste partagé.
 function _ficheMoments(cls) { return _chaleurMoments(cls); }
 function _ficheMomentCourant(cls) { return _chaleurMomentCourant(cls); }
-function ficheMomentSet(k) { const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); _ficheMoment = k; _ficheMot = null; _ficheRender(); }
+function ficheMomentSet(k) { const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); if (document.activeElement?.id === 'fi-dec') ficheDecisionSave(); _ficheMoment = k; _ficheMot = null; _ficheRender(); }
 // Les bornes de ce qu'on résume : la période entière pour un conseil ; du début de la
 // période à son milieu pour la mi-période ; le mois pour un point du mois. PUR.
 function _ficheBornes(cls, col) {
@@ -7082,15 +7120,36 @@ function _ficheBarHTML(cls, stu, col) {
 // moment (`_bilanCible`) plutôt que d'en créer un second.
 function _ficheRedacHTML(cls, stu, col, extra) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
+  const d = _decisionCible(cls, stu.id, { type: col.type, date: col.date });
   return `<label for="fi-bil" class="pf-lab">${_escName(col.long)} · ce que je dirai</label>
     <textarea id="fi-bil" class="pf-ta" onchange="ficheBilanSave()" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
-    ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>`;
+    ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>
+    <label for="fi-dec" class="pf-lab pf-lab-dec">Décisions · à mettre en place</label>
+    <textarea id="fi-dec" class="pf-ta pf-ta-dec" onchange="ficheDecisionSave()" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
+    <div class="tb-hint" id="fi-dec-etat">${d ? `Noté le ${_escName(_fmtDateFr(d.date))} · vider le champ la retire` : 'Enregistré en quittant le champ'}</div>`;
+}
+// Comme le bilan : enregistré en quittant le champ, sans re-rendu ; vider le champ retire la
+// décision (Ctrl+Z la rend).
+function ficheDecisionSave() {
+  const ta = document.getElementById('fi-dec');
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id];
+  if (!ta || !cls) return;
+  const col = _ficheMomentCourant(cls);
+  if (!col) return;
+  const mode = { type: col.type, date: col.date };
+  const avant = _decisionCible(cls, stu.id, mode), v = String(ta.value || '').trim();
+  if ((avant ? avant.texte : '') === v) return;
+  pushUndo();
+  const r = decisionSet(cls, stu.id, mode, v);
+  save();
+  const etat = document.getElementById('fi-dec-etat');
+  if (etat) etat.textContent = r === 'suppr' ? '✓ Retirée — Ctrl+Z la rend' : `✓ Enregistré à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 // Les AUTRES bilans de l'élève, sous la rédaction (prototype : un liseré violet par bilan).
 function _ficheBilansAutresHTML(cls, stu, col) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
-  return _ficheMoments(cls).filter(c => c.key !== col.key).map(c => { const x = _bilanCible(cls, stu.id, { type: c.type, date: c.date });
-    return `<div class="pf-bil"><div class="pf-bil-l">${_escName(c.long)}${x ? ' · ' + _escName(_fmtDateFr(x.date).slice(0, 5)) : ''}</div>${x ? _escName(x.texte) : '<span class="pf-mu">rien d\'écrit</span>'}</div>`; }).join('')
+  return _ficheMoments(cls).filter(c => c.key !== col.key).map(c => { const x = _bilanCible(cls, stu.id, { type: c.type, date: c.date }), dc = _decisionCible(cls, stu.id, { type: c.type, date: c.date });
+    return `<div class="pf-bil"><div class="pf-bil-l">${_escName(c.long)}${x ? ' · ' + _escName(_fmtDateFr(x.date).slice(0, 5)) : ''}</div>${x ? _escName(x.texte) : '<span class="pf-mu">rien d\'écrit</span>'}${dc ? `<div class="pf-dec"><span class="pf-dec-l">Décisions</span> ${_escName(dc.texte)}</div>` : ''}</div>`; }).join('')
     + _bilansOf(stu.id).filter(x => x !== b && !_ficheMoments(cls).some(c => _bilanCible(cls, stu.id, { type: c.type, date: c.date }) === x))
       .map(x => `<div class="pf-bil"><div class="pf-bil-l">${_escName(_bilanLabel(x))} · ${_escName(_fmtDateFr(x.date))}</div>${_escName(x.texte)}</div>`).join('');
 }
@@ -7321,6 +7380,7 @@ function _ficheEvenements(cls, stu, col) {
   (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'incid', html: `<strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<div class="fi-vide">${_escName(x.texte)}</div>` : ''}` }));
   (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'contact', html: `<strong>${_escName(_journalType(x.type).label)}</strong> — ${_escName(x.texte || '')}` }));
   _bilansOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
+  _decisionsOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>Décisions — ${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
   _docsOfCurrent().filter(d => (d.classIds || []).includes(cid) && dans(d.dateDistribution) && _docExpected(d).some(x => x.id === sid)).forEach(d => {
     const r = _retour(d, sid);
     E.push({ date: d.dateDistribution, k: 'papier', html: `${_escName(d.titre)} distribué${d.suiviRetour === false ? '' : r.rendu ? ` — rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour)) : ''}` : ' — <strong>pas rendu</strong>'}` });
@@ -15961,6 +16021,8 @@ function _periodeSynthese(cls, periodIdx, opts) {
       nonRendus, incidents, contacts,
       moyennes: _moyPeriodeEleve(mp, stu.id),
       bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
+      // Les décisions du même moment (v1.46.13), sous le bilan sur la feuille.
+      decisions: (d => d ? d.texte : '')(_decisionCible(cls, stu.id, { type: o.type || 'conseil', date: p.start })),
       // Avis des collègues (v1.39.0) : la dernière feuille de CETTE période.
       avis: (() => { const a = _avisEleve(cls, stu.id, periodIdx, o.type || 'conseil'); if (!a) return [];
         const cols = _avisCols(a.camp);
@@ -16040,7 +16102,8 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   // Les paragraphes d'un avis (Ctrl+Entrée dans la feuille) se voient aussi sur le papier (v1.46.11).
   const avisLigne = a => { const cs = a.cols || AVIS_CRITERES; return cs.filter(c => a[c.key]).map(c => `${cs.length > 1 ? `<em>${_escName(abr(c))}</em> ` : ''}<span class="pp-pl">${_escName(a[c.key])}</span>`).join(' · '); };
   const avisFiche = r => r.avis.map(a => `<div><strong>${_escName(a.nom)}</strong> — ${avisLigne(a)}</div>`).join('');
-  const bilCell = r => r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanLabel(r.bilan))} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '';
+  const decTxt = r => r.decisions ? `<br><strong>Décisions :</strong> ${_escName(r.decisions)}` : '';
+  const bilCell = r => (r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanLabel(r.bilan))} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '') + decTxt(r);
   if (o.forme === 'fiches') {
     const bloc = (t, c) => c ? `<div class="print-fb"><span class="print-fb-t">${t}</span> ${c}</div>` : '';
     return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}${legHTML}</p>${hvcHTML}` + rows.map(r => `<div class="print-fiche">
@@ -17929,6 +17992,17 @@ function createDemo(opts) {
   bilans.forEach(([i, md, type, texte], k) => {
     const e = bilanAdd(sids[i], { date: D(md), type, texte });
     if (e) { e.id = `demo_b${String(k + 1).padStart(2, '0')}`; e.ts = Date.parse(D(md) + 'T12:00:00'); }
+  });
+  // ── Décisions prises en réunion (v1.46.13), sous le bilan du même moment.
+  const decisions = [
+    [0, '01-21', 'conseil', 'Avertissement travail et comportement. Rendez-vous avec la mère avant les vacances d\'hiver ; point sur le contrat dans six semaines.'],
+    [12, '01-21', 'conseil', 'Mettre en place le PAP dès la rentrée de février. Tutorat avec le professeur de français.'],
+    [9, '11-15', 'miperiode', 'Changement de place (devant, côté fenêtre). Point avec lui au conseil.'],
+    [16, '01-21', 'conseil', 'Félicitations.'],
+  ];
+  decisions.forEach(([i, md, type, texte], k) => {
+    const s = S.eleves[sids[i]];
+    if (s) (s.decisions = s.decisions || []).push({ id: `demo_d${String(k + 1).padStart(2, '0')}`, ts: Date.parse(D(md) + 'T12:00:00'), date: D(md), type, texte });
   });
   E(5).remarque = 'Tiers-temps : prévoir une salle à part pour les évaluations longues.';
   E(9).remarque = 'Changé de place en février (devant, côté fenêtre) : ça a tout changé.\nÀ garder l\'an prochain.';

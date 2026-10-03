@@ -176,6 +176,9 @@ stu = {
   // Bilans de période (2026-09-11) : ce que je dirai au conseil, ce que je retiens à
   // mi-période. La PÉRIODE se déduit de la date (cf. *Bilans de période*).
   bilans: [ { id, date: 'YYYY-MM-DD', ts, type: 'conseil' | 'miperiode', texte } ],
+  // Décisions prises en réunion pour un moment de bilan (v1.46.13) — une par moment, à côté
+  // du bilan (même règle de moment que `_bilanCible`). Absent = aucune.
+  decisions: [ { id, date: 'YYYY-MM-DD', ts, type: 'conseil' | 'miperiode' | 'mois', texte } ],
 }
 
 // Catalogue des instances — pré-rempli (INSTANCES_DEFAUT, `builtin: true`), renommable,
@@ -714,6 +717,26 @@ rien. Sans note ni moyenne : elles sont dans Pronote, ceci est le brouillon du P
 - Démo : cinq bilans au S1, trois au S2 (la colonne de la liste n'est pas vide en fin
   d'année). `postLoadHook` crée la section et écarte les entrées non-objets. Dans l'état
   maximal du test de balayage.
+
+### Décisions d'un moment de bilan (v1.46.13)
+
+Demandé le 2026-10-03 : *« lors des bilans de mi-semestre ou de fin de semestre, quand on se
+réunit, on prend des fois des décisions ou on veut mettre des choses en place ; juste en dessous
+du bilan sur la fiche, de quoi le noter »*. **À côté du bilan, pas dedans** : le bilan est ce que
+le PP dit, la décision ce que l'équipe a arrêté (avertissement, PPRE, tutorat, rendez-vous…).
+
+- `stu.decisions`, une entrée par MOMENT : `_decisionCible(cls, sid, { type, date })` — même
+  type, même période (même mois pour un point du mois), comme `_bilanCible`. `decisionSet` (pur
+  sauf l'écriture) crée, modifie, ou **retire quand le texte est vide** (→ `'ajout' | 'modif' |
+  'suppr' | null`) ; contrairement au bilan, vider retire : Ctrl+Z la rend.
+- **Fiche** : sous le bilan du moment choisi, dans les trois vues (`_ficheRedacHTML`), un champ
+  *Décisions · à mettre en place*, enregistré en quittant le champ (`ficheDecisionSave`, un cran
+  d'undo, sans re-rendu — et aussi avant ◀ ▶ ou un changement de moment au clavier). Les autres
+  moments montrent leurs décisions sous leur bilan ; la chronologie les date.
+- **Synthèse de période** : `row.decisions` (le moment de la feuille), « **Décisions :** … »
+  sous le bilan, tableau et fiches.
+- `postLoadHook` écarte les entrées illisibles ; rien à purger à part (sur l'élève). Démo :
+  quatre décisions (avertissement, PAP et tutorat, changement de place, félicitations).
 
 ### Synthèse de période imprimable (v1.26.0)
 
@@ -1850,6 +1873,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 101 | **Décisions d'un moment de bilan** (`stu.decisions`, `decisionSet`, `_decisionCible`) : champ sous le bilan dans la fiche, autres moments, chronologie, synthèse de période ; démo ; 1 test. Audit 3 vues × 2 moments × 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.13) |
 | 100 | **Ajout d'un élève par la même fenêtre que la modification** (ancienne fenêtre supprimée) · **la fiche se ferme en quittant Élèves, Observations, Moyennes** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.12) |
 | 99 | **Fenêtre « Modifier l'élève » refaite** (par-dessus la fiche, cinq blocs sur deux colonnes, choix courts en boutons, aménagements en puces) · **avis des collègues avec leurs paragraphes sur le papier** ; 1 test, 2 tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut (un contraste trouvé et corrigé) | ✅ **fait** (2026-10-03, v1.46.11) |
 | 98 | **Fiche : les paragraphes des textes libres se voient** (remarque, bilans, avis des collègues — `white-space: pre-line`) ; 1 test | ✅ **fait** (2026-10-03, v1.46.10) |
