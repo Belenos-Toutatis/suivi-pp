@@ -754,7 +754,9 @@ le PP dit, la décision ce que l'équipe a arrêté (avertissement, PPRE, tutora
 (conseil / mi-période) » mais **un MOMENT** — ceux de « Synthèse pour » (carte de chaleur, fiche) :
 conseil, mi-période, point du mois, rangés par période. La feuille est **bornée au moment**
 (`_ficheBornes` : la période pour un conseil, du début au milieu pour la mi-période, le mois pour
-un point du mois), et porte le bilan et les décisions de CE moment ; titre = le moment
+un point du mois — ⚠️ **arbitré par l'utilisateur le 2026-10-03 : une feuille de mi-période
+couvre bien du début de la période à son milieu**, comme la fiche, et non plus la période
+entière), et porte le bilan et les décisions de CE moment ; titre = le moment
 (« Point de septembre — 5e C »). `_periodeSynthese(cls, idx, { type, col })` : sans `col`, la
 période entière, comme ci-dessous (les tests d'origine passent ainsi). Les moyennes gardent leur
 règle (période du bureau numérique de la période de l'app).
