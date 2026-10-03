@@ -1457,6 +1457,8 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .chob-3 { background: var(--obs-3); color: var(--obs-3-fg); } .chob-4 { background: var(--obs-4); color: var(--obs-4-fg); }
 .chob-5 { background: var(--obs-5); color: var(--obs-5-fg); } .chob-6 { background: var(--obs-6); color: var(--obs-6-fg); }
 .chob-7 { background: var(--obs-7); color: var(--obs-7-fg); } .chob-8 { background: var(--obs-8); color: var(--obs-8-fg); }
+.el-chaleur td.ch-clic { cursor: pointer; }
+.el-chaleur td.ch-clic:hover { outline: 2px solid var(--link-fg); outline-offset: -2px; }
 .ch-ct, .ch-sw.ch-ct { background: var(--info-bg); color: var(--ink-deep); font-weight: 700; }
 .el-chaleur td.ch-ok { color: var(--ok-fg); }
 .el-chaleur td.ch-miss { color: var(--danger-fg); font-weight: 700; }
@@ -2784,8 +2786,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.15';
-const APP_BUILD_DATE = '2026-10-03T06:52:39Z';
+const APP_VERSION    = '1.46.16';
+const APP_BUILD_DATE = '2026-10-03T07:14:20Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6221,11 +6223,19 @@ function _chaleurGroupes(cls, bcols, colM) {
     },
     sum: sid => { const n = docs.filter(d => _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu).length;
       return [n ? 'ch-miss' : 'ch-ok', n ? n + ' ☐' : '✓', n ? `${n} papier(s) à rendre` : 'tout est rendu']; } });
-  const parMois = (key, label, liste, cl, fmt) => G.push({ key, label, sub: mois.map(([id, l]) => ({ id, l, long: l })),
-    cell: (sid, ym) => { const x = liste(sid).filter(e => dansM(e) && String(e.date).startsWith(ym)); return x.length ? [cl, String(x.length), x.map(fmt).join('\n')] : ['ch-no', '', ''] },
-    sum: sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? cl : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n')]; } });
+  // `clic` (v1.46.16) : la case s'ouvre d'un clic (4e élément de la case) et le groupe finit par
+  // une case *Total* du moment — pour les contacts, comme la colonne des Indicateurs.
+  const parMois = (key, label, liste, cl, fmt, clic) => {
+    const sum = sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? cl : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n') + (clic ? (x.length ? '\n' : '') + clic.tip : ''), clic ? clic.fn(sid) : null]; };
+    G.push({ key, label, sub: [...mois.map(([id, l]) => ({ id, l, long: l })), ...(clic ? [{ id: '__tot', l: 'Total', long: `Total ${nomM}` }] : [])],
+      cell: (sid, ym) => { if (ym === '__tot') return sum(sid);
+        const x = liste(sid).filter(e => dansM(e) && String(e.date).startsWith(ym));
+        return x.length ? [cl, String(x.length), x.map(fmt).join('\n') + (clic ? '\n' + clic.tip : ''), clic ? clic.fn(sid) : null] : ['ch-no', '', clic ? clic.tip : '', clic ? clic.fn(sid) : null]; },
+      sum });
+  };
   parMois('inc', 'Incidents', sid => (S.eleves[sid]?.incidents || []).filter(_isPlainObj), 'ch-inc', e => `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label} : ${e.objet || ''}`);
-  parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`);
+  parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`,
+    { fn: sid => `openContacts('${_escJsAttr(sid)}')`, tip: 'Clic : la liste des contacts, pour les voir, les corriger, en noter un' });
   if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: (col && c.key === col.key ? '▶ ' : '') + c.court, long: c.long + (col && c.key === col.key ? ' — le moment choisi' : '') })),
     cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c);
       return b ? ['ch-bil', '●', `${c.long} — ${_fmtDateFr(b.date)}\n${String(b.texte).slice(0, 400)}`] : ['ch-no', '○', `${c.long} : rien d'écrit`]; },
@@ -6291,7 +6301,7 @@ function _elevesChaleurHTML(cls, rowsData, bcols) {
     <span class="tb-hint">${_escName(col.long)} — du ${_escName(_fmtDateFr(_debutUtile(B.start) < B.end ? _debutUtile(B.start) : B.start))} au ${_escName(_fmtDateFr(B.end))}</span></div>` : '';
   const G = _chaleurGroupes(cls, bcols, col);
   const plis = _chaleurPlis();
-  const td = ([c, t, tip], first) => `<td class="ch${first ? ' ch-g0' : ''}${c ? ' ' + c : ''}"${tip ? ` title="${_escAttr(tip)}"` : ''}>${_escName(t)}</td>`;
+  const td = ([c, t, tip, clic], first) => `<td class="ch${first ? ' ch-g0' : ''}${c ? ' ' + c : ''}${clic ? ' ch-clic' : ''}"${tip ? ` title="${_escAttr(tip)}"` : ''}${clic ? ` role="button" tabindex="0" onclick="event.stopPropagation();${clic}" onkeydown="if(event.key==='Enter'){event.stopPropagation();${clic}}"` : ''}>${_escName(t)}</td>`;
   const head1 = G.map(g => `<th class="ch-gh" colspan="${plis.has(g.key) ? 1 : g.sub.length}"><button class="ch-pli" onclick="chaleurPliToggle('${g.key}')" aria-expanded="${!plis.has(g.key)}" title="${plis.has(g.key) ? 'Déplier' : 'Replier'} ce groupe">${plis.has(g.key) ? '▸' : '▾'} ${_escName(g.label)}</button></th>`).join('');
   const head2 = G.map(g => plis.has(g.key) ? '<th class="ch-sh ch-g0"><span>synthèse</span></th>'
     : g.sub.map((x, i) => `<th class="ch-sh${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(x.long)}"><span>${_escName(x.l)}</span></th>`).join('')).join('');

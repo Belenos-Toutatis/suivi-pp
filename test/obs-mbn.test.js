@@ -302,3 +302,17 @@ test('Carte de chaleur : ses moments ne dépendent pas de 🗓 Moments ; le titr
   assert.match(html, /margin-left:auto"><span class="tb-hint">\d+ élèves? sur \d+/);
   ev(`try { localStorage.removeItem('suiviPP_elevesAffichage'); } catch (_) {} S.prefs.chaleurMoments = undefined; S.prefs.bilansMasques = [];`);
 });
+
+test('Carte de chaleur : le groupe Contacts finit par un Total, et chaque case ouvre la fenêtre des contacts', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = ''; _ficheMoment = 'bil:conseil:0';`);
+  const sid = ev(`getCls().eleves.find(id => _journalOf(id).length)`), J = JSON.stringify(sid);
+  const g = `_chaleurGroupes(getCls(), []).find(x => x.key === 'ct')`;
+  assert.strictEqual(ev(`${g}.sub.slice(-1)[0].id`), '__tot');
+  const n = ev(`(() => { const b = _ficheBornes(getCls(), _chaleurMomentCourant(getCls())); return _journalOf(${J}).filter(e => e.date >= b.start && e.date <= b.end).length; })()`);
+  const tot = evObj(`${g}.cell(${J}, '__tot')`);
+  assert.strictEqual(tot[1], n ? String(n) : '·');
+  assert.strictEqual(tot[3], `openContacts('${sid}')`);
+  const html = evObj(`_elevesChaleurHTML(getCls(), _elevesRows(getCls()), [])`).table;
+  assert.ok(html.includes(`onclick="event.stopPropagation();openContacts('${sid}')"`));
+  ev(`_ficheMoment = null`);
+});

@@ -1343,7 +1343,11 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        (`_chaleurMomentsPickHTML(cls, 'fi')`, ouvert ou non par endroit : `_momPickOpen`). 🗓
        Moments ne règle plus que la colonne Bilans de la liste. Et la ligne « 25 élèves sur 25 » sous les filtres a disparu de
        la carte de chaleur : le compte est à droite des filtres. Par défaut, le conseil de la période
-       courante : la période entière, comme avant.
+       courante : la période entière, comme avant. **v1.46.16** (*« affiche aussi la colonne
+       Contacts dans la carte de chaleur »* — le groupe existait, tout à droite, hors de l'écran) :
+       le groupe **Contacts** finit par une case **Total** du moment, et chaque case s'ouvre d'un
+       clic sur la fenêtre des contacts (`parMois(…, clic)` ; 4e élément d'une case = son
+       `onclick`, rendu par `td` en `role="button"`, sans ouvrir la fiche de la ligne).
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
        discipline de la feuille d'avis (pleine / partielle), par papier (✓ ☐ —), par MOIS
@@ -1879,6 +1883,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 104 | **Carte de chaleur : Contacts avec un Total, cases cliquables** vers la fenêtre des contacts ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.46.16) |
 | 103 | **Vue « Préparer le conseil » avec la colonne Contacts** (et reprise de l'ancienne vue) ; 1 test | ✅ **fait** (2026-10-03, v1.46.15) |
 | 102 | **Remarque et contacts séparés** (fenêtre `mcontacts` ouverte par la colonne Contacts : date, type, texte corrigeables ; libellé « Remarque » au lieu d'« Observations ») · **bilan et décisions à la hauteur de leur texte** ; 1 test, 1 test mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.14) |
 | 101 | **Décisions d'un moment de bilan** (`stu.decisions`, `decisionSet`, `_decisionCible`) : champ sous le bilan dans la fiche, autres moments, chronologie, synthèse de période ; démo ; 1 test. Audit 3 vues × 2 moments × 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.13) |
