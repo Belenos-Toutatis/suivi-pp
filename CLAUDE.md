@@ -1188,6 +1188,12 @@ Les pièges de format MBN et de l'appariement sont documentés là-bas ; à reli
   vignette (`_vignetteHTML(sid, avecPh)`, partagée avec la carte de chaleur) ; la ligne passe de
   43 à 46 px. Les trois affichages de la liste ont donc les photos ; ouvrir l'un d'eux demande
   l'accès au dossier quand il n'est pas encore accordé.
+- **Grilles des observations et des moyennes** (v1.51.3, *« ajoute aussi les photos dans la
+  grille des observations et des moyennes »*) : la même vignette devant chaque nom (ligne + 3 px) ;
+  `_trombiPhotosPoser` après chaque rendu (une saisie au carnet re-rend la grille — vérifié :
+  Entrée passe toujours à l'élève suivant). Un clic sur l'onglet Élèves, Observations ou Moyennes
+  demande l'accès au dossier des photos s'il manque (`showTab`), et `_photosChanged` redessine
+  l'onglet ouvert.
 - ⚠️ **Supprimer un élève ne supprime PAS sa photo** (écart assumé avec Plan de classe) : Ctrl+Z
   rend l'élève, jamais un fichier — même règle que les PDF. *🧹 Orphelins…* (Données) liste aussi
   les `photos/<sid>.jpg` dont l'élève n'existe plus (`_photosOrphelines`) et les supprime sur
@@ -2034,6 +2040,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 115 | **Photos dans les grilles des observations et des moyennes** ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; saisie au carnet vérifiée | ✅ **fait** (2026-10-03, v1.51.3) |
 | 114 | **Photos dans la vue Indicateurs** (vignette partagée avec la carte de chaleur) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.51.2) |
 | 113 | **Photos dans la carte de chaleur** : une vignette devant chaque nom, case vide sans photo, rien sans aucune photo ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.51.1) |
 | 112 | **📷 Trombinoscope** : troisième affichage de la liste des élèves (photos, initiales sans photo, clic vers la fiche) et troisième choix de 🖨 Imprimer… (4 à 6 par rangée, une page A4 pour 25 élèves) ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; papier simulé | ✅ **fait** (2026-10-03, v1.51.0) |

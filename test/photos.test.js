@@ -164,3 +164,14 @@ test('indicateurs : la même vignette devant chaque nom, rien sans aucune photo'
   })()`));
   assert.deepStrictEqual(r, { sans: false, img: 1, vides: r.n - 1, n: r.n });
 });
+
+test('grilles des observations et des moyennes : la vignette devant chaque nom', () => {
+  const src = SRC;
+  assert.match(src, /<td class="rel-name">\$\{_vignetteHTML\(s\.id, avecPh\)\}\$\{_nomFicheHTML\(s\.id, s\.nom, s\.prenom\)\}\$\{inactive \? ' <span class="tb-hint">\(parti\)<\/span>' : ''\}\$\{_ageSubHTML\(s\)\}<\/td>/, 'Observations');
+  assert.match(src, /function _moyTableauHTML\([^)]*\) \{\n  const avecPh = cls\.eleves\.some\(_photoHas\);/, 'Moyennes');
+  // Les deux grilles posent les photos après chaque rendu (une saisie re-rend la grille du carnet).
+  for (const fn of ['renderCarnets', 'renderMoyennes']) {
+    const body = src.slice(src.indexOf(`function ${fn}(`), src.indexOf(`function ${fn}(`) + 9000);
+    assert.match(body, /keep\(\);\n  _trombiPhotosPoser\(el\);/, fn);
+  }
+});

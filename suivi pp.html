@@ -2923,8 +2923,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.51.2';
-const APP_BUILD_DATE = '2026-10-03T15:18:37Z';
+const APP_VERSION    = '1.51.3';
+const APP_BUILD_DATE = '2026-10-03T15:28:27Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4063,6 +4063,8 @@ function showTab(name, btn) {
   if (btn) btn.classList.add('on');
   try { localStorage.setItem(LS_TAB, name); } catch (_) {}
   renderTab(name);
+  // 📷 Le clic sur un onglet à vignettes est un geste : on peut y demander l'accès aux photos.
+  if (btn && FICHE_ONGLETS.includes(name) && typeof pjDirHandle !== 'undefined' && pjDirHandle && !_photos.ready) _photosRefresh(true).then(ok => { if (ok) renderTab(name); }).catch(() => {});
 }
 function switchTab(name) {
   const navBtn = [...document.querySelectorAll('.nb')].find(b => b.getAttribute('onclick')?.includes(`'${name}'`));
@@ -6640,6 +6642,7 @@ function _trombiCarteHTML(s) {
     _photoHas(sid) ? `<img class="tv-ph" data-tv-sid="${_escAttr(sid)}" alt="">` : `<span class="tv-ph tv-none" aria-hidden="true">${_escName(ini)}</span>`}<span class="tv-nom">${_civHTML(sid)}${_nomHTML(sid, s.nom, s.prenom)}</span>${sub ? `<span class="tv-sub">${_escName(sub)}</span>` : ''}</button>`;
 }
 function _trombiPhotosPoser(root) {
+  if (!_photos.sids.size || !root || typeof root.querySelectorAll !== 'function') return;
   for (const im of root.querySelectorAll('img[data-tv-sid]')) {
     _photoUrl(im.getAttribute('data-tv-sid')).then(u => { if (u) im.src = u; else im.replaceWith(Object.assign(document.createElement('span'), { className: im.className + ' tv-none', textContent: im.classList.contains('tv-ph') ? '📷' : '' })); });
   }
@@ -10197,6 +10200,7 @@ function renderCarnets() {
   const curIdx = _carnetCurrentPeriodIdx(cls);
   const today = _todayYmd();
   const mbnAny = _obsMbnClasseAny(cls);
+  const avecPh = cls.eleves.some(_photoHas);   // 📷 une vignette devant chaque nom (v1.51.3)
 
   const toolbar = `<div class="tb">
       <button class="btn btn-p btn-sm" onclick="openReleveNew()" title="Ajouter une colonne : la date du jour où vous relevez les carnets">+ Relever les carnets</button>
@@ -10270,7 +10274,7 @@ function renderCarnets() {
     const ld = lastDelta(s);
     const ldCls = ld === null ? '' : ld >= 5 ? ' hot' : ld >= 2 ? ' warm' : '';
     return `<tr${inactive ? ' class="inactive"' : ''}>
-      <td class="rel-name">${_nomFicheHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${_ageSubHTML(s)}</td>
+      <td class="rel-name">${_vignetteHTML(s.id, avecPh)}${_nomFicheHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${_ageSubHTML(s)}</td>
       ${cells}
       <td class="rel-delta${ldCls}">${ld === null ? '<span class="tb-hint">—</span>' : (ld > 0 ? '+' + ld : ld)}</td>
       ${periodsShown.map(p => { const t = _relPeriodTotal(cls.id, s.id, p.n - 1); return `<td class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}">${t === null ? '<span class="tb-hint">—</span>' : t}</td>${mbnAny ? mbnTd(s, p) : ''}`; }).join('')}
@@ -10281,6 +10285,7 @@ function renderCarnets() {
   const keep = _wrapScrollKeep(el);
   el.innerHTML = toolbar + `<div class="rel-wrap frozen"><table class="dt rel-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
   keep();
+  _trombiPhotosPoser(el);
 }
 
 // ── Saisie ──
@@ -13598,9 +13603,11 @@ function renderMoyennes() {
   const keep = _wrapScrollKeep(el);
   el.innerHTML = toolbar + `<div class="rel-wrap frozen">${table}</div>${legende}`;
   keep();
+  _trombiPhotosPoser(el);
 }
 
 function _moyTableauHTML(cls, rel, list, roster, cols, hasGen) {
+  const avecPh = cls.eleves.some(_photoHas);   // 📷 une vignette devant chaque nom (v1.51.3)
   // Élèves affichés : ceux de la classe encore présents, plus ceux (partis depuis) qui
   // figurent dans cet import. Les statistiques portent sur ces mêmes lignes.
   const rows = _moySortRows(cls, rel, roster.filter(s => _isStudentActive(s) || rel.notes?.[s.id] || _moyGen(rel, s.id) !== null));
@@ -13621,7 +13628,7 @@ function _moyTableauHTML(cls, rel, list, roster, cols, hasGen) {
     const n10 = _moySous10(rel, s.id);
     const inactive = !_isStudentActive(s);
     return `<tr${inactive ? ' class="inactive"' : ''}>
-      <td class="rel-name">${_nomFicheHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${
+      <td class="rel-name">${_vignetteHTML(s.id, avecPh)}${_nomFicheHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${
         !rel.notes?.[s.id] && _moyGen(rel, s.id) === null ? ' <span class="tb-hint" title="Absent du fichier importé">(absent du fichier)</span>' : ''}</td>
       ${cols.map(m => _moyCellHTML(cls, rel, s.id, m.id)).join('')}
       ${hasGen ? _moyCellHTML(cls, rel, s.id, null, 'moy-gen') : ''}
@@ -17790,7 +17797,8 @@ function _photoHas(sid) { return _photos.sids.has(sid); }
 // Après un import, un ajout ou un retrait : la fiche ouverte se redessine (la liste n'a pas de photo).
 function _photosChanged() {
   if (_ficheSid && document.getElementById('mfiche')?.classList.contains('on')) _fichePhotoFill(_ficheSid);
-  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+  const t = document.querySelector('.tab.on')?.id.replace('tab-', '');
+  if (FICHE_ONGLETS.includes(t)) renderTab(t);   // Élèves, Observations, Moyennes : les vignettes
 }
 async function _photoUrl(sid) {
   if (!_photos.sids.has(sid)) return null;
