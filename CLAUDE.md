@@ -740,7 +740,10 @@ imprimable d'une A4 portrait, et `_printFitSize` choisit la plus grande taille q
 remplacement : 333 mm à 11 pt (deux pages) → 255 mm en 8,25 pt. S'il déborde même à 7 pt, un toast
 le dit. **Les élus signent** (`_pvElusSignHTML`, section *Les élus — acceptation du mandat* : une
 case par titulaire et par suppléant élu) — aucun texte ne l'impose, mais leur signature atteste
-l'acceptation que la circulaire de 2004 exige d'un élu non candidat.
+l'acceptation que la circulaire de 2004 exige d'un élu non candidat. **v1.52.10** (*« groupe bien
+le titulaire avec son suppléant »*) : en binôme, un CADRE par binôme (`.pv-binome`, titulaire et
+suppléant côte à côte, deux cadres par rangée) ; un élu non candidat sans suppléant a son cadre
+avec « Suppléant : aucun ». Hors binôme, titulaires puis suppléants. Démo : 8,75 pt, une page.
 
 ⚠️ **Le PV n'est imprimable que `clos: true`.** Un PV signé qui ne correspond plus au dépouillement affiché est un faux ; clore verrouille la saisie, et rouvrir demande une confirmation explicite.
 
@@ -2152,6 +2155,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 126 | **PV : titulaire et suppléant groupés** dans un cadre par binôme ; test étendu | ✅ **fait** (2026-10-03, v1.52.10) |
 | 125 | **PV sur une page** (taille mesurée, 7 à 11 pt) **et signature des élus** (acceptation du mandat) ; 1 test, 1 test adapté. Mesuré sur la démo : 255 mm en 8,25 pt | ✅ **fait** (2026-10-03, v1.52.9) |
 | 124 | **Départage par l'âge justifié** : dates de naissance des candidats à égalité au PV, à la projection du résultat et dans l'onglet ; 1 test. Audit dans la fenêtre projetée, 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.8) |
 | 123 | **Scrutin du suppléant : les élus de l'élection d'origine ne sont plus proposés** (ni candidats, ni nom écrit ; refusés par le modèle) ; 1 test | ✅ **fait** (2026-10-03, v1.52.7) |

@@ -729,10 +729,12 @@ test('Procès-verbal : une case de signature par élu (titulaires et suppléants
     const h = _pvElusSignHTML(el, elus, sups);
     const eco = _elList(cls.id).find(e => e.clos && e.type === 'eco');
     const he = _pvElusSignHTML(eco, eco.elus.titulaires.map(id => _elCand(eco, id)), []);
-    return JSON.stringify({ cases: (h.match(/class="pv-sign-l"/g) || []).length, attendu: elus.length + sups.filter(Boolean).length,
+    const cadres = h.split('class="pv-binome"').slice(1).map(x => (x.match(/class="pv-sign-l"/g) || []).length);
+    return JSON.stringify({ cadres, cases: (h.match(/class="pv-sign-l"/g) || []).length, attendu: elus.length + sups.filter(Boolean).length,
       titre: h.includes('acceptation du mandat'), eco: (he.match(/class="pv-sign-l"/g) || []).length, ecoSup: he.includes('Suppléant') });
   })()`));
   assert.strictEqual(r.cases, r.attendu, 'une case par élu');
+  assert.deepStrictEqual(r.cadres, [2, 2], 'en binôme : un cadre par binôme, titulaire et suppléant ensemble');
   assert.ok(r.titre);
   assert.strictEqual(r.eco, 1, 'éco-délégué : un élu, pas de suppléant');
   assert.strictEqual(r.ecoSup, false);

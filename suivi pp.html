@@ -1396,6 +1396,9 @@ body.el-projecting::before { display: none; }
 /* Les élus signent aussi (v1.52.9) : une case par élu, plusieurs par rangée. */
 .pv-sign.pv-elus { flex-wrap: wrap; margin-top: .6em; }
 .pv-sign.pv-elus > div { flex: 1 1 28%; }
+.pv-binomes { display: flex; flex-wrap: wrap; gap: .8em; margin-top: .6em; }
+.pv-binome { flex: 1 1 42%; border: .6pt solid #000; padding: .3em .7em .6em; break-inside: avoid; page-break-inside: avoid; }
+.pv-binome .pv-sign { margin-top: .2em; }
 .pv-sign-t { font-weight: 700; font-size: .91em; }
 /* L'espace de la signature ne descend jamais sous 9 mm, quelle que soit la taille du texte. */
 .pv-sign-n { font-size: .91em; margin: .2em 0 max(2.4em, 9mm); }
@@ -2973,8 +2976,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.9';
-const APP_BUILD_DATE = '2026-10-03T16:37:17Z';
+const APP_VERSION    = '1.52.10';
+const APP_BUILD_DATE = '2026-10-03T16:59:05Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -13551,6 +13554,14 @@ function electionPrintPV() {
 // circulaire n° 2004-114 § 6.1 exige d'un élu non candidat. Une case par titulaire et par
 // suppléant élu, dans l'ordre du tableau des élus.
 function _pvElusSignHTML(el, elus, sups) {
+  const kase = (t, n) => `<div><div class="pv-sign-t">${_escName(t)}</div><div class="pv-sign-n">${_escName(n)}</div><div class="pv-sign-l"></div></div>`;
+  // En BINÔME, le titulaire et son suppléant sont GROUPÉS dans un cadre (v1.52.10, l'utilisateur :
+  // « groupe bien le titulaire avec son suppléant ») — ils ont été élus ensemble, ils signent
+  // ensemble. Un élu non candidat sans suppléant a son cadre seul, et le dit.
+  if (el.binome !== false && !el.supDe && elus.length) {
+    return `<h3>Les élus — acceptation du mandat</h3><div class="pv-binomes">${elus.map((c, i) => `<div class="pv-binome"><div class="pv-sign">${
+      kase(_elNbSup(el) ? 'Titulaire' : 'Élu', _elCandNom(c))}${sups[i] ? kase('Suppléant', sups[i]) : '<div><div class="pv-sign-t">Suppléant</div><div class="pv-sign-n">aucun</div></div>'}</div></div>`).join('')}</div>`;
+  }
   const noms = [];
   elus.forEach((c, i) => { noms.push({ t: el.supDe ? 'Suppléant élu' : (_elNbSup(el) ? 'Titulaire' : 'Élu'), n: _elCandNom(c) }); if (el.binome !== false && sups[i]) noms.push({ t: 'Suppléant', n: sups[i] }); });
   if (el.binome === false) sups.filter(Boolean).forEach(n => noms.push({ t: 'Suppléant', n }));
