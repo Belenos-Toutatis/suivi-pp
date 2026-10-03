@@ -515,6 +515,11 @@ election = {
   nomsParBulletin: 1,      // nombre max de noms qu'un bulletin peut porter — 1 = uninominal (défaut depuis la v1.30.0)
   majoriteAbsolueT1: true, // majorité absolue au 1er tour, relative au 2nd
   departage: 'plusJeune',  // 'plusJeune' | 'plusAge' | 'manuel'
+  parSiege: true,          // un siège après l'autre (v1.52.14, défaut) — absent = ensemble ; ne vaut qu'en uninominal à plusieurs sièges
+  secondTour: { mode: 'tous' | 'seuil' | 'premiers', pct, n },   // qui passe au 2nd tour (v1.52.14) — absent = tous
+  nonCandidat: 'compte' | 'nul',   // nom d'un élève non candidat (v1.52.3) — absent = compte
+  president: { qui: 'pp' | 'cpe' | 'eleve' | 'autre', sid, nom, fonction },   // président du bureau (v1.52.12) — absent = PP
+  supDe: { elId, candId, nom },    // scrutin du SUPPLÉANT d'un élu non candidat (v1.52.6), jamais « l'élection des délégués »
   assesseurs: [ sid, sid ],
   inscrits: 25,            // effectif de la division (calculé, corrigible)
   tours: [ tour ],         // 1 ou 2 tours
@@ -540,6 +545,7 @@ candidat = {
 
 tour = {
   n: 1 | 2,
+  siege,                        // en un siège après l'autre : le siège que ce tour pourvoit (1, 2…) — absent sinon
   candidats: [ candidat ],      // au 2nd tour : les mêmes, moins les retraits
   bulletins: [ bulletin ],      // dépouillement bulletin par bulletin
   votantsAnnonces,              // bulletins comptés dans l'urne AVANT ouverture — saisi, sert d'axe à la projection
@@ -592,6 +598,27 @@ retiré/retirée, suppléant/suppléante, il/elle accepte (question d'acceptatio
 ⚠️ **Restent au masculin générique** : les RÈGLES (« le plus jeune est élu », « le suppléant est
 élu avec son titulaire ») et les titres de colonnes. La projection d'un **scrutin de suppléant**
 titre « Suppléant(e) élu(e) — de X » (remontée de l'utilisateur : elle disait « Délégué élu »).
+
+### Un siège après l'autre, et qui passe au second tour (v1.52.14)
+
+L'utilisateur : *« il me semblait qu'on élisait d'abord le premier délégué, avec un premier tour et
+éventuellement un second, puis le deuxième — pas les deux d'un coup »*. Les sources divergent :
+**R421-28** dit « scrutin uninominal à deux tours » — un scrutin élit UNE personne, donc un scrutin
+par délégué (lecture défendue par un enseignant, Mathemathieu) ; la fiche **justice.fr** décrit une
+seule élection pour les deux sièges (ce que faisait l'app). **Arbitré : un siège après l'autre par
+défaut**, réglable (*Plusieurs sièges, un nom par bulletin*). `_elParSiege(el)` = `parSiege` ET
+uninominal ET plusieurs sièges (deux noms par bulletin : forcément ensemble) ; absent = ensemble
+(les élections déjà tenues gardent leur arithmétique). Chaque tour porte `siege` ; à la clôture
+(`electionCloreTour`) : siège pourvu → le scrutin du siège suivant (tour 1, **sans les élus**,
+recompter l'urne) ; non pourvu au 1er tour → son 2nd tour ; vacant au 2nd → le suivant. Libellés par
+`_elTourLabel` (« siège 2 · tour 1 ») dans le dépouillement, le graphique, les résultats, la
+projection (« élu au premier tour (siège 2) »), le PV ; départage manuel indexé par `_elTourCle`
+(deux tours portent le même numéro) ; `electionRouvrir` retire tout tour ajouté encore vide.
+**Second tour** (*« reprendre tous les candidats, ou ceux au-dessus d'un pourcentage — à défaut les x
+premiers —, ou les x premiers »*) : `el.secondTour`, `_elQualifies` — calculé sur le 1er tour, en %
+des **exprimés** ; une égalité à la dernière place qualifiante garde tous les ex æquo, et il reste
+toujours au moins autant de candidats que de sièges. Dit au PV. Démo : l'élection close passe en
+un siège après l'autre (siège 1 puis siège 2, chacun au 1er tour).
 
 ### La saisie se fait bulletin par bulletin
 
@@ -2193,6 +2220,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 130 | **Un siège après l'autre** (défaut, R421-28 ; « les sièges ensemble » au choix) · **candidats du second tour** au choix (tous, au-dessus d'un % des exprimés à défaut les x premiers, les x premiers) ; démo ; 2 tests, 2 tests adaptés. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.53.0) |
 | 129 | **Accord en genre dans les élections** (civilité figée sur la candidature, forme inclusive sans civilité) · **projection d'un scrutin de suppléant : « Suppléant(e) élu(e) »** ; 2 tests, 5 tests adaptés | ✅ **fait** (2026-10-03, v1.52.13) |
 | 128 | **Président du bureau au choix** (PP, CPE, élève non candidat, autre adulte) ; signe le PV à ce titre ; fiche de l'élève ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.12) |
 | 127 | **Assesseurs saisis dans l'élection, après les candidatures** (plus dans ⚙ Modalités) ; non candidats ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.11) |

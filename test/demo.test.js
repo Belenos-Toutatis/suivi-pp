@@ -249,7 +249,7 @@ test('la fiche d\'orientation a des manquants, une échéance dépassée et des 
   assert.ok(ech < '2026-09-09', 'échéance dépassée : le badge de retard doit pouvoir s\'afficher');
 });
 
-test('l\'élection close a bien pourvu UN SEUL siège au premier tour', () => {
+test('l\'élection close : un siège après l\'autre (défaut v1.52.14) — le siège 1 au premier tour, puis le scrutin du siège 2', () => {
   ev(DEMO);
   // ⚠️ Depuis la v1.27.0, la démo porte AUSSI une élection d'éco-délégués close (14/10),
   // plus récente : on désigne celle des délégués de classe par son type.
@@ -260,15 +260,17 @@ test('l\'élection close a bien pourvu UN SEUL siège au premier tour', () => {
   // plurinominale à dessein (le réglage), cf. plus bas.
   assert.strictEqual(el.nomsParBulletin, 1);
   const r1 = evObj(`_elResultatTour(_elList('5C').find(e => e.clos && _elType(e).key === 'delegues'), 0)`);
-  assert.strictEqual(r1.elus.length, 1, 'un seul titulaire élu au 1er tour');
-  assert.strictEqual(r1.siegesRestants, 1);
+  assert.strictEqual(r1.elus.length, 1, 'le siège 1 pourvu au 1er tour');
+  assert.strictEqual(r1.siegesRestants, 0, 'un scrutin par siège');
+  assert.strictEqual(el.parSiege, true);
+  assert.deepStrictEqual(el.tours.map(t => [t.siege, t.n]), [[1, 1], [2, 1]], 'siège 1 · tour 1, puis siège 2 · tour 1');
   // 12 × 2 = 24 > 22 exprimés : élu ; 7 non. En uninominal, un seul peut passer par tour.
   assert.strictEqual(r1.depouillement.exprimes, 22);
   assert.strictEqual(r1.depouillement.blancs, 1);
   assert.strictEqual(r1.depouillement.nuls, 1);
   assert.deepStrictEqual(Object.values(r1.depouillement.voix).sort((a, b) => b - a), [12, 7, 2, 1]);
   const r2 = evObj(`_elResultatTour(_elList('5C').find(e => e.clos && _elType(e).key === 'delegues'), 1)`);
-  assert.strictEqual(r2.elus.length, 1, 'le siège restant est pourvu au second tour');
+  assert.strictEqual(r2.elus.length, 1, 'le siège 2 pourvu à son premier tour (12 voix sur 23 exprimés)');
   assert.strictEqual(el.elus.titulaires.length, 2);
   assert.strictEqual(el.elus.suppleants.length, 2);
 });

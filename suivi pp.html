@@ -2880,6 +2880,12 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-nbs">Suppléants</label><select id="mel-nbs" onchange="_elNbsChange()" title="En binôme, chaque titulaire a le sien : en choisir un autre nombre défait le binôme (les suppléants sont alors les mieux placés après les élus)"><option value="0">aucun</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:140px"><label for="mel-npb">Noms max par bulletin</label><select id="mel-npb"><option value="1" selected>1 (uninominal)</option><option value="2">2 (plurinominal)</option><option value="3">3</option><option value="4">4</option></select></div>
       <div class="fg" style="flex:1;min-width:160px"><label for="mel-dep">Départage d'une égalité</label><select id="mel-dep"><option value="plusJeune">le plus jeune</option><option value="plusAge">le plus âgé</option><option value="manuel">à la main</option></select></div>
+      <div class="fg" style="flex:1;min-width:220px"><label for="mel-siege">Plusieurs sièges, un nom par bulletin</label><select id="mel-siege" title="Un siège après l'autre : un scrutin à deux tours par délégué — R421-28 dit « scrutin uninominal à deux tours », un scrutin élit une personne. Les sièges ensemble : une seule élection pour les deux sièges, comme la décrit la fiche justice.fr."><option value="1">un siège après l'autre (R421-28)</option><option value="0">les sièges ensemble (justice.fr)</option></select></div>
+      <div class="fg" style="flex:1;min-width:260px"><label for="mel-t2">Candidats au second tour</label>
+        <select id="mel-t2" onchange="_elT2Change()"><option value="tous">tous ceux du premier tour</option><option value="seuil">au-dessus d'un % des exprimés</option><option value="premiers">les premiers seulement</option></select>
+        <div id="mel-t2-opts" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+          <label class="tb-hint" id="mel-t2-pct-l">au moins <input type="number" id="mel-t2-pct" min="1" max="100" step="0.5" value="10" style="width:64px"> % des exprimés</label>
+          <label class="tb-hint" id="mel-t2-n-l"><span id="mel-t2-n-t">à défaut, les</span> <input type="number" id="mel-t2-n" min="1" max="20" value="2" style="width:56px"> premiers</label></div></div>
       <div class="fg" style="flex:1;min-width:220px"><label for="mel-noncand">Nom d'un élève non candidat</label><select id="mel-noncand" title="Un bulletin porte le nom d'un élève qui ne s'était pas présenté (feuille blanche). Circulaire n° 2004-114 § 6.1 et fiche service-public : il peut être élu s'il accepte. Lecture stricte du binôme de R421-28 : le bulletin est nul."><option value="compte">compte — élu s'il accepte (circulaire, service-public)</option><option value="nul">rend le bulletin nul (lecture stricte de R421-28)</option></select></div>
     </div>
     <div class="st-group">
@@ -2974,8 +2980,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.13';
-const APP_BUILD_DATE = '2026-10-03T17:35:22Z';
+const APP_VERSION    = '1.53.0';
+const APP_BUILD_DATE = '2026-10-03T17:51:14Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12127,6 +12133,58 @@ function _elType(el) { return _EL_TYPES[el && el.type] || _EL_TYPES.delegues; }
 function _elNbSup(el) { return Number.isInteger(el.nbSupplants) ? Math.max(0, el.nbSupplants) : (el.nbTitulaires || 2); }
 // Crée une élection avec les modalités par défaut (celles de la présentation de
 // l'utilisateur), un premier tour ouvert. Sans pushUndo ni save.
+// UN SIÈGE APRÈS L'AUTRE (v1.52.14, l'utilisateur : « il me semblait qu'on élisait d'abord le
+// premier délégué, avec un premier tour et éventuellement un second, puis le deuxième — et pas les
+// deux d'un coup » ; arbitré : *un siège après l'autre par défaut*). R421-28 dit « scrutin
+// UNINOMINAL à deux tours » : un scrutin élit UNE personne. La fiche justice.fr décrit au contraire
+// une seule élection pour les deux sièges (ce que l'app faisait). `el.parSiege` : true = chaque
+// siège a SON scrutin (1er tour à la majorité absolue, 2nd à la relative), le suivant s'ouvre sans
+// les élus ; false = les sièges ensemble. Il ne vaut qu'en UNINOMINAL avec plusieurs sièges (un
+// bulletin à deux noms élit forcément les sièges ensemble). Absent (fichiers d'avant) = ensemble :
+// les élections déjà tenues gardent leur arithmétique. Chaque tour porte alors `siege` (1, 2…).
+function _elParSiege(el) { return !!el && el.parSiege === true && (el.nomsParBulletin || 1) === 1 && (el.nbTitulaires || 1) > 1; }
+function _elSyncPremierTour(el) {
+  const t = el && el.tours && el.tours[0];
+  if (!t || t.bulletins.length || el.tours.length > 1) return;
+  if (_elParSiege(el)) { t.siegesAPourvoir = 1; t.siege = 1; } else { t.siegesAPourvoir = el.nbTitulaires; delete t.siege; }
+}
+// QUI PASSE AU SECOND TOUR (v1.52.14, l'utilisateur : « le choix dans les modalités de reprendre
+// tous les candidats, ou seulement ceux qui ont plus qu'un certain pourcentage — à défaut les x
+// premiers —, ou seulement les x premiers »). `el.secondTour = { mode: 'tous' | 'seuil' | 'premiers',
+// pct, n }`, absent = tous (ce que l'app faisait). Calculé sur le PREMIER tour qui vient de se clore :
+//   seuil    — au moins `pct` % des suffrages exprimés ; s'ils sont moins de `n`, les `n` premiers ;
+//   premiers — les `n` premiers.
+// ⚠️ Une égalité à la dernière place qualifiante qualifie TOUS les ex æquo (on n'élimine pas au
+// hasard), et il reste toujours au moins autant de candidats que de sièges. Ordre d'affichage gardé.
+function _elSecondTour(el) {
+  const o = _isPlainObj(el && el.secondTour) ? el.secondTour : {};
+  const mode = ['tous', 'seuil', 'premiers'].includes(o.mode) ? o.mode : 'tous';
+  const pct = Number.isFinite(+o.pct) && +o.pct > 0 ? Math.min(100, +o.pct) : 10;
+  const n = Number.isInteger(+o.n) && +o.n > 0 ? Math.min(20, +o.n) : 2;
+  return { mode, pct, n };
+}
+function _elQualifies(el, tourIdx, libres, sieges) {
+  const R = _elSecondTour(el);
+  if (R.mode === 'tous' || !libres.length) return libres.slice();
+  const d = _elDepouillement(el, tourIdx), v = id => d.voix[id] || 0;
+  const tri = libres.slice().sort((a, b) => v(b) - v(a));
+  const premiers = k => { if (k >= tri.length) return tri.slice(); const seuilV = v(tri[k - 1]); return tri.filter(id => v(id) >= seuilV); };
+  let garde = R.mode === 'premiers' ? premiers(R.n) : tri.filter(id => v(id) * 100 >= R.pct * d.exprimes);
+  if (R.mode === 'seuil' && garde.length < R.n) garde = premiers(R.n);
+  if (garde.length < (sieges || 1)) garde = premiers(sieges || 1);
+  const ok = new Set(garde);
+  return libres.filter(id => ok.has(id));
+}
+function _elSecondTourTexte(el) {
+  const R = _elSecondTour(el);
+  return R.mode === 'seuil' ? `les candidats ayant au moins ${String(R.pct).replace('.', ',')} % des suffrages exprimés (à défaut, les ${R.n} premiers)`
+    : R.mode === 'premiers' ? `les ${R.n} premiers du premier tour` : 'tous les candidats du premier tour';
+}
+// Le nom d'un tour, partout où on l'écrit : « tour 2 », ou « siège 2 · tour 1 ».
+function _elTourLabel(el, t) { return t && t.siege ? `siège ${t.siege} · tour ${t.n}` : `tour ${t ? t.n : 1}`; }
+// La clé d'un tour pour un départage tranché à la main : le numéro du tour (fichiers d'avant), ou
+// « siège-tour » — en un siège après l'autre, deux tours portent le même numéro.
+function _elTourCle(t) { return t.siege ? `${t.siege}-${t.n}` : t.n; }
 function electionCreate(classId, opts) {
   const cls = S.classes[classId];
   if (!cls) return null;
@@ -12158,6 +12216,8 @@ function electionCreate(classId, opts) {
     affichage: { ordre: 'tirage', pourcentages: true, ligneMajorite: true },
   };
   el.assesseursNoms = el.assesseurs.map(sid => `${S.eleves[sid].prenom} ${S.eleves[sid].nom}`);
+  el.parSiege = opts.parSiege !== false;   // un siège après l'autre par défaut (v1.52.14)
+  _elSyncPremierTour(el);
   _elMap(classId)[el.id] = el;
   return el;
 }
@@ -12593,7 +12653,7 @@ function _elResultatTour(el, tourIdx) {
   const elus = [];
   let egalite = null;
   const departages = [];   // égalités tranchées par l'âge (v1.52.8) : { candIds, elus, voix }
-  const manuel = (el.departageManuel && el.departageManuel[t.n]) || [];
+  const manuel = (el.departageManuel && el.departageManuel[_elTourCle(t)]) || [];
   let i = 0;
   while (i < cands.length && elus.length < sieges) {
     const v = cands[i].voix;
@@ -12637,12 +12697,42 @@ function electionCloreTour(el, tourIdx) {
     if (el.binome !== false && !el.elus.suppleants.includes(id)) el.elus.suppleants.push(id);   // le suppléant est élu AVEC son titulaire
   }
   const restants = t.candidats.filter(id => !r.elus.includes(id) && !_elCand(el, id)?.retire);
+  if (_elParSiege(el) && t.siege) {
+    // Un siège après l'autre : siège pourvu → le scrutin du siège SUIVANT (1er tour, sans les élus) ;
+    // non pourvu au 1er tour → son 2nd tour ; non pourvu au 2nd (aucun candidat) → vacant, et l'on passe.
+    const elusTous = new Set(el.elus.titulaires);
+    const libres = t.candidats.filter(id => !elusTous.has(id) && !_elCand(el, id)?.retire);
+    const pourvus = el.tours.filter(x => x.clos && x.siege).map(x => x.siege).filter((v, i, a) => a.indexOf(v) === i)
+      .filter(sg => el.tours.some((x, i) => x.siege === sg && x.clos && _elResultatTour(el, i).elus.length)).length;
+    if (!r.elus.length && t.n === 1 && libres.length) {
+      const q = _elQualifies(el, tourIdx, libres, 1);
+      el.tours.push({ n: 2, siege: t.siege, candidats: q, bulletins: [], votantsAnnonces: null, siegesAPourvoir: 1, clos: false });
+      warnings.push(`Siège ${t.siege} non pourvu au premier tour : second tour ouvert — ${q.length === libres.length ? 'mêmes candidats' : `${_pl(q.length, 'candidat')} sur ${libres.length} (${_elSecondTourTexte(el)})`}.`);
+      return { bloque: false, warnings };
+    }
+    if (!r.elus.length) warnings.push(`Siège ${t.siege} resté vacant.`);
+    if (t.siege < el.nbTitulaires && libres.length) {
+      el.tours.push({ n: 1, siege: t.siege + 1, candidats: libres, bulletins: [], votantsAnnonces: null, siegesAPourvoir: 1, clos: false });
+      warnings.push(`${r.elus.length ? `Siège ${t.siege} pourvu` : `Siège ${t.siege} vacant`} : scrutin du siège ${t.siege + 1} ouvert, sans ${r.elus.length ? 'l\'élu' : 'personne de plus'} — recomptez l'urne avant de dépouiller.`);
+      return { bloque: false, warnings };
+    }
+    if (el.binome === false) {
+      const d = _elDepouillement(el, tourIdx);
+      el.elus.suppleants = libres.sort((a, b) => (d.voix[b] || 0) - (d.voix[a] || 0)).slice(0, _elNbSup(el));
+    }
+    el.clos = true;
+    const vac = el.nbTitulaires - el.elus.titulaires.length;
+    if (vac > 0) warnings.push(`${_pl(vac, 'siège')} ${vac > 1 ? 'restés vacants' : 'resté vacant'} : plus de candidat.`);
+    void pourvus;
+    return { bloque: false, warnings };
+  }
   // Second tour seulement s'il reste des sièges ET des candidats pour les briguer : sans
   // candidat, un tour vide ne se clôturerait jamais et l'élection resterait « en cours »
   // (trouvé par le test de la synthèse : un seul binôme, deux sièges).
   if (r.siegesRestants > 0 && tourIdx === 0 && restants.length) {
-    el.tours.push({ n: 2, candidats: restants, bulletins: [], votantsAnnonces: null, siegesAPourvoir: r.siegesRestants, clos: false });
-    warnings.push(`${r.siegesRestants} siège${r.siegesRestants > 1 ? 's' : ''} non pourvu${r.siegesRestants > 1 ? 's' : ''} : second tour ouvert, mêmes candidats.`);
+    const q = _elQualifies(el, tourIdx, restants, r.siegesRestants);
+    el.tours.push({ n: 2, candidats: q, bulletins: [], votantsAnnonces: null, siegesAPourvoir: r.siegesRestants, clos: false });
+    warnings.push(`${r.siegesRestants} siège${r.siegesRestants > 1 ? 's' : ''} non pourvu${r.siegesRestants > 1 ? 's' : ''} : second tour ouvert — ${q.length === restants.length ? 'mêmes candidats' : `${_pl(q.length, 'candidat')} sur ${restants.length} (${_elSecondTourTexte(el)})`}.`);
   } else {
     // Hors binôme : les suppléants sont les mieux placés après les titulaires.
     if (el.binome === false) {
@@ -12660,7 +12750,7 @@ function electionCloreTour(el, tourIdx) {
 function electionRouvrir(el) {
   const last = el.tours[el.tours.length - 1];
   if (!last) return;
-  if (last.n === 2 && !last.bulletins.length && last.clos === false) { el.tours.pop(); el.tours[0].clos = false; }
+  if (el.tours.length > 1 && !last.bulletins.length && last.clos === false) { el.tours.pop(); el.tours[el.tours.length - 1].clos = false; }
   else last.clos = false;
   el.clos = false;
   el.elus = { titulaires: [], suppleants: [] };
@@ -12697,7 +12787,7 @@ function _elLive(el, tourIdx) {
            blancs: d.blancs, nuls: d.nuls, exprimes: d.exprimes,
            seuilProjete: va !== null ? _elMajoriteAbsolue(Math.max(0, va - d.blancs - d.nuls)) : null,
            seuilCourant: d.exprimes ? d.majoriteAbsolue : null,
-           candidats: cands, tourN: t.n, clos: !!t.clos };
+           candidats: cands, tourN: t.n, tourLabel: _elTourLabel(el, t), clos: !!t.clos };
 }
 
 // ── Délégués dérivés — jamais stockés sur l'élève ──
@@ -13144,8 +13234,8 @@ function _elWinResultatHTML(el) {
   const ty = _elType(el), binome = el.binome !== false;
   const closed = el.tours.map((t, i) => ({ t, i })).filter(x => x.t.clos);
   const tourElu = {};
-  for (const { t, i } of closed) for (const id of _elResultatTour(el, i).elus) tourElu[id] = t.n;
-  const ord = n => n === 1 ? 'premier tour' : n === 2 ? 'second tour' : `${n}e tour`;
+  for (const { t, i } of closed) for (const id of _elResultatTour(el, i).elus) tourElu[id] = t;
+  const ord = t => `${t.n === 1 ? 'premier tour' : t.n === 2 ? 'second tour' : `${t.n}e tour`}${t.siege ? ` (siège ${t.siege})` : ''}`;
   const elus = (el.elus?.titulaires || []).map(id => _elCand(el, id)).filter(Boolean);
   const carte = c => { const sup = binome ? _elCandNomSup(c) : '';
     return `<div class="elr-elu"><div class="elr-nom"><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c))}</div>${
@@ -13155,7 +13245,7 @@ function _elWinResultatHTML(el) {
     const d = _elDepouillement(el, i), elusT = new Set(_elResultatTour(el, i).elus);
     const lignes = t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c =>
       `<tr${elusT.has(c.id) ? ' class="elr-ok"' : ''}><td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c))}</td><td class="r">${d.voix[c.id] || 0} voix</td><td>${elusT.has(c.id) ? `<span class="el-tag">✓ ${_acc(_civCand(c), 'élu', 'élue', 'élu(e)')}</span>` : ''}</td></tr>`).join('');
-    return `<div class="elr-tour"><div class="elr-th">Tour ${t.n} <span>${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · ${t.n === 1 && el.majoriteAbsolueT1 !== false ? `majorité absolue : ${d.majoriteAbsolue}` : 'majorité relative'}</span></div><table class="elr-t">${lignes}</table>${_elDepartagesHTML(el, i, 'elr-dep')}</div>`;
+    return `<div class="elr-tour"><div class="elr-th">${_maj(_elTourLabel(el, t))} <span>${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · ${t.n === 1 && el.majoriteAbsolueT1 !== false ? `majorité absolue : ${d.majoriteAbsolue}` : 'majorité relative'}</span></div><table class="elr-t">${lignes}</table>${_elDepartagesHTML(el, i, 'elr-dep')}</div>`;
   }).join('');
   // Le titre accorde avec les élus ; le scrutin d'un SUPPLÉANT le dit (remontée de l'utilisateur : « en
   // résultat de projection, il est marqué Délégué élu au lieu de suppléant »).
@@ -13231,7 +13321,7 @@ function _elRenderDepouillement(el, tourIdx, live) {
   }).join('');
   return `<div class="el-block">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
-      <strong>🗳 Dépouillement — tour ${t.n}</strong> <span class="tb-hint">${t.siegesAPourvoir} siège${t.siegesAPourvoir > 1 ? 's' : ''} à pourvoir</span>
+      <strong>🗳 Dépouillement — ${_elTourLabel(el, t)}</strong> <span class="tb-hint">${t.siege ? `${t.n === 1 ? 'majorité absolue' : 'majorité relative'} · ${t.siege}${t.siege === 1 ? 'er' : 'e'} des ${el.nbTitulaires} sièges, un après l'autre` : `${t.siegesAPourvoir} siège${t.siegesAPourvoir > 1 ? 's' : ''} à pourvoir`}</span>
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px;margin-left:auto">Bulletins dans l'urne
         <input type="number" min="0" max="99" value="${Number.isInteger(t.votantsAnnonces) ? t.votantsAnnonces : ''}" style="width:64px" onchange="electionUrneUI(${tourIdx}, this.value)" title="Comptés par les assesseurs AVANT ouverture — c'est l'axe du graphique et le contrôle contre le bourrage"></label>
     </div>${rappel}
@@ -13241,7 +13331,7 @@ function _elRenderDepouillement(el, tourIdx, live) {
       <button class="btn btn-p btn-sm" id="el-bul-add" onclick="electionNewBulletinUI()" title="Un nouveau bulletin (Entrée depuis la dernière ligne fait pareil)">+ Bulletin</button>
       ${_elEcritHTML(el)}
       <span class="tb-hint">Le compte de l'urne prépare les lignes « à lire ». Cochez les noms lus, Entrée valide le bulletin (vide = blanc) ; plus de ${el.nomsParBulletin} noms = nul. Chaque bulletin s'annule seul par Ctrl+Z.</span>
-      <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="electionCloreUI()" ${t.bulletins.some(b => b.lu !== false) ? '' : 'disabled'}>✓ Clore le tour ${t.n}</button>
+      <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="electionCloreUI()" ${t.bulletins.some(b => b.lu !== false) ? '' : 'disabled'}>✓ Clore le ${_elTourLabel(el, t)}</button>
     </div></div>`;
 }
 // Le choix d'un élève NON candidat dont le nom est écrit sur un bulletin (feuille blanche).
@@ -13330,7 +13420,7 @@ function _elRenderChart(el, live) {
     : `<div class="el-prog"><span>Dépouillés <strong>${live.depouilles}</strong> <span class="tb-hint">— saisissez le nombre de bulletins de l'urne pour fixer l'axe</span></span></div>`;
   const axis = live.votantsAnnonces ? `<div class="el-axis"><span>0</span>${seuil !== null && el.affichage?.ligneMajorite !== false ? `<span class="el-axis-maj" style="left:${Math.min(100, 100 * seuil / live.axeMax)}%">majorité absolue : ${seuil}</span>` : ''}<span>${live.axeMax}</span></div>` : '';
   return `<div class="el-chart">
-    <div class="el-title">${_escName(el.titre)} <span class="el-tour">— tour ${live.tourN}</span></div>
+    <div class="el-title">${_escName(el.titre)} <span class="el-tour">— ${live.tourLabel || 'tour ' + live.tourN}</span></div>
     ${prog}
     <div class="el-bars">${bars || '<div class="tb-hint">Aucun candidat.</div>'}</div>${axis}
     <div class="el-side"><span>Blancs <strong>${live.blancs}</strong></span><span>Nuls <strong>${live.nuls}</strong></span><span>Exprimés <strong>${live.exprimes}</strong></span>${live.seuilCourant ? `<span class="tb-hint">majorité sur les exprimés dépouillés : ${live.seuilCourant}</span>` : ''}</div>
@@ -13356,7 +13446,7 @@ function electionCloreUI() {
         if (!ok) return;
         const id = document.querySelector('input[name="el-dep"]:checked')?.value;
         if (!id) return toast('⚠️ Cochez un candidat.', 'warn');
-        _elMut(e => { e.departageManuel = e.departageManuel || {}; e.departageManuel[e.tours[tourIdx].n] = [id]; });
+        _elMut(e => { e.departageManuel = e.departageManuel || {}; e.departageManuel[_elTourCle(e.tours[tourIdx])] = [id]; });
         electionCloreUI();
       });
     return;
@@ -13380,8 +13470,8 @@ function electionCloreUI() {
   const d = _elDepouillement(el, tourIdx);
   const elus = r.elus.map(id => _elCandNom(_elCand(el, id))).join(', ') || 'personne';
   _uiConfirm({
-    title: `✓ Clore le tour ${t.n}`,
-    message: `${d.votants} bulletins dépouillés (${d.blancs} blanc${d.blancs > 1 ? 's' : ''}, ${d.nuls} nul${d.nuls > 1 ? 's' : ''}, ${d.exprimes} exprimés — majorité absolue à ${d.majoriteAbsolue}).\n\nÉlu${r.elus.length > 1 ? 's' : ''} : ${elus}.${r.siegesRestants && t.n === 1 ? `\n${r.siegesRestants} siège${r.siegesRestants > 1 ? 's' : ''} restant${r.siegesRestants > 1 ? 's' : ''} → un second tour sera ouvert.` : ''}\n\nClore verrouille la saisie de ce tour.`,
+    title: `✓ Clore le ${_elTourLabel(el, t)}`,
+    message: `${d.votants} bulletins dépouillés (${d.blancs} blanc${d.blancs > 1 ? 's' : ''}, ${d.nuls} nul${d.nuls > 1 ? 's' : ''}, ${d.exprimes} exprimés — majorité absolue à ${d.majoriteAbsolue}).\n\nÉlu${r.elus.length > 1 ? 's' : ''} : ${elus}.${t.siege ? (r.elus.length ? (t.siege < el.nbTitulaires ? `\nSiège ${t.siege} pourvu → le scrutin du siège ${t.siege + 1} sera ouvert, sans l'élu.` : '') : (t.n === 1 ? `\nSiège ${t.siege} non pourvu → un second tour sera ouvert.` : '')) : (r.siegesRestants && t.n === 1 ? `\n${r.siegesRestants} siège${r.siegesRestants > 1 ? 's' : ''} restant${r.siegesRestants > 1 ? 's' : ''} → un second tour sera ouvert.` : '')}\n\nClore verrouille la saisie de ce tour.`,
     okLabel: '✓ Clore', onOk: () => {
       let w, rep = '';
       _elMut(e => { w = electionCloreTour(e, tourIdx); if (e.clos && e.supDe) rep = _elSupDeAppliquer(e); });
@@ -13403,7 +13493,7 @@ function _elRenderResultats(el) {
   const tables = closed.map((t, i) => {
     const d = _elDepouillement(el, i);
     const r = _elResultatTour(el, i);
-    return `<div class="el-res"><strong>Tour ${t.n}</strong> <span class="tb-hint">— ${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · majorité absolue ${d.majoriteAbsolue}${Number.isInteger(t.votantsAnnonces) && t.votantsAnnonces !== d.votants ? ` · <span style="color:var(--danger-fg)">${t.votantsAnnonces} annoncés dans l'urne</span>` : ''}</span>
+    return `<div class="el-res"><strong>${_maj(_elTourLabel(el, t))}</strong> <span class="tb-hint">— ${_pl(d.votants, 'votant')} · ${_pl(d.blancs, 'blanc')} · ${_pl(d.nuls, 'nul')} · ${_pl(d.exprimes, 'exprimé')} · majorité absolue ${d.majoriteAbsolue}${Number.isInteger(t.votantsAnnonces) && t.votantsAnnonces !== d.votants ? ` · <span style="color:var(--danger-fg)">${t.votantsAnnonces} annoncés dans l'urne</span>` : ''}</span>
       <table class="dt" style="max-width:520px;margin-top:4px"><thead><tr><th>Candidat</th><th style="text-align:right">Voix</th><th></th></tr></thead><tbody>
       ${t.candidats.map(id => _elCand(el, id)).filter(Boolean).sort((a, b) => (d.voix[b.id] || 0) - (d.voix[a.id] || 0)).map(c => `<tr><td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> ${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` <span class="tb-hint">/ ${_escName(_elCandNomSup(c))}</span>` : ''}</td><td style="text-align:right;font-family:var(--font-mono)">${d.voix[c.id] || 0}</td><td>${r.elus.includes(c.id) ? `<span class="badge ok">${_acc(_civCand(c), 'élu', 'élue', 'élu(e)')}</span>` : ''}</td></tr>`).join('')}
       </tbody></table>${_elDepartagesHTML(el, i, 'tb-hint')}</div>`;
@@ -13555,6 +13645,18 @@ function _elTypeChange() {
 // Les défauts d'un mandat, en clair — ce sont CEUX DES TEXTES liés (v1.30.1, demande de
 // l'utilisateur : « indiquer que les réglages par défaut correspondent au texte officiel »).
 // Dérivé de `ty.defaults`, pour ne jamais décrire autre chose que ce que le bouton pose.
+function _elT2Change() {
+  const g = id => document.getElementById(id), m = g('mel-t2')?.value || 'tous';
+  if (!g('mel-t2-opts')) return;
+  g('mel-t2-opts').style.display = m === 'tous' ? 'none' : 'flex';
+  g('mel-t2-pct-l').style.display = m === 'seuil' ? '' : 'none';
+  g('mel-t2-n-t').textContent = m === 'seuil' ? 'à défaut, les' : 'les';
+}
+function _elT2Lire() {
+  const g = id => document.getElementById(id);
+  return { mode: ['tous', 'seuil', 'premiers'].includes(g('mel-t2').value) ? g('mel-t2').value : 'tous',
+    pct: Math.max(1, Math.min(100, parseFloat(g('mel-t2-pct').value) || 10)), n: Math.max(1, Math.min(20, parseInt(g('mel-t2-n').value, 10) || 2)) };
+}
 function _elDefautsHint(ty) {
   const d = ty.defaults;
   const sup = d.binome ? 'chacun avec son suppléant' : (d.nbSupplants ? `${d.nbSupplants} suppléant${d.nbSupplants > 1 ? 's' : ''} élu${d.nbSupplants > 1 ? 's' : ''} à part` : 'sans suppléant');
@@ -13567,7 +13669,7 @@ function _elDefautsReset() {
   if (g('mel-nbt').disabled) return;
   const ty = _EL_TYPES[g('mel-type').value] || _EL_TYPES.delegues;
   g('mel-nbt').value = ty.defaults.nbTitulaires; g('mel-binome').checked = ty.defaults.binome; g('mel-nbs').value = ty.defaults.nbSupplants; g('mel-npb').value = ty.defaults.nomsParBulletin;
-  g('mel-maj').checked = true; g('mel-dep').value = 'plusJeune'; g('mel-noncand').value = 'compte';
+  g('mel-maj').checked = true; g('mel-dep').value = 'plusJeune'; g('mel-noncand').value = 'compte'; g('mel-siege').value = '1'; g('mel-t2').value = 'tous'; _elT2Change();
 }
 // ⚠️ Le nombre de suppléants reste RÉGLABLE (v1.30.1, demande de l'utilisateur) — il n'est
 // plus grisé en binôme. Le binôme veut dire « chaque titulaire est élu avec SON
@@ -13604,11 +13706,13 @@ function _elFillSettings(el) {
   g('mel-maj').checked = el ? el.majoriteAbsolueT1 !== false : true;
   g('mel-dep').value = el?.departage || 'plusJeune';
   g('mel-noncand').value = el?.nonCandidat === 'nul' ? 'nul' : 'compte';
+  g('mel-siege').value = el ? (el.parSiege === true ? '1' : '0') : '1';
+  { const R = _elSecondTour(el); g('mel-t2').value = R.mode; g('mel-t2-pct').value = R.pct; g('mel-t2-n').value = R.n; _elT2Change(); }
   g('mel-inscrits').value = el?.inscrits ?? _elInscrits(cls.id, g('mel-date').value);
   g('mel-ordre').value = el?.affichage?.ordre || 'tirage';
   g('mel-pct').checked = el ? el.affichage?.pourcentages !== false : true;
   const locked = !!(el && (el.tours.some(t => t.bulletins.length) || el.clos));
-  ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj', 'mel-nbs', 'mel-noncand', 'mel-defauts'].forEach(k => { g(k).disabled = locked; });
+  ['mel-nbt', 'mel-binome', 'mel-npb', 'mel-maj', 'mel-nbs', 'mel-noncand', 'mel-siege', 'mel-t2', 'mel-t2-pct', 'mel-t2-n', 'mel-defauts'].forEach(k => { g(k).disabled = locked; });
   g('mel-locked').style.display = locked ? '' : 'none';
   _elBinomeChange();
 }
@@ -13625,6 +13729,8 @@ function electionSettingsOk() {
     const el = electionCreate(S.cur, opts);
     el.affichage.ordre = g('mel-ordre').value; el.affichage.pourcentages = g('mel-pct').checked;
     el.nonCandidat = g('mel-noncand').value === 'nul' ? 'nul' : 'compte';
+    el.parSiege = g('mel-siege').value !== '0'; _elSyncPremierTour(el);
+    el.secondTour = _elT2Lire();
     _elView = el.id;
   } else {
     const el = _elCurrent();
@@ -13632,7 +13738,7 @@ function electionSettingsOk() {
                         });
     el.affichage = { ...el.affichage, ordre: g('mel-ordre').value, pourcentages: g('mel-pct').checked };
     if (!g('mel-noncand').disabled) el.nonCandidat = g('mel-noncand').value === 'nul' ? 'nul' : 'compte';
-    if (!g('mel-nbt').disabled) { el.nbTitulaires = Math.max(1, Math.min(4, opts.nbTitulaires)); el.binome = opts.binome; el.nbSupplants = opts.binome ? el.nbTitulaires : Math.max(0, Math.min(4, opts.nbSupplants || 0)); el.nomsParBulletin = Math.max(1, Math.min(4, opts.nomsParBulletin)); el.majoriteAbsolueT1 = opts.majoriteAbsolueT1; el.tours[0].siegesAPourvoir = el.nbTitulaires; }
+    if (!g('mel-nbt').disabled) { el.nbTitulaires = Math.max(1, Math.min(4, opts.nbTitulaires)); el.binome = opts.binome; el.nbSupplants = opts.binome ? el.nbTitulaires : Math.max(0, Math.min(4, opts.nbSupplants || 0)); el.nomsParBulletin = Math.max(1, Math.min(4, opts.nomsParBulletin)); el.majoriteAbsolueT1 = opts.majoriteAbsolueT1; el.parSiege = g('mel-siege').value !== '0'; el.secondTour = _elT2Lire(); el.tours[0].siegesAPourvoir = el.nbTitulaires; _elSyncPremierTour(el); }
   }
   save(); closeMod2('mel'); renderDelegues();
 }
@@ -13646,7 +13752,7 @@ function electionPrintPV() {
   const cls = S.classes[el.classId];
   const tours = el.tours.filter(t => t.clos).map((t, i) => {
     const d = _elDepouillement(el, i), r = _elResultatTour(el, i);
-    return `<h3>Tour ${t.n}${t.n === 2 ? ` — ${t.siegesAPourvoir} siège${t.siegesAPourvoir > 1 ? 's' : ''} restant${t.siegesAPourvoir > 1 ? 's' : ''}` : ''}</h3>
+    return `<h3>${t.siege ? `Siège ${t.siege} — tour ${t.n}` : `Tour ${t.n}${t.n === 2 ? ` — ${t.siegesAPourvoir} siège${t.siegesAPourvoir > 1 ? 's' : ''} restant${t.siegesAPourvoir > 1 ? 's' : ''}` : ''}`}</h3>
       <table class="pv-t"><tr><td>Inscrits</td><td>${el.inscrits}</td><td>Votants</td><td>${d.votants}${Number.isInteger(t.votantsAnnonces) && t.votantsAnnonces !== d.votants ? ` (${t.votantsAnnonces} bulletins comptés dans l'urne)` : ''}</td></tr>
       <tr><td>Blancs</td><td>${d.blancs}</td><td>Nuls</td><td>${d.nuls}</td></tr>
       <tr><td>Suffrages exprimés</td><td>${d.exprimes}</td><td>Majorité ${r.absolue ? 'absolue' : 'relative'}</td><td>${r.absolue ? d.majoriteAbsolue + ' voix' : '—'}</td></tr></table>
@@ -13663,7 +13769,7 @@ function electionPrintPV() {
     <h1>${_escName(el.supDe ? 'Procès-verbal de l\'élection d\'un suppléant' : _elType(el).pv)}</h1>
     <p class="pv-sub">${_escName(el.etablissement || '')}${el.etablissement ? ' — ' : ''}Classe de <strong>${_escName(cls?.nom || el.classId)}</strong> — année ${_escName(cls?.annee || '')} — scrutin du <strong>${_escName(_fmtDateFr(el.date))}</strong></p>
     ${el.supDe ? `<p class="pv-mod">Scrutin tenu pour élire le suppléant de <strong>${_escName(el.supDe.nom)}</strong>, ${_acc(_elSupDeCiv(el), 'élu', 'élue', 'élu(e)')}${parentSup ? ` le ${_escName(_fmtDateFr(parentSup.date))}` : ''} sans avoir été ${_acc(_elSupDeCiv(el), 'candidat', 'candidate', 'candidat(e)')} (aucun texte ne désigne alors son suppléant).</p>` : ''}
-    <p class="pv-mod"><strong>Modalités :</strong> ${el.supDe ? '1 siège à pourvoir : le suppléant' : `${el.nbTitulaires} titulaire${el.nbTitulaires > 1 ? 's' : ''}${_elNbSup(el) ? ` et ${_elNbSup(el)} suppléant${_elNbSup(el) > 1 ? 's' : ''}` : ', sans suppléant'}`} · ${el.binome !== false ? 'candidatures en binôme (le suppléant est élu avec son titulaire)' : (_elNbSup(el) ? 'suppléants élus séparément' : 'candidatures individuelles')} · au plus ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin, bulletin vierge = blanc, trop de noms ou inscription inappropriée = nul · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue des suffrages exprimés au premier tour, relative au second' : 'majorité relative'} · départage ${el.departage === 'plusAge' ? 'par le candidat le plus âgé' : el.departage === 'manuel' ? 'à la main' : 'par le candidat le plus jeune'} · nom d'un élève non candidat : ${el.nonCandidat === 'nul' ? 'le bulletin est nul' : 'la voix compte, élu s\'il accepte son élection'}. Tous les élèves de la division sont électeurs et éligibles.</p>
+    <p class="pv-mod"><strong>Modalités :</strong> ${el.supDe ? '1 siège à pourvoir : le suppléant' : `${el.nbTitulaires} titulaire${el.nbTitulaires > 1 ? 's' : ''}${_elNbSup(el) ? ` et ${_elNbSup(el)} suppléant${_elNbSup(el) > 1 ? 's' : ''}` : ', sans suppléant'}`} · ${el.binome !== false ? 'candidatures en binôme (le suppléant est élu avec son titulaire)' : (_elNbSup(el) ? 'suppléants élus séparément' : 'candidatures individuelles')} · au plus ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin, bulletin vierge = blanc, trop de noms ou inscription inappropriée = nul · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue des suffrages exprimés au premier tour, relative au second' : 'majorité relative'} · départage ${el.departage === 'plusAge' ? 'par le candidat le plus âgé' : el.departage === 'manuel' ? 'à la main' : 'par le candidat le plus jeune'}${_elSecondTour(el).mode !== 'tous' ? ` · au second tour, ${_elSecondTourTexte(el)}` : ''}${_elParSiege(el) ? ' · un siège après l\'autre : un scrutin à deux tours par délégué' : (el.nomsParBulletin || 1) === 1 && el.nbTitulaires > 1 ? ' · les sièges pourvus dans une même élection' : ''} · nom d'un élève non candidat : ${el.nonCandidat === 'nul' ? 'le bulletin est nul' : 'la voix compte, élu s\'il accepte son élection'}. Tous les élèves de la division sont électeurs et éligibles.</p>
     <h3>Candidats</h3><p>${el.candidats.map(c => `${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}${c.retire ? ` (${_acc(_civCand(c), 'retiré', 'retirée', 'retiré(e)')})` : ''}${c.ecrit ? ` (${_acc(_civCand(c), 'non candidat', 'non candidate', 'non candidat(e)')}, nom écrit sur un bulletin${c.accepte === true ? ' ; a accepté son élection' : c.accepte === false ? ' ; a refusé son élection' : ''})` : ''}`).join(' · ')}</p>
     ${tours}
     <h3>Sont élus</h3>
@@ -20537,12 +20643,12 @@ function createDemo(opts) {
   const binomes = [[1, 4], [6, 9], [12, 15], [2, 17]];
   const poser = (el, seq, tourIdx) => { for (const [voix, extra] of seq) electionAddBulletin(el, tourIdx, voix, extra || undefined); };
 
-  // 1) L'élection de l'année, CLOSE, en deux tours — UNINOMINALE (le défaut depuis la
-  //    v1.30.0 : un nom par bulletin, comme R421-28) — et dont le premier tour n'a pourvu
-  //    QU'UN SIÈGE : 12 voix sur 22 exprimés passent la majorité absolue (12 × 2 = 24 > 22),
-  //    7 non. En uninominal, un seul candidat peut la passer par tour : le second siège
-  //    va au second tour. C'est le cas que tout le monde suppose impossible tant qu'il
-  //    ne l'a pas vu.
+  // 1) L'élection de l'année, CLOSE, en deux scrutins — UNINOMINALE (le défaut depuis la
+  //    v1.30.0 : un nom par bulletin, comme R421-28) et UN SIÈGE APRÈS L'AUTRE (le défaut
+  //    depuis la v1.52.14) : siège 1, 12 voix sur 22 exprimés passent la majorité absolue
+  //    (12 × 2 = 24 > 22) ; puis le scrutin du siège 2, sans l'élu : 12 sur 23, élu à son
+  //    premier tour. (Avant la v1.52.14, les deux sièges se jouaient ensemble : le second
+  //    allait au second tour.)
   const el1 = electionCreate(cls.id, { date: D('10-07'), assesseurs: [sids[20], sids[21]] });
   const c1 = binomes.map(([t, s]) => electionAddCandidat(el1, sids[t], sids[s]));
   el1.tours[0].votantsAnnonces = 24;
@@ -20555,7 +20661,7 @@ function createDemo(opts) {
     poser(el1, seq, 0);
     electionCloreTour(el1, 0);
   }
-  el1.note = 'Un bulletin déclaré nul par les assesseurs pour une inscription inappropriée à côté d\'un nom. Le second tour a été tenu le même jour, après une courte pause.';
+  el1.note = 'Un bulletin déclaré nul par les assesseurs pour une inscription inappropriée à côté d\'un nom. Le scrutin du second siège a été tenu le même jour, après une courte pause.';
 
   const t2 = el1.tours[1];
   if (t2) {

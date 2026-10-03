@@ -856,3 +856,74 @@ test('Scrutin du suppléant : la projection dit « Suppléant(e) élu(e) — de 
   assert.ok(!/Délégu/.test(r), 'jamais « Délégué élu » pour un scrutin de suppléant');
   assert.match(r, /Suppléante? élue? — de /);
 });
+
+test('Un siège après l\'autre (défaut) : le siège 1 avec ses deux tours, puis le scrutin du siège 2 sans l\'élu', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls();
+    const el = electionCreate(cls.id, { binome: false, nbSupplants: 0 }); S.elections[cls.id][el.id] = el;
+    const ids = cls.eleves.filter(id => _isStudentActive(S.eleves[id]));
+    const [A, B, C] = ids.slice(0, 3).map(sid => electionAddCandidat(el, sid, null).id);
+    const debut = { parSiege: _elParSiege(el), sieges: el.tours[0].siegesAPourvoir, siege: el.tours[0].siege };
+    // Siège 1, tour 1 : 4 A, 3 B, 3 C sur 10 → pas de majorité absolue (6) → second tour du siège 1
+    const vote = (k, l) => { electionPreparerBulletins(el, k, l.length); l.forEach((v, i) => electionSetBulletin(el, k, i + 1, { voix: v ? [v] : [] })); };
+    vote(0, [A, A, A, A, B, B, B, C, C, C]);
+    const w1 = electionCloreTour(el, 0).warnings.join(' ');
+    const t1 = { n: el.tours[1].n, siege: el.tours[1].siege };
+    vote(1, [A, A, A, B, B, C]);           // relative : A
+    const w2 = electionCloreTour(el, 1).warnings.join(' ');
+    const t2 = { n: el.tours[2].n, siege: el.tours[2].siege, sansElu: !el.tours[2].candidats.includes(A) };
+    vote(2, [B, B, B, B, C, C]);           // siège 2, tour 1 : B 4/6 > 3
+    electionCloreTour(el, 2);
+    // Réouverture : le dernier tour redevient saisissable, sans perdre le siège 1
+    const elusAvant = el.elus.titulaires.slice();
+    electionRouvrir(el);
+    const rouvert = { clos: el.clos, elus: el.elus.titulaires.length, tours: el.tours.length };
+    // Ensemble : le premier tour vaut pour les deux sièges
+    const e2 = electionCreate(cls.id, { parSiege: false }); S.elections[cls.id][e2.id] = e2;
+    // Plurinominal : jamais un siège après l'autre
+    const e3 = electionCreate(cls.id, { nomsParBulletin: 2 }); S.elections[cls.id][e3.id] = e3;
+    return JSON.stringify({ debut, w1, t1, w2, t2, elusAvant: elusAvant.length, premier: elusAvant[0] === A, second: elusAvant[1] === B, rouvert,
+      ensemble: [_elParSiege(e2), e2.tours[0].siegesAPourvoir], pluri: _elParSiege(e3), label: _elTourLabel(el, el.tours[1]) });
+  })()`));
+  assert.deepStrictEqual(r.debut, { parSiege: true, sieges: 1, siege: 1 });
+  assert.match(r.w1, /Siège 1 non pourvu au premier tour : second tour ouvert/);
+  assert.deepStrictEqual(r.t1, { n: 2, siege: 1 });
+  assert.match(r.w2, /scrutin du siège 2 ouvert/);
+  assert.deepStrictEqual(r.t2, { n: 1, siege: 2, sansElu: true });
+  assert.strictEqual(r.elusAvant, 2);
+  assert.ok(r.premier && r.second, 'A au siège 1 (second tour), B au siège 2 (premier tour)');
+  assert.deepStrictEqual(r.rouvert, { clos: false, elus: 1, tours: 3 }, 'rouvrir reprend le dernier tour, le siège 1 reste');
+  assert.deepStrictEqual(r.ensemble, [false, 2], 'les sièges ensemble : deux sièges au premier tour');
+  assert.strictEqual(r.pluri, false, 'deux noms par bulletin : forcément ensemble');
+  assert.strictEqual(r.label, 'siège 1 · tour 2');
+});
+
+test('Candidats du second tour : tous, au-dessus d\'un seuil (à défaut les premiers), les premiers — ex æquo gardés', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls();
+    const ids = cls.eleves.filter(id => _isStudentActive(S.eleves[id]));
+    const essai = (secondTour, voix) => {
+      const el = electionCreate(cls.id, { nbTitulaires: 1, binome: false, nbSupplants: 0 }); S.elections[cls.id][el.id] = el;
+      el.secondTour = secondTour;
+      const c = ids.slice(0, voix.length).map(sid => electionAddCandidat(el, sid, null).id);
+      const l = voix.flatMap((n, i) => Array(n).fill(c[i]));
+      electionPreparerBulletins(el, 0, l.length); l.forEach((v, i) => electionSetBulletin(el, 0, i + 1, { voix: [v] }));
+      electionCloreTour(el, 0);
+      return el.tours[1] ? el.tours[1].candidats.map(id => c.indexOf(id)) : null;
+    };
+    return JSON.stringify({
+      tous: essai({ mode: 'tous' }, [4, 3, 2, 1]),
+      seuil: essai({ mode: 'seuil', pct: 20, n: 2 }, [4, 3, 2, 1]),        // 20 % de 10 = 2 voix : 0, 1, 2
+      seuilDefaut: essai({ mode: 'seuil', pct: 45, n: 2 }, [4, 3, 2, 1]),  // personne à 45 % → les 2 premiers
+      premiers: essai({ mode: 'premiers', n: 2 }, [4, 3, 2, 1]),
+      exaequo: essai({ mode: 'premiers', n: 2 }, [4, 3, 3, 1]),           // égalité à la 2e place : les deux gardés
+    });
+  })()`));
+  assert.deepStrictEqual(r.tous, [0, 1, 2, 3]);
+  assert.deepStrictEqual(r.seuil, [0, 1, 2]);
+  assert.deepStrictEqual(r.seuilDefaut, [0, 1]);
+  assert.deepStrictEqual(r.premiers, [0, 1]);
+  assert.deepStrictEqual(r.exaequo, [0, 1, 2]);
+});
