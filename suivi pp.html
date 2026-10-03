@@ -2784,8 +2784,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.14';
-const APP_BUILD_DATE = '2026-10-03T06:41:48Z';
+const APP_VERSION    = '1.46.15';
+const APP_BUILD_DATE = '2026-10-03T06:52:39Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3666,6 +3666,10 @@ function postLoadHook() {
     if (S.prefs[k] === undefined) S.prefs[k] = v;
   }
   if (typeof S.version !== 'number') S.version = 1;
+  // La vue « Préparer le conseil » montre les contacts depuis la v1.46.15 : qui l'avait choisie
+  // (colonnes masquées = groupe, papiers, contacts — exactement) la retrouve, contacts compris.
+  if (Array.isArray(S.prefs.elevesColsOff) && S.prefs.elevesColsOff.length === 3 && ['grp', 'docs', 'contacts'].every(k => S.prefs.elevesColsOff.includes(k)))
+    S.prefs.elevesColsOff = ['grp', 'docs'];
   _instancesSeed();
   _disciplinesSeed();
   // Stratégie de sauvegarde : voyage dans le JSON (donc suit la sync), avec repli sur le
@@ -6054,7 +6058,8 @@ function _elevesFiltresHTML(cls) {
 // Les VUES toutes faites : un clic pose les colonnes utiles au moment. Elles écrivent la même
 // préférence que le volet ☰ Colonnes (on affine ensuite), un cran d'undo.
 const ELEVES_VUES = [
-  { key: 'conseil', label: 'Préparer le conseil', cols: ['carnet', 'moy', 'incidents', 'avis', 'bilans', 'rem'] },
+  // Contacts ajoutés en v1.46.15 (l'utilisateur : « affiche aussi la colonne Contacts dans la vue Préparer le conseil »).
+  { key: 'conseil', label: 'Préparer le conseil', cols: ['carnet', 'moy', 'incidents', 'contacts', 'avis', 'bilans', 'rem'] },
   { key: 'parents', label: 'Appeler les familles', cols: ['carnet', 'moy', 'docs', 'incidents', 'contacts', 'rem'] },
   { key: 'papiers', label: 'Papiers', cols: ['grp', 'docs', 'contacts'] },
   { key: 'tout',    label: 'Tout', cols: null },

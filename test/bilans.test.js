@@ -335,3 +335,16 @@ test('Liste « Moments » : les moments de la colonne avec −, ceux qu\'on peut
   ev(`elevesBilanColRetirer('bil:miperiode:0')`);
   assert.strictEqual(evObj(`_elevesMoments(S.classes['5C'], 0)`).find(m => m.key === 'bil:miperiode:0').vu, false);
 });
+
+test('Vue « Préparer le conseil » : la colonne Contacts y est ; qui avait l\'ancienne vue la retrouve avec les contacts', () => {
+  ev(FIXTURE);
+  ev(`elevesVueUI('conseil')`);
+  assert.ok(ev(`_elevesColVue('contacts')`));
+  assert.strictEqual(ev(`_elevesVueCourante()`), 'conseil');
+  ev(`S.prefs.elevesColsOff = ['grp', 'docs', 'contacts']; postLoadHook();`);
+  assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), ['grp', 'docs']);
+  assert.strictEqual(ev(`_elevesVueCourante()`), 'conseil');
+  ev(`S.prefs.elevesColsOff = ['grp', 'contacts']; postLoadHook();`);
+  assert.deepStrictEqual(evObj(`S.prefs.elevesColsOff`), ['grp', 'contacts'], 'un réglage personnel n\'est pas touché');
+  ev(`elevesVueUI('tout')`);
+});

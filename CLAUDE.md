@@ -1313,6 +1313,8 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        **Vues** toutes faites (`ELEVES_VUES` : *Préparer le conseil*, *Appeler les familles*,
        *Papiers*, *Tout*) : elles écrivent `S.prefs.elevesColsOff` (le même réglage que ☰
        Colonnes, un cran d'undo, rien si rien ne change) ; « personnalisée » dès qu'on retouche.
+       **v1.46.15** : *Préparer le conseil* montre aussi les **Contacts** ; `postLoadHook` remet
+       la vue à qui avait exactement l'ancienne (masquées : groupe, papiers, contacts).
      - **▥ Carte de chaleur — bornée au MOMENT du bilan** (v1.46.4, l'utilisateur : *« il faudrait
        aussi indiquer pour quel moment on réalise le bilan »*) : une barre *Synthèse pour* au-dessus
        (les moments de la fiche, `chaleurMomentSet`), **le même choix que la fiche**
@@ -1877,6 +1879,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 103 | **Vue « Préparer le conseil » avec la colonne Contacts** (et reprise de l'ancienne vue) ; 1 test | ✅ **fait** (2026-10-03, v1.46.15) |
 | 102 | **Remarque et contacts séparés** (fenêtre `mcontacts` ouverte par la colonne Contacts : date, type, texte corrigeables ; libellé « Remarque » au lieu d'« Observations ») · **bilan et décisions à la hauteur de leur texte** ; 1 test, 1 test mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.14) |
 | 101 | **Décisions d'un moment de bilan** (`stu.decisions`, `decisionSet`, `_decisionCible`) : champ sous le bilan dans la fiche, autres moments, chronologie, synthèse de période ; démo ; 1 test. Audit 3 vues × 2 moments × 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.13) |
 | 100 | **Ajout d'un élève par la même fenêtre que la modification** (ancienne fenêtre supprimée) · **la fiche se ferme en quittant Élèves, Observations, Moyennes** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.12) |
