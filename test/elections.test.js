@@ -927,3 +927,13 @@ test('Candidats du second tour : tous, au-dessus d\'un seuil (à défaut les pre
   assert.deepStrictEqual(r.premiers, [0, 1]);
   assert.deepStrictEqual(r.exaequo, [0, 1, 2]);
 });
+
+test('Sources hors Légifrance citées avec leur lien : justice.fr, circulaire de 2004, service-public, académie', () => {
+  const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const r = JSON.parse(ev(`JSON.stringify({ urls: Object.values(EL_SOURCES).map(x => x.url), lien: _elSrc('justice') })`));
+  assert.ok(r.urls.every(u => /^https:\/\//.test(u)), 'https seulement');
+  assert.match(r.lien, /^<a href="https:\/\/www\.justice\.fr\/fiche\/delegues-classe" target="_blank" rel="noopener noreferrer">/);
+  assert.match(SRC, /g\('mel-sources'\)\.innerHTML = .*_elSrc\('justice'\).*_elSrc\('circ2004'\).*_elSrc\('f1370'\)/, 'sous les modalités');
+  assert.match(SRC, /<strong>accepte son élection<\/strong> \(\$\{_elSrc\('circ2004'\)\}\)/, 'dans la question d’acceptation');
+  assert.match(SRC, /usage de l'établissement — par exemple le \$\{_elSrc\('versailles'\)\}/, 'dans le bureau de vote');
+});

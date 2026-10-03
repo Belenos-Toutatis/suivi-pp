@@ -620,6 +620,17 @@ des **exprimés** ; une égalité à la dernière place qualifiante garde tous l
 toujours au moins autant de candidats que de sièges. Dit au PV. Démo : l'élection close passe en
 un siège après l'autre (siège 1 puis siège 2, chacun au 1er tour).
 
+### Les sources citées sont liées (v1.53.1)
+
+L'utilisateur : *« lorsque tu cites une note de service ou le ministère de la Justice, qui ne sont
+pas les textes officiels de Légifrance, mets le lien »*. `EL_SOURCES` (R421-28 sur Légifrance,
+circulaire n° 2004-114 au BO, fiche justice.fr, fiche service-public F1370, dossier des CPE de
+l'académie de Versailles) et `_elSrc(k, libellé)` (https, nouvel onglet, `noopener noreferrer`) :
+une ligne de sources sous les réglages de ⚙ Modalités (`#mel-sources` : un siège après l'autre,
+les sièges ensemble, le nom d'un non-candidat), la question d'acceptation (la circulaire), le bloc
+Bureau de vote (l'usage d'établissement, exemple d'académie). ⚠️ Toute nouvelle explication qui
+s'appuie sur une source hors Légifrance passe par `EL_SOURCES` + `_elSrc`.
+
 ### La saisie se fait bulletin par bulletin
 
 C'est déjà sa méthode (une ligne par bulletin numéroté, une colonne par binôme, on coche), et il faut la garder pour deux raisons : c'est ce qu'il fait pendant que les assesseurs annoncent, et cela laisse une **trace vérifiable** — si un total est contesté, on remonte au bulletin.
@@ -2220,6 +2231,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 131 | **Sources hors Légifrance liées** (justice.fr, circulaire de 2004, service-public, académie de Versailles) dans les modalités, la question d'acceptation et le bureau de vote ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.53.1) |
 | 130 | **Un siège après l'autre** (défaut, R421-28 ; « les sièges ensemble » au choix) · **candidats du second tour** au choix (tous, au-dessus d'un % des exprimés à défaut les x premiers, les x premiers) ; démo ; 2 tests, 2 tests adaptés. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.53.0) |
 | 129 | **Accord en genre dans les élections** (civilité figée sur la candidature, forme inclusive sans civilité) · **projection d'un scrutin de suppléant : « Suppléant(e) élu(e) »** ; 2 tests, 5 tests adaptés | ✅ **fait** (2026-10-03, v1.52.13) |
 | 128 | **Président du bureau au choix** (PP, CPE, élève non candidat, autre adulte) ; signe le PV à ce titre ; fiche de l'élève ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.12) |

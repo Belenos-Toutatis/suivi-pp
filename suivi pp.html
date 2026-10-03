@@ -994,6 +994,7 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .el-ass #el-pres-qui { max-width: min(320px, 100%); }
 .el-supnc { margin: 8px 0; display: flex; flex-direction: column; gap: 6px; text-align: left; background: var(--paper-warm); border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 8px 12px; }
 .el-supnc .mfp-opts label { justify-content: flex-start; }
+.el-sources { margin: -4px 0 10px; line-height: 1.5; }
 .el-ecrit { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .el-ecrit select { max-width: 220px; }
 .av-tab { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -2888,6 +2889,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
           <label class="tb-hint" id="mel-t2-n-l"><span id="mel-t2-n-t">à défaut, les</span> <input type="number" id="mel-t2-n" min="1" max="20" value="2" style="width:56px"> premiers</label></div></div>
       <div class="fg" style="flex:1;min-width:220px"><label for="mel-noncand">Nom d'un élève non candidat</label><select id="mel-noncand" title="Un bulletin porte le nom d'un élève qui ne s'était pas présenté (feuille blanche). Circulaire n° 2004-114 § 6.1 et fiche service-public : il peut être élu s'il accepte. Lecture stricte du binôme de R421-28 : le bulletin est nul."><option value="compte">compte — élu s'il accepte (circulaire, service-public)</option><option value="nul">rend le bulletin nul (lecture stricte de R421-28)</option></select></div>
     </div>
+    <div class="tb-hint el-sources" id="mel-sources"></div>
     <div class="st-group">
       <label style="color:var(--ink-deep)"><input type="checkbox" id="mel-binome" checked onchange="_elBinomeChange()"> Candidatures en binôme — le suppléant est élu avec son titulaire</label>
       <label style="color:var(--ink-deep)"><input type="checkbox" id="mel-maj" checked> Majorité absolue au 1er tour (relative au 2nd)</label>
@@ -2980,8 +2982,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.53.0';
-const APP_BUILD_DATE = '2026-10-03T17:51:14Z';
+const APP_VERSION    = '1.53.1';
+const APP_BUILD_DATE = '2026-10-03T18:05:43Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12124,6 +12126,21 @@ const _EL_TYPES = {
     ] },
 };
 // Les textes d'un mandat, en liens — dans la modale et en tête de l'élection.
+// Les SOURCES citées par les modalités et les explications, LIÉES (v1.53.1, l'utilisateur :
+// « lorsque tu cites une note de service ou le ministère de la Justice, qui ne sont pas les textes
+// officiels de Légifrance, mets le lien »). Ce que l'app avance sans Légifrance doit pouvoir se
+// vérifier d'un clic. https seulement ; ouvert dans un nouvel onglet.
+const EL_SOURCES = {
+  r421:    { ref: 'Code de l\'éducation, art. R421-28 (Légifrance)', url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000033124215' },
+  circ2004:{ ref: 'circulaire n° 2004-114, § 6.1 (BO n° 29 du 22-7-2004)', url: 'https://www.education.gouv.fr/bo/2004/29/MENE0401597C.htm' },
+  justice: { ref: 'fiche « Délégués de classe » du ministère de la Justice (justice.fr)', url: 'https://www.justice.fr/fiche/delegues-classe' },
+  f1370:   { ref: 'fiche F1370 de service-public.fr', url: 'https://www.service-public.gouv.fr/particuliers/vosdroits/F1370' },
+  versailles: { ref: 'dossier remis aux professeurs principaux (CPE, académie de Versailles)', url: 'https://cpe.ac-versailles.fr/IMG/pdf/2_-_dossier_remis_aux_pp_nacelle_2021-22_mh_duffas.pdf' },
+};
+function _elSrc(k, label) {
+  const x = EL_SOURCES[k];
+  return x ? `<a href="${_escAttr(x.url)}" target="_blank" rel="noopener noreferrer">${_escName(label || x.ref)}</a>` : _escName(label || '');
+}
 function _elTextesHTML(ty) {
   return `<div class="el-textes tb-hint">📜 ${ty.textes.map(t => `<a href="${_escAttr(t.url)}" target="_blank" rel="noopener" title="${_escAttr(t.quoi)}">${_escName(t.ref)}</a>`).join(' · ')}</div>`;
 }
@@ -12504,7 +12521,7 @@ function _elAssesseursHTML(el) {
   const pres = `<label class="tb-hint" for="el-pres-qui">Président</label><select id="el-pres-qui" onchange="electionPresidentUI('qui', this.value)">${EL_PRESIDENTS.map(x => `<option value="${x.qui}"${x.qui === P.qui ? ' selected' : ''}>${_escName(x.label)}</option>`).join('')}</select>${
     P.qui === 'eleve' ? `<select id="el-pres-sid" onchange="electionPresidentUI('sid', this.value)" aria-label="L'élève président"><option value="">— l'élève —</option>${libresPres.map(s => `<option value="${_escAttr(s.id)}"${s.id === P.sid ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select>`
     : `${P.qui === 'autre' ? `<input type="text" id="el-pres-fonction" maxlength="60" placeholder="fonction (ex. : principal adjoint)" value="${_escAttr(el.president?.fonction || '')}" onchange="electionPresidentUI('fonction', this.value)" aria-label="Fonction du président">` : ''}<input type="text" id="el-pres-nom" maxlength="80" placeholder="nom (facultatif)" value="${_escAttr(P.nom)}" onchange="electionPresidentUI('nom', this.value)" aria-label="Nom du président">`}`;
-  return `<div class="el-block el-ass"><strong>🧑‍⚖️ Bureau de vote</strong> <span class="tb-hint">— un président et deux assesseurs, élèves volontaires non candidats : ils surveillent le vote, comptent les bulletins et signent le procès-verbal. Aucun texte national ne les fixe : c'est l'usage de l'établissement.</span>
+  return `<div class="el-block el-ass"><strong>🧑‍⚖️ Bureau de vote</strong> <span class="tb-hint">— un président et deux assesseurs, élèves volontaires non candidats : ils surveillent le vote, comptent les bulletins et signent le procès-verbal. Aucun texte national ne les fixe : c'est l'usage de l'établissement — par exemple le ${_elSrc('versailles')}.</span>
     <div class="tb" style="margin-top:4px">${pres}</div>
     <div class="tb" style="margin-top:4px"><span class="tb-hint">Assesseurs</span>${sel(0)}${sel(1)}${manque ? `<span class="tb-hint">${manque === 2 ? 'Aucun assesseur choisi.' : 'Un seul assesseur choisi.'}</span>` : ''}</div></div>`;
 }
@@ -13457,7 +13474,7 @@ function electionCloreUI() {
     const nom = _elCandNom(nc);
     const g = _civCand(nc), A = (m, f, x) => _acc(g, m, f, x);
     _appDialogShow({ title: `✍️ ${A('Élu sans avoir été candidat', 'Élue sans avoir été candidate', 'Élu(e) sans avoir été candidat(e)')}`, type: 'question',
-      message: `<strong>${_escName(nom)}</strong> n'était pas ${A('candidat', 'candidate', 'candidat(e)')} : son nom a été écrit sur ${_pl(_elDepouillement(el, tourIdx).voix[nc.id] || 0, 'bulletin')}. ${A('Il est élu s\'il', 'Elle est élue si elle', 'Il ou elle est élu(e) s\'il ou elle')} <strong>accepte son élection</strong> (circulaire n° 2004-114, § 6.1).${el.binome !== false ? `<br><br>Candidatures en binôme : ${A('il', 'elle', 'il ou elle')} n'a pas de suppléant, et aucun texte ne dit qui ${A('le', 'la', 'le ou la')} supplée. Une fois l'élection close, vous choisirez la pratique de l'établissement : aucun suppléant, un suppléant élu ensuite, ou désigné par ${A('lui', 'elle', 'l\'élu(e)')}.` : ''}<br><br>${A('S\'il', 'Si elle', 'S\'il ou elle')} refuse, le siège revient au suivant selon la règle du tour.`,
+      message: `<strong>${_escName(nom)}</strong> n'était pas ${A('candidat', 'candidate', 'candidat(e)')} : son nom a été écrit sur ${_pl(_elDepouillement(el, tourIdx).voix[nc.id] || 0, 'bulletin')}. ${A('Il est élu s\'il', 'Elle est élue si elle', 'Il ou elle est élu(e) s\'il ou elle')} <strong>accepte son élection</strong> (${_elSrc('circ2004')}).${el.binome !== false ? `<br><br>Candidatures en binôme : ${A('il', 'elle', 'il ou elle')} n'a pas de suppléant, et aucun texte ne dit qui ${A('le', 'la', 'le ou la')} supplée. Une fois l'élection close, vous choisirez la pratique de l'établissement : aucun suppléant, un suppléant élu ensuite, ou désigné par ${A('lui', 'elle', 'l\'élu(e)')}.` : ''}<br><br>${A('S\'il', 'Si elle', 'S\'il ou elle')} refuse, le siège revient au suivant selon la règle du tour.`,
       buttons: [{ label: 'Annuler', value: null }, { label: `✗ ${A('Il', 'Elle', 'Il ou elle')} refuse`, value: 'non' }, { label: `✓ ${A('Il', 'Elle', 'Il ou elle')} accepte`, primary: true, value: 'oui' }] })
       .then(v => {
         if (v !== 'oui' && v !== 'non') return;
@@ -13707,6 +13724,7 @@ function _elFillSettings(el) {
   g('mel-dep').value = el?.departage || 'plusJeune';
   g('mel-noncand').value = el?.nonCandidat === 'nul' ? 'nul' : 'compte';
   g('mel-siege').value = el ? (el.parSiege === true ? '1' : '0') : '1';
+  g('mel-sources').innerHTML = `📎 Un siège après l'autre : ${_elSrc('r421', 'R421-28')} (« scrutin uninominal à deux tours »). Les sièges ensemble : la ${_elSrc('justice')}. Nom d'un élève non candidat : la ${_elSrc('circ2004')} et la ${_elSrc('f1370')} admettent son élection s'il l'accepte.`;
   { const R = _elSecondTour(el); g('mel-t2').value = R.mode; g('mel-t2-pct').value = R.pct; g('mel-t2-n').value = R.n; _elT2Change(); }
   g('mel-inscrits').value = el?.inscrits ?? _elInscrits(cls.id, g('mel-date').value);
   g('mel-ordre').value = el?.affichage?.ordre || 'tirage';
