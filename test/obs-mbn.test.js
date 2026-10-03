@@ -185,7 +185,7 @@ test('Liste : la colonne Observations affiche le total carnet + MBN de l\'année
   assert.strictEqual(r.mbnAn, ev(`_obsMbnOf(${JSON.stringify(sid)}).length`));
   assert.strictEqual(r.obsTotal, r.cumul + r.mbnAn);
   const html = ev(`_elevesIndicHTML(getCls(), _elevesRows(getCls()), [], null)`);
-  assert.match(html, />Observations <details class="el-cols el-fen"/);
+  assert.match(html, />Observations <span class="el-th-sub">· total année<\/span> <details class="el-cols el-fen"/);
   assert.ok(html.includes(`>${r.obsTotal}</span><span class="el-obd">carnet ${r.cumul} · MBN ${r.mbnAn}</span>`));
   ev(`eleveSort = { col: 'cumul', dir: 1 }`);
   const tot = evObj(`_elevesRows(getCls()).map(x => x.r.obsTotal).filter(v => v !== null)`);

@@ -737,6 +737,12 @@ le PP dit, la décision ce que l'équipe a arrêté (avertissement, PPRE, tutora
   sous le bilan, tableau et fiches.
 - `postLoadHook` écarte les entrées illisibles ; rien à purger à part (sur l'élève). Démo :
   quatre décisions (avertissement, PAP et tutorat, changement de place, félicitations).
+- **La fenêtre de bilan aussi** (v1.47.0, audit C1 — on enchaîne les élèves en réunion par
+  la fenêtre `mbilan`, ouverte par les points de la liste ou par ✍️ de l'onglet Avis) : champ
+  *Décisions* sous le bilan (`mbilan-dec`, `_bilanDecCharge` à l'ouverture et à ◀ ▶),
+  enregistré par `_bilanCommit` avec le bilan — **un seul cran d'undo pour les deux**, des
+  décisions sans bilan acceptées. **Signalées** : point de la colonne Bilans entouré d'un second
+  anneau (`.el-bd.d`), case **◉** dans la carte de chaleur, le texte en infobulle.
 - **Les deux champs grandissent avec leur texte** (v1.46.14, l'utilisateur : *« la fenêtre de
   décision un peu plus grande ; bilan et décision qui s'adaptent tout seuls à la taille du
   texte »*) : `field-sizing: content` et `_autoTaille` (à l'ouverture et à la frappe) ; hauteur
@@ -1502,6 +1508,12 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        `es-id` vide, titre *+ Nouvel élève*, bouton *✓ Ajouter*), `saveEdit` crée l'élève dans la
        classe choisie puis le remplit comme une modification (un cran d'undo). L'ancienne
        fenêtre `ms` (nom, prénom, civilité, groupe) est supprimée.
+     - **Contacts dans la fiche** (v1.47.0, audit C5) : *+* et ✎ de la carte Contacts ouvrent la
+       fenêtre des contacts par-dessus la fiche (`ficheVersContacts`) — la même que depuis la
+       liste (date, type, texte) ; le formulaire en place et la liste ✎ (texte seul) sont retirés.
+     - **Le nom ouvre la fiche dans toutes les grilles d'élèves** (v1.47.0, audit C2) :
+       `_nomFicheHTML` — Élèves, carte de chaleur, Observations, Moyennes, tableau d'un document,
+       ramassage, grille des avis ; même allure partout (`.el-nom`, nom en gras).
      - **La fiche se ferme quand on quitte Élèves, Observations ou Moyennes** (v1.46.12,
        l'utilisateur : *« vers Retours, Vie de classe, Avis des collègues… ça ne sert à rien
        qu'elle reste affichée, au contraire »*) : `FICHE_ONGLETS`, dans `showTab`.
@@ -1632,8 +1644,21 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
 
 ## Trier les élèves : nom, prénom, place, ordre de ramassage
 
-Les trois grilles (Élèves, Observations, Ramassage) partagent un sélecteur « Trier »
-(`_sortPickerHTML`) et un moteur commun (`_sortStudents`). Chaque écran y ajoute ses modes
+⚠️ **Révisé en v1.47.0 (audit ergonomique, point C4)** : plus de menu « Trier ». **Toutes les
+grilles trient par leurs EN-TÊTES** (Nom · Prénom, et les colonnes chiffrées ; re-cliquer
+inverse) — `_TRIS` (un état par grille : `carnet`, `doc`, `ram`, `moy`), `triTete`,
+`_triTeteHTML`, `_triNomHTML`, `_triDir`, `_triInverse` (un ordre de passage ne s'inverse
+jamais). **Là où l'on marche dans les rangs — Observations (relever les carnets), Retours
+(vérifier les signatures, ramasser) —** un menu **« Ordre de passage »** (`_ordrePassageHTML`,
+`ordrePassageSet`) garde la place dans la salle, les ordres de ramassage et le choix de la
+salle ; arbitré par l'utilisateur : *« dans l'onglet Observations et dans l'onglet Retours, il
+faut que je puisse conserver un tri par motif particulier ou par position »*. Rien sans
+placement. **Pas dans Moyennes** (un mode de place resté y retombe sur le nom). Ce qui suit
+reste vrai du moteur (`_sortStudents`, `_sortModes`) ; *« sélecteur Trier »* s'y lit *« Ordre de
+passage »*.
+
+~~Les trois grilles (Élèves, Observations, Ramassage) partagent un sélecteur « Trier »
+(`_sortPickerHTML`) et un moteur commun (`_sortStudents`).~~ Chaque écran y ajoute ses modes
 propres (Δ, cumul, non rendus…) ; les modes de place et de ramassage viennent, eux, du
 placement importé.
 
@@ -1883,6 +1908,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 105 | **Audit ergonomique — les cinq points majeurs** (rapport publié à part) : décisions dans la fenêtre de bilan et signalées (◉, anneau) · **le nom ouvre la fiche dans toutes les grilles** (`_nomFicheHTML` : Observations, document, ramassage, Moyennes) · **totaux nommés** dans l'en-tête (« total année », « au 31/01 », « Total S2 · carnet + MBN ») · **tri par les en-têtes partout**, « Ordre de passage » dans Observations et Retours seulement · **contacts de la fiche par la fenêtre des contacts** ; `test/ergonomie.test.js` (5 tests), 3 tests mis à jour. Audit 9 états × 2 thèmes à 1 440 px, 6 à 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.47.0) |
 | 104 | **Carte de chaleur : Contacts avec un Total, cases cliquables** vers la fenêtre des contacts ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.46.16) |
 | 103 | **Vue « Préparer le conseil » avec la colonne Contacts** (et reprise de l'ancienne vue) ; 1 test | ✅ **fait** (2026-10-03, v1.46.15) |
 | 102 | **Remarque et contacts séparés** (fenêtre `mcontacts` ouverte par la colonne Contacts : date, type, texte corrigeables ; libellé « Remarque » au lieu d'« Observations ») · **bilan et décisions à la hauteur de leur texte** ; 1 test, 1 test mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.14) |

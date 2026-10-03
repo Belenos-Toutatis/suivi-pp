@@ -313,11 +313,15 @@ test('le SÉLECTEUR affiche le repli, pas seulement la fonction qui le calcule',
     S.eleves = { s1:{id:'s1',nom:'B',prenom:'x',classe_id:'5C',tags:[]}, s2:{id:'s2',nom:'A',prenom:'y',classe_id:'5C',tags:[]} };
     S.cur = '5C';`);
   const cls = `S.classes['5C']`;
-  const selectionne = html => (html.match(/<option value="([^"]+)" selected>/) || [])[1];
-  assert.strictEqual(selectionne(ev(`_sortPickerHTML('pat-p1', 'x()', ${cls}, [])`)), 'pat-p1');
+  // v1.47.0 : le menu « Trier » est devenu « Ordre de passage » (Observations, Retours) ;
+  // la même garantie, sur le nouveau menu.
+  const selectionne = html => (html.match(/<option value="([^"]*)"[^>]* selected>/) || [])[1];
+  ev(`carnetSort = 'pat-p1'`);
+  assert.strictEqual(selectionne(ev(`_ordrePassageHTML('carnet', ${cls})`)), 'pat-p1');
   ev(`${cls}.salleCur = 'sa2'`);
-  assert.strictEqual(selectionne(ev(`_sortPickerHTML('pat-p1', 'x()', ${cls}, [])`)), 'nom',
-    'le menu doit montrer « par nom » quand le pattern n\'existe pas dans cette salle');
+  assert.strictEqual(selectionne(ev(`_ordrePassageHTML('carnet', ${cls})`)), '',
+    'le menu doit montrer « aucun » quand le pattern n\'existe pas dans cette salle');
   // Et le pattern caduc ne doit plus figurer parmi les choix proposés.
-  assert.ok(!/pat-p1/.test(ev(`_sortPickerHTML('nom', 'x()', ${cls}, [])`)));
+  assert.ok(!/pat-p1/.test(ev(`_ordrePassageHTML('carnet', ${cls})`)));
+  ev(`carnetSort = 'nom'`);
 });

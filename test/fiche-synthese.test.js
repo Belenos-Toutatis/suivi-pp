@@ -142,7 +142,9 @@ test('Fiche : plus de « dossier complet » — ses éléments sont dans les car
     try { _ficheRender(); return z.innerHTML; } finally { document.getElementById = o; _ficheEdit = null; } })()`);
   const h = rendu(null);
   assert.ok(!/Dossier complet/.test(h));
-  for (const k of ['classe', 'naissance', 'groupe', 'options', 'amen', 'presence', 'place', 'releves', 'bilans', 'incidents', 'contacts', 'papiers'])
+  // v1.47.0 : les contacts passent par la fenêtre des contacts (ficheVersContacts), plus par un ✎ en place.
+  assert.match(h, /onclick="ficheVersContacts\(\)"/);
+  for (const k of ['classe', 'naissance', 'groupe', 'options', 'amen', 'presence', 'place', 'releves', 'bilans', 'incidents', 'papiers'])
     assert.match(h, new RegExp(`class="pf-ed[^"]*" onclick="ficheEdit\\('${k}'\\)"`), `✎ ${k}`);
   assert.match(h, /onclick="ficheCycleCivilite\(\)"/);
   // Les choix portés sur les papiers se lisent dans la carte.

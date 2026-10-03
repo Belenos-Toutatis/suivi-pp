@@ -1410,6 +1410,7 @@ body.el-projecting #main { padding-top: 8px; }
 .el-ob { min-width: 2.2em; text-align: center; }
 .el-dl { font-family: var(--font-mono); font-size: .85em; color: var(--pencil); margin-left: 4px; }
 .el-dl.up { color: var(--danger-fg); font-weight: 700; }
+.el-th-sub { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--pencil); }
 .el-obd { font-family: var(--font-mono); font-size: .78em; margin-left: 5px; color: var(--pencil); white-space: nowrap; }
 button.el-dl { border: 0; background: none; padding: 0; text-decoration: underline dotted; text-underline-offset: 2px; }
 .el-spark { vertical-align: middle; margin-left: 5px; }
@@ -1427,6 +1428,8 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .el-bdots { display: inline-flex; gap: 3px; align-items: center; }
 .el-bd { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--g3); background: transparent; padding: 0; }
 .el-bd.f { background: var(--g3); }
+/* Une décision prise pour ce moment (v1.47.0) : le point entouré d'un second anneau. */
+.el-bd.d { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--g3); }
 .el-bsep { display: inline-block; width: 1px; height: 13px; background: var(--rule-line); margin: 0 3px; }
 .el-rem { border: 0; background: none; padding: 0; max-width: 18em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--ink-deep); font-size: .92em; display: inline-block; vertical-align: middle; }
 /* En indicateurs, une ligne par élève : les textes (remarque, bilans) sur UNE ligne, le
@@ -2238,6 +2241,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="fg">
       <textarea id="mbilan-txt" data-autofocus rows="6" placeholder="Élève sérieux, en progrès à l'oral. Le carnet reste chargé (+6 ce semestre) : rappeler le cadre. Encourager à demander de l'aide en maths." onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
     </div>
+    <div class="fg">
+      <label for="mbilan-dec">Décisions · à mettre en place</label>
+      <textarea id="mbilan-dec" rows="3" placeholder="Ce qui a été décidé en réunion : avertissement, PPRE, tutorat, rendez-vous avec la famille…" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
+    </div>
     <div class="ma">
       <button class="btn btn-d btn-sm" id="mbilan-del" onclick="bilanRemoveUI()" title="Supprimer ce bilan">🗑</button>
       <button class="btn btn-g" onclick="closeMod2('mbilan')">Fermer</button>
@@ -2786,8 +2793,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.16';
-const APP_BUILD_DATE = '2026-10-03T07:14:20Z';
+const APP_VERSION    = '1.47.0';
+const APP_BUILD_DATE = '2026-10-03T07:35:48Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4533,20 +4540,48 @@ function _sortModeNorm(mode, cls, extra) {
   return cles.includes(mode) ? mode : 'nom';
 }
 
-// Sélecteur « Trier » commun aux quatre grilles, plus le sélecteur de salle quand il y
-// a de quoi choisir. `extra` porte les modes propres à l'écran (Δ, cumul, non rendus…).
-function _sortPickerHTML(mode, onchange, cls, extra) {
-  const modes = [...(extra || []), ..._sortModes(cls)];
-  mode = _sortModeNorm(mode, cls, extra);
-  const salles = _sallesDe(cls);
-  const sel = `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Trier
-      <select onchange="${onchange}" style="font-size:.95em;padding:2px 6px">${
-        modes.map(m => `<option value="${_escAttr(m.key)}"${m.key === mode ? ' selected' : ''}>${_escName(m.label)}</option>`).join('')}</select></label>`;
-  if (salles.length < 2 && !/^(place|pat-)/.test(String(mode))) return sel;
-  return sel + `<label class="tb-hint" style="display:flex;align-items:center;gap:5px" title="La place d'un élève change d'une salle à l'autre : c'est la pièce où l'on est entré qui décide de l'ordre">🏫
-      <select onchange="setSalleCur(this.value)" style="font-size:.95em;padding:2px 6px">${
-        salles.map(sa => `<option value="${_escAttr(sa.id)}"${sa.id === cls.salleCur ? ' selected' : ''}>${_escName(sa.nom)}</option>`).join('')}</select></label>`;
+// ── Tri par les EN-TÊTES partout (v1.47.0, audit C4) ── l'onglet Élèves triait par ses
+// en-têtes, les autres grilles par un menu « Trier ». Désormais : un clic sur un en-tête trie
+// (re-cliquer inverse), dans les quatre grilles. Et, là où l'on MARCHE DANS LES RANGS —
+// Observations (on relève les carnets), Retours (on vérifie les signatures, on ramasse) —
+// un menu « Ordre de passage » garde le tri par place et par ordre de ramassage (l'utilisateur :
+// « il faut que je puisse conserver un tri par motif ou par position »). Pas dans Moyennes.
+const _TRIS = {
+  carnet: { get: () => carnetSort, set: v => { carnetSort = v; }, render: () => renderCarnets() },
+  doc:    { get: () => _docSort,   set: v => { _docSort = v; },   render: () => renderDocuments() },
+  ram:    { get: () => _ramSort,   set: v => { _ramSort = v; },   render: () => renderDocuments() },
+  moy:    { get: () => moySort,    set: v => { moySort = v; },    render: () => renderMoyennes() },
+};
+const _triDir = { carnet: 1, doc: 1, ram: 1, moy: 1 };
+function triTete(g, cle) {
+  const t = _TRIS[g];
+  if (!t) return;
+  if (t.get() === cle) _triDir[g] = -_triDir[g]; else { t.set(cle); _triDir[g] = 1; }
+  t.render();
 }
+// Le sens inverse — sauf pour un ordre de passage, qui suit le trajet dans la salle.
+function _triInverse(g, mode, arr) { return _triDir[g] < 0 && !/^(place|pat-)/.test(String(mode)) ? arr.reverse() : arr; }
+function _triTeteHTML(g, cle, label, title) {
+  const on = String(_TRIS[g]?.get()) === cle;
+  return `<button class="el-th${on ? ' el-sorted' + (_triDir[g] < 0 ? ' up' : '') : ''}" onclick="triTete('${g}','${_escJsAttr(cle)}')" title="${_escAttr(title + (on ? ' (re-cliquer : à l\'envers)' : ''))}">${label}</button>`;
+}
+function _triNomHTML(g) { return `${_triTeteHTML(g, 'nom', 'Nom', 'Trier par nom')} <span class="tb-hint">·</span> ${_triTeteHTML(g, 'prenom', 'Prénom', 'Trier par prénom')}`; }
+// « Ordre de passage » : place dans la salle, ordres de ramassage dessinés — et la salle,
+// puisqu'une place change d'une pièce à l'autre. Rien à proposer sans placement.
+function _ordrePassageHTML(g, cls) {
+  const modes = _sortModes(cls).filter(m => m.key === 'place' || m.key.startsWith('pat-'));
+  const salles = _sallesDe(cls);
+  if (!modes.length && salles.length < 2) return '';
+  const cur = String(_TRIS[g].get());
+  const passage = modes.some(m => m.key === cur);
+  const sel = `<label class="tb-hint" style="display:flex;align-items:center;gap:5px" title="L'ordre dans lequel on passe dans les rangs — pour relever les carnets, vérifier les signatures, ramasser">Ordre de passage
+      <select onchange="ordrePassageSet('${g}', this.value)" style="font-size:.95em;padding:2px 6px"><option value=""${passage ? '' : ' selected'}>— aucun (tri par les en-têtes)</option>${
+        modes.map(m => `<option value="${_escAttr(m.key)}"${m.key === cur ? ' selected' : ''}>${_escName(m.label)}</option>`).join('')}</select></label>`;
+  return sel + (salles.length >= 2 || passage ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px" title="La place d'un élève change d'une salle à l'autre : c'est la pièce où l'on est entré qui décide de l'ordre">🏫
+      <select onchange="setSalleCur(this.value)" style="font-size:.95em;padding:2px 6px">${
+        salles.map(sa => `<option value="${_escAttr(sa.id)}"${sa.id === cls.salleCur ? ' selected' : ''}>${_escName(sa.nom)}</option>`).join('')}</select></label>` : '');
+}
+function ordrePassageSet(g, v) { const t = _TRIS[g]; if (!t) return; t.set(v || 'nom'); _triDir[g] = 1; t.render(); }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // FICHE ÉLÈVE — tout ce que l'app sait de lui, sur un écran
@@ -4572,6 +4607,12 @@ function _ficheAge(naissance, ref) {
 // Le nom d'un élève dans une grille, surligné selon son mandat de délégué (cf. .nom).
 // Dérivé de l'élection close la plus récente par _delegueOf — jamais stocké, donc juste
 // même après une correction du dépouillement.
+// Le nom qui OUVRE LA FICHE, le même dans toutes les grilles d'élèves (v1.47.0, audit C2 :
+// il ne l'ouvrait ni dans Observations, ni dans le tableau d'un document, ni au ramassage, et
+// son allure changeait d'un onglet à l'autre).
+function _nomFicheHTML(sid, nom, prenom) {
+  return `<a href="#" class="el-nom" onclick="openFiche('${_escJsAttr(sid)}');return false" title="Ouvrir la fiche">${_nomHTML(sid, nom, prenom)}</a>`;
+}
 function _nomHTML(sid, nom, prenom) {
   const del = _delegueOf(sid);
   const cls = del === 'titulaire' ? ' del-t' : del === 'suppleant' ? ' del-s' : '';
@@ -6177,7 +6218,8 @@ function _chaleurGroupes(cls, bcols, colM) {
       return x.length ? ['chob-' + Math.min(8, x.length), String(x.length), x.map(_obsMbnTexte).join('\n')] : ['ch-no', '', '']; },
     sum: sid => { const x = _obsMbnEntre(sid, p.start, p.end);
       return [x.length ? 'chob-' + Math.min(8, x.length) : 'ch-no', x.length ? String(x.length) : '·', x.length ? `${x.length} observation(s) MBN sur la période\n` + x.map(_obsMbnTexte).join('\n') : 'Aucune observation MBN sur la période']; } });
-  if (mbnAny) G.push({ key: 'obstot', label: 'Total des observations', sub: [{ id: '__tot', l: 'Carnet + MBN', long: `Total depuis la rentrée au ${_fmtDateFr(p.end)} : cumul du carnet + observations MBN` }],
+  // L'étendue dans l'en-tête même (v1.47.0, audit C3) : « au 31/01 », pas seulement en infobulle.
+  if (mbnAny) G.push({ key: 'obstot', label: 'Total des observations', sub: [{ id: '__tot', l: `au ${_fmtDateFr(p.end).slice(0, 5)}`, long: `Total depuis la rentrée au ${_fmtDateFr(p.end)} : cumul du carnet + observations MBN` }],
     cell: sid => totCase(sid), sum: sid => totCase(sid) });
   // Moyennes : au conseil, le dernier import de la période (même daté après) ; sinon le dernier
   // fait avant la fin du moment — la même règle que la fiche (`_ficheMoy`).
@@ -6237,8 +6279,9 @@ function _chaleurGroupes(cls, bcols, colM) {
   parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`,
     { fn: sid => `openContacts('${_escJsAttr(sid)}')`, tip: 'Clic : la liste des contacts, pour les voir, les corriger, en noter un' });
   if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: (col && c.key === col.key ? '▶ ' : '') + c.court, long: c.long + (col && c.key === col.key ? ' — le moment choisi' : '') })),
-    cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c);
-      return b ? ['ch-bil', '●', `${c.long} — ${_fmtDateFr(b.date)}\n${String(b.texte).slice(0, 400)}`] : ['ch-no', '○', `${c.long} : rien d'écrit`]; },
+    cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
+      const dTxt = dc ? `\nDécisions : ${String(dc.texte).slice(0, 300)}` : '';
+      return b || dc ? ['ch-bil', dc ? '◉' : '●', `${c.long}${b ? ` — ${_fmtDateFr(b.date)}\n${String(b.texte).slice(0, 400)}` : ' : bilan à écrire'}${dTxt}`] : ['ch-no', '○', `${c.long} : rien d'écrit`]; },
     sum: sid => ['ch-bil', bcols.map(c => _bilanDeColonne(cls, sid, c) ? '●' : '○').join(''), bcols.map(c => `${c.court} : ${_bilanDeColonne(cls, sid, c) ? 'écrit' : '—'}`).join('\n')] });
   return G;
 }
@@ -6308,7 +6351,7 @@ function _elevesChaleurHTML(cls, rowsData, bcols) {
   const camp = _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls));
   const body = rowsData.map(({ s }) => `<tr${_isStudentActive(s) ? '' : ' class="inactive"'} onclick="_elevesLigneClic(event,'${_escJsAttr(s.id)}')"><td><span class="el-civ${s.civilite === 'M' ? ' m' : s.civilite === 'F' ? ' f' : ''}" title="${_escAttr(civiliteFullLabel(s.civilite))}">${s.civilite ? civiliteLabel(s.civilite) : '·'}</span><a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche complète" class="el-nom">${_nomHTML(s.id, s.nom, s.prenom)}</a>${camp && (camp.cibles || []).includes(s.id) ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}</td>${
     G.map(g => plis.has(g.key) ? td(g.sum(s.id), true) : g.sub.map((x, i) => td(g.cell(s.id, x.id), i === 0)).join('')).join('')}</tr>`).join('');
-  const leg = `<div class="ch-leg tb-hint"><span><i class="ch-sw chob-2"></i><i class="ch-sw chob-5"></i> observations gagnées au relevé</span><span><i class="ch-sw ch-lo"></i> sous 10</span><span><i class="ch-sw ch-av3"></i><i class="ch-sw ch-av2"></i><i class="ch-sw ch-av1"></i> avis : toutes les colonnes, la moitié, moins</span><span>☐ papier à rendre · — non concerné</span><span><i class="ch-sw ch-inc"></i> incidents · <i class="ch-sw ch-ct"></i> contacts du mois</span><span>● bilan écrit · ○ vide</span><span>Survol : le contenu · clic sur le nom : la fiche · ▾ replie un groupe</span></div>`;
+  const leg = `<div class="ch-leg tb-hint"><span><i class="ch-sw chob-2"></i><i class="ch-sw chob-5"></i> observations gagnées au relevé</span><span><i class="ch-sw ch-lo"></i> sous 10</span><span><i class="ch-sw ch-av3"></i><i class="ch-sw ch-av2"></i><i class="ch-sw ch-av1"></i> avis : toutes les colonnes, la moitié, moins</span><span>☐ papier à rendre · — non concerné</span><span><i class="ch-sw ch-inc"></i> incidents · <i class="ch-sw ch-ct"></i> contacts du mois</span><span>● bilan écrit · ◉ avec décisions · ○ vide</span><span>Survol : le contenu · clic sur le nom : la fiche · ▾ replie un groupe</span></div>`;
   // Le cadre (.rel-wrap frozen) est posé par renderStudents, entre _wrapScrollKeep et keep().
   return { barre, table: `<table class="dt el-chaleur"><thead><tr class="ch-r1"><th rowspan="2" class="el-th-nom">${_elevesThNomHTML()}</th>${head1}</tr><tr class="ch-r2">${head2}</tr></thead><tbody>${body}</tbody></table>`, leg };
 }
@@ -6399,7 +6442,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const head = `<tr><th class="el-th-nom">${_elevesThNomHTML()}</th>${
     _elevesNais ? `<th onclick="sortEleves('nais')" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance</th>` : ''}${
     _elevesReg ? `<th title="Demi-pensionnaire, externe, interne">Régime</th><th title="Le régime d'entrée de l'établissement — codes réglables dans 💾 Données">Entrée</th><th title="Le régime de sortie de l'établissement — codes réglables dans 💾 Données">Sortie</th>` : ''}${
-    cols.map(c => th(c.key, _escName(c.label) + (c.key === 'carnet' ? ' ' + _obsFenetrePickHTML(cls) : ''), TITRES[c.key])).join('')}</tr>`;
+    cols.map(c => th(c.key, _escName(c.label) + (c.key === 'carnet' ? ` <span class="el-th-sub">· ${avecMbnL ? 'total année' : 'cumul'}</span> ` + _obsFenetrePickHTML(cls) : ''), TITRES[c.key])).join('')}</tr>`;
   const dot = (titre, onclick) => `<button class="el-0" ${onclick ? `onclick="${onclick}"` : ''} title="${_escAttr(titre)}" aria-label="${_escAttr(titre)}">·</button>`;
   const body = rowsData.map(({ s, r }) => {
     const sid = s.id, j = _escJsAttr(sid);
@@ -6452,9 +6495,9 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     };
     td.avis = () => _avisCelluleHTML(cls, campCour, sid);
     td.bilans = () => `<span class="el-bdots">${bcols.map((c, i) => {
-      const b = _bilanDeColonne(cls, sid, c);
-      const t = b ? `${c.long} — ${_fmtDateFr(b.date)}\n${b.texte}` : `${c.long} : à écrire`;
-      return `${i && bcols[i - 1].pIdx !== c.pIdx ? '<i class="el-bsep"></i>' : ''}<button class="el-bd${b ? ' f' : ''}" onclick="elevesBilanOuvrir('${j}','${_escJsAttr(c.key)}')" title="${_escAttr(t)}" aria-label="${_escAttr(c.long + (b ? ' : écrit' : ' : à écrire'))}"></button>`;
+      const b = _bilanDeColonne(cls, sid, c), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
+      const t = (b ? `${c.long} — ${_fmtDateFr(b.date)}\n${b.texte}` : `${c.long} : à écrire`) + (dc ? `\nDécisions : ${dc.texte}` : '');
+      return `${i && bcols[i - 1].pIdx !== c.pIdx ? '<i class="el-bsep"></i>' : ''}<button class="el-bd${b ? ' f' : ''}${dc ? ' d' : ''}" onclick="elevesBilanOuvrir('${j}','${_escJsAttr(c.key)}')" title="${_escAttr(t)}" aria-label="${_escAttr(c.long + (b ? ' : écrit' : ' : à écrire'))}"></button>`;
     }).join('')}</span>`;
     td.rem = () => s.remarque ? `<button class="el-rem" onclick="openRemarque('${j}')" title="${_escAttr(s.remarque)}">${_escName(s.remarque)}</button>` : dot('Pas de remarque — clic : en écrire une', `openRemarque('${j}')`);
     return `<tr class="${isFuture || isGone ? 'inactive' : ''}${fiche === sid ? ' el-cur' : ''}" onclick="_elevesLigneClic(event,'${j}')">
@@ -6672,6 +6715,9 @@ function _fichePdcHint(cls) {
 function ficheSupprimer() { const sid = _ficheSid; if (!sid) return; closeMod2('mfiche'); deleteStudent(sid); }
 // v1.46.11 : la fenêtre s'ouvre PAR-DESSUS la fiche (empilement d'openMod) ; la fiche reste
 // derrière et se redessine à la fermeture — avant, elle se fermait et se rouvrait.
+// Les contacts : la MÊME fenêtre que depuis la liste, par-dessus la fiche (v1.47.0, audit C5 —
+// la fiche avait son propre formulaire, où seul le texte se corrigeait).
+function ficheVersContacts() { openContacts(_ficheSid); _modalReturnTo['mcontacts'] = () => { if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); }; }
 function ficheVersEdition() { openEdit(_ficheSid); _modalReturnTo['me'] = () => { if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender(); }; }
 // Même aller-retour pour un incident : la fiche est l'écran de LECTURE, la saisie a sa
 // modale — et l'on retombe sur la fiche, pour voir l'entrée à sa place dans l'histoire.
@@ -7405,7 +7451,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
     ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
-    ${card('contact', 'Contacts avec la famille', ct.length, (_ficheEdit === 'contact' ? ed.contactForm : '') + (ouEdit('contacts') ? `<div class="pf-edbox">${ed.jHTML}</div>` : ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add("ficheEdit('contact')", 'Noter un contact') + pen('contacts', 'Corriger ou supprimer un contact — toute l\'année'))}
+    ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
     ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
       return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : `<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
   </div>`;
@@ -7710,11 +7756,19 @@ function openBilan(sid, id, opts) {
   if (d) d.value = e ? e.date : (_bilanMode ? _bilanMode.date : _ymdClampAnnee(cls, _todayYmd()));
   const tx = document.getElementById('mbilan-txt');
   if (tx) tx.value = e ? e.texte : '';
+  // Les décisions du même moment (v1.47.0 — elles n'existaient que dans la fiche, audit C1).
+  _bilanDecCharge();
   const del = document.getElementById('mbilan-del');
   if (del) del.style.display = e ? '' : 'none';
   _bilanHint();
   const mo = document.getElementById('mbilan');
   if (mo && !mo.classList.contains('on')) openMod('mbilan'); else if (tx) { tx.focus(); }
+}
+function _bilanDecCharge() {
+  const stu = S.eleves[_bilanSid], cls = stu && S.classes[stu.classe_id], dc = document.getElementById('mbilan-dec');
+  if (!dc || !cls) return;
+  const dd = _decisionCible(cls, _bilanSid, { type: document.getElementById('mbilan-type')?.value || 'conseil', date: document.getElementById('mbilan-date')?.value });
+  dc.value = dd ? dd.texte : '';
 }
 function _bilanHint() {
   const stu = S.eleves[_bilanSid];
@@ -7754,16 +7808,22 @@ function _bilanCommit() {
   if (champD && d && d !== champD.value) champD.value = d;
   const type = document.getElementById('mbilan-type')?.value;
   const texte = (document.getElementById('mbilan-txt')?.value || '').trim();
+  const dec = (document.getElementById('mbilan-dec')?.value || '').trim();
+  const cls = S.classes[stu.classe_id];
   const e = _bilanId ? _bilansOf(_bilanSid).find(x => x.id === _bilanId) : null;
-  if (!texte) {
-    if (!e) return true;                       // rien tapé, rien à créer
-    toast('⚠️ Un bilan vide se supprime (🗑), il ne se vide pas.', 'warn'); return false;
-  }
-  if (!_ymdValid(d)) { toast('⚠️ Date illisible.', 'warn'); return false; }
-  if (e && e.date === d && e.type === type && e.texte === texte) return true;
+  if (!texte && e) { toast('⚠️ Un bilan vide se supprime (🗑), il ne se vide pas.', 'warn'); return false; }
+  if ((texte || dec) && !_ymdValid(d)) { toast('⚠️ Date illisible.', 'warn'); return false; }
+  // Le bilan et les décisions du même moment : un seul cran d'undo pour les deux.
+  const bilanChange = !!texte && !(e && e.date === d && e.type === type && e.texte === texte);
+  const avantDec = cls && _ymdValid(d) ? _decisionCible(cls, _bilanSid, { type, date: d }) : null;
+  const decChange = !!cls && _ymdValid(d) && (avantDec ? avantDec.texte : '') !== dec;
+  if (!bilanChange && !decChange) return true;
   pushUndo();
-  if (e) bilanSet(_bilanSid, e.id, { date: d, type, texte });
-  else { const n = bilanAdd(_bilanSid, { date: d, type, texte }); if (n) _bilanId = n.id; }
+  if (bilanChange) {
+    if (e) bilanSet(_bilanSid, e.id, { date: d, type, texte });
+    else { const n = bilanAdd(_bilanSid, { date: d, type, texte }); if (n) _bilanId = n.id; }
+  }
+  if (decChange) decisionSet(cls, _bilanSid, { type, date: d }, dec);
   save();
   renderStudents();
   if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
@@ -7783,7 +7843,7 @@ function bilanNav(dir) {
   const cls = stu && S.classes[stu.classe_id];
   const e = !cls ? null : _bilanMode ? _bilanCible(cls, suivant, _bilanMode) : _bilanPeriode(cls, suivant, _carnetCurrentPeriodIdx(cls), type);
   openBilan(suivant, e ? e.id : null, { nouveau: !e });
-  if (!e) { const sel = document.getElementById('mbilan-type'); if (sel && type) sel.value = type; _bilanHint(); }
+  if (!e) { const sel = document.getElementById('mbilan-type'); if (sel && type) sel.value = type; _bilanHint(); _bilanDecCharge(); }
 }
 function bilanRemoveUI(sid, id) {
   const s = sid || _bilanSid, i = id || _bilanId;
@@ -9801,7 +9861,6 @@ function _relArmUndo() {
   _relUndoTimer = setTimeout(() => { _relUndoArmed = false; }, 2000);
 }
 
-function setCarnetSort(v) { carnetSort = v; renderCarnets(); }
 function setCarnetShowGone(on) { _carnetShowGone = !!on; renderCarnets(); }
 
 // Période « courante » de la grille : celle du dernier relevé, sinon celle d'aujourd'hui.
@@ -9825,7 +9884,9 @@ function _carnetRows(cls) {
   const descNullLast = (fa, fb) => (fa === null ? -Infinity : fa) < (fb === null ? -Infinity : fb) ? 1 : (fa === fb ? 0 : -1);
   const curP = _periods(cls)[curIdx];
   const curMbn = s => curP ? _obsMbnEntre(s.id, curP.start, curP.end).length : 0;
+  const curSom = s => (curTotal(s) || 0) + curMbn(s);
   if (carnetSort === 'mbn') rows.sort((a, b) => (curMbn(b) - curMbn(a)) || byName(a, b));
+  else if (carnetSort === 'somme') rows.sort((a, b) => (curSom(b) - curSom(a)) || byName(a, b));
   else if (carnetSort === 'delta' || carnetSort === 'total') {
     rows.sort((a, b) => carnetSort === 'delta'
       ? (descNullLast(lastDelta(a), lastDelta(b)) || byName(a, b))
@@ -9834,7 +9895,7 @@ function _carnetRows(cls) {
     const ordre = _sortStudents(rows.map(s => s.id), carnetSort, cls);
     rows.sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
   }
-  return rows;
+  return _triInverse('carnet', carnetSort, rows);
 }
 // Δ dernier = évolution au dernier relevé CHIFFRÉ de l'élève — pas de la dernière
 // colonne : sinon le signal s'éteint pour toute la classe dès qu'on ouvre une colonne
@@ -9868,10 +9929,7 @@ function renderCarnets() {
   const toolbar = `<div class="tb">
       <button class="btn btn-p btn-sm" onclick="openReleveNew()" title="Ajouter une colonne : la date du jour où vous relevez les carnets">+ Relever les carnets</button>
       <button class="btn btn-g btn-sm" onclick="openObsMbnImport()" title="Reprendre les observations saisies par les collègues dans Mon Bureau Numérique (export .xlsx) : comptées à part, à côté du carnet">📥 Observations MBN…</button>
-      ${_sortPickerHTML(carnetSort, 'setCarnetSort(this.value)', cls, [
-        { key: 'delta', label: 'par Δ du dernier relevé — à voir en priorité' },
-        { key: 'total', label: `par total ${periods[curIdx]?.label || ''}` },
-        ...(mbnAny ? [{ key: 'mbn', label: `par observations MBN ${periods[curIdx]?.label || ''}` }] : [])])}
+      ${_ordrePassageHTML('carnet', cls)}
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer">
         <input type="checkbox"${_carnetShowGone ? ' checked' : ''} onchange="setCarnetShowGone(this.checked)"> élèves partis
       </label>
@@ -9894,7 +9952,7 @@ function renderCarnets() {
   const periodsShown = periods.filter(p => dates.some(d => d >= p.start && d <= p.end) || (mbnAny && rows.some(s => _obsMbnEntre(s.id, p.start, p.end).length)));
   const pCur = periods[curIdx];
   const mbnTip = p => `Observations notées dans Mon Bureau Numérique pendant la période ${p.label} (${_fmtDateFr(p.start)} → ${_fmtDateFr(p.end)}) — importées par 📥 Observations MBN…, comptées une par une`;
-  const mbnTh = p => `<th class="rel-period rel-mbn${p.n - 1 === curIdx ? ' cur' : ''}" title="${_escAttr(mbnTip(p))}">MBN ${_escName(p.label)}</th>`;
+  const mbnTh = p => `<th class="rel-period rel-mbn${p.n - 1 === curIdx ? ' cur' : ''}" title="${_escAttr(mbnTip(p))}">${p.n - 1 === curIdx ? _triTeteHTML('carnet', 'mbn', `MBN ${_escName(p.label)}`, 'Trier par observations MBN de la période, le plus d\'abord') : `MBN ${_escName(p.label)}`}</th>`;
   const mbnTd = (s, p) => { const x = _obsMbnEntre(s.id, p.start, p.end);
     return `<td class="rel-period rel-mbn${p.n - 1 === curIdx ? ' cur' : ''}">${x.length ? `<button class="rel-mbn-n" onclick="openFiche('${_escJsAttr(s.id)}')" title="${_escAttr(x.map(_obsMbnTexte).join('\n') + '\nClic : la fiche')}">${x.length}</button>` : '<span class="tb-hint">—</span>'}</td>`; };
   const sommeTip = pCur ? `Carnet + MBN sur la période ${pCur.label} : le total du carnet plus les observations MBN. ⚠️ Une observation notée aux deux endroits y compte deux fois.` : '';
@@ -9902,7 +9960,7 @@ function renderCarnets() {
     return `<td class="rel-period rel-somme cur">${t === null && !n ? '<span class="tb-hint">—</span>' : (t || 0) + n}</td>`; };
 
   const head = `<tr>
-      <th class="rel-name">Élève</th>
+      <th class="rel-name">${_triNomHTML('carnet')}</th>
       ${dates.map(d => {
         const rel = S.releves[cls.id][d];
         const filled = rows.filter(s => _relValue(rel, s.id) !== null).length;
@@ -9913,9 +9971,10 @@ function renderCarnets() {
           <div class="rel-filled${filled < rows.length ? ' partial' : ''}" title="${filled} élève${filled > 1 ? 's' : ''} relevé${filled > 1 ? 's' : ''} sur ${rows.length}">${filled}/${rows.length}</div>
         </th>`;
       }).join('')}
-      <th class="rel-delta" title="Évolution au dernier relevé chiffré de l'élève, par rapport au précédent (les absents et les vides sont sautés)">Δ dernier</th>
-      ${periodsShown.map(p => `<th class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}" title="Total de la période ${_escAttr(p.label)} (${_escAttr(_fmtDateFr(p.start))} → ${_escAttr(_fmtDateFr(p.end))}) = dernier cumul de la période − dernier cumul d'avant">${mbnAny ? 'Carnet ' : ''}${_escName(p.label)}</th>${mbnAny ? mbnTh(p) : ''}`).join('')}
-      ${mbnAny && pCur ? `<th class="rel-period rel-somme cur" title="${_escAttr(sommeTip)}">Carnet + MBN ${_escName(pCur.label)}</th>` : ''}
+      <th class="rel-delta">${_triTeteHTML('carnet', 'delta', 'Δ dernier', 'Évolution au dernier relevé chiffré de l\'élève, par rapport au précédent (les absents et les vides sont sautés) — clic : trier, le plus fort d\'abord')}</th>
+      ${periodsShown.map(p => { const lab = `${mbnAny ? 'Carnet ' : ''}${_escName(p.label)}`;
+        return `<th class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}" title="Total de la période ${_escAttr(p.label)} (${_escAttr(_fmtDateFr(p.start))} → ${_escAttr(_fmtDateFr(p.end))}) = dernier cumul de la période − dernier cumul d'avant">${p.n - 1 === curIdx ? _triTeteHTML('carnet', 'total', lab, 'Trier par total du carnet sur la période, le plus d\'abord') : lab}</th>${mbnAny ? mbnTh(p) : ''}`; }).join('')}
+      ${mbnAny && pCur ? `<th class="rel-period rel-somme cur" title="${_escAttr(sommeTip)}">${_triTeteHTML('carnet', 'somme', `Total ${_escName(pCur.label)}<br><small>carnet + MBN</small>`, 'Trier par total de la période, carnet et MBN, le plus d\'abord')}</th>` : ''}
     </tr>`;
 
   const body = rows.map(s => {
@@ -9939,7 +9998,7 @@ function renderCarnets() {
     const ld = lastDelta(s);
     const ldCls = ld === null ? '' : ld >= 5 ? ' hot' : ld >= 2 ? ' warm' : '';
     return `<tr${inactive ? ' class="inactive"' : ''}>
-      <td class="rel-name">${_nomHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${_ageSubHTML(s)}</td>
+      <td class="rel-name">${_nomFicheHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${_ageSubHTML(s)}</td>
       ${cells}
       <td class="rel-delta${ldCls}">${ld === null ? '<span class="tb-hint">—</span>' : (ld > 0 ? '+' + ld : ld)}</td>
       ${periodsShown.map(p => { const t = _relPeriodTotal(cls.id, s.id, p.n - 1); return `<td class="rel-period${p.n - 1 === curIdx ? ' cur' : ''}">${t === null ? '<span class="tb-hint">—</span>' : t}</td>${mbnAny ? mbnTd(s, p) : ''}`; }).join('')}
@@ -11021,7 +11080,6 @@ function docGripKey(e) {
   if (g) g.focus();
 }
 
-function setDocSort(v) { _docSort = v; renderDocuments(); }
 function openDoc(id) { _docView = id; renderDocuments(); }
 function closeDoc() { _docView = null; renderDocuments(); }
 
@@ -11037,6 +11095,7 @@ function _renderDocDetail(el, doc) {
   const exp = attendus.slice().sort((a, b) =>
     (multi ? String(S.classes[a.classe_id]?.nom).localeCompare(String(S.classes[b.classe_id]?.nom), 'fr') : 0)
     || (ordre.indexOf(a.id) - ordre.indexOf(b.id)));
+  _triInverse('doc', _docSort, exp);
   const champs = doc.champs || [];
   const suivi = doc.suiviRetour !== false;
   const head = `<div class="tb">
@@ -11051,9 +11110,9 @@ function _renderDocDetail(el, doc) {
         <button class="btn btn-g btn-sm" onclick="openDocEdit('${_escJsAttr(doc.id)}')" title="Réglages du document">✏️ Réglages</button>
       </span>
     </div>
-    <div class="tb" style="margin-top:-6px">${_sortPickerHTML(_docSort, 'setDocSort(this.value)', getCls())}
-      <span class="tb-hint" style="margin-left:auto">Trier par place ou par ordre de ramassage pour vérifier les signatures en passant dans les rangs.</span>
-    </div>
+    ${(op => op ? `<div class="tb" style="margin-top:-6px">${op}
+      <span class="tb-hint" style="margin-left:auto">Un ordre de passage pour vérifier les signatures dans les rangs ; sinon, on trie par les en-têtes.</span>
+    </div>` : '')(_ordrePassageHTML('doc', getCls()))}
     ${doc.description ? `<div class="tb-hint" style="margin:-6px 0 10px">${_escName(doc.description)}</div>` : ''}`;
   if (!exp.length) { el.innerHTML = head + _emptyStateHTML('👥', 'Aucun élève attendu', 'Les classes de ce document n\'ont pas d\'élève présent à sa date de référence.'); return; }
 
@@ -11073,7 +11132,7 @@ function _renderDocDetail(el, doc) {
         <option value="">—</option>${opts.map(x => `<option value="${_escAttr(x.id)}"${x.id === cur ? ' selected' : ''}>${_escName(x.label)}</option>`).join('')}</select></td>`;
     }).join('');
     return `<tr>
-      <td>${_nomHTML(s.id, s.nom, s.prenom)}${multi ? ` <span class="tb-hint">${_escName(S.classes[s.classe_id]?.nom || '')}</span>` : ''}${_ageSubHTML(s)}</td>
+      <td>${_nomFicheHTML(s.id, s.nom, s.prenom)}${multi ? ` <span class="tb-hint">${_escName(S.classes[s.classe_id]?.nom || '')}</span>` : ''}${_ageSubHTML(s)}</td>
       ${suivi ? `<td style="text-align:center"><input type="checkbox" class="doc-rendu"${r.rendu ? ' checked' : ''} onchange="docSetRenduUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.checked)" title="${r.rendu ? 'Rendu — décocher si ce n\'est pas le bon élève' : 'Cocher quand le papier est rendu (la date du jour est posée)'}"></td>
       <td><input type="date" class="doc-date" value="${_escAttr(r.dateRetour || '')}" onchange="docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.value)" title="Date de retour"${r.rendu ? '' : ' disabled'}></td>` : ''}
       ${cells}
@@ -11082,7 +11141,7 @@ function _renderDocDetail(el, doc) {
   }).join('');
   const keep = _wrapScrollKeep(el);
   el.innerHTML = head + `<div class="rel-wrap frozen"><table class="dt doc-table"><thead><tr>
-      <th>Élève</th>${suivi ? '<th style="text-align:center" title="Papier rendu">Rendu</th><th>Date</th>' : ''}${thChamps}<th>Note</th>
+      <th>${_triNomHTML('doc')}</th>${suivi ? '<th style="text-align:center" title="Papier rendu">Rendu</th><th>Date</th>' : ''}${thChamps}<th>Note</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
     ${champs.length ? `<div class="tb-hint" style="margin-top:8px">👤 = champ rempli par le PP · les réponses se cochent même si le papier n'est pas rendu (dit à l'oral), et un papier rendu peut rester sans réponse (illisible, à relancer).</div>` : ''}`;
   keep();
@@ -11168,7 +11227,7 @@ function _renderRamassage(el) {
   // ses élèves à elle — une grille où l'on coche les papiers de gens qu'on n'a pas devant soi.
   _ramSel = (_ramSel || []).filter(id => S.documents[id] && (S.documents[id].classIds || []).includes(cls.id));
   const sel = _ramSel.map(id => S.documents[id]);
-  const toutes = _ramRows(_ramSel, cls.id, _ramSort);
+  const toutes = _triInverse('ram', _ramSort, _ramRows(_ramSel, cls.id, _ramSort));
   // ⚠️ Les élèves PARTIS restent attendus sur les documents distribués de leur vivant
   // dans la classe — c'est juste, et la liste des manquants doit les garder. Mais ici on
   // est physiquement dans les rangs : on ne ramasse rien auprès de quelqu'un qui n'est
@@ -11182,7 +11241,7 @@ function _renderRamassage(el) {
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px">Reçus le
         <input type="date" id="ram-date" value="${_escAttr(_ramDate || _todayYmd())}" onchange="ramSetDate(this.value)"
                title="Date portée sur les retours cochés à partir de maintenant — on saisit souvent le soir, ou le lendemain matin avec la pile sur le bureau"></label>
-      ${_sortPickerHTML(_ramSort, 'setRamSort(this.value)', cls)}
+      ${_ordrePassageHTML('ram', cls)}
       ${partis ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Ils restent comptés dans les manquants du document, mais on ne peut rien ramasser auprès d'eux"><input type="checkbox"${_ramShowGone ? ' checked' : ''} onchange="_ramShowGone=this.checked;renderDocuments()"> ${partis} parti${partis > 1 ? 's' : ''}</label>` : ''}
       <span class="tb-hint" id="ram-hint" style="margin-left:auto"></span>
       <button class="btn btn-g btn-sm" onclick="openGridPrint()" title="Imprimer cette grille — ou l'enregistrer en PDF — pour la remplir au stylo dans les rangs">🖨 Imprimer…</button>
@@ -11241,14 +11300,14 @@ function _renderRamassage(el) {
                onchange="ramToggle(this)" onkeydown="ramCellKey(event)" title="${_escAttr(titre)}">${chips}</td>`;
     }).join('');
     return `<tr${r.actif ? '' : ' class="inactive"'}>
-      <td class="rel-name">${_nomHTML(r.sid, r.nom, r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}
+      <td class="rel-name">${_nomFicheHTML(r.sid, r.nom, r.prenom)}${r.actif ? '' : ' <span class="tb-hint">(parti)</span>'}
         <span class="ram-reste" id="ram-r-${_escAttr(r.sid)}">${_ramResteHTML(r)}</span></td>
       ${cells}</tr>`;
   }).join('');
 
   const keep = _wrapScrollKeep(el);
   el.innerHTML = head + pick + `<div class="rel-wrap frozen"><table class="dt rel-table ram-table">
-    <thead><tr><th class="rel-name">Élève</th>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+    <thead><tr><th class="rel-name">${_triNomHTML('ram')}</th>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   keep();
   _renderRamassageHint();
 }
@@ -11317,7 +11376,6 @@ function ramRepToggle(docId, sid, champId, optionId) {
 // Replier / déplier les réponses d'une colonne. Simple affichage : rien n'est muté,
 // donc pas de pushUndo — et les compteurs « à lire » restent justes, une réponse repliée
 // reste une réponse attendue.
-function setRamSort(v) { _ramSort = v; renderDocuments(); }
 function ramToggleRep(docId) {
   if (_ramRepOff.has(docId)) _ramRepOff.delete(docId); else _ramRepOff.add(docId);
   renderDocuments();
@@ -13155,7 +13213,6 @@ const _MOY_STATS = [
   { key: 'n',         label: 'Notes',      fmt: s => String(s.n), tip: 'Nombre d\'élèves ayant une moyenne chiffrée (les codes Abs, Disp… et les cases vides n\'y entrent pas)' },
 ];
 
-function setMoySort(v) { moySort = v; renderMoyennes(); }
 function setMoyVue(v) { _moyVue = v === 'evolution' ? 'evolution' : 'tableau'; renderMoyennes(); }
 function setMoyPeriode(v) { _moyPeriodeSel = v; _moyRidSel = null; renderMoyennes(); }
 function setMoyRid(v) { _moyRidSel = v; renderMoyennes(); }
@@ -13198,12 +13255,14 @@ function _moySortRows(cls, rel, rows) {
   // Croissant, les « pas de nombre » en fin : on trie pour voir d'abord qui décroche.
   const asc = f => (a, b) => { const x = f(a), y = f(b);
     return (typeof x === 'number' ? x : Infinity) - (typeof y === 'number' ? y : Infinity) || byName(a, b); };
-  if (moySort === 'gen') return rows.sort(asc(s => _moyGen(rel, s.id)));
-  if (moySort === 'dgen') return rows.sort(asc(s => _moyDelta(cls.id, rel.id, s.id, null)?.delta));
-  if (moySort === 'sous10') return rows.sort((a, b) => _moySous10(rel, b.id) - _moySous10(rel, a.id) || byName(a, b));
-  if (moySort.startsWith('mat:')) { const mid = moySort.slice(4); return rows.sort(asc(s => _moyVal(rel, s.id, mid))); }
-  const ordre = _sortStudents(rows.map(s => s.id), moySort, cls);
-  return rows.sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
+  // Plus d'ordre de passage dans Moyennes (v1.47.0) : un mode de place resté retombe sur le nom.
+  if (/^(place|pat-)/.test(String(moySort))) moySort = 'nom';
+  const r = moySort === 'gen' ? rows.sort(asc(s => _moyGen(rel, s.id)))
+    : moySort === 'dgen' ? rows.sort(asc(s => _moyDelta(cls.id, rel.id, s.id, null)?.delta))
+    : moySort === 'sous10' ? rows.sort((a, b) => _moySous10(rel, b.id) - _moySous10(rel, a.id) || byName(a, b))
+    : String(moySort).startsWith('mat:') ? (mid => rows.sort(asc(s => _moyVal(rel, s.id, mid))))(moySort.slice(4))
+    : (ordre => rows.sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id)))(_sortStudents(rows.map(s => s.id), moySort, cls));
+  return _triInverse('moy', moySort, r);
 }
 
 function renderMoyennes() {
@@ -13244,7 +13303,8 @@ function renderMoyennes() {
     { key: 'sous10', label: 'par nombre de matières sous 10' },
     ...cols.map(m => ({ key: 'mat:' + m.id, label: `par ${_moyAbbr(m.nom)} — la plus basse d'abord` })),
   ];
-  const sortSel = _moyVue === 'tableau' ? _sortPickerHTML(moySort, 'setMoySort(this.value)', cls, extra) : '';
+  // Plus de menu « Trier » (v1.47.0) : on trie par les en-têtes — nom, prénom, matière, Moy., < 10.
+  const sortSel = '';
   const statSel = _moyVue === 'evolution' ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Afficher
       <select onchange="setMoyEvoStat(this.value)" style="font-size:.95em;padding:2px 6px">${
         _MOY_STATS.map(s => `<option value="${s.key}"${s.key === _moyEvoStat ? ' selected' : ''}>${_escName(s.label.toLowerCase())}</option>`).join('')}</select></label>` : '';
@@ -13279,17 +13339,17 @@ function _moyTableauHTML(cls, rel, list, roster, cols, hasGen) {
     const nouv = _moyColNouvelle(cls.id, rel.id, m.id);
     const profs = rel.profs?.[m.id] || '';
     return `<th class="moy-mat" title="${_escAttr(m.nom + (profs ? ' — ' + profs : '') + (nouv ? '\nNouvelle colonne : absente de l\'import précédent' : ''))}">
-      <button class="moy-th-btn" onclick="setMoySort('mat:${_escJsAttr(m.id)}')" title="Trier par ${_escAttr(m.nom)}, la plus basse d'abord">${_escName(_moyAbbr(m.nom))}</button>${
+      ${_triTeteHTML('moy', 'mat:' + m.id, _escName(_moyAbbr(m.nom)), `Trier par ${m.nom}, la plus basse d'abord`)}${
       nouv ? '<span class="moy-new">nouvelle</span>' : ''}${profs ? `<span class="moy-profs">${_escName(profs)}</span>` : ''}</th>`;
   };
-  const head = `<tr><th class="rel-name">Élève</th>${cols.map(matTh).join('')}${
-    hasGen ? `<th class="moy-gen" title="Moyenne générale telle que calculée par le bureau numérique (coefficients compris)"><button class="moy-th-btn" onclick="setMoySort('gen')">Moy.</button></th>` : ''}
-    <th class="moy-s10" title="Nombre de matières où l'élève est sous 10"><button class="moy-th-btn" onclick="setMoySort('sous10')">&lt; 10</button></th></tr>`;
+  const head = `<tr><th class="rel-name">${_triNomHTML('moy')}</th>${cols.map(matTh).join('')}${
+    hasGen ? `<th class="moy-gen" title="Moyenne générale telle que calculée par le bureau numérique (coefficients compris)">${_triTeteHTML('moy', 'gen', 'Moy.', 'Trier par moyenne générale, la plus basse d\'abord')}</th>` : ''}
+    <th class="moy-s10" title="Nombre de matières où l'élève est sous 10">${_triTeteHTML('moy', 'sous10', '&lt; 10', 'Trier par nombre de matières sous 10, le plus d\'abord')}</th></tr>`;
   const body = rows.map(s => {
     const n10 = _moySous10(rel, s.id);
     const inactive = !_isStudentActive(s);
     return `<tr${inactive ? ' class="inactive"' : ''}>
-      <td class="rel-name"><a href="#" onclick="openFiche('${_escJsAttr(s.id)}');return false" title="Ouvrir la fiche : l'évolution de ses moyennes y est retracée"><strong>${_escName(s.nom)}</strong> ${_escName(s.prenom)}</a>${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${
+      <td class="rel-name">${_nomFicheHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${
         !rel.notes?.[s.id] && _moyGen(rel, s.id) === null ? ' <span class="tb-hint" title="Absent du fichier importé">(absent du fichier)</span>' : ''}</td>
       ${cols.map(m => _moyCellHTML(cls, rel, s.id, m.id)).join('')}
       ${hasGen ? _moyCellHTML(cls, rel, s.id, null, 'moy-gen') : ''}
