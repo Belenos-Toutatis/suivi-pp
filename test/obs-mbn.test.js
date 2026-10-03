@@ -270,3 +270,34 @@ test('« +n » : depuis une durée choisie (📅), carnet et MBN confondus ; le 
   assert.strictEqual((html.match(/obsFenetreSet\('/g) || []).length, 5);
   assert.match(html, /Depuis le début du semestre/);
 });
+
+test('Carte de chaleur : ses moments ne dépendent pas de 🗓 Moments ; le titre « Synthèse pour » ouvre la liste à cocher ; le compte est à droite des filtres', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = ''; _ficheMoment = null; S.prefs.bilansMasques = []; S.prefs.chaleurMoments = undefined;`);
+  const vus = () => evObj(`_chaleurMoments(getCls()).map(c => c.key)`);
+  assert.ok(vus().includes('bil:miperiode:0') && vus().includes('bil:conseil:0'));
+  // Retirée de la liste (🗓 Moments), la mi-période reste proposée dans la carte de chaleur.
+  ev(`S.prefs.bilansMasques = ['bil:miperiode:0']`);
+  assert.ok(vus().includes('bil:miperiode:0'));
+  assert.ok(!evObj(`_ficheMoments(getCls()).map(c => c.key)`).includes('bil:miperiode:0'), 'la fiche, elle, suit la liste');
+  // Tous les mois sont proposables (ni août ni juillet) ; on coche / décoche.
+  const tous = evObj(`_chaleurMomentsTous(getCls()).map(c => c.key)`);
+  assert.ok(tous.includes('bil:mois:2025-10') && !tous.some(k => /-0[78]$/.test(k)));
+  assert.ok(!vus().includes('bil:mois:2025-10'));
+  ev(`undoStack.length = 0; chaleurMomentVu('bil:mois:2025-10', true)`);
+  assert.ok(vus().includes('bil:mois:2025-10'));
+  assert.strictEqual(ev(`undoStack.length`), 1);
+  ev(`chaleurMomentVu('bil:miperiode:0', false)`);
+  assert.ok(!vus().includes('bil:miperiode:0'));
+  // La liste à cocher est derrière le titre.
+  const barre = evObj(`_elevesChaleurHTML(getCls(), _elevesRows(getCls()), [])`).barre;
+  assert.match(barre, /<summary[^>]*>Synthèse pour ▾<\/summary>/);
+  assert.match(barre, /chaleurMomentVu\('bil:mois:2025-10', this\.checked\)/);
+  // Le compte : à droite des filtres, pas de seconde ligne.
+  ev(`try { localStorage.setItem('suiviPP_elevesAffichage', 'chaleur'); } catch (_) {}`);
+  const html = ev(`(() => { const z = document.createElement('div'); const o = document.getElementById; document.getElementById = x => x === 'eleves-body' ? z : o.call(document, x);
+    try { renderStudents(); return z.innerHTML; } finally { document.getElementById = o; } })()`);
+  assert.strictEqual(ev(`_elevesAffichage()`), 'chaleur');
+  assert.ok(!html.includes('el-vues-tb'), 'pas de seconde ligne');
+  assert.match(html, /margin-left:auto"><span class="tb-hint">\d+ élèves? sur \d+/);
+  ev(`try { localStorage.removeItem('suiviPP_elevesAffichage'); } catch (_) {} S.prefs.chaleurMoments = undefined; S.prefs.bilansMasques = [];`);
+});

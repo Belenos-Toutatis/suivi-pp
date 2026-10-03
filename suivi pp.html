@@ -1531,6 +1531,8 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .pf-meta { font-size: 13px; color: var(--pencil); }
 .fi-bar { gap: 8px 16px !important; }
 .pf-grp { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.ch-mom-pick > summary { cursor: pointer; margin-right: 0; }
+.ch-mom-pick .el-fen-l { text-transform: none; letter-spacing: 0; font-size: 14px; }
 .ch-mom { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 8px; }
 .pf-sl { font-size: 12px; color: var(--pencil); margin-right: 6px; text-transform: uppercase; letter-spacing: .05em; }
 .pf-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule-line); border-radius: 6px; overflow: hidden; background: var(--pf-card); }
@@ -2747,8 +2749,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.46.6';
-const APP_BUILD_DATE = '2026-10-03T05:03:43Z';
+const APP_VERSION    = '1.46.7';
+const APP_BUILD_DATE = '2026-10-03T05:10:08Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6045,7 +6047,7 @@ function _moisDe(p) {
 // la fiche (`_ficheMoment`, partagé), par défaut le conseil de la période courante — c'est-à-dire
 // la période entière, comme avant. `p` porte les bornes du moment (`_ficheBornes`), `p0` la période.
 function _chaleurGroupes(cls, bcols, colM) {
-  const cid = cls.id, col = colM || _ficheMomentCourant(cls);
+  const cid = cls.id, col = colM || _chaleurMomentCourant(cls);
   const pIdx = col ? col.pIdx : _carnetCurrentPeriodIdx(cls), p0 = _periods(cls)[pIdx];
   if (!p0) return [];
   const B = col ? _ficheBornes(cls, col) : null;
@@ -6143,16 +6145,59 @@ function _chaleurGroupes(cls, bcols, colM) {
     sum: sid => ['ch-bil', bcols.map(c => _bilanDeColonne(cls, sid, c) ? '●' : '○').join(''), bcols.map(c => `${c.court} : ${_bilanDeColonne(cls, sid, c) ? 'écrit' : '—'}`).join('\n')] });
   return G;
 }
+// Les moments de la barre *Synthèse pour* de la carte de chaleur (v1.46.7, l'utilisateur :
+// « qu'ils ne soient pas limités par ceux cochés dans les indicateurs ; en cliquant sur le titre
+// Synthèse pour, la liste de ceux qui doivent être affichés »). Indépendants de 🗓 Moments.
+// Tous les moments possibles, période par période jusqu'à la courante : le conseil, la
+// mi-période et chaque mois (ni août ni juillet). Affichés d'office : conseil, mi-période et
+// les mois qui ont un bilan ; `S.prefs.chaleurMoments = { plus: [clé], moins: [clé] }` ajoute
+// et retire. PUR : [{ ...colonne, pIdx, vu }].
+function _chaleurMomentsTous(cls) {
+  const pCour = _carnetCurrentPeriodIdx(cls), ps = _periods(cls), out = [];
+  const pr = _isPlainObj(_prefs().chaleurMoments) ? _prefs().chaleurMoments : {};
+  const plus = new Set(Array.isArray(pr.plus) ? pr.plus : []), moins = new Set(Array.isArray(pr.moins) ? pr.moins : []);
+  for (let i = 0; i <= pCour && ps[i]; i++) {
+    const avec = new Set(_bilanColonnes(cls, i, [`bil:miperiode:${i}`]).map(c => c.key));
+    const mois = _bilanColsProposables(cls, i, []).map(o => o.key).filter(k => k.startsWith('bil:mois:'));
+    for (const c of _bilanColonnes(cls, i, [`bil:miperiode:${i}`, ...mois]))
+      out.push({ ...c, pIdx: i, vu: (avec.has(c.key) || plus.has(c.key)) && !moins.has(c.key) });
+  }
+  return out;
+}
+function _chaleurMoments(cls) { const t = _chaleurMomentsTous(cls), v = t.filter(c => c.vu); return v.length ? v : t; }
+function _chaleurMomentCourant(cls) {
+  const t = _chaleurMomentsTous(cls), v = _chaleurMoments(cls), pC = _carnetCurrentPeriodIdx(cls);
+  return v.find(c => c.key === _ficheMoment) || t.find(c => c.key === _ficheMoment) || v.find(c => c.key === `bil:conseil:${pC}`) || v[v.length - 1] || null;
+}
+function chaleurMomentVu(k, on) {
+  const pr = _isPlainObj(_prefs().chaleurMoments) ? _prefs().chaleurMoments : {};
+  const plus = (Array.isArray(pr.plus) ? pr.plus : []).filter(x => x !== k), moins = (Array.isArray(pr.moins) ? pr.moins : []).filter(x => x !== k);
+  pushUndo();
+  _prefs().chaleurMoments = on ? { plus: [...plus, k], moins } : { plus, moins: [...moins, k] };   // ⚠️ remplacé, jamais modifié en place
+  save();
+  _chMomOpen = true;
+  renderStudents();
+}
+let _chMomOpen = false;
+function _chaleurMomentsPickHTML(cls) {
+  const t = _chaleurMomentsTous(cls), per = _periods(cls);
+  return `<details class="el-cols ch-mom-pick"${_chMomOpen ? ' open' : ''} ontoggle="_chMomOpen=this.open"><summary class="pf-sl" title="Choisir les moments proposés ici — indépendants de 🗓 Moments de la liste">Synthèse pour ▾</summary>
+    <div class="el-cols-p">${t.map((c, i) => `${i === 0 || t[i - 1].pIdx !== c.pIdx ? `<div class="el-cols-t">${_escName(per[c.pIdx]?.label || '')}</div>` : ''}<label class="el-fen-l"><input type="checkbox"${c.vu ? ' checked' : ''} onchange="chaleurMomentVu('${_escJsAttr(c.key)}', this.checked)"> ${_escName(c.long)}</label>`).join('')}</div></details>`;
+}
+document.addEventListener('click', e => {
+  const d = document.querySelector('.ch-mom-pick[open]');
+  if (d && e.target && document.contains(e.target) && !d.contains(e.target)) { d.open = false; _chMomOpen = false; }
+});
 function chaleurMomentSet(k) {
   _ficheMoment = k;
   renderStudents();
   if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
 }
 function _elevesChaleurHTML(cls, rowsData, bcols) {
-  const col = _ficheMomentCourant(cls), ms = _ficheMoments(cls);
+  const col = _chaleurMomentCourant(cls), ms = _chaleurMoments(cls);
   const B = col ? _ficheBornes(cls, col) : null;
-  const barre = col ? `<div class="ch-mom"><span class="pf-sl">Synthèse pour</span><span class="pf-seg">${ms.map(c => `<button class="${c.key === col.key ? 'on' : ''}" aria-pressed="${c.key === col.key}" onclick="chaleurMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span>
-    <span class="tb-hint">${_escName(col.long)} — du ${_escName(_fmtDateFr(_debutUtile(B.start) < B.end ? _debutUtile(B.start) : B.start))} au ${_escName(_fmtDateFr(B.end))} · le même choix que dans la fiche</span></div>` : '';
+  const barre = col ? `<div class="ch-mom">${_chaleurMomentsPickHTML(cls)}<span class="pf-seg">${ms.map(c => `<button class="${c.key === col.key ? 'on' : ''}" aria-pressed="${c.key === col.key}" onclick="chaleurMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span>
+    <span class="tb-hint">${_escName(col.long)} — du ${_escName(_fmtDateFr(_debutUtile(B.start) < B.end ? _debutUtile(B.start) : B.start))} au ${_escName(_fmtDateFr(B.end))}</span></div>` : '';
   const G = _chaleurGroupes(cls, bcols, col);
   const plis = _chaleurPlis();
   const td = ([c, t, tip], first) => `<td class="ch${first ? ' ch-g0' : ''}${c ? ' ' + c : ''}"${tip ? ` title="${_escAttr(tip)}"` : ''}>${_escName(t)}</td>`;
@@ -6202,8 +6247,10 @@ function renderStudents() {
   // Ligne 1 : l'affichage et les filtres. Ligne 2 (indicateurs) : la vue et les colonnes.
   const affHTML = `<div class="tb el-aff-tb"><span class="el-aff" role="group" aria-label="Affichage de la liste">${[['indic', '▦ Indicateurs', 'Une case par sujet : un repère court, le contenu au survol'], ['chaleur', '▥ Carte de chaleur', 'Une case par relevé, matière, discipline, papier, mois et bilan : ce qui est rempli, et quand']].map(([k, l, t]) =>
       `<button class="${aff === k ? 'on' : ''}" aria-pressed="${aff === k}" onclick="elevesAffichageSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
-    ${_elevesFiltresHTML(cls)}</div>`;
-  const vuesHTML = aff !== 'indic' ? `<div class="tb el-vues-tb">${compte}</div>` : `<div class="tb el-vues-tb">
+    ${_elevesFiltresHTML(cls)}${aff !== 'indic' ? `<span style="margin-left:auto">${compte}</span>` : ''}</div>`;
+  // Carte de chaleur : pas de seconde ligne — le compte est à droite des filtres (v1.46.7,
+  // l'utilisateur : « une ligne en trop qui prend de la place pour pas grand-chose »).
+  const vuesHTML = aff !== 'indic' ? '' : `<div class="tb el-vues-tb">
       <span class="el-sl">Vue</span><span class="el-aff" role="group" aria-label="Vue">${ELEVES_VUES.map(v => `<button class="${v.key === vueCour ? 'on' : ''}" aria-pressed="${v.key === vueCour}" onclick="elevesVueUI('${v.key}')">${_escName(v.label)}</button>`).join('')}</span>
       <span class="el-sl">Colonnes</span><span class="el-filtres">${ELEVES_COLS.map(c => { const on = _elevesColVue(c.key);
         return `<button class="el-chip col${on ? ' on' : ''}" aria-pressed="${on}" onclick="elevesColToggle('${c.key}',${!on})" title="${on ? 'Masquer' : 'Afficher'} la colonne (écran et papier)">${_escName(c.label)}</button>`; }).join('')}</span>

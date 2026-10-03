@@ -1298,7 +1298,17 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        *Observations du carnet* (les relevés), *Observations MBN* (les mois), puis **Total des
        observations** (`obstot`, une case *Carnet + MBN* depuis la rentrée au dernier jour du
        moment — `_obsTotalAn(cls, sid, fin)`). Replié, le groupe du carnet redevient le cumul et
-       l'évolution du carnet seul. Par défaut, le conseil de la période
+       l'évolution du carnet seul.
+       **v1.46.7** (l'utilisateur : *« que les moments de la synthèse ne soient pas limités par
+       ceux cochés dans les indicateurs ; en cliquant sur le titre Synthèse pour, la liste de ceux
+       qui doivent être affichés »*) : la barre a SES moments (`_chaleurMomentsTous`, pur) —
+       conseil, mi-période et chaque mois de chaque période jusqu'à la courante (ni août ni
+       juillet) ; d'office conseil, mi-période et les mois qui ont un bilan ; le titre *Synthèse
+       pour ▾* ouvre la liste à cocher (`chaleurMomentVu`, `S.prefs.chaleurMoments = { plus,
+       moins }`, remplacé jamais modifié en place, un cran d'undo). **Indépendants de 🗓 Moments**
+       (la fiche, elle, suit toujours 🗓 Moments) ; le moment choisi reste partagé avec la fiche
+       (`_chaleurMomentCourant`). Et la ligne « 25 élèves sur 25 » sous les filtres a disparu de
+       la carte de chaleur : le compte est à droite des filtres. Par défaut, le conseil de la période
        courante : la période entière, comme avant.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
@@ -1792,6 +1802,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 95 | **Carte de chaleur : moments de « Synthèse pour » à elle** (tous les mois proposables, liste à cocher sous le titre, indépendante de 🗓 Moments) · **compte d'élèves à droite des filtres** (une ligne de moins) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.7) |
 | 94 | **Carte de chaleur : Observations du carnet, puis MBN, puis Total des observations** (trois groupes) ; tests mis à jour. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.6) |
 | 93 | **« +n » depuis une durée choisie** (📅 dans l'en-tête Observations : 1 ou 2 semaines, 1 ou 2 mois, début de la période ; propre au poste), carnet + MBN ; filtre « Observations +3 ou plus » et colonne imprimée sur la même durée ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut (un débordement à 320 px trouvé et corrigé : la puce du filtre) | ✅ **fait** (2026-10-03, v1.46.5) |
 | 92 | **Carte de chaleur bornée au moment du bilan** (barre *Synthèse pour*, partagée avec la fiche) avec un **Total carnet + MBN** · liste : **« +n » de la période, carnet et MBN**, petite courbe = miniature de la fiche · dessins à partir du **1er septembre** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.4) |
