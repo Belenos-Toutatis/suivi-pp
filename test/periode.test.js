@@ -58,7 +58,7 @@ test('_periodeSynthese : tout est borné à la période — élèves présents, 
   assert.strictEqual(evObj(`_periodeSynthese(S.classes['5C'], 5)`), null);
 });
 
-test('_periodePrintHTML : tableau paysage ou fiches portrait, blocs choisis, tout échappé', () => {
+test('_periodePrintHTML : tableau paysage, blocs choisis, tout échappé ; les fiches bornées au moment', () => {
   ev(FIXTURE);
   ev(`S.eleves.s1.nom = 'DUR<b>AND'; bilanSet('s1', _bilansOf('s1')[0].id, { date:'2026-01-20', type:'conseil', texte:'<script>x' });`);
   const t = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs','bilan'], type:'conseil', forme:'tableau' })`);
@@ -66,10 +66,10 @@ test('_periodePrintHTML : tableau paysage ou fiches portrait, blocs choisis, tou
   assert.ok(t.html.includes('Conseil de classe S1 — 5C — 2025-26'));
   assert.ok(t.html.includes('DUR&lt;b&gt;AND') && t.html.includes('&lt;script&gt;x'), 'échappé');
   assert.ok(!t.html.includes('<th>Incidents</th>') && t.html.includes('<th>Conseil</th>'), 'seuls les blocs cochés');
-  const f = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['incidents','contacts'], type:'miperiode', forme:'fiches' })`);
-  assert.strictEqual(f.kind, 'portrait');
-  assert.ok(f.html.includes('Bilan de mi-période S1') && f.html.includes('class="print-fiche"'));
-  assert.strictEqual((f.html.match(/class="print-fiche"/g) || []).length, 3, 'un bloc par élève présent');
+  // Les « résumés » (un bloc court par élève) sont retirés en v1.50.0 : les fiches sont la fiche élève imprimée.
+  const f = evObj(`(() => { const cls = S.classes['5C'], col = _chaleurMomentsTous(cls).find(c => c.type === 'conseil' && c.pIdx === 0);
+    const ids = _fichePrintEleves(cls, col); return { ids, html: ids.map(id => _fichePrintHTML(cls, id, col, { parts: ['incidents', 'contacts'] }, null)).join('') }; })()`);
+  assert.strictEqual((f.html.match(/class="fp-page"/g) || []).length, f.ids.length, 'une page par élève présent');
   assert.ok(f.html.includes('Retenue S1') && !f.html.includes('Retenue S2'));
 });
 
@@ -118,8 +118,9 @@ test('_periodePrintHTML : le bloc Moyennes, sous 10 en gras, échappé, et dit q
   assert.ok(t.html.includes('<span class="pp-big">11,8</span>'));
   assert.ok(t.html.includes('&lt; 10 : <strong>Phys.-chimie 8</strong>'), 'la matière sous 10 en gras, jamais en couleur');
   assert.ok(!t.html.includes('<img'), 'le nom de période venu du fichier est échappé');
-  const f = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['moy'], type:'conseil', forme:'fiches' })`);
-  assert.ok(f.html.includes('générale <strong>11,8</strong> — Maths 13 · <strong>Phys.-chimie 8</strong>'), 'en fiche : toutes les matières');
+  const f = ev(`(() => { const cls = S.classes['5C'], col = _chaleurMomentsTous(cls).find(c => c.type === 'conseil' && c.pIdx === 0);
+    const sid = cls.eleves.find(id => S.eleves[id].nom === 'DURAND'); return _fichePrintHTML(cls, sid, col, { parts: ['moy'] }, null); })()`);
+  assert.ok(f.includes('<td>Maths</td><td class="r">13</td>') && f.includes('<td>Phys.-chimie</td><td class="r"><strong>8</strong></td>'), 'en fiche : toutes les matières, sous 10 en gras');
   const sans = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs'], type:'conseil', forme:'tableau' })`);
   assert.ok(!sans.html.includes('<th>Moyenne</th>') && !sans.html.includes('moyennes'), 'bloc décoché : ni colonne ni mention');
 });
@@ -161,8 +162,6 @@ test('Synthèse de période : le cumul de fin de période porte la couleur de so
   assert.match(t.html, /<span class="ob-chip ob-2">12<\/span>/);
   assert.match(t.html, /<span class="ob-chip ob-3">15<\/span>/);
   assert.match(t.html, /ob-leg/, 'la légende est au sous-titre');
-  const f = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs'], type:'conseil', forme:'fiches' })`);
-  assert.match(f.html, /cumul <span class="ob-chip ob-3">15<\/span>/);
   // Palier à 0 : ni couleur ni légende. Bloc des observations décoché : pas de légende.
   ev(`S.prefs.obsPalier = 0`);
   const nu = evObj(`_periodePrintHTML(S.classes['5C'], 0, { blocs:['obs'], type:'conseil', forme:'tableau' })`);

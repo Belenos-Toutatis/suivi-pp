@@ -186,9 +186,11 @@ test('Les avis d\'un élève pour une période, et sur la synthèse de période 
   assert.ok(!t.includes('<img src=x'), 'avis échappé');
   assert.match(t, /&lt;img src=x/);
   assert.ok(!t.includes('<b>BOLD</b>'));
-  const fi = evObj(`_periodePrintHTML(getCls(), 0, { blocs: ['avis'], type: 'conseil', forme: 'fiches' })`).html;
-  assert.match(fi, /Collègues/);
-  assert.match(fi, /<strong>Mathématiques<\/strong> — <em>comport\.<\/em> <span class="pp-pl">Calme<\/span>/);
+  const fi = ev(`(() => { const cls = getCls(), col = _chaleurMomentsTous(cls).find(c => c.type === 'conseil' && c.pIdx === 0);
+    return _fichePrintHTML(cls, 's5', col, { parts: ['avis'] }, null); })()`);
+  assert.match(fi, /Avis des collègues/);
+  assert.ok(!fi.includes('<img src=x'), 'avis échappé dans la fiche');
+  assert.match(fi, /<strong>Mathématiques<\/strong>[^—]*— <em>Comportement<\/em> <span class="fp-pl">Calme<\/span>/);
   // Décoché par défaut : la feuille ne s'allonge pas sans qu'on le demande.
   assert.ok(!ev(`_periodePrintOpts.blocs.includes('avis')`));
 });
@@ -564,8 +566,9 @@ test('Colonnes : la synthèse de période imprime les titres de la feuille', () 
     c.avis = { s1: { maths: { forts: 'Curieuse', atravailler: 'Méthode' } } }`);   // titres d'un modèle : ses clés
   const row = evObj(`_periodeSynthese(getCls(), 0, { type: 'conseil' }).rows.find(r => r.sid === 's1')`);
   assert.deepStrictEqual(row.avis[0].cols.map(c => c.label), ['Points forts', 'À travailler']);
-  const html = ev(`_periodePrintHTML(getCls(), 0, { blocs: ['avis'], type: 'conseil', forme: 'fiches' }).html`);
-  assert.match(html, /<em>Points forts<\/em> <span class="pp-pl">Curieuse<\/span> · <em>À travailler<\/em> <span class="pp-pl">Méthode<\/span>/);
+  const html = ev(`(() => { const cls = getCls(), col = _chaleurMomentsTous(cls).find(c => c.type === 'conseil' && c.pIdx === 0);
+    return _fichePrintHTML(cls, 's1', col, { parts: ['avis'] }, null); })()`);
+  assert.match(html, /<em>Points forts<\/em> <span class="fp-pl">Curieuse<\/span> · <em>À travailler<\/em> <span class="fp-pl">Méthode<\/span>/);
 });
 
 test('Démo : trois feuilles d\'avis, dont un point du mois à une seule colonne', () => {

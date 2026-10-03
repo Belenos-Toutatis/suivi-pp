@@ -1851,7 +1851,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 .pp-car thead th small { display: block; font-weight: 400; }
 .pp-car .g { border-left: 1.2pt solid #000 !important; }
 .pp-car td.dern { font-weight: 700; }
-.pp-sub .ob-chip, .print-sub .ob-chip, .pp-t small .ob-chip, .print-fiche .ob-chip { font-size: .9em; padding: 0 .35em; border-color: #9a9a9a; }
+.pp-sub .ob-chip, .print-sub .ob-chip, .pp-t small .ob-chip { font-size: .9em; padding: 0 .35em; border-color: #9a9a9a; }
 .pp-t.pp-car tbody td.ob-1 { background: var(--obs-1); color: var(--obs-1-fg); }
 .pp-t.pp-car tbody td.ob-2 { background: var(--obs-2); color: var(--obs-2-fg); }
 .pp-t.pp-car tbody td.ob-3 { background: var(--obs-3); color: var(--obs-3-fg); }
@@ -1900,12 +1900,6 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   .print-bilan caption { text-align: left; font-weight: 700; font-size: 9.5pt; padding: 0 0 2pt; }
   .print-bilan th { white-space: nowrap; }
   .print-list { columns: 2; font-size: 11pt; line-height: 1.8; }
-  /* Synthèse de période en fiches : un bloc par élève, jamais coupé par un saut de page. */
-  .print-fiche { page-break-inside: avoid; border: 1px solid #888; border-radius: 4pt; padding: 4pt 7pt; margin: 0 0 6pt; font-size: 10pt; }
-  .print-fiche-h { display: flex; justify-content: space-between; gap: 8pt; flex-wrap: wrap; border-bottom: 1px solid #ccc; padding-bottom: 2pt; margin-bottom: 3pt; font-size: 11pt; }
-  .print-fiche-id { font-size: 9pt; color: #333; }
-  .print-fb { margin: 2pt 0; }
-  .print-fb-t { font-weight: 700; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #333; margin-right: 4pt; }
   .print-hvc { font-size: 9pt; margin: 0 0 8pt; padding: 4pt 7pt; border: 1px solid #888; border-radius: 4pt; }
   .print-hvc ul { margin: 2pt 0 0; padding-left: 14pt; }
   /* La fiche élève imprimée (v1.49.0) : une page par élève, deux colonnes de rubriques
@@ -2057,8 +2051,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <button class="btn btn-g btn-sm" onclick="openTrombiImport()" title="Les photos des élèves, depuis le trombinoscope PDF de Mon Bureau Numérique — dans la fiche et au survol des noms">📥 Importer des photos</button>
       <button class="btn btn-g btn-sm" onclick="openClassesModal()" title="Créer, renommer, réordonner ou supprimer une classe">🏫 Classes…</button>
       <button class="btn btn-g btn-sm" onclick="openTagsModal()" title="Les options suivies : LATIN, BILINGUE, DNL…">🏷 Options…</button>
-      <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La feuille du conseil de classe ou du bilan de mi-période : observations, papiers, incidents, contacts et bilans, bornés à la période">🎓 Synthèse de période…</button>
-      <button class="btn btn-g btn-sm" onclick="printEleves()" title="La liste telle qu'elle est à l'écran, en paysage — Ctrl+P fait pareil">🖨 Imprimer la liste</button>
+      <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La liste telle qu'elle est à l'écran, ou la synthèse d'un moment (conseil, mi-période, point du mois) en tableau ou en fiches — Ctrl+P fait pareil">🖨 Imprimer…</button>
       <input type="search" id="eleve-search" placeholder="🔍 nom, prénom, option…" oninput="setEleveFilter(this.value)" style="margin-left:auto;min-width:180px">
     </div>
     <div id="eleves-body"></div>
@@ -2655,11 +2648,15 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <!-- ═══════════════ IMPRIMER UN DOCUMENT (ou l'enregistrer en PDF) ═══════════════ -->
 <div id="mperiode" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();periodePrintOk()}">
-    <h2>🎓 Synthèse de période</h2>
-    <div class="tb-hint" style="margin-bottom:8px">La feuille qu'on emporte au conseil de classe, ou qu'on relit à mi-période ou au point du mois : tout y est borné au moment choisi — observations, moyennes, papiers, incidents, contacts, et le bilan rédigé pour lui. Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF »).</div>
+    <h2>🖨 Imprimer</h2>
+    <div class="fg"><label>Quoi</label>
+      <div class="mfp-opts">
+        <label><input type="radio" name="mper-quoi" value="liste" onchange="_periodePrintRefresh()"> <span><strong>La liste telle qu'à l'écran</strong> — où en est-on aujourd'hui : les colonnes, le tri et les filtres affichés</span></label>
+        <label><input type="radio" name="mper-quoi" value="moment" onchange="_periodePrintRefresh()"> <span><strong>La synthèse d'un moment</strong> — conseil, mi-période ou point du mois : tout est borné à ce moment, son bilan et ses décisions</span></label></div></div>
+    <div id="mper-zone">
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div class="fg" style="flex:1;min-width:240px"><label for="mper-moment">Moment</label>
-        <select id="mper-moment" data-autofocus onchange="_periodePrintRefresh()" style="max-width:100%"></select>
+        <select id="mper-moment" onchange="_periodePrintRefresh()" style="max-width:100%"></select>
         <div class="tb-hint" style="margin-top:3px">Les moments de « Synthèse pour » (carte de chaleur, fiche) : conseil, mi-période, point du mois.</div></div>
     </div>
     <div class="fg"><label>Blocs</label>
@@ -2668,15 +2665,18 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <div class="fg" style="flex:3;min-width:200px"><label for="mper-forme">Forme</label>
         <select id="mper-forme" onchange="_periodePrintRefresh()" style="max-width:100%">
           <option value="tableau">tableau — une ligne par élève, paysage, sur une page</option>
-          <option value="fiches">résumés — un bloc court par élève, à la suite, portrait</option>
-          <option value="complete">fiche complète — la fiche élève, une page par élève, portrait</option>
+          <option value="complete">fiches — la fiche de chaque élève, une page par élève, portrait</option>
         </select></div>
-      <div class="fg" style="flex:1;min-width:110px"><label for="mper-format">Papier</label>
+    </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:110px;max-width:240px"><label for="mper-format">Papier</label>
         <select id="mper-format" onchange="_periodePrintRefresh()" style="max-width:100%">
           <option value="A4">A4</option>
           <option value="A3">A3 — texte plus grand</option>
         </select></div>
     </div>
+    <div class="tb-hint" style="margin-bottom:6px">Le PDF sort de la fenêtre d'impression (« Enregistrer au format PDF »).</div>
     <div class="al al-i" id="mper-hint"></div>
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('mperiode')">Annuler</button>
@@ -2896,8 +2896,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.49.0';
-const APP_BUILD_DATE = '2026-10-03T09:38:51Z';
+const APP_VERSION    = '1.50.0';
+const APP_BUILD_DATE = '2026-10-03T09:45:24Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -14044,10 +14044,13 @@ function _elevesPrintHTML(cls) {
     <p class="pp-sub">${rows.length} élève${rows.length > 1 ? 's' : ''} · période ${_escName(per)} · imprimé le ${_escName(_fmtDateFr(_todayYmd()))}${eleveSort.col !== 'nom' ? ` · tri : ${_escName(String(eleveSort.col))}` : ''}${_elevesFiltres.size ? ` · filtre : ${_escName(ELEVES_FILTRES.filter(f => _elevesFiltres.has(f.key)).map(f => f.label.toLowerCase()).join(', '))}` : ''}</p>
     <table class="pp-t pp-el">${colgroup}<thead><tr>${cols.map(c => `<th${c.c ? ' class="c"' : ''}>${c.th}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
 }
-function printEleves() {
+// A3 : le même papier en plus grand — la taille reste FIXE (pas de mesure, cf. v1.36.0).
+function _elevesPrintPt(format) { return format === 'A3' ? 12 : _ELEVES_PRINT_PT; }
+function printEleves(opts) {
   const cls = getCls();
   if (!cls || !cls.eleves.length) return toast('⚠️ Rien à imprimer.', 'warn');
-  _printHTML(_elevesPrintHTML(cls), 'landscape', { fontPt: _ELEVES_PRINT_PT });
+  const format = opts && opts.format === 'A3' ? 'A3' : 'A4';
+  _printHTML(_elevesPrintHTML(cls), 'landscape', { fontPt: _elevesPrintPt(format), format });
 }
 /* ───────── Tableur OpenDocument (.ods) : écriture et lecture, sans dépendance ─────────
    Collé tel quel dans le <script> de l'application : que des `function` (et des `var`)
@@ -16359,10 +16362,14 @@ const _PERIODE_BLOCS = [
 ];
 // Décochés par défaut : les heures de vie de classe et les avis des collègues — du texte
 // long, qui ne doit pas allonger la feuille sans qu'on le demande.
-let _periodePrintOpts = { blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc' && k !== 'avis'), type: 'conseil', forme: 'tableau', format: 'A4' };
+// `quoi` (v1.50.0) : la liste du jour (ex-« 🖨 Imprimer la liste ») ou la synthèse d'un moment —
+// un seul bouton « 🖨 Imprimer… » pour les deux (l'utilisateur : « je ne vois pas vraiment la
+// différence entre synthèse de période et imprimer la liste »).
+let _periodePrintOpts = { quoi: 'liste', blocs: _PERIODE_BLOCS.map(b => b.key).filter(k => k !== 'hvc' && k !== 'avis'), type: 'conseil', forme: 'tableau', format: 'A4' };
 function _periodeTitre(type, p) { return `${type === 'miperiode' ? 'Bilan de mi-période' : 'Conseil de classe'} ${p.label}`; }
-// Le HTML de la feuille : un tableau paysage (une ligne par élève), ou des fiches portrait
-// (un bloc par élève — ce qu'on lit pendant que le conseil parle de lui).
+// Le HTML de la feuille : un tableau paysage (une ligne par élève). ~~Ou des fiches portrait
+// (un bloc court par élève)~~ — retirées en v1.50.0 (l'utilisateur : « je n'ai pas la fiche
+// élève ») : la forme « fiches » imprime la fiche élève, `_fichePrintHTML`.
 function _periodePrintHTML(cls, periodIdx, opts) {
   const o = Object.assign({}, _periodePrintOpts, opts || {});
   const syn = _periodeSynthese(cls, periodIdx, { type: o.type, col: o.col });
@@ -16390,46 +16397,18 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const cumulHTML = n => _obsBande(n) ? `<span class="ob-chip${_obsBandeCls(n)}">${n}</span>` : String(n);
   const legHTML = on('obs') && _obsPalier() && rows.some(r => _obsBande(r.cumulFin))
     ? `<br>Cumuls du carnet : une couleur par tranche de ${_obsPalier()} observation${_obsPalier() > 1 ? 's' : ''} ${_obsLegendeHTML(Math.max(0, ...rows.map(r => typeof r.cumulFin === 'number' ? r.cumulFin : 0)))}` : '';
-  const nomCell = r => `<strong>${_escName(r.nom)}</strong> ${_escName(r.prenom)}${r.delegue ? ` <em>(${r.delegue === 'titulaire' ? 'délégué' : 'suppléant'})</em>` : ''}${r.eco ? ` <em>(éco-délégué${r.eco === 'suppleant' ? ' suppléant' : ''})</em>` : ''}${
-    r.arrive ? `<br><small>arrivé le ${_escName(_fmtDateFr(r.arrive))}</small>` : ''}${r.parti ? `<br><small>parti le ${_escName(_fmtDateFr(r.parti))}</small>` : ''}`;
   const identCell = r => [r.groupe ? 'G' + r.groupe : '', r.options.join(' '), r.amenagements].filter(Boolean).map(_escName).join(' · ');
-  // Les observations MBN de la période (v1.46.0) : à côté, jamais additionnées au carnet.
-  const mbnTxt = r => r.mbn ? ` · <strong>MBN ${r.mbn}</strong>` : '';
-  const obsCell = r => (r.cumulFin === null ? (r.absents ? `<small>absent à ${r.absents} relevé${r.absents > 1 ? 's' : ''}</small>` : '')
-    : `<strong>${r.totalPeriode === null ? '' : (r.totalPeriode > 0 ? '+' : '') + r.totalPeriode}</strong> <small>(cumul ${cumulHTML(r.cumulFin)} au ${_escName(_fmtDateFr(r.cumulFinDate))}${r.absents ? `, absent ×${r.absents}` : ''})</small>`) + mbnTxt(r);
   // Moyennes : sur le papier, « sous 10 » en GRAS, jamais en couleur (feuille en noir et blanc).
-  const moyGenHTML = m => m.generale === null ? '' : typeof m.generale === 'string' ? `<em>${_escName(m.generale)}</em>`
-    : `<strong>${_escName(_fmtNote(m.generale))}</strong>${m.delta ? ` <small>(${_escName(_fmtDelta(m.delta.delta))} depuis le ${_escName(_fmtDateFr(m.delta.depuis))})</small>` : ''}`;
   const noteHTML = x => { const t = `${_escName(x.nom)} ${typeof x.v === 'number' ? _escName(_fmtNote(x.v)) : `<em>${_escName(x.v)}</em>`}`;
     return typeof x.v === 'number' && x.v < 10 ? `<strong>${t}</strong>` : t; };
-  const moyCell = r => { const m = r.moyennes; if (!m) return '';
-    return `${moyGenHTML(m)}${m.sous10.length ? `<br><small>sous 10 : ${m.sous10.map(noteHTML).join(' · ')}</small>` : ''}`; };
-  const moyFiche = r => { const m = r.moyennes; if (!m) return '';
-    return `${m.generale !== null ? `générale ${moyGenHTML(m)} — ` : ''}${m.notes.map(noteHTML).join(' · ')}`; };
-  const incCell = r => r.incidents.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_instanceOf(e.type).label)} : ${_escName(e.objet)}</div>`).join('');
-  const conCell = r => r.contacts.map(e => `<div>${_escName(_fmtDateFr(e.date))} — ${_escName(_journalType(e.type).label)}${o.forme === 'fiches' ? ' : ' + _escName(e.texte) : ''}</div>`).join('');
   const AV_ABR = { travail: 'trav.', participation: 'partic.', comportement: 'comport.' };
   // Une colonne nommée autrement garde son titre (une abréviation automatique le rendrait
   // illisible : « À trava. ») ; une colonne seule ne s'annonce pas.
   const abr = c => AV_ABR[c.key] || c.label;
   // Les paragraphes d'un avis (Ctrl+Entrée dans la feuille) se voient aussi sur le papier (v1.46.11).
   const avisLigne = a => { const cs = a.cols || AVIS_CRITERES; return cs.filter(c => a[c.key]).map(c => `${cs.length > 1 ? `<em>${_escName(abr(c))}</em> ` : ''}<span class="pp-pl">${_escName(a[c.key])}</span>`).join(' · '); };
-  const avisFiche = r => r.avis.map(a => `<div><strong>${_escName(a.nom)}</strong> — ${avisLigne(a)}</div>`).join('');
   const decTxt = r => r.decisions ? `<br><strong>Décisions :</strong> ${_escName(r.decisions)}` : '';
   const bilCell = r => (r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanLabel(r.bilan))} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '') + decTxt(r);
-  if (o.forme === 'fiches') {
-    const bloc = (t, c) => c ? `<div class="print-fb"><span class="print-fb-t">${t}</span> ${c}</div>` : '';
-    return { kind: 'portrait', html: `<h1>${_escName(titre)}</h1><p class="print-sub">${_escName(sub)}${legHTML}</p>${hvcHTML}` + rows.map(r => `<div class="print-fiche">
-      <div class="print-fiche-h"><span>${nomCell(r)}</span><span class="print-fiche-id">${identCell(r)}</span></div>
-      ${on('obs') ? bloc('Observations', obsCell(r)) : ''}
-      ${on('moy') ? bloc('Moyennes', moyFiche(r)) : ''}
-      ${on('docs') ? bloc('Non rendus', _escName(r.nonRendus.join(', '))) : ''}
-      ${on('incidents') ? bloc('Incidents', incCell(r)) : ''}
-      ${on('contacts') ? bloc('Contacts', conCell(r)) : ''}
-      ${on('avis') ? bloc('Collègues', avisFiche(r)) : ''}
-      ${on('bilan') ? bloc(o.type === 'conseil' || !o.type ? 'Conseil' : 'Bilan', bilCell(r) ? `<div class="print-rem">${bilCell(r)}</div>` : '') : ''}
-    </div>`).join('') };
-  }
   // ── TABLEAU : une page paysage, lisible d'un bout à l'autre ──
   // Colonnes de largeur FIXE (table-layout: fixed) : la hauteur ne dépend plus de ce que
   // le navigateur devine, donc la mesure qui choisit la taille de texte est fiable. Les
@@ -16475,12 +16454,14 @@ function openPeriodePrint() {
   const ms = _chaleurMoments(cls), cur = _chaleurMomentCourant(cls);
   const choisi = ms.find(c => c.key === _periodePrintOpts.moment) || cur;
   document.getElementById('mper-moment').innerHTML = _momentsOptionsHTML(cls, choisi ? choisi.key : null);
-  document.getElementById('mper-forme').value = _periodePrintOpts.forme;
+  document.getElementById('mper-forme').value = _periodePrintOpts.forme === 'complete' ? 'complete' : 'tableau';
+  document.querySelector(`input[name="mper-quoi"][value="${_periodePrintOpts.quoi === 'moment' ? 'moment' : 'liste'}"]`).checked = true;
   document.getElementById('mper-format').value = _periodePrintOpts.format === 'A3' ? 'A3' : 'A4';
   document.getElementById('mper-blocs').innerHTML = _PERIODE_BLOCS.map(b =>
     `<label class="tagpick" style="background:var(--paper-warm)" title="${_escAttr(b.hint)}"><input type="checkbox" data-ck="${_escAttr(b.key)}"${_periodePrintOpts.blocs.includes(b.key) ? ' checked' : ''} onchange="_periodePrintRefresh()"> ${_escName(b.label)}</label>`).join('');
   openMod('mperiode');
   _periodePrintRefresh();
+  document.querySelector('input[name="mper-quoi"]:checked')?.focus();
   _printFontLoad().then(() => { if (document.getElementById('mperiode')?.classList.contains('on')) _periodePrintRefresh(); });
 }
 function _periodePrintLire() {
@@ -16490,7 +16471,8 @@ function _periodePrintLire() {
     idx: col ? col.pIdx : 0,
     type: col ? col.type : 'conseil',
     col,
-    forme: ['fiches', 'complete'].includes(document.getElementById('mper-forme').value) ? document.getElementById('mper-forme').value : 'tableau',
+    quoi: document.querySelector('input[name="mper-quoi"]:checked')?.value === 'moment' ? 'moment' : 'liste',
+    forme: document.getElementById('mper-forme').value === 'complete' ? 'complete' : 'tableau',
     format: document.getElementById('mper-format').value === 'A3' ? 'A3' : 'A4',
     blocs: [...document.querySelectorAll('#mper-blocs input[data-ck]')].filter(c => c.checked).map(c => c.dataset.ck),
   };
@@ -16498,6 +16480,15 @@ function _periodePrintLire() {
 function _periodePrintRefresh() {
   const cls = getCls();
   const o = _periodePrintLire();
+  const zone = document.getElementById('mper-zone');
+  if (zone) zone.hidden = o.quoi === 'liste';
+  if (o.quoi === 'liste') {
+    const h = document.getElementById('mper-hint');
+    const n = cls ? _elevesRows(cls).length : 0;
+    const filtre = _elevesFiltres.size || (typeof _eleveFilter === 'string' && _eleveFilter.trim()) ? ' (filtrés comme à l\'écran)' : '';
+    if (h) h.textContent = `${_pl(n, 'élève')}${filtre} · les colonnes affichées · ${o.format} paysage, texte en ${String(_elevesPrintPt(o.format)).replace('.', ',')} pt, sur autant de pages qu'il faut`;
+    return;
+  }
   const syn = cls ? _periodeSynthese(cls, o.idx, { type: o.type }) : null;
   const h = document.getElementById('mper-hint');
   if (!syn) { h.textContent = ''; return; }
@@ -16507,7 +16498,7 @@ function _periodePrintRefresh() {
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
     o.blocs.includes('moy') ? (syn.moyennes ? `moyennes « ${syn.moyennes.periode} » du ${_fmtDateFr(syn.moyennes.date)}` : '⚠️ aucune moyenne importée pour cette période') : '',
     o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — à écrire par les points de la colonne Bilans, ou dans la fiche` : '✓ un bilan pour chacun') : '',
-    o.forme === 'fiches' ? `${o.format} portrait, un bloc par élève, à la suite` : o.forme === 'complete' ? `${o.format} portrait, la fiche de chaque élève sur sa page` : _periodeFitTexte(_periodeFit(cls, o), o.format)];
+    o.forme === 'complete' ? `${o.format} portrait, la fiche de chaque élève sur sa page` : _periodeFitTexte(_periodeFit(cls, o), o.format)];
   h.textContent = bits.filter(Boolean).join(' · ');
 }
 // Le tableau se MESURE avant d'imprimer : la plus grande taille de texte qui tient sur une
@@ -16528,9 +16519,14 @@ function periodePrintOk() {
   const cls = getCls();
   const o = _periodePrintLire();
   if (!cls) return;
+  if (o.quoi === 'liste') {
+    _periodePrintOpts = { ..._periodePrintOpts, quoi: 'liste', format: o.format };
+    closeMod2('mperiode');
+    return printEleves({ format: o.format });
+  }
   if (!o.blocs.length) return toast('⚠️ Choisissez au moins un bloc.', 'warn');
-  _periodePrintOpts = { blocs: o.blocs, type: o.type, moment: o.col ? o.col.key : null, forme: o.forme, format: o.format };
-  // « Fiche complète » (v1.49.0) : la fiche élève imprimée, une page par élève — les blocs
+  _periodePrintOpts = { quoi: 'moment', blocs: o.blocs, type: o.type, moment: o.col ? o.col.key : null, forme: o.forme, format: o.format };
+  // « Fiches » (« fiche complète » en v1.49.0) : la fiche élève imprimée, une page par élève — les blocs
   // cochés deviennent ses parties (identité et remarque toujours, la courbe avec les observations).
   if (o.forme === 'complete' && o.col) {
     const parts = ['identite', 'remarque', ...o.blocs.flatMap(k => k === 'obs' ? ['obs', 'courbe'] : k === 'docs' ? ['papiers'] : k === 'hvc' ? [] : [k])];
@@ -19177,7 +19173,8 @@ document.addEventListener('keydown', e => {
     // Fiche ouverte (et rien par-dessus) : c'est elle qu'on veut imprimer, pas la liste derrière.
     if (document.getElementById('mfiche')?.classList.contains('on') && _ficheSid && !document.querySelector('.mo.on:not(#mfiche)')) { e.preventDefault(); openFichePrint(); return; }
     const tab = document.querySelector('.tab.on')?.id.replace('tab-', '');
-    if (tab === 'eleves') { e.preventDefault(); printEleves(); return; }
+    // Un seul « 🖨 Imprimer… » (v1.50.0) : la fenêtre, qui propose d'abord la liste du jour.
+    if (tab === 'eleves') { e.preventDefault(); openPeriodePrint(); return; }
     if (tab === 'carnets' && getCls() && _relDates(getCls().id).length) { e.preventDefault(); printCarnets(); return; }
     if (tab === 'moyennes' && getCls() && _moyReleves(getCls().id).length) { e.preventDefault(); printMoyennes(); return; }
     if (tab === 'delegues' && _elCurrent()?.clos) { e.preventDefault(); electionPrintPV(); return; }

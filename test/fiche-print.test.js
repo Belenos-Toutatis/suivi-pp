@@ -52,9 +52,9 @@ test('fiche imprimée : un bilan vide laisse des lignes, un bilan écrit est imp
 
 test('fiche imprimée : bouton dans la fiche, Ctrl+P fiche ouverte, forme « fiche complète » de la synthèse', () => {
   assert.match(SRC, /onclick="openFichePrint\(\)"[^>]*>🖨 Imprimer<\/button>/);
-  const kb = SRC.slice(SRC.indexOf("if (ctrl && k === 'p') {"), SRC.indexOf("if (ctrl && k === 'p') {") + 500);
-  assert.ok(kb.indexOf('openFichePrint()') > 0 && kb.indexOf('openFichePrint()') < kb.indexOf('printEleves()'), 'la fiche passe avant la liste');
-  assert.match(SRC, /<option value="complete">fiche complète/);
+  const kb = SRC.slice(SRC.indexOf("if (ctrl && k === 'p') {"), SRC.indexOf("if (ctrl && k === 'p') {") + 1200);
+  assert.ok(kb.indexOf('openFichePrint()') > 0 && kb.indexOf('openFichePrint()') < kb.indexOf('openPeriodePrint()'), 'la fiche passe avant la liste');
+  assert.match(SRC, /<option value="complete">fiches — la fiche de chaque élève/);
   assert.match(SRC, /o\.forme === 'complete' && o\.col/);
   // Les photos sont décodées avant d'ouvrir l'impression.
   assert.match(SRC.slice(SRC.indexOf('function _printHTML('), SRC.indexOf('function _printHTML(') + 1500), /\.decode\(\)/);

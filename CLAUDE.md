@@ -761,6 +761,21 @@ entière), et porte le bilan et les décisions de CE moment ; titre = le moment
 période entière, comme ci-dessous (les tests d'origine passent ainsi). Les moyennes gardent leur
 règle (période du bureau numérique de la période de l'app).
 
+### Un seul bouton « 🖨 Imprimer… » (v1.50.0)
+
+L'utilisateur, le 2026-10-03 : *« je ne vois pas vraiment la différence entre synthèse de
+période et imprimer la liste, c'est très similaire »* — puis *« regroupe-les et supprime les
+résumés »*. La barre de 👥 Élèves n'a plus qu'**🖨 Imprimer…** (et Ctrl+P sur Élèves) → la
+fenêtre `mperiode`, qui demande d'abord **Quoi** (`_periodePrintOpts.quoi`, de séance) :
+- **La liste telle qu'à l'écran** (défaut) — l'état du jour : colonnes, tri et filtres affichés
+  (`printEleves({ format })`, l'ex-« 🖨 Imprimer la liste ») ; A4 en 8,5 pt, **A3 en 12 pt**
+  (`_elevesPrintPt`), taille toujours FIXE ;
+- **La synthèse d'un moment** — moment, blocs, forme : **tableau** (une page) ou **fiches** (la
+  fiche élève imprimée, une page par élève).
+⚠️ **Les « résumés » (forme `fiches` de la v1.26, un bloc court par élève) sont SUPPRIMÉS** :
+rendu, CSS `.print-fiche*`, option. Leurs tests portent désormais sur `_fichePrintHTML`.
+Avec une fiche ouverte, Ctrl+P ouvre toujours l'impression de la fiche.
+
 ### La fiche élève imprimée (v1.49.0)
 
 Demandé le 2026-10-03 : *« ajoute le bouton Imprimer dans la fiche »* — et *« quand j'imprime la
@@ -784,7 +799,7 @@ synthèse de période, j'ai une liste de tous les élèves, je n'ai pas la fiche
   la synthèse de période), parties, photo, **cet élève ou toute la classe** (`_fichePrintEleves` :
   les présents de la période, dans l'ordre de la liste), A4 / A3. Réglages de séance
   (`_fichePrintOpts`), rien dans `S`.
-- **Synthèse de période, forme *fiche complète*** : la même fiche pour chaque élève ; les blocs
+- **Synthèse de période, forme *fiche complète*** (*fiches* depuis la v1.50.0) : la même fiche pour chaque élève ; les blocs
   cochés deviennent ses parties (identité et remarque toujours, la courbe avec les observations).
 - `_fichePrintGo` lit les photos d'abord ; `_printHTML` **décode les images** avant d'ouvrir
   l'impression. Rendu papier vérifié par injection des règles d'impression, depuis les deux
@@ -1999,6 +2014,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 111 | **Un seul « 🖨 Imprimer… » dans Élèves** : la liste du jour ou la synthèse d'un moment (tableau ou fiches), A3 pour la liste ; **« résumés » supprimés** ; Ctrl+P ouvre la fenêtre ; tests portés sur la fiche imprimée. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.50.0) |
 | 110 | **🖨 Fiche élève imprimée** : bouton dans la fiche et Ctrl+P (fenêtre `mficheprint` : moment, parties, photo, cet élève ou toute la classe, A4 / A3), une page par élève, bilan vide en lignes à remplir ; forme « fiche complète » dans la synthèse de période (« fiches » renommée « résumés ») ; 3 tests (`test/fiche-print.test.js`). Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; papier simulé depuis les deux thèmes | ✅ **fait** (2026-10-03, v1.49.0) |
 | 109 | **📷 Photos des élèves** (repris de Plan de classe) : import du trombinoscope PDF de MBN (lecteur PDF sans bibliothèque, appariement des noms, rattachement manuel), photos dans `photos/` du dossier des pièces jointes, case photo dans la carte Identité (fichier, glisser, Ctrl+V, 📋 Coller, retrait), vignette dans l'en-tête de la fiche, aperçu au survol des noms, orphelines dans 🧹 Orphelins… ; 7 tests (`test/photos.test.js`). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.48.0) |
 | 108 | **Second audit ergonomique (D1–D8)** : **incident et bilan s'ouvrent par-dessus la fiche** (`_ficheRedessine`) · groupe Bilans de la carte de chaleur = moments de « Synthèse pour » · **synthèse de période par MOMENT** (un menu `mper-moment` des moments de « Synthèse pour », feuille bornée à lui par `_ficheBornes`, son bilan et ses décisions ; `_periodeSynthese(…, { col })`, sans `col` la période entière comme avant ; dates à partir du 1er septembre ; consigne mise à jour) · 🗑 dans la fenêtre d'incident · imports en « 📥 Importer … », vue « ▦ Tableau » des moyennes · plus aucun ✏️ ni 🗑 sans texte (classes, options, salles, instances, disciplines, vie de classe, contacts…) · un seul style de ✎, ✎ sur Entrée et Sortie · « 1 blanc · 2 nuls » (`_pl`) · ♂ ♀ dans l'en-tête de la fiche ; 1 test. Audit 10 états × 2 thèmes à 1 440 px, 9 à 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.47.3) |
