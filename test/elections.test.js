@@ -719,3 +719,25 @@ test('Égalité départagée par l\'âge : les dates de naissance au PV, à la p
   assert.strictEqual(r.proj, true, 'à la projection');
   assert.strictEqual(r.onglet, true, 'dans l onglet');
 });
+
+test('Procès-verbal : une case de signature par élu (titulaires et suppléants), mesuré pour UNE page', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => e.clos && !e.supDe && e.tours.length === 2);
+    const elus = el.elus.titulaires.map(id => _elCand(el, id));
+    const sups = elus.map(c => _elCandNomSup(c));
+    const h = _pvElusSignHTML(el, elus, sups);
+    const eco = _elList(cls.id).find(e => e.clos && e.type === 'eco');
+    const he = _pvElusSignHTML(eco, eco.elus.titulaires.map(id => _elCand(eco, id)), []);
+    return JSON.stringify({ cases: (h.match(/class="pv-sign-l"/g) || []).length, attendu: elus.length + sups.filter(Boolean).length,
+      titre: h.includes('acceptation du mandat'), eco: (he.match(/class="pv-sign-l"/g) || []).length, ecoSup: he.includes('Suppléant') });
+  })()`));
+  assert.strictEqual(r.cases, r.attendu, 'une case par élu');
+  assert.ok(r.titre);
+  assert.strictEqual(r.eco, 1, 'éco-délégué : un élu, pas de suppléant');
+  assert.strictEqual(r.ecoSup, false);
+  const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const pv = SRC.slice(SRC.indexOf('function electionPrintPV('), SRC.indexOf('function _pvElusSignHTML('));
+  assert.match(pv, /_pvFitPt\(/, 'la taille est calculée pour une page');
+  assert.match(pv, /_pvElusSignHTML\(el, elus, sups\)/);
+});

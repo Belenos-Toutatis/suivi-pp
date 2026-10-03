@@ -49,12 +49,13 @@ test('Tous les tableaux imprimés : en-tête répété, rangées alternées, jam
     ['une rangée sur deux grisée', /\.print-t tbody tr:nth-child\(even\) td \{ background: #f0f0f0; \}/],
     ['rangée jamais coupée', /\.print-t tr \{[^}]*break-inside: avoid/],
     ['fonds conservés à l\'impression', /\.print-t \{[^}]*print-color-adjust: exact/],
-    ['le PV aussi, quadrillage gardé', /\.pv-t tr:nth-child\(even\) td \{ background: #f0f0f0; \}/],
     ['tout en police du papier', /\.print-area \*, body\.printing-pv \.pv \* \{ font-family: var\(--font-print\) !important; \}/],
   ]) assert.ok(re.test(print), nom);
   // Les feuilles .pp-t (hors @media print : elles se mesurent) portent le même visuel.
   assert.ok(/\.pp-t tbody tr:nth-child\(even\) td \{ background: #f0f0f0; \}/.test(SRC));
   assert.ok(/\.pp-t thead \{ display: table-header-group; \}/.test(SRC));
+  // Le PV aussi, quadrillage gardé — hors @media print depuis la v1.52.9 : il se mesure (une page).
+  assert.ok(/\.pv-t tr:nth-child\(even\) td \{ background: #f0f0f0; \}/.test(SRC));
 });
 
 test('MÉTA-TEST : l\'extraction des blocs @media print n\'est pas vide', () => {

@@ -1372,29 +1372,38 @@ body.el-projecting #main { padding-top: 8px; }
    ni dans la fenêtre détachée. La ligne de MAJORITÉ, elle, reste : c'est une donnée. */
 body.el-projecting::before { display: none; }
 
-/* Procès-verbal : une page portrait, sans thème sombre, chrome masqué */
-.pv { display: none; }
+/* Procès-verbal : UNE page portrait (v1.52.9, l'utilisateur : « le procès-verbal imprimé doit
+   tenir sur une page »), sans thème sombre, chrome masqué. ⚠️ Les règles de mise en page sont
+   HORS @media print et en `em` : `_pvFitPt` les MESURE à l'écran (boîte hors champ) pour choisir
+   la plus grande taille de texte qui tient — la même méthode que la synthèse de période. Seuls
+   l'affichage (display) et la page nommée restent réservés au papier. */
+.pv { display: none; font-family: var(--font-print); color: #000; max-width: 180mm; margin: 0 auto; font-size: 11pt; line-height: 1.35; }
+.pv.pv-mesure { display: block; }
+.pv h1 { font-size: 1.45em; text-align: center; margin: 0 0 .4em; }
+.pv h3 { font-size: 1.09em; margin: .9em 0 .3em; border-bottom: 1px solid #000; }
+.pv p { margin: .35em 0; }
+.pv-sub { text-align: center; margin-bottom: .7em; }
+.pv-mod { font-size: .86em; color: #222; }
+/* Le PV garde son QUADRILLAGE complet — c'est une pièce officielle, signée — mais prend
+   le reste du visuel des tableaux imprimés : en-tête gris, une rangée sur deux grisée. */
+.pv-t { border-collapse: collapse; width: 100%; margin: .3em 0 .6em; font-size: .95em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pv-t th, .pv-t td { border: .6pt solid #000; padding: .2em .5em; text-align: left; }
+.pv-t th { background: #e4e4e4; font-weight: 700; }
+.pv-t tr:nth-child(even) td { background: #f0f0f0; }
+.pv-t tr { break-inside: avoid; page-break-inside: avoid; }
+.pv-sign { display: flex; justify-content: space-between; gap: 1.1em; margin-top: 1.6em; }
+.pv-sign > div { flex: 1; text-align: center; }
+/* Les élus signent aussi (v1.52.9) : une case par élu, plusieurs par rangée. */
+.pv-sign.pv-elus { flex-wrap: wrap; margin-top: .6em; }
+.pv-sign.pv-elus > div { flex: 1 1 28%; }
+.pv-sign-t { font-weight: 700; font-size: .91em; }
+/* L'espace de la signature ne descend jamais sous 9 mm, quelle que soit la taille du texte. */
+.pv-sign-n { font-size: .91em; margin: .2em 0 max(2.4em, 9mm); }
+.pv-sign-l { border-top: 1px solid #000; }
+.pv-foot { font-size: .78em; color: #333; margin-top: 1.2em; }
 @media print {
   body.printing-pv #main, body.printing-pv #topbar { display: none !important; }
-  body.printing-pv .pv { display: block; font-family: var(--font-print); color: #000; max-width: 180mm; margin: 0 auto; font-size: 11pt; line-height: 1.4; }
-  .pv h1 { font-size: 16pt; text-align: center; margin: 0 0 6pt; }
-  .pv h3 { font-size: 12pt; margin: 12pt 0 4pt; border-bottom: 1px solid #000; }
-  .pv-sub { text-align: center; margin-bottom: 8pt; }
-  .pv-mod { font-size: 9.5pt; color: #222; }
-  /* Le PV garde son QUADRILLAGE complet — c'est une pièce officielle, signée — mais prend
-     le reste du visuel des tableaux imprimés : en-tête gris, une rangée sur deux grisée. */
-  .pv-t { border-collapse: collapse; width: 100%; margin: 4pt 0 8pt; font-size: 10.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .pv-t th, .pv-t td { border: .6pt solid #000; padding: 3pt 6pt; text-align: left; }
-  .pv-t th { background: #e4e4e4; font-weight: 700; }
-  .pv-t tr:nth-child(even) td { background: #f0f0f0; }
-  .pv-t tr { break-inside: avoid; page-break-inside: avoid; }
-  .pv-sign { display: flex; justify-content: space-between; gap: 12pt; margin-top: 24pt; }
-  .pv-sign > div { flex: 1; text-align: center; }
-  .pv-sign-t { font-weight: 700; font-size: 10pt; }
-  .pv-sign-n { font-size: 10pt; margin: 2pt 0 28pt; }
-  .pv-sign-l { border-top: 1px solid #000; }
-  .pv-foot { font-size: 8.5pt; color: #333; margin-top: 16pt; }
-  body.printing-pv .pv { page: portrait; }
+  body.printing-pv .pv { display: block; page: portrait; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2964,8 +2973,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.8';
-const APP_BUILD_DATE = '2026-10-03T16:34:50Z';
+const APP_VERSION    = '1.52.9';
+const APP_BUILD_DATE = '2026-10-03T16:37:17Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -13521,13 +13530,48 @@ function electionPrintPV() {
       <div><div class="pv-sign-t">Assesseur</div><div class="pv-sign-n">${_escName(ass[1] || '')}</div><div class="pv-sign-l"></div></div>
       <div><div class="pv-sign-t">Le professeur principal</div><div class="pv-sign-n">&nbsp;</div><div class="pv-sign-l"></div></div>
     </div>
+    ${_pvElusSignHTML(el, elus, sups)}
     <p class="pv-foot">Fait le ${_escName(_fmtDateFr(el.date))}. Références : ${_elType(el).textes.map(t => _escName(t.ref)).join(' ; ')}.</p>
   </div>`;
-  document.body.classList.add('printing-pv');
-  _setPageOrientation('portrait');
-  const done = () => { document.body.classList.remove('printing-pv'); pa.innerHTML = ''; _clearPageOrientation(); window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  setTimeout(() => { try { window.print(); } catch (_) { done(); } }, 50);
+  // UNE page : la taille du texte est calculée sur la page A4 portrait (police chargée d'abord).
+  _printFontLoad().then(() => {
+    const pv = pa.querySelector('.pv');
+    const fit = _pvFitPt(pv ? pv.innerHTML : '');
+    if (pv && fit) pv.style.fontSize = fit.size + 'pt';
+    if (fit && !fit.fits) toast(`⚠️ Le procès-verbal déborde sur ≈ ${fit.pages} pages, même en ${String(fit.size).replace('.', ',')} pt.`, 'warn');
+    document.body.classList.add('printing-pv');
+    _setPageOrientation('portrait');
+    const done = () => { document.body.classList.remove('printing-pv'); pa.innerHTML = ''; _clearPageOrientation(); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => { try { window.print(); } catch (_) { done(); } }, 50);
+  });
+}
+// Les ÉLUS signent le PV (v1.52.9, l'utilisateur : « prévoir la signature des élus dessus aussi ») :
+// aucun texte ne l'impose, mais leur signature atteste qu'ils ACCEPTENT le mandat — ce que la
+// circulaire n° 2004-114 § 6.1 exige d'un élu non candidat. Une case par titulaire et par
+// suppléant élu, dans l'ordre du tableau des élus.
+function _pvElusSignHTML(el, elus, sups) {
+  const noms = [];
+  elus.forEach((c, i) => { noms.push({ t: el.supDe ? 'Suppléant élu' : (_elNbSup(el) ? 'Titulaire' : 'Élu'), n: _elCandNom(c) }); if (el.binome !== false && sups[i]) noms.push({ t: 'Suppléant', n: sups[i] }); });
+  if (el.binome === false) sups.filter(Boolean).forEach(n => noms.push({ t: 'Suppléant', n }));
+  if (!noms.length) return '';
+  return `<h3>Les élus — acceptation du mandat</h3><div class="pv-sign pv-elus">${noms.map(x => `<div><div class="pv-sign-t">${_escName(x.t)}</div><div class="pv-sign-n">${_escName(x.n)}</div><div class="pv-sign-l"></div></div>`).join('')}</div>`;
+}
+// La plus grande taille de texte (pt) pour que le PV tienne sur UNE page A4 portrait : mesuré
+// hors champ, à la largeur imprimable, avec les règles `.pv` (hors @media print).
+function _pvFitPt(inner) {
+  if (typeof document === 'undefined' || !document.body || !document.createElement) return null;
+  const { w, h } = _printPageMm('A4', 'portrait');
+  const box = document.createElement('div');
+  box.className = 'pv pv-mesure';
+  box.style.cssText = `position:absolute;left:-20000px;top:0;width:${w}mm;max-width:none;visibility:hidden`;
+  box.innerHTML = inner;
+  document.body.appendChild(box);
+  try {
+    const hMax = h * 96 / 25.4 * 0.96;
+    const mesure = pt => { box.style.fontSize = pt + 'pt'; return box.getBoundingClientRect().height; };
+    return _printFitSize(mesure, hMax, 7, 11);
+  } catch (_) { return null; } finally { box.remove(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
