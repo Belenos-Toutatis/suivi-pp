@@ -2923,8 +2923,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.51.3';
-const APP_BUILD_DATE = '2026-10-03T15:28:27Z';
+const APP_VERSION    = '1.52.0';
+const APP_BUILD_DATE = '2026-10-03T15:33:15Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12528,7 +12528,9 @@ function hvcRemoveUI(id) {
     onOk: () => { pushUndo(); hvcRemove(cls, id); save(); renderDelegues(); } });
 }
 
-function renderDelegues() {
+// Chaque rendu de l'onglet met aussi à jour la fenêtre détachée (v1.52.0), si elle est ouverte.
+function renderDelegues() { _renderDeleguesCore(); _elWinMaj(); }
+function _renderDeleguesCore() {
   const box = document.getElementById('delegues-body');
   if (!box) return;
   const cls = getCls();
@@ -12677,7 +12679,7 @@ function _elRenderOne(box, el, cls) {
       ${_elTextesHTML(_elType(el))}
       <span style="margin-left:auto;display:flex;gap:6px">
         ${el.clos ? `<button class="btn btn-p btn-sm" onclick="electionPrintPV()" title="Le procès-verbal, une page portrait, avec les lignes de signature">🖨 Procès-verbal</button><button class="btn btn-g btn-sm" onclick="electionRouvrirUI()">↺ Rouvrir</button>`
-                  : `<button class="btn btn-g btn-sm" onclick="_elProject=!_elProject;renderDelegues()" title="Masquer la grille : seul le graphique reste, en grand, pour le vidéoprojecteur">${_elProject ? '↩ Revenir à la saisie' : '📽 Projeter'}</button><button class="btn btn-g btn-sm" onclick="openElectionSettings()">⚙ Modalités</button>`}
+                  : `<button class="btn btn-g btn-sm" onclick="_elProject=!_elProject;renderDelegues()" title="Masquer la grille : seul le graphique reste, en grand, pour le vidéoprojecteur">${_elProject ? '↩ Revenir à la saisie' : '📽 Projeter'}</button><button class="btn btn-g btn-sm" onclick="elProjectionFenetre()" title="Le graphique dans une fenêtre à part : faites-la glisser sur le second écran (vidéoprojecteur), puis ⛶ Plein écran. Vous gardez la saisie ici ; la fenêtre suit chaque bulletin.">🖥 Fenêtre détachée</button><button class="btn btn-g btn-sm" onclick="openElectionSettings()">⚙ Modalités</button>`}
       </span></div>`;
   const cand = _elRenderCandidats(el, t);
   const dep = _elRenderDepouillement(el, tourIdx, live);
@@ -12689,6 +12691,58 @@ function _elRenderOne(box, el, cls) {
   box.innerHTML = head + (el.clos ? res + cand : `<div class="el-split${_elProject ? ' proj' : ''}">${_elProject ? '' : `<div class="el-left">${cand}${dep}</div>`}<div class="el-right${_elProject ? ' big' : ''}">${chart}</div></div>${res}`);
   keep();
 }
+
+// ── Fenêtre détachée (v1.52.0) ──
+// L'utilisateur : « le bouton Projeter m'affiche très bien la fenêtre qu'il me faut, mais il
+// faudrait que ce soit une fenêtre détachée, que je puisse mettre sur un deuxième écran ».
+// Une fenêtre ordinaire (window.open), pas l'incrustation (Picture-in-Picture) : elle se
+// déplace sur le second écran et passe en plein écran. Le calcul et l'état restent dans la
+// fenêtre principale ; celle-ci n'est qu'un AFFICHAGE, rafraîchi à chaque rendu de l'onglet
+// (`renderDelegues` → `_elWinMaj`). Mêmes styles (copiés), même graphique (`_elRenderChart`) —
+// jamais le numéro des bulletins. ⚠️ Le navigateur peut bloquer la fenêtre : c'est un confort,
+// 📽 Projeter reste le chemin qui marche toujours.
+let _elWin = null, _elWinId = null;
+function elProjectionFenetre() {
+  const el = _elCurrent();
+  if (el) _elWinId = el.id;
+  if (_elWin && !_elWin.closed) { _elWin.focus(); _elWinMaj(); return; }
+  let w = null;
+  try { w = typeof window.open === 'function' ? window.open('', 'suivipp-projection', 'popup=yes,width=1280,height=800') : null; } catch (_) { w = null; }
+  if (!w) return toast('⚠️ Le navigateur a bloqué la fenêtre : autorisez les fenêtres surgissantes pour ce site, ou utilisez 📽 Projeter.', 'warn');
+  _elWin = w;
+  const d = w.document;
+  d.open();
+  d.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Dépouillement — projection</title></head><body><div id="el-win-bar"><button type="button" class="btn btn-g btn-sm" id="el-win-fs">⛶ Plein écran</button><span class="tb-hint">Faites glisser cette fenêtre sur le second écran. Échap quitte le plein écran.</span></div><div id="el-win"></div></body></html>');
+  d.close();
+  for (const st of document.querySelectorAll('style')) d.head.appendChild(d.importNode(st, true));
+  const pr = d.createElement('style');
+  pr.textContent = 'body{margin:0;padding:12px 16px;background:var(--paper)} #el-win-bar{display:flex;gap:10px;align-items:center;margin-bottom:8px} :root:fullscreen #el-win-bar{display:none} #el-win .el-chart{position:static} .el-win-vide{font-size:min(4vh,3vw);color:var(--pencil);text-align:center;margin-top:30vh}';
+  d.head.appendChild(pr);
+  for (const a of ['data-theme', 'data-police', 'data-police-papier']) { const v = document.documentElement.getAttribute(a); if (v !== null) d.documentElement.setAttribute(a, v); }
+  d.getElementById('el-win-fs').addEventListener('click', () => { const r = d.documentElement; (r.requestFullscreen ? r.requestFullscreen() : Promise.reject()).catch(() => toast('⚠️ Plein écran refusé : F11 fait la même chose.', 'warn')); });
+  // Ctrl+Z / Ctrl+Y marchent aussi depuis la fenêtre projetée (un bulletin mal lu se corrige d'où l'on est).
+  d.addEventListener('keydown', e => {
+    const c = e.ctrlKey || e.metaKey, k = String(e.key || '').toLowerCase();
+    if (c && !e.shiftKey && k === 'z') { e.preventDefault(); undoLast(); }
+    else if ((c && k === 'y') || (c && e.shiftKey && k === 'z')) { e.preventDefault(); redoLast(); }
+  });
+  _elWinMaj();
+}
+function _elWinMaj() {
+  if (!_elWin) return;
+  if (_elWin.closed) { _elWin = null; return; }
+  const box = _elWin.document.getElementById('el-win');
+  if (!box) return;
+  const cur = _elCurrent();
+  if (cur) _elWinId = cur.id;
+  // L'élection affichée : celle ouverte dans l'onglet, sinon la dernière montrée (revenir à la
+  // liste des élections ne vide pas l'écran devant la classe).
+  const cls = getCls();
+  const el = cur || (cls && _elWinId ? (S.elections[cls.id] || {})[_elWinId] : null);
+  box.innerHTML = el ? `<div class="el-right big">${_elRenderChart(el, _elLive(el, el.tours.length - 1))}</div>`
+    : '<div class="el-win-vide">Ouvrez une élection dans Suivi PP : son graphique s\'affichera ici.</div>';
+}
+window.addEventListener('pagehide', () => { try { if (_elWin && !_elWin.closed) _elWin.close(); } catch (_) {} });
 
 // ── Candidatures ──
 function _elRenderCandidats(el, t) {

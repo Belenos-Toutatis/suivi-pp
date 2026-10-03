@@ -590,6 +590,24 @@ L'enseignant saisit, la classe regarde. Les deux vues affichent le même état a
 - **En option, une fenêtre flottante projetable**, reprise de `_timerFillWindow` / `_noiseFillWindow` : Picture-in-Picture (`documentPictureInPicture.requestWindow`, toujours au premier plan) avec repli `window.open`. L'enseignant garde sa grille sur le portable, la classe voit le graphique en plein écran sur le second. ⚠️ **Le repli `window.open` peut être bloqué par le navigateur** (constaté dans le projet de référence) : la fenêtre flottante est un confort, jamais le seul chemin.
 - Le calcul et l'état vivent **dans la fenêtre principale** ; la fenêtre projetée est un pur affichage rafraîchi à chaque bulletin, comme `_timerRender` pousse dans le document de la popup.
 
+#### Fenêtre détachée (v1.52.0)
+
+L'utilisateur, le 2026-10-03 : *« le bouton Projeter m'affiche très bien la fenêtre qu'il me
+faut, mais il faudrait que ce soit une fenêtre détachée, que je puisse la mettre sur un deuxième
+écran »*. Bouton **🖥 Fenêtre détachée** à côté de 📽 Projeter (`elProjectionFenetre`) : une
+fenêtre ordinaire (`window.open`, ~~Picture-in-Picture~~ — l'incrustation reste petite et ne
+passe pas en plein écran), qu'on fait glisser sur le vidéoprojecteur, puis **⛶ Plein écran**
+(F11 en repli). Ses styles sont COPIÉS de la page (les `<style>`, polices comprises), avec le
+thème et la police ; elle n'affiche que `_elRenderChart` en mode `.el-right.big` — **jamais le
+numéro des bulletins**. Le calcul reste dans la fenêtre principale : `renderDelegues()` =
+`_renderDeleguesCore()` + `_elWinMaj()`, donc chaque bulletin, chaque correction et chaque
+Ctrl+Z la rafraîchissent. **Ctrl+Z / Ctrl+Y marchent aussi depuis la fenêtre projetée.**
+Revenir à la liste des élections garde à l'écran la dernière élection montrée (`_elWinId`).
+Bloquée par le navigateur : un toast renvoie à 📽 Projeter, qui marche toujours. Fermée avec la
+page (`pagehide`). ⚠️ Le navigateur intégré de test bloque toute fenêtre surgissante : vérifié
+en lui substituant un cadre de même origine (graphique, suivi d'un bulletin, Ctrl+Z depuis la
+fenêtre) ; **à essayer avec le vrai second écran avant le jour J**.
+
 #### ⚠️ Un pourcentage en cours de dépouillement est trompeur
 
 C'est le vrai piège, et il est pédagogique autant que technique. Le dénominateur (les suffrages exprimés) **grandit à mesure qu'on dépouille** :
@@ -2036,10 +2054,11 @@ Familles à couvrir dès le début :
 | 3 | Import depuis un export JSON de Plan de classe, avec **choix de la classe** ; réglage semestre/trimestre + code absent dans Données | ✅ **fait** (2026-09-09, v0.3.0) |
 | 4 | Onglet Carnets : calcul pur (`_relDelta`, `_relPeriodTotal`, `_periods` avec bornes réglables) testé AVANT la grille, grille avec saisie clavier, undo par salve, modale nouveau/modifier/supprimer | ✅ **fait** (2026-09-09, v0.4.0) |
 | 5 | Onglet Documents : calcul pur (`_docStats`, `_docExpected`, `docDuplicate`, `_champParseOptions`) testé avant l'UI, liste + tableau des retours, éditeur de champs, liste des manquants, 3 modèles | ✅ **fait** (2026-09-09, v0.5.0) |
-| 6 | Onglet Délégués : arithmétique testée avant tout (21 tests), grille de dépouillement, graphique deux volets + mode projection, clôture / second tour / départage manuel, PV imprimable, `_delegueOf` dérivé | ✅ **fait** (2026-09-09, v0.6.0) — fenêtre flottante PiP non faite (optionnelle) |
+| 6 | Onglet Délégués : arithmétique testée avant tout (21 tests), grille de dépouillement, graphique deux volets + mode projection, clôture / second tour / départage manuel, PV imprimable, `_delegueOf` dérivé | ✅ **fait** (2026-09-09, v0.6.0) — fenêtre détachée faite en v1.52.0 (une fenêtre ordinaire, pas PiP) |
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 116 | **🖥 Fenêtre détachée du dépouillement** (pour le second écran : plein écran, suit chaque bulletin, Ctrl+Z depuis elle, repli si bloquée) ; 2 tests (`test/projection-fenetre.test.js`) | ✅ **fait** (2026-10-03, v1.52.0) |
 | 115 | **Photos dans les grilles des observations et des moyennes** ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; saisie au carnet vérifiée | ✅ **fait** (2026-10-03, v1.51.3) |
 | 114 | **Photos dans la vue Indicateurs** (vignette partagée avec la carte de chaleur) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.51.2) |
 | 113 | **Photos dans la carte de chaleur** : une vignette devant chaque nom, case vide sans photo, rien sans aucune photo ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.51.1) |
