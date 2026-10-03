@@ -156,3 +156,24 @@ test('Observations MBN : feuille imprimée du carnet (MBN et Carnet + MBN par p�
   assert.match(carte, /carnet \+ MBN/);
   ev(`_ficheCourbeSrc = { carnet: true, mbn: true }`);
 });
+
+test('Fiche : la courbe s\'arrête à la date du bilan du moment, sinon aujourd\'hui, bornée à la période', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook();`);
+  const sid = ev(`getCls().eleves.find(id => _obsMbnOf(id).length >= 3)`);
+  const col = `_ficheMoments(getCls()).find(c => c.key === 'bil:conseil:0')`;
+  const p = evObj(`_periods(getCls())[0]`);
+  ev(`(() => { const cls = getCls(), c = ${col}, b = _bilanCible(cls, ${JSON.stringify(sid)}, { type: c.type, date: c.date }); if (b) bilanRemove(${JSON.stringify(sid)}, b.id); })()`);
+  // Sans bilan : aujourd'hui, borné.
+  const mid = ev(`_ficheBornes(getCls(), { ...${col}, type: 'miperiode' }).end`);
+  assert.deepStrictEqual(evObj(`_ficheCourbeFin(getCls(), ${JSON.stringify(sid)}, ${col}, ${JSON.stringify(mid)})`), { fin: mid, pourquoi: 'aujourdhui' });
+  assert.deepStrictEqual(evObj(`_ficheCourbeFin(getCls(), ${JSON.stringify(sid)}, ${col}, '2099-01-01')`), { fin: p.end, pourquoi: 'periode' });
+  // Avec un bilan : sa date.
+  const d = ev(`_ymdAdd(${JSON.stringify(p.end)}, -20)`);
+  ev(`bilanAdd(${JSON.stringify(sid)}, { date: ${JSON.stringify(d)}, type: 'conseil', texte: 'Bilan écrit.' })`);
+  assert.deepStrictEqual(evObj(`_ficheCourbeFin(getCls(), ${JSON.stringify(sid)}, ${col})`), { fin: d, pourquoi: 'bilan' });
+  const html = ev(`_ficheCourbeHTML(getCls(), S.eleves[${JSON.stringify(sid)}], ${col})`);
+  assert.match(html, /jusqu'au .*\(bilan\)/);
+  // Aucun point après la fin.
+  const dates = [...html.matchAll(/<title>(\d\d)\/(\d\d)\/(\d{4})/g)].map(m => `${m[3]}-${m[2]}-${m[1]}`);
+  assert.ok(dates.length && dates.every(x => x <= d));
+});

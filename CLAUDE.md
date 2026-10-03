@@ -296,6 +296,11 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   sources cochées ; la courbe dit ce qu'elle additionne (« carnet + MBN »). Dessous, *Relevés du
   carnet* (chaque relevé du moment : cumul, Δ, libellé) et *Notées dans MBN*, chacune avec sa
   coche (`_ficheCourbeSrc`, pour la séance, toutes fiches ; `ficheCourbeSrcUI`).
+  **La courbe s'arrête** (v1.46.2, l'utilisateur : *« à la date du bilan marqué, ou à la date
+  actuelle »*) : `_ficheCourbeFin` (pur) — la date du bilan écrit pour le moment choisi, sinon
+  aujourd'hui, bornée à la période ; l'axe, les mois, la zone du moment et le repère de
+  mi-période s'arrêtent là, et la légende au-dessus le dit (« carnet + MBN · jusqu'au 20/01
+  (bilan) »). Rien n'est dit quand c'est la fin de la période.
 - `postLoadHook` écarte les entrées illisibles et retire un champ qui n'est pas un tableau ;
   le champ n'est jamais créé d'office. Rien à purger à part : il part avec l'élève.
   Démo : onze observations MBN sur cinq élèves.
@@ -1749,6 +1754,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 90 | **Courbe de la fiche arrêtée à la date du bilan du moment, sinon aujourd'hui** (`_ficheCourbeFin`), légende au-dessus du dessin ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.46.2) |
 | 89 | **Fiche : courbe carnet + MBN** avec une coche par source, détail des relevés du carnet · **observations MBN sur la feuille imprimée du carnet** · colonne Bilans retirée quand aucun moment n'y est · un seul clic sur − pour un conseil remis ; 1 test, 1 test étendu. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.1) |
 | 88 | **Observations notées dans MBN** : import de l'export (.xlsx, dates en nombre de série, réimport sans doublon, retrait seulement coché), comptées à côté du carnet dans la grille (MBN par période, *Carnet + MBN*), la liste, la carte de chaleur, la fiche et la synthèse de période ; démo · **la fiche suit les moments retirés** ; 3 tests (`test/obs-mbn.test.js`). Vérifié sur l'export fourni (hors dépôt, 7 observations). Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.46.0) |
 | 87 | **Liste « 🗓 Moments »** à la place des menus ＋ / − : chaque moment de bilan avec − (dans la colonne) ou + (à ajouter) ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.45.4) |
