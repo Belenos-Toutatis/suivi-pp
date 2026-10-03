@@ -672,6 +672,19 @@ non candidat) — question posée à l'utilisateur le 2026-10-03.
   surligné, PV, remplacement suivent sans rien de plus ; revenir à « aucun » le retire. Refus :
   élection non close, hors binôme, date avant le scrutin, élève hors classe ou déjà élu. Le PV le
   dit (`_elSupNcTexte`). La question d'acceptation l'annonce.
+  **v1.52.6** (l'utilisateur : *« si je coche « élu ensuite par un scrutin », comment faire
+  après ? »* puis *« fais les deux »*) : (1) **le bloc guide** — une ligne dit quoi faire selon le
+  choix coché, *✓ Enregistrer* reste grisé tant qu'il manque l'élève (`_elSupNcMaj`) ; (2) **le
+  scrutin tenu dans l'app** : *🗳 Organiser ce scrutin dans l'app* →
+  `electionCreerScrutinSuppleant` crée une élection RATTACHÉE (`supDe = { elId, candId, nom }`,
+  un siège, sans suppléant, un nom par bulletin, majorité et départage de l'élection d'origine) —
+  candidatures, bulletins préparés, projection, fenêtre détachée, PV (« Procès-verbal de l'élection
+  d'un suppléant », « 1 siège à pourvoir : le suppléant »). À sa **clôture**, `_elSupDeAppliquer`
+  reporte l'élu comme suppléant (`supNc.scrutinId`) et le PV d'origine cite le scrutin avec ses
+  chiffres (« 6 votants, 5 exprimés, 4 voix »). ⚠️ **Un scrutin de suppléant n'est JAMAIS
+  « l'élection des délégués »** : `_delegueOf` et la désignation sans vote l'écartent (`!e.supDe`) —
+  sans cela, le plus récent des scrutins clos aurait fait de son élu le seul délégué. La liste des
+  élections le dit (« ↳ scrutin du suppléant de … »), son en-tête a *↩ Élection d'origine*.
 
 #### ⚠️ Un pourcentage en cours de dépouillement est trompeur
 
@@ -2123,6 +2136,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 122 | **Suppléant élu par un scrutin** : guidage et bouton grisé ; **scrutin tenu dans l'app** (élection rattachée, élu reporté à la clôture, jamais prise pour l'élection des délégués, PV propre et cité dans celui d'origine) ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.6) |
 | 121 | **Bulletins préparés d'après le compte de l'urne** (lignes « à lire », qui ne comptent qu'une fois lues ; Entrée ou Blanc = blanc ; clôture refusée tant qu'il en reste) ; démo ; 1 test, 2 tests adaptés. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.5) |
 | 120 | **Suppléant d'un élu non candidat** : aucun, élu ensuite par un scrutin, ou désigné par l'élu ; dit au PV ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.4) |
 | 119 | **Élu non candidat** : modalité « compte / bulletin nul » (compte par défaut), acceptation demandée à la clôture, refus = siège au suivant ; 2 tests. Audit de la question et des modalités, 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.3) |

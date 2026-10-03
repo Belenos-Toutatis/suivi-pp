@@ -634,3 +634,35 @@ test('Compte de l\'urne : des lignes « à lire » préparées, qui ne comptent 
   assert.strictEqual(r.reste, 19);
   assert.strictEqual(r.lus, 19, 'aucun bulletin lu retiré, même sous le compte');
 });
+
+test('Scrutin du suppléant tenu dans l\'app : une élection rattachée, son élu reporté à la clôture, jamais prise pour l\'élection des délégués', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), ti = 0, t = el.tours[ti];
+    electionPreparerBulletins(el, ti, null);
+    const libres = cls.eleves.filter(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    const c = electionAddEcrit(el, libres[0]);
+    for (let i = 0; i < 40; i++) electionAddBulletin(el, ti, [c.id]);
+    t.votantsAnnonces = t.bulletins.length; c.accepte = true;
+    electionCloreTour(el, ti);
+    let g = 0; while (!el.clos && g++ < 3) { const k = el.tours.length - 1; electionAddBulletin(el, k, [el.tours[k].candidats[0]]); el.tours[k].votantsAnnonces = el.tours[k].bulletins.length; electionCloreTour(el, k); }
+    const avant = _delegueOf(c.sidTitulaire);
+    const sub = electionCreerScrutinSuppleant(el, c.id);
+    const forme = { nbT: sub.nbTitulaires, sup: _elNbSup(sub), binome: sub.binome, npb: sub.nomsParBulletin, supDe: sub.supDe.candId === c.id, enCours: _elSupNcTexte(el, c) };
+    const a = electionAddCandidat(sub, libres[1], null), b = electionAddCandidat(sub, libres[2], null);
+    electionPreparerBulletins(sub, 0, 5);
+    [[a.id], [a.id], [a.id], [b.id], []].forEach((v, i) => electionSetBulletin(sub, 0, i + 1, { voix: v }));
+    electionCloreTour(sub, 0);
+    const msg = _elSupDeAppliquer(sub);
+    return JSON.stringify({ avant, forme, subClos: sub.clos, msg, sup: _elCand(el, c.id).sidSuppleant === libres[1], texte: _elSupNcTexte(el, c),
+      delegueTit: _delegueOf(c.sidTitulaire), delegueSup: _delegueOf(libres[1]), nonDelegue: _delegueOf(libres[2]) });
+  })()`));
+  assert.deepStrictEqual(r.forme, { nbT: 1, sup: 0, binome: false, npb: 1, supDe: true, enCours: 'scrutin du suppléant en cours' });
+  assert.strictEqual(r.subClos, true);
+  assert.strictEqual(r.msg, '', 'report sans avertissement');
+  assert.strictEqual(r.sup, true, 'son élu est le suppléant');
+  assert.match(r.texte, /suppléant élu par un scrutin le .* \(5 votants, 4 exprimés, 3 voix\)/);
+  assert.strictEqual(r.delegueTit, r.avant, 'le scrutin du suppléant ne remplace pas celle des délégués');
+  assert.strictEqual(r.delegueSup, 'suppleant');
+  assert.strictEqual(r.nonDelegue, null);
+});
