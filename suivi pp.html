@@ -991,6 +991,7 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .rel-wrap.frozen.bul-wrap.bul-plat thead th { top: calc(var(--topbar-h) + var(--el-head-h, 0px)); }
 .rel-wrap.frozen.bul-wrap.bul-plat input, .rel-wrap.frozen.bul-wrap.bul-plat button { scroll-margin-top: calc(var(--topbar-h) + var(--el-head-h, 0px) + 48px); }
 .el-ass select { max-width: 220px; }
+.el-ass #el-pres-qui { max-width: min(320px, 100%); }
 .el-supnc { margin: 8px 0; display: flex; flex-direction: column; gap: 6px; text-align: left; background: var(--paper-warm); border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 8px 12px; }
 .el-supnc .mfp-opts label { justify-content: flex-start; }
 .el-ecrit { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -2973,8 +2974,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.11';
-const APP_BUILD_DATE = '2026-10-03T17:07:12Z';
+const APP_VERSION    = '1.52.12';
+const APP_BUILD_DATE = '2026-10-03T17:20:52Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4948,6 +4949,7 @@ function _ficheElections(cls, sid) {
       if (c.sidSuppleant === sid && !roles.includes('suppleant')) roles.push('suppleant');
     }
     if ((el.assesseurs || []).includes(sid) && !roles.includes('assesseur')) roles.push('assesseur');
+    if (_isPlainObj(el.president) && el.president.qui === 'eleve' && el.president.sid === sid) roles.push('president');
     if (!roles.length) return null;
     const mien = (el.candidats || []).filter(c => c.sidTitulaire === sid || c.sidSuppleant === sid).map(c => c.id);
     const elus = [...(el.elus?.titulaires || []), ...(el.elus?.suppleants || [])];
@@ -7204,7 +7206,7 @@ function _ficheRender() {
   const els = _ficheElections(cls, stu.id);
   const elsHTML = els.length
     ? els.map(e => `<div class="tb-hint">${_escName(_fmtDateFr(e.date))} — ${_escName(e.titre)} · ${
-        e.roles.map(r => r === 'assesseur' ? 'assesseur' : r === 'titulaire' ? 'candidat titulaire' : 'candidat suppléant').join(', ')}${
+        e.roles.map(r => r === 'assesseur' ? 'assesseur' : r === 'president' ? 'président du bureau de vote' : r === 'titulaire' ? 'candidat titulaire' : 'candidat suppléant').join(', ')}${
         e.elu ? ' · <span class="badge ok">élu</span>' : (e.clos ? ' · non élu' : ' · ' + '<span class="badge warn">en cours</span>')}</div>`).join('')
     : vide('N\'apparaît dans aucune élection.');
 
@@ -12336,25 +12338,80 @@ function electionSetAssesseur(el, i, sid) {
     if (!S.eleves[sid] || !cls || !cls.eleves.includes(sid)) return false;
     if (el.candidats.some(c => c.sidTitulaire === sid || c.sidSuppleant === sid)) return false;
     if (a[1 - i] === sid) return false;
+    if (_elPresident(el).sid === sid) return false;   // déjà président du bureau
   }
   a[i] = sid || '';
   el.assesseurs = a.filter(Boolean);
   el.assesseursNoms = el.assesseurs.map(x => `${S.eleves[x].prenom} ${S.eleves[x].nom}`);
   return true;
 }
+// Le PRÉSIDENT DU BUREAU (v1.52.12, l'utilisateur : « ajoute le président du bureau au choix — le
+// bureau pourrait aussi être présidé par le conseiller principal d'éducation »). Aucun texte national
+// ne le fixe (usage d'établissement) : `el.president = { qui: 'pp' | 'cpe' | 'eleve' | 'autre', sid,
+// nom, fonction }` — absent = le professeur principal (ce que l'app faisait). Il signe le PV à ce
+// titre. Un élève président est NON candidat et n'est pas assesseur ; nom figé comme ceux des
+// assesseurs. Refus : élection close, élève hors classe, candidat ou assesseur. PUR sauf l'écriture.
+const EL_PRESIDENTS = [
+  { qui: 'pp',    label: 'le professeur principal' },
+  { qui: 'cpe',   label: 'le conseiller principal d\'éducation' },
+  { qui: 'eleve', label: 'un élève non candidat' },
+  { qui: 'autre', label: 'un autre adulte' },
+];
+function _elPresident(el) {
+  const p = _isPlainObj(el && el.president) ? el.president : {};
+  const qui = EL_PRESIDENTS.some(x => x.qui === p.qui) ? p.qui : 'pp';
+  const fonction = qui === 'pp' ? 'Le professeur principal' : qui === 'cpe' ? 'Le conseiller principal d\'éducation'
+    : qui === 'eleve' ? 'Élève' : (String(p.fonction || '').trim() || 'Adulte de l\'établissement');
+  return { qui, sid: qui === 'eleve' ? p.sid || '' : '', nom: String(p.nom || '').trim(), fonction };
+}
+function electionSetPresident(el, { qui, sid, nom, fonction } = {}) {
+  if (!el || el.clos || !EL_PRESIDENTS.some(x => x.qui === qui)) return false;
+  if (qui === 'eleve') {
+    const cls = S.classes[el.classId];
+    if (sid) {
+      if (!S.eleves[sid] || !cls || !cls.eleves.includes(sid)) return false;
+      if (el.candidats.some(c => c.sidTitulaire === sid || c.sidSuppleant === sid) || (el.assesseurs || []).includes(sid)) return false;
+    }
+    el.president = { qui, sid: sid || '', nom: sid ? `${S.eleves[sid].prenom} ${S.eleves[sid].nom}` : '' };
+    return true;
+  }
+  el.president = { qui, nom: String(nom || '').trim().slice(0, 80) };
+  if (qui === 'autre') el.president.fonction = String(fonction || '').trim().slice(0, 60);
+  return true;
+}
+function electionPresidentUI(champ, v) {
+  const el = _elCurrent(); if (!el) return;
+  const p = _elPresident(el);
+  const o = { qui: p.qui, sid: p.sid, nom: p.nom, fonction: el.president?.fonction || '' };
+  if (champ === 'qui') { o.qui = v; o.sid = ''; o.nom = ''; }
+  else o[champ] = v;
+  let ok = false;
+  _elMut(e => { ok = electionSetPresident(e, o); });
+  if (!ok) toast('⚠️ Président refusé : élève candidat ou assesseur, ou élection close.', 'warn');
+}
 function _elAssesseursHTML(el) {
   const cls = getCls();
   if (!cls) return '';
   const a = el.assesseurs || [], noms = el.assesseursNoms || [];
-  if (el.clos) return `<div class="el-block el-ass"><strong>🧑‍⚖️ Assesseurs :</strong> ${noms.length ? noms.map(_escName).join(' · ') : '<span class="tb-hint">aucun</span>'}</div>`;
+  const P = _elPresident(el);
+  const presTxt = `${P.fonction}${P.nom ? ' — ' + P.nom : ''}`;
+  if (el.clos) return `<div class="el-block el-ass"><strong>🧑‍⚖️ Bureau de vote :</strong> président : ${_escName(presTxt)} · assesseurs : ${noms.length ? noms.map(_escName).join(' · ') : '<span class="tb-hint">aucun</span>'}</div>`;
   const cands = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
+  if (P.sid) cands.add(P.sid);   // l'élève président n'est pas assesseur
   const eleves = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !cands.has(s.id))
     .sort((x, y) => (x.nom + x.prenom).localeCompare(y.nom + y.prenom, 'fr'));
   const sel = i => `<select id="el-ass-${i}" onchange="electionAssesseurUI(${i}, this.value)" aria-label="Assesseur ${i + 1}"><option value="">— assesseur ${i + 1} —</option>${
     eleves.filter(s => s.id !== a[1 - i]).map(s => `<option value="${_escAttr(s.id)}"${s.id === a[i] ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select>`;
   const manque = 2 - a.length;
-  return `<div class="el-block el-ass"><strong>🧑‍⚖️ Assesseurs</strong> <span class="tb-hint">— deux élèves volontaires, non candidats : ils surveillent le vote, comptent les bulletins et signent le procès-verbal.</span>
-    <div class="tb" style="margin-top:4px">${sel(0)}${sel(1)}${manque ? `<span class="tb-hint">${manque === 2 ? 'Aucun assesseur choisi.' : 'Un seul assesseur choisi.'}</span>` : ''}</div></div>`;
+  // Le président : une fonction, puis l'élève (non candidat, non assesseur) ou le nom de l'adulte.
+  const libresPres = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !el.candidats.some(c => c.sidTitulaire === s.id || c.sidSuppleant === s.id) && !a.includes(s.id))
+    .sort((x, y) => (x.nom + x.prenom).localeCompare(y.nom + y.prenom, 'fr'));
+  const pres = `<label class="tb-hint" for="el-pres-qui">Président</label><select id="el-pres-qui" onchange="electionPresidentUI('qui', this.value)">${EL_PRESIDENTS.map(x => `<option value="${x.qui}"${x.qui === P.qui ? ' selected' : ''}>${_escName(x.label)}</option>`).join('')}</select>${
+    P.qui === 'eleve' ? `<select id="el-pres-sid" onchange="electionPresidentUI('sid', this.value)" aria-label="L'élève président"><option value="">— l'élève —</option>${libresPres.map(s => `<option value="${_escAttr(s.id)}"${s.id === P.sid ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select>`
+    : `${P.qui === 'autre' ? `<input type="text" id="el-pres-fonction" maxlength="60" placeholder="fonction (ex. : principal adjoint)" value="${_escAttr(el.president?.fonction || '')}" onchange="electionPresidentUI('fonction', this.value)" aria-label="Fonction du président">` : ''}<input type="text" id="el-pres-nom" maxlength="80" placeholder="nom (facultatif)" value="${_escAttr(P.nom)}" onchange="electionPresidentUI('nom', this.value)" aria-label="Nom du président">`}`;
+  return `<div class="el-block el-ass"><strong>🧑‍⚖️ Bureau de vote</strong> <span class="tb-hint">— un président et deux assesseurs, élèves volontaires non candidats : ils surveillent le vote, comptent les bulletins et signent le procès-verbal. Aucun texte national ne les fixe : c'est l'usage de l'établissement.</span>
+    <div class="tb" style="margin-top:4px">${pres}</div>
+    <div class="tb" style="margin-top:4px"><span class="tb-hint">Assesseurs</span>${sel(0)}${sel(1)}${manque ? `<span class="tb-hint">${manque === 2 ? 'Aucun assesseur choisi.' : 'Un seul assesseur choisi.'}</span>` : ''}</div></div>`;
 }
 function electionAssesseurUI(i, sid) {
   let ok = false;
@@ -13073,7 +13130,7 @@ function _elRenderCandidats(el, t) {
   const cls = getCls();
   const taken = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
   const exclus = _elSupDeExclus(el);   // scrutin de suppléant : pas les élus de l'élection d'origine
-  const assess = new Set(el.assesseurs || []);
+  const assess = new Set([...(el.assesseurs || []), _elPresident(el).sid].filter(Boolean));
   const eligibles = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !taken.has(s.id) && !exclus.has(s.id) && !assess.has(s.id))
     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
   const opt = s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`;
@@ -13106,6 +13163,7 @@ function electionAddCandidatUI() {
   // Un assesseur n'est pas candidat (v1.52.11) — refusé à l'écran ; le modèle reste permissif
   // pour les fichiers anciens qui auraient les deux.
   if ((el?.assesseurs || []).some(a => a === sidT || a === sidS)) return toast('⚠️ Cet élève est assesseur : il ne peut pas être candidat.', 'warn');
+  if (el && _elPresident(el).sid && [sidT, sidS].includes(_elPresident(el).sid)) return toast('⚠️ Cet élève préside le bureau de vote : il ne peut pas être candidat.', 'warn');
   _elMut(e => electionAddCandidat(e, sidT, sidS));
 }
 
@@ -13567,7 +13625,7 @@ function electionPrintPV() {
     <div class="pv-sign">
       <div><div class="pv-sign-t">Assesseur</div><div class="pv-sign-n">${_escName(ass[0] || '')}</div><div class="pv-sign-l"></div></div>
       <div><div class="pv-sign-t">Assesseur</div><div class="pv-sign-n">${_escName(ass[1] || '')}</div><div class="pv-sign-l"></div></div>
-      <div><div class="pv-sign-t">Le professeur principal</div><div class="pv-sign-n">&nbsp;</div><div class="pv-sign-l"></div></div>
+      <div><div class="pv-sign-t">Le président du bureau</div><div class="pv-sign-n">${_escName(_elPresident(el).fonction)}${_elPresident(el).nom ? ' — ' + _escName(_elPresident(el).nom) : ''}</div><div class="pv-sign-l"></div></div>
     </div>
     ${_pvElusSignHTML(el, elus, sups)}
     <p class="pv-foot">Fait le ${_escName(_fmtDateFr(el.date))}. Références : ${_elType(el).textes.map(t => _escName(t.ref)).join(' ; ')}.</p>

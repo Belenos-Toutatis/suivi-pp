@@ -764,3 +764,36 @@ test('Assesseurs : saisis dans l\'élection (plus dans les modalités), deux él
   })()`));
   assert.deepStrictEqual(r, { candRefus: false, a1: true, doublon: false, a2: true, noms: 2, proposeAssCandidat: 0, clos: false, figeHTML: false });
 });
+
+test('Président du bureau : le PP par défaut, ou le CPE, un élève non candidat, un autre adulte ; il signe le PV à ce titre', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls();
+    const el = electionCreate(cls.id, {}); S.elections[cls.id][el.id] = el;
+    const ids = cls.eleves.filter(id => _isStudentActive(S.eleves[id]));
+    electionAddCandidat(el, ids[0], ids[1]);
+    const defaut = _elPresident(el).fonction;
+    const cpe = electionSetPresident(el, { qui: 'cpe', nom: 'M. Martin' }) && _elPresident(el);
+    const candRefus = electionSetPresident(el, { qui: 'eleve', sid: ids[0] });
+    electionSetAssesseur(el, 0, ids[2]);
+    const assRefus = electionSetPresident(el, { qui: 'eleve', sid: ids[2] });
+    const eleve = electionSetPresident(el, { qui: 'eleve', sid: ids[3] });
+    const assPres = electionSetAssesseur(el, 1, ids[3]);
+    const fiche = _ficheElections(cls, ids[3]).find(e => e.electionId === el.id)?.roles;
+    const autre = electionSetPresident(el, { qui: 'autre', fonction: 'Principal adjoint', nom: '<b>X</b>' }) && _elPresident(el);
+    el.clos = true;
+    const clos = electionSetPresident(el, { qui: 'pp' });
+    return JSON.stringify({ defaut, cpe, candRefus, assRefus, eleve, assPres, fiche, autre, clos });
+  })()`));
+  assert.strictEqual(r.defaut, 'Le professeur principal');
+  assert.deepStrictEqual([r.cpe.qui, r.cpe.fonction, r.cpe.nom], ['cpe', 'Le conseiller principal d’éducation'.replace('’', "'"), 'M. Martin']);
+  assert.strictEqual(r.candRefus, false, 'un candidat ne préside pas');
+  assert.strictEqual(r.assRefus, false, 'un assesseur ne préside pas');
+  assert.strictEqual(r.eleve, true);
+  assert.strictEqual(r.assPres, false, 'le président n’est pas assesseur');
+  assert.deepStrictEqual(r.fiche, ['president'], 'la fiche de l’élève le dit');
+  assert.deepStrictEqual([r.autre.fonction, r.autre.nom], ['Principal adjoint', '<b>X</b>'], 'texte brut — échappé au rendu');
+  assert.strictEqual(r.clos, false, 'figé à la clôture');
+  const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  assert.match(SRC, /<div class="pv-sign-t">Le président du bureau<\/div><div class="pv-sign-n">\$\{_escName\(_elPresident\(el\)\.fonction\)\}/);
+});
