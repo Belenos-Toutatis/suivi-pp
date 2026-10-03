@@ -616,6 +616,23 @@ seulement, *majorité relative* ensuite ; les voix ; les élus du tour marqués)
 la fenêtre déjà ouverte du graphique au résultat, rouvrir la ramène au graphique. ⚠️ **Jamais
 les remplacements en cours d'année** (arbitré) ni bouton ni numéro de bulletin.
 
+**v1.52.2** — *« quand on fait coulisser la liste des votes ou tout ce qui pourrait coulisser,
+que l'entête reste visible »* : mesuré, la page défilait et la ligne des candidats passait SOUS
+le bandeau. La barre de l'élection (`.el-head`) colle sous le bandeau ; une grille des bulletins
+qui tient en largeur ne défile plus dans son cadre (`.bul-plat`, posé par `_elEnteteColle`, écran
+≥ 700 × 480) et sa ligne de candidats colle sous la barre (`--el-head-h`, mesurée) ; le graphique
+colle aussi (`.el-split > .el-right { align-self: stretch }` — il n'avait pas de place pour
+coller). Plus de **filet rouge de marge** sur l'écran projeté (📽 et fenêtre détachée).
+**Nom écrit sur un bulletin** (*« les élèves peuvent utiliser une feuille blanche et ajouter un
+nom »*) : *✍️ + Nouveau nom* sous la grille → `electionAddEcrit` — l'élève (de la classe,
+présent, pas déjà candidat ni suppléant) devient une colonne du tour EN COURS (0 voix sur les
+bulletins déjà lus), **sans suppléant**, `ecrit: true` ; dit dans les candidatures et au PV
+(« non candidat, nom écrit sur un bulletin ») ; retirable (`electionRemoveEcrit`) tant qu'aucun
+bulletin ne le porte. Sans suppléant, élu en binôme : un siège sans suppléant ; s'il part, le siège
+est vacant. ⚠️ **Les textes divergent sur ce cas** (cf. *Cadre réglementaire* : R421-28 veut un
+suppléant pour chaque candidat ; la fiche service-public et la circulaire de 2004 admettent l'élu
+non candidat) — question posée à l'utilisateur le 2026-10-03.
+
 #### ⚠️ Un pourcentage en cours de dépouillement est trompeur
 
 C'est le vrai piège, et il est pédagogique autant que technique. Le dénominateur (les suffrages exprimés) **grandit à mesure qu'on dépouille** :
@@ -2066,6 +2083,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 118 | **Vie de classe : barre de l'élection, ligne des candidats et graphique collés au défilement** · **nom écrit sur un bulletin** (non candidat, sans suppléant) · **pas de filet rouge à l'écran projeté** ; 2 tests. Audit 2 thèmes, 1 440 et 320 px, 0 défaut | ✅ **fait** (2026-10-03, v1.52.2) |
 | 117 | **Résultat final dans la fenêtre détachée** (élus, tours, majorité relative au second tour ; sans les remplacements) ; 1 test. Audit dans la fenêtre, 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.52.1) |
 | 116 | **🖥 Fenêtre détachée du dépouillement** (pour le second écran : plein écran, suit chaque bulletin, Ctrl+Z depuis elle, repli si bloquée) ; 2 tests (`test/projection-fenetre.test.js`) | ✅ **fait** (2026-10-03, v1.52.0) |
 | 115 | **Photos dans les grilles des observations et des moyennes** ; 1 test. Audit 2 thèmes, 1 440 et 320 px, 0 défaut ; saisie au carnet vérifiée | ✅ **fait** (2026-10-03, v1.51.3) |

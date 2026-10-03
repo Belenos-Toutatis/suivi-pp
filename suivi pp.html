@@ -278,6 +278,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
   /* Hauteur du bandeau collant — valeur de repli, REMESURÉE par _topbarMeasure() au
      chargement et à chaque changement de taille. Dimensionne les cadres figés. */
   --topbar-h: 96px;
+  --el-head-h: 0px;   /* hauteur de la barre d'une élection ouverte, mesurée (_elEnteteColle) — pas une couleur */
   --fiche-cote-w: 58vw;   /* largeur de la fiche ancrée à droite de la liste (écran large) */
   --radius-sm: 3px;
   --radius-md: 5px;
@@ -983,6 +984,14 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 /* Grille des bulletins (v1.45.3) : cadre figé, moins haut que l'écran — les candidatures et
    le bouton « + Bulletin » restent atteignables sans faire défiler la page. */
 .rel-wrap.frozen.bul-wrap { max-height: max(220px, calc(100dvh - var(--topbar-h) - 140px)); }
+/* Vie de classe (v1.52.2) : la barre de l'élection colle sous le bandeau ; une grille des
+   bulletins qui tient en largeur défile avec la page, sa ligne de candidats collée sous la barre. */
+.el-head { position: sticky; top: var(--topbar-h); z-index: 20; background: var(--paper); box-shadow: 0 1px 0 var(--rule-line); }
+.rel-wrap.frozen.bul-wrap.bul-plat { max-height: none; overflow: visible; }
+.rel-wrap.frozen.bul-wrap.bul-plat thead th { top: calc(var(--topbar-h) + var(--el-head-h, 0px)); }
+.rel-wrap.frozen.bul-wrap.bul-plat input, .rel-wrap.frozen.bul-wrap.bul-plat button { scroll-margin-top: calc(var(--topbar-h) + var(--el-head-h, 0px) + 48px); }
+.el-ecrit { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.el-ecrit select { max-width: 220px; }
 .av-tab { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 900px) { .av-tab { grid-template-columns: minmax(0, 1fr); } }
 .av-liste { display: grid; gap: 8px; }
@@ -1258,6 +1267,9 @@ body.doc-dragging-on .dt tbody tr:hover { background: inherit; }
    l'étape 10 : 170 px de débordement du dépouillement à 375 px de large, alors même
    que la grille était déjà passée à une seule colonne. */
 .el-left, .el-right { min-width: 0; }
+/* Le volet du graphique prend la hauteur de la rangée : sans cela, le graphique « collant »
+   n'avait pas de place pour coller et partait avec la page (mesuré, v1.52.2). */
+.el-split > .el-right { align-self: stretch; }
 @media (max-width: 1000px) { .el-split { grid-template-columns: minmax(0, 1fr); } }
 .el-block { margin-bottom: 14px; }
 details.el-block > summary { cursor: pointer; font-weight: 600; color: var(--ink-blue); margin-bottom: 6px; }
@@ -1277,7 +1289,7 @@ details.el-block > summary { cursor: pointer; font-weight: 600; color: var(--ink
 
 /* Graphique : voix en longueur de barre, axe fixe sur les votants annoncés,
    ligne de majorité projetée, transitions douces (~250 ms) et neutralisables. */
-.el-chart { background: var(--paper-warm); border: 1px solid var(--rule-line); border-radius: var(--radius-lg); padding: 14px 18px; position: sticky; top: 110px; }
+.el-chart { background: var(--paper-warm); border: 1px solid var(--rule-line); border-radius: var(--radius-lg); padding: 14px 18px; position: sticky; top: calc(var(--topbar-h) + var(--el-head-h, 0px) + 8px); }
 .el-title { font-family: var(--font-serif); font-size: 1.3em; color: var(--ink-blue); margin-bottom: 8px; }
 .el-tour { color: var(--pencil); font-size: .8em; }
 .el-prog { display: flex; align-items: center; gap: 12px; font-size: .95em; margin-bottom: 12px; }
@@ -1351,6 +1363,9 @@ details.el-block > summary { cursor: pointer; font-weight: 600; color: var(--ink
 .el-right.big .el-axis { font-size: min(2.4vh, 1.7vw); }
 body.el-projecting #topbar, body.el-projecting #rgpd-banner, body.el-projecting .sh { display: none; }
 body.el-projecting #main { padding-top: 8px; }
+/* Pas de filet rouge de marge sur l'écran projeté (v1.52.2, demande de l'utilisateur) — ni ici,
+   ni dans la fenêtre détachée. La ligne de MAJORITÉ, elle, reste : c'est une donnée. */
+body.el-projecting::before { display: none; }
 
 /* Procès-verbal : une page portrait, sans thème sombre, chrome masqué */
 .pv { display: none; }
@@ -2943,8 +2958,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.52.1';
-const APP_BUILD_DATE = '2026-10-03T15:42:18Z';
+const APP_VERSION    = '1.52.2';
+const APP_BUILD_DATE = '2026-10-03T15:49:47Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12144,6 +12159,44 @@ function electionAddCandidat(el, sidT, sidS) {
   return c;
 }
 
+// Un NOM ÉCRIT sur un bulletin (v1.52.2, l'utilisateur : « prévoir un bulletin avec un nouveau
+// nom : les élèves peuvent utiliser une feuille blanche et ajouter un nom »). Les textes le
+// permettent : un élève non candidat peut être élu s'il accepte (circulaire n° 2004-114 § 6.1).
+// Il devient une colonne du tour EN COURS, même s'il a déjà des bulletins (les précédents ne
+// portaient pas son nom : 0 voix), sans suppléant, marqué `ecrit`. Refus : élection close, tour
+// clos, élève inconnu de la classe ou parti, déjà candidat (titulaire ou suppléant). PUR sauf
+// l'écriture ; l'appelant pose pushUndo et save.
+function electionAddEcrit(el, sid) {
+  const cls = S.classes[el.classId] || getCls();
+  const t = el.tours[el.tours.length - 1];
+  const s = S.eleves[sid];
+  if (el.clos || !t || t.clos || !s || !cls || !cls.eleves.includes(sid) || !_isStudentActive(s, el.date)) return null;
+  if (el.candidats.some(c => c.sidTitulaire === sid || c.sidSuppleant === sid)) return null;
+  const c = electionAddCandidat(el, sid, null);
+  if (!c) return null;
+  c.ecrit = true;
+  for (const t2 of el.tours) if (!t2.clos && !t2.candidats.includes(c.id)) t2.candidats.push(c.id);
+  return c;
+}
+// Une colonne ajoutée par erreur se retire tant qu'aucun bulletin ne porte ce nom.
+function electionRemoveEcrit(el, candId) {
+  const c = _elCand(el, candId);
+  if (!c || !c.ecrit || el.clos || el.tours.some(t => t.bulletins.some(b => (b.voix || []).includes(candId)))) return false;
+  el.candidats = el.candidats.filter(x => x.id !== candId);
+  el.tours.forEach(t => { t.candidats = t.candidats.filter(x => x !== candId); });
+  return true;
+}
+function electionAddEcritUI() {
+  const sid = document.getElementById('el-ecrit')?.value;
+  if (!sid) return toast('⚠️ Choisissez l\'élève dont le nom est écrit sur le bulletin.', 'warn');
+  let c = null;
+  _elMut(e => { c = electionAddEcrit(e, sid); });
+  if (!c) return toast('⚠️ Impossible d\'ajouter ce nom (déjà candidat, ou tour clos).', 'warn');
+  toast(`✍️ ${c.nomTitulaire} : une colonne de plus — cochez-le sur le bulletin. Élu, il doit accepter le mandat.`);
+  const last = document.querySelector(`.bul-table tbody tr:last-child .bul-c input[data-c="${CSS.escape(c.id)}"]`);
+  if (last) last.focus();
+}
+
 // ── Bulletins ──
 // Statut DÉDUIT, puis corrigeable : 0 nom → blanc, plus de noms que permis → nul.
 // ⚠️ Un bulletin nul pour inscription inappropriée porte des noms valides et ne peut
@@ -12692,7 +12745,7 @@ function _elRenderOne(box, el, cls) {
   const tourIdx = el.tours.length - 1;
   const t = el.tours[tourIdx];
   const live = _elLive(el, tourIdx);
-  const head = `<div class="tb no-print">
+  const head = `<div class="tb no-print el-head">
       <button class="btn btn-g btn-sm" onclick="_elView=null;renderDelegues()">← Élections</button>
       <strong style="font-family:var(--font-serif);font-size:1.15em">${_escName(el.titre)}</strong>
       <span class="tb-hint">${_escName(_fmtDateFr(el.date))} · ${el.inscrits} inscrits · ${el.binome !== false ? 'binômes' : 'candidats seuls'} · ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue au 1er tour' : 'majorité relative'}</span>
@@ -12710,6 +12763,24 @@ function _elRenderOne(box, el, cls) {
   const keep = _wrapScrollKeep(box);
   box.innerHTML = head + (el.clos ? res + cand : `<div class="el-split${_elProject ? ' proj' : ''}">${_elProject ? '' : `<div class="el-left">${cand}${dep}</div>`}<div class="el-right${_elProject ? ' big' : ''}">${chart}</div></div>${res}`);
   keep();
+  _elEnteteColle(box);
+}
+
+// En-tête COLLÉ (v1.52.2, l'utilisateur : « quand on fait coulisser la liste des votes ou tout ce
+// qui pourrait coulisser, que l'entête reste visible »). Mesuré : la page défilait, et la ligne
+// des candidats de la grille des bulletins passait SOUS le bandeau (cadre à 83 px, bandeau
+// jusqu'à 113) ; la barre de l'élection partait. Désormais la barre (`.el-head`) colle sous le
+// bandeau, et — quand la grille tient en largeur — elle ne défile plus dans son propre cadre :
+// c'est la page qui défile, et la ligne des candidats colle sous la barre (`.bul-plat`). Une
+// grille plus large que son volet garde son cadre (défilement horizontal), en-tête compris.
+function _elEnteteColle(box) {
+  const hd = box.querySelector('.el-head');
+  if (hd) box.style.setProperty('--el-head-h', hd.offsetHeight + 'px');
+  const bw = box.querySelector('.bul-wrap'), tb = bw && bw.querySelector('table');
+  if (!bw || !tb) return;
+  const grand = typeof matchMedia === 'function' && matchMedia('(min-width: 700px) and (min-height: 480px)').matches;
+  bw.classList.remove('bul-plat');
+  bw.classList.toggle('bul-plat', !!grand && tb.scrollWidth <= bw.clientWidth + 1);
 }
 
 // ── Fenêtre détachée (v1.52.0) ──
@@ -12736,7 +12807,7 @@ function elProjectionFenetre() {
   d.close();
   for (const st of document.querySelectorAll('style')) d.head.appendChild(d.importNode(st, true));
   const pr = d.createElement('style');
-  pr.textContent = 'body{margin:0;padding:12px 16px;background:var(--paper)} #el-win-bar{display:flex;gap:10px;align-items:center;margin-bottom:8px} :root:fullscreen #el-win-bar{display:none} #el-win .el-chart{position:static} .el-win-vide{font-size:min(4vh,3vw);color:var(--pencil);text-align:center;margin-top:30vh}';
+  pr.textContent = 'body::before{display:none!important} body{margin:0;padding:12px 16px;background:var(--paper)} #el-win-bar{display:flex;gap:10px;align-items:center;margin-bottom:8px} :root:fullscreen #el-win-bar{display:none} #el-win .el-chart{position:static} .el-win-vide{font-size:min(4vh,3vw);color:var(--pencil);text-align:center;margin-top:30vh}';
   d.head.appendChild(pr);
   for (const a of ['data-theme', 'data-police', 'data-police-papier']) { const v = document.documentElement.getAttribute(a); if (v !== null) d.documentElement.setAttribute(a, v); }
   d.getElementById('el-win-fs').addEventListener('click', () => { const r = d.documentElement; (r.requestFullscreen ? r.requestFullscreen() : Promise.reject()).catch(() => toast('⚠️ Plein écran refusé : F11 fait la même chose.', 'warn')); });
@@ -12805,11 +12876,12 @@ function _elRenderCandidats(el, t) {
   const canEdit = !el.clos && !t.bulletins.length && t.n === 1;
   const rows = el.candidats.slice().sort((a, b) => a.ordre - b.ordre).map(c => `<tr${c.retire ? ' class="inactive"' : ''}>
       <td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> <input type="color" value="${_escAttr(_safeColor(c.color))}" onchange="_elMut(e=>{_elCand(e,'${_escJsAttr(c.id)}').color=_safeColor(this.value)})" title="Couleur de la barre" style="width:26px;height:20px;padding:0;border:none;background:none;cursor:pointer;vertical-align:middle"></td>
-      <td><strong>${_escName(_elCandNom(c))}</strong>${c.retire ? ' <span class="tb-hint">(retiré)</span>' : ''}</td>
+      <td><strong>${_escName(_elCandNom(c))}</strong>${c.retire ? ' <span class="tb-hint">(retiré)</span>' : ''}${c.ecrit ? ' <span class="tb-hint" title="Non candidat : son nom a été écrit sur un bulletin">(nom écrit)</span>' : ''}</td>
       <td>${_escName(_elCandNomSup(c)) || '<span class="tb-hint">—</span>'}</td>
       <td style="white-space:nowrap">
         ${canEdit ? `<button class="btn btn-g btn-sm" onclick="_elMut(e=>{const i=e.candidats.indexOf(_elCand(e,'${_escJsAttr(c.id)}'));if(i>0){[e.candidats[i-1].ordre,e.candidats[i].ordre]=[e.candidats[i].ordre,e.candidats[i-1].ordre];e.candidats.sort((a,b)=>a.ordre-b.ordre)}})" title="Monter">↑</button>
         <button class="btn btn-d btn-sm" onclick="_elMut(e=>{e.candidats=e.candidats.filter(x=>x.id!=='${_escJsAttr(c.id)}');e.tours.forEach(t=>{t.candidats=t.candidats.filter(x=>x!=='${_escJsAttr(c.id)}')})})" title="Retirer la candidature">✕</button>`
+        : c.ecrit && !el.clos && !el.tours.some(t2 => t2.bulletins.some(b => (b.voix || []).includes(c.id))) ? `<button class="btn btn-d btn-sm" onclick="_elMut(e=>electionRemoveEcrit(e,'${_escJsAttr(c.id)}'))" title="Aucun bulletin ne porte ce nom : retirer la colonne ajoutée par erreur">✕ Retirer</button>`
         : (!el.clos ? `<button class="btn btn-g btn-sm" onclick="_elMut(e=>{_elCand(e,'${_escJsAttr(c.id)}').retire=!_elCand(e,'${_escJsAttr(c.id)}').retire})" title="${c.retire ? 'Rétablir' : 'Candidature retirée entre les deux tours : ne figure pas au second'}">${c.retire ? '↺' : '🚫'}</button>` : '')}
       </td></tr>`).join('');
   const add = canEdit ? `<div class="tb" style="margin-top:6px">
@@ -12857,9 +12929,20 @@ function _elRenderDepouillement(el, tourIdx, live) {
     <tbody>${rows}</tbody></table></div>
     <div class="tb" style="margin-top:6px">
       <button class="btn btn-p btn-sm" id="el-bul-add" onclick="electionNewBulletinUI()" title="Un nouveau bulletin (Entrée depuis la dernière ligne fait pareil)">+ Bulletin</button>
+      ${_elEcritHTML(el)}
       <span class="tb-hint">Cochez les noms lus ; 0 nom = blanc, plus de ${el.nomsParBulletin} = nul. Chaque bulletin s'annule seul par Ctrl+Z.</span>
       <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="electionCloreUI()" ${t.bulletins.length ? '' : 'disabled'}>✓ Clore le tour ${t.n}</button>
     </div></div>`;
+}
+// Le choix d'un élève NON candidat dont le nom est écrit sur un bulletin (feuille blanche).
+function _elEcritHTML(el) {
+  const cls = getCls(), t = el.tours[el.tours.length - 1];
+  if (!cls || el.clos || !t || t.clos) return '';
+  const pris = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
+  const libres = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !pris.has(s.id))
+    .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
+  if (!libres.length) return '';
+  return `<span class="el-ecrit"><select id="el-ecrit" aria-label="Élève dont le nom est écrit sur le bulletin"><option value="">— nom écrit, non candidat —</option>${libres.map(s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select><button class="btn btn-g btn-sm" onclick="electionAddEcritUI()" title="Un bulletin porte le nom d'un élève qui n'était pas candidat (feuille blanche) : il devient une colonne, sans suppléant. S'il est élu, il doit accepter le mandat.">✍️ + Nouveau nom</button></span>`;
 }
 function electionToggleVoix(n, candId, on) {
   _elMut(e => {
@@ -13171,7 +13254,7 @@ function electionPrintPV() {
     <h1>${_escName(_elType(el).pv)}</h1>
     <p class="pv-sub">${_escName(el.etablissement || '')}${el.etablissement ? ' — ' : ''}Classe de <strong>${_escName(cls?.nom || el.classId)}</strong> — année ${_escName(cls?.annee || '')} — scrutin du <strong>${_escName(_fmtDateFr(el.date))}</strong></p>
     <p class="pv-mod"><strong>Modalités :</strong> ${el.nbTitulaires} titulaire${el.nbTitulaires > 1 ? 's' : ''}${_elNbSup(el) ? ` et ${_elNbSup(el)} suppléant${_elNbSup(el) > 1 ? 's' : ''}` : ', sans suppléant'} · ${el.binome !== false ? 'candidatures en binôme (le suppléant est élu avec son titulaire)' : (_elNbSup(el) ? 'suppléants élus séparément' : 'candidatures individuelles')} · au plus ${el.nomsParBulletin} nom${el.nomsParBulletin > 1 ? 's' : ''} par bulletin, bulletin vierge = blanc, trop de noms ou inscription inappropriée = nul · ${el.majoriteAbsolueT1 !== false ? 'majorité absolue des suffrages exprimés au premier tour, relative au second' : 'majorité relative'} · départage ${el.departage === 'plusAge' ? 'par le candidat le plus âgé' : el.departage === 'manuel' ? 'à la main' : 'par le candidat le plus jeune'}. Tous les élèves de la division sont électeurs et éligibles.</p>
-    <h3>Candidats</h3><p>${el.candidats.map(c => `${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}${c.retire ? ' (retiré)' : ''}`).join(' · ')}</p>
+    <h3>Candidats</h3><p>${el.candidats.map(c => `${_escName(_elCandNom(c))}${_elCandNomSup(c) ? ` / ${_escName(_elCandNomSup(c))}` : ''}${c.retire ? ' (retiré)' : ''}${c.ecrit ? ' (non candidat, nom écrit sur un bulletin)' : ''}`).join(' · ')}</p>
     ${tours}
     <h3>Sont élus</h3>
     <table class="pv-t"><tr><th>${_escName(_elType(el).elu)}s${_elNbSup(el) ? ' titulaires' : ''}</th>${_elNbSup(el) ? `<th>${_escName(_elType(el).elu)}s suppléants</th>` : ''}</tr>${elus.map((c, i) => `<tr><td>${_escName(_elCandNom(c))}</td>${_elNbSup(el) ? `<td>${_escName(sups[i] || '')}</td>` : ''}</tr>`).join('') || '<tr><td colspan="2">Aucun élu</td></tr>'}</table>

@@ -63,3 +63,11 @@ test('fenêtre détachée : élection close → le résultat (élus, tours), san
   assert.deepStrictEqual(r, { resultat: true, graphique: false, elus: 2, tours: 2, premier: true, second: true, relative: true,
     rempl: false, boutons: false, xss: false, ecoSup: false, ecoTitre: true });
 });
+
+test('Vie de classe : barre de l\'élection et ligne des candidats collées ; pas de filet rouge à l\'écran projeté', () => {
+  assert.match(SRC, /\.el-head \{ position: sticky; top: var\(--topbar-h\);/);
+  assert.match(SRC, /\.rel-wrap\.frozen\.bul-wrap\.bul-plat thead th \{ top: calc\(var\(--topbar-h\) \+ var\(--el-head-h, 0px\)\); \}/);
+  assert.match(SRC, /keep\(\);\n  _elEnteteColle\(box\);/);
+  assert.match(SRC, /body\.el-projecting::before \{ display: none; \}/);
+  assert.match(SRC, /pr\.textContent = 'body::before\{display:none!important\}/);
+});

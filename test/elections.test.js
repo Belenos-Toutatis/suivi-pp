@@ -500,3 +500,35 @@ test('modale : le nombre de suppléants reste réglable en binôme — le binôm
     ev(`document.getElementById = window.__gebi`);
   }
 });
+
+test('Nom écrit sur un bulletin : une colonne de plus en cours de dépouillement, sans suppléant, retirable sans voix', () => {
+  const r = JSON.parse(ev(`(() => {
+    S = _emptyState(); postLoadHook(); createDemo({ force: true });
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos), t = el.tours[el.tours.length - 1];
+    const nb = t.bulletins.length;
+    const pris = el.candidats.map(c => c.sidTitulaire);
+    const libre = cls.eleves.find(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id));
+    const refusCand = electionAddEcrit(el, pris[0]);
+    const c = electionAddEcrit(el, libre);
+    const deux = electionAddEcrit(el, libre);
+    const col = t.candidats.includes(c.id);
+    electionAddBulletin(el, el.tours.length - 1, [c.id]);
+    const d = _elDepouillement(el, el.tours.length - 1);
+    const retireAvecVoix = electionRemoveEcrit(el, c.id);
+    electionRemoveBulletin(el, el.tours.length - 1, t.bulletins[t.bulletins.length - 1].n);
+    const retireSans = electionRemoveEcrit(el, c.id);
+    const pv = (() => { const e2 = _elList(cls.id).find(e => e.clos); const c2 = electionAddEcrit(e2, libre); return c2; })();
+    return JSON.stringify({ nb, refusCand, ecrit: c.ecrit, sup: c.sidSuppleant, deux, col, voix: d.voix[c.id], retireAvecVoix, retireSans, apres: el.candidats.some(x => x.id === c.id), clos: pv });
+  })()`));
+  assert.ok(r.nb > 0, 'le tour a déjà des bulletins');
+  assert.strictEqual(r.refusCand, null, 'un candidat déjà inscrit ne se rajoute pas');
+  assert.strictEqual(r.ecrit, true);
+  assert.strictEqual(r.sup, null, 'sans suppléant');
+  assert.strictEqual(r.deux, null, 'une seule colonne par élève');
+  assert.ok(r.col, 'colonne du tour en cours, même avec des bulletins');
+  assert.strictEqual(r.voix, 1);
+  assert.strictEqual(r.retireAvecVoix, false, 'une colonne qui porte une voix ne se retire pas');
+  assert.strictEqual(r.retireSans, true);
+  assert.strictEqual(r.apres, false);
+  assert.strictEqual(r.clos, null, 'élection close : refus');
+});
