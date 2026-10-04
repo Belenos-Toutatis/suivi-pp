@@ -1750,6 +1750,11 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        entier), un contact s'ouvre dans la fenêtre des contacts (`openContacts(sid, focusId)` :
        ligne `data-jid` marquée `jl-cible`, son texte au focus), *＋ Noter un nouveau contact* ;
        case vide ou élève sans contact : la saisie directement.
+       **v1.55.7** (*« une fois le contact ouvert, que le message enregistré se voie en entier avec
+       ses retours à la ligne »*) : dans la fenêtre des contacts, chaque texte est une zone
+       `textarea.jl-txt` (`field-sizing: content`, `_autoTaille` après le rendu et à la frappe) —
+       plus un champ d'une ligne qui coupait le texte ; limite portée à 2 000 caractères. La
+       saisie d'un nouveau contact aussi : Entrée = nouvelle ligne, **Ctrl+Entrée = noter**.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
        discipline de la feuille d'avis (pleine / partielle), par papier (✓ ☐ —), par MOIS
@@ -2312,6 +2317,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 141 | **Contacts : le texte en entier dans la fenêtre des contacts**, retours à la ligne gardés (zones `textarea.jl-txt` à la hauteur du texte, plus de champ d'une ligne ni de limite à 300 caractères ; nouvelle entrée : Entrée = nouvelle ligne, Ctrl+Entrée = noter) ; 1 test. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.7) |
 | 140 | **Contacts : la liste lisible d'abord** — le compteur ☎ n des Indicateurs et les cases de la carte de chaleur proposent les contacts (date, type, texte entier), chacun s'ouvre dans la fenêtre des contacts (ligne marquée, texte au focus), ou « ＋ Noter un nouveau contact » ; case vide = la saisie (`chaleurContactsUI`, `_contactsListe`, `openContacts(sid, focusId)`) ; 2 tests adaptés. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.6) |
 | 139 | **Indicateurs : le compteur « n à rendre » montre QUELS papiers et les valide** (`elevesPapiersUI`, `_papiersARendre` — les mêmes que la colonne —, « ✓ Rendu » à la date du jour, un cran d'undo par papier, la fenêtre reste ouverte et se met à jour) ; 1 test. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.5) |
 | 138 | **Indicateurs : le compteur ⚖ n propose aussi les incidents ou un nouveau** (toutes les entrées de l'élève, par `chaleurIncidentsUI`) ; la date du dernier ouvre toujours celui-ci ; 1 test adapté. Vérifié dans le navigateur | ✅ **fait** (2026-10-04, v1.55.4) |

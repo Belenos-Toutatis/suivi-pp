@@ -1017,6 +1017,9 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .inc-choix-l .pap-l { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--rule-line-soft); border-radius: var(--radius-sm, 6px); }
 .inc-choix-l .pap-l small { display: block; color: var(--pencil); }
 .inc-choix-l .pap-ok { color: var(--ok-fg); padding: 2px 10px; }
+/* Contacts : le texte entier, ses retours à la ligne gardés (v1.55.7). */
+textarea.jl-txt { width: 100%; min-height: 0; resize: vertical; field-sizing: content; overflow-y: hidden; font-size: .9em; line-height: 1.35; padding: 4px 6px; box-sizing: border-box; }
+#mrem-jlist td { vertical-align: top; }
 #mrem-jlist tr.jl-cible td { box-shadow: inset 0 2px 0 var(--link-fg), inset 0 -2px 0 var(--link-fg); }
 .av-partage { margin-bottom: 10px; }
 .av-partage ol { margin: 6px 0 8px 1.3em; padding: 0; }
@@ -2432,8 +2435,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
         <input type="date" id="mrem-jdate" style="min-width:140px"></label>
       <label class="tb-hint" style="display:flex;flex-direction:column;gap:2px">Type
         <select id="mrem-jtype"></select></label>
-      <input type="text" id="mrem-jtxt" data-autofocus placeholder="Ce qu'il faut en retenir" maxlength="300" style="flex:1;min-width:170px"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();journalAddUI()}">
+      <textarea id="mrem-jtxt" class="jl-txt" data-autofocus rows="2" placeholder="Ce qu'il faut en retenir — Entrée : nouvelle ligne · Ctrl+Entrée : noter" maxlength="2000" style="flex:1;min-width:170px"
+             oninput="_autoTaille(this)" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();journalAddUI()}"></textarea>
       <button class="btn btn-s btn-sm" onclick="journalAddUI()">+ Noter</button>
     </div>
     <div id="mrem-jlist"></div>
@@ -3014,8 +3017,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.6';
-const APP_BUILD_DATE = '2026-10-04T20:54:01Z';
+const APP_VERSION    = '1.55.7';
+const APP_BUILD_DATE = '2026-10-04T21:00:28Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6919,12 +6922,12 @@ function openContacts(sid, focusId) {
   const ty = document.getElementById('mrem-jtype');
   if (ty) ty.innerHTML = _JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}">${t2.icon} ${_escName(t2.label)}</option>`).join('');
   const tx = document.getElementById('mrem-jtxt');
-  if (tx) tx.value = '';
+  if (tx) { tx.value = ''; _autoTaille(tx); }
   _journalRender();
   openMod('mcontacts');
   // Une entrée choisie dans la liste (v1.55.6) : son texte reçoit le focus, la ligne est marquée.
   const tr = focusId ? document.querySelector(`#mrem-jlist tr[data-jid="${CSS.escape(focusId)}"]`) : null;
-  if (tr) { tr.classList.add('jl-cible'); const i = tr.querySelector('input[type="text"]'); setTimeout(() => { try { tr.scrollIntoView({ block: 'center' }); i?.focus(); } catch (_) { } }, 30); }
+  if (tr) { tr.classList.add('jl-cible'); const i = tr.querySelector('textarea.jl-txt'); setTimeout(() => { try { tr.scrollIntoView({ block: 'center' }); i?.focus(); } catch (_) { } }, 30); }
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // FICHE ÉLÈVE — le rendu
@@ -8134,11 +8137,13 @@ function _journalRender() {
       <td><input type="date" value="${_escAttr(e.date)}" style="max-width:150px;font-size:.88em" title="Date du contact — se corrige ici"
             onchange="journalDateUI('${_escJsAttr(e.id)}', this)"></td>
       <td><select style="font-size:.88em;max-width:170px" title="Type du contact — se corrige ici" onchange="journalTypeUI('${_escJsAttr(e.id)}', this.value)">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}"${t2.key === t.key ? ' selected' : ''}>${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></td>
-      <td style="width:99%;min-width:180px"><input type="text" value="${_escAttr(e.texte)}" maxlength="300" style="width:100%;font-size:.9em" title="${_escAttr(e.texte)}"
-            onchange="journalEditUI('${_escJsAttr(e.id)}', this.value)"></td>
+      <td style="width:99%;min-width:180px"><textarea class="jl-txt" rows="1" maxlength="2000" aria-label="Texte du contact — se corrige ici"
+            oninput="_autoTaille(this)" onchange="journalEditUI('${_escJsAttr(e.id)}', this.value)">${_escName(e.texte)}</textarea></td>
       <td><button class="btn btn-d btn-sm" onclick="journalRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer ce contact">🗑 Supprimer</button></td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
+  // Le texte ENTIER, retours à la ligne compris (v1.55.7) : chaque zone prend la hauteur de son texte.
+  box.querySelectorAll('textarea.jl-txt').forEach(_autoTaille);
 }
 function journalAddUI() {
   const champD = document.getElementById('mrem-jdate');
@@ -8152,6 +8157,7 @@ function journalAddUI() {
   journalAdd(_remSid, d, ty, tx.value);
   save();
   tx.value = '';
+  _autoTaille(tx);
   _journalRender();
   renderStudents();
   tx.focus();

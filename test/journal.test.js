@@ -242,3 +242,20 @@ test('Contacts : fenêtre à part de la remarque ; date et type se corrigent (jo
   assert.match(src, /onclick="event\.stopPropagation\(\);chaleurContactsUI\('\$\{j\}'/, 'le compteur Contacts propose la liste');
   assert.match(src, /dot\('Aucun contact avec la famille — clic : en noter un', `openContacts\('\$\{j\}'\)`\)/);
 });
+
+test('Contacts (v1.55.7) : le texte se voit en entier, retours à la ligne gardés — zones qui grandissent, Ctrl+Entrée pour noter', () => {
+  const { loadApp } = require('./harness.js');
+  const app2 = loadApp();
+  const e2 = c => app2.__TESTEVAL(c);
+  e2(`S = _emptyState(); postLoadHook(); S.eleves.a = { id:'a', nom:'X', prenom:'Y', classe_id:'c', tags:[] }; journalAdd('a', '2025-10-11', 'appel', 'Ligne 1\\nLigne <b>2</b>');`);
+  assert.strictEqual(e2(`S.eleves.a.journal[0].texte`), 'Ligne 1\nLigne <b>2</b>', 'le retour à la ligne est gardé');
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const r = src.slice(src.indexOf('function _journalRender('), src.indexOf('function journalAddUI('));
+  assert.match(r, /<textarea class="jl-txt"[^>]*oninput="_autoTaille\(this\)"[^>]*>\$\{_escName\(e\.texte\)\}<\/textarea>/, 'une zone de texte, contenu échappé');
+  assert.ok(!/<input type="text"[^>]*e\.texte/.test(r), 'plus de champ d\'une ligne');
+  assert.match(r, /querySelectorAll\('textarea\.jl-txt'\)\.forEach\(_autoTaille\)/, 'chaque zone à la hauteur de son texte');
+  assert.ok(!/maxlength="300"/.test(r));
+  const f = src.slice(src.indexOf('<div id="mcontacts"'), src.indexOf('<div id="mcontacts"') + 2500);
+  assert.match(f, /<textarea id="mrem-jtxt"[^>]*event\.key==='Enter'&&\(event\.ctrlKey\|\|event\.metaKey\)/, 'Entrée : nouvelle ligne ; Ctrl+Entrée : noter');
+  assert.match(src, /textarea\.jl-txt \{[^}]*field-sizing: content/);
+});
