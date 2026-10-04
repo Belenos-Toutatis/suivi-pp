@@ -1010,6 +1010,9 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .av-titre { margin: 0 0 10px; font-size: 1.15em; color: var(--ink-deep); }
 .av-sous { margin: 18px 0 6px; font-size: 1em; color: var(--ink-deep); }
 .av-grille tfoot td { border-top: 2px solid var(--rule-line); }
+.av-partage { margin-bottom: 10px; }
+.av-partage ol { margin: 6px 0 8px 1.3em; padding: 0; }
+.av-partage li { margin: 2px 0; }
 .el-chaleur th.ch-clic { cursor: pointer; }
 .el-chaleur th.ch-clic:hover, .el-chaleur th.ch-clic:focus-visible { outline: 2px solid var(--link-fg); outline-offset: -2px; }
 .av-dlien { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--link-fg); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-align: left; }
@@ -3003,8 +3006,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.0';
-const APP_BUILD_DATE = '2026-10-04T20:10:46Z';
+const APP_VERSION    = '1.55.1';
+const APP_BUILD_DATE = '2026-10-04T20:17:28Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -16399,7 +16402,7 @@ function _avisNouvelleHTML(cls) {
   const ps = _periods(cls);
   const cur = _carnetCurrentPeriodIdx(cls);
   return `<div class="tb-hint" style="margin-bottom:10px">Une feuille de calcul du Nuage, un onglet par discipline, que les collègues remplissent par un lien de partage — sans compte. L'app la prépare, puis relit leurs réponses dans la copie que le client Nextcloud garde sur votre ordinateur.
-      <br>${_AVIS_CREER() ? '<strong>📄 Créer la feuille</strong> : enregistrez-la dans un dossier que Nextcloud synchronise ; une fois arrivée dans le Nuage, partagez-la par lien public <em>en modification</em> et collez le lien ici (ou plus tard). Une feuille vide déjà créée dans le Nuage se choisit par <strong>📂</strong>.' : '<strong>Avant</strong> : créez une feuille de calcul vide dans le Nuage, dans un dossier synchronisé, et partagez-la par lien public <em>en modification</em>.'}</div>
+      <br>${_AVIS_CREER() ? '<strong>📄 Créer la feuille</strong> : enregistrez-la dans un dossier que Nextcloud synchronise ; une fois arrivée dans le Nuage, partagez-la par lien public <em>en modification</em> — l\'app vous guide ensuite et vous demande le lien. Une feuille vide déjà créée dans le Nuage se choisit par <strong>📂</strong>.' : '<strong>Avant</strong> : créez une feuille de calcul vide dans le Nuage, dans un dossier synchronisé, et partagez-la par lien public <em>en modification</em>.'}</div>
     <div class="fg"><label for="mavis-per">Pour la période</label>
       <select id="mavis-per" style="max-width:100%" onchange="_avisNomMaj()">${ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('')}</select></div>
     ${_avisObjectifHTML(cls, null)}
@@ -16410,8 +16413,6 @@ function _avisNouvelleHTML(cls) {
       `<div class="tb-hint" style="margin:6px 0">Par exemple avant une rencontre avec la famille : leur nom sera surligné en jaune dans chaque onglet.</div>${_avisCiblesPickHTML(cls, null)}`)}
     <div class="fg"><label for="mavis-nom">Nom du fichier <span class="tb-hint">(proposé d'après la classe, l'objectif et la période — modifiable ; une feuille existante choisie par 📂 garde son nom)</span></label>
       <input id="mavis-nom" type="text" maxlength="120" value="${_escAttr(_avisNomDraft !== null ? _avisNomDraft : _avisNomFichier(cls, cur, 'conseil', +_todayYmd().slice(5, 7)))}" oninput="avisNomUI(this.value)" style="width:100%"></div>
-    <div class="fg"><label for="mavis-lien">Lien de partage de la feuille <span class="tb-hint">(facultatif — il ira dans le message aux collègues)</span></label>
-      <input id="mavis-lien" type="text" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%"></div>
     <div class="ma" style="flex-wrap:wrap">
       ${_AVIS_FS() ? '' : '<button class="btn btn-s" onclick="avisPreparerUI(true)" title="Votre navigateur ne sait pas écrire dans un fichier : la feuille se télécharge, à déposer ensuite dans le Nuage à la place de la feuille vide">⬇ Télécharger la feuille</button>'}
       ${_AVIS_CREER() ? '<button class="btn btn-p" onclick="avisPreparerUI(false, true)" title="Créer le fichier sous le nom ci-dessus, dans le dossier de votre choix (un dossier synchronisé par Nextcloud) : l\'app y écrit les onglets et les élèves">📄 Créer la feuille et la préparer…</button>' : ''}
@@ -16430,6 +16431,22 @@ function _avisObjectifHTML(cls, camp) {
       <label id="mavis-mois-w"${moisVis}>Mois <select id="mavis-mois" ${camp ? surCamp('mois', '+this.value') : 'onchange="_avisNomMaj()"'}>${AVIS_MOIS.map((m, i) => `<option value="${i + 1}"${i + 1 === r.mois ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
       ${camp ? '<span class="tb-hint">Changé ici, il arrive dans la feuille par <strong>📝 Mettre la feuille à jour</strong>.</span>' : ''}</div>`;
 }
+// L'étape d'après la création (v1.55.1, l'utilisateur : « je ne peux pas connaître le lien de
+// partage avant que la feuille ne soit créée ») : tant que la feuille n'a pas de lien, on dit
+// comment le faire dans le Nuage et on le demande ici. Collé, le bloc disparaît ; le lien se
+// corrige ensuite dans « ✉️ Le message aux collègues ».
+function _avisPartageHTML(camp) {
+  if (camp.lien) return '';
+  const id = _escJsAttr(camp.id);
+  return `<div class="al al-i av-partage"><strong>🔗 Étape suivante : partager la feuille</strong>
+      <ol>
+        <li>Dans le Nuage, ouvrez le dossier où ${camp.fichier ? `<strong>${_escName(camp.fichier)}</strong>` : 'la feuille'} est arrivée (le client Nextcloud l'y dépose en quelques secondes).</li>
+        <li>Cliquez l'icône de partage du fichier, puis ＋ à côté de <em>Lien de partage</em> ; réglez-le pour que les personnes qui ont le lien <strong>puissent modifier</strong> (sans compte à créer).</li>
+        <li>Copiez le lien et collez-le ici : il ira dans le message aux collègues.</li>
+      </ol>
+      <input id="mavis-lien-etape" type="text" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" aria-label="Lien de partage de la feuille"
+        onchange="avisLienUI('${id}',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"></div>`;
+}
 function _avisCampHTML(cls, camp) {
   const p = _avisPeriode(cls, camp);
   const cpt = _avisCompte(camp);
@@ -16444,7 +16461,7 @@ function _avisCampHTML(cls, camp) {
   const fichier = camp.fichier ? `<strong>${_escName(camp.fichier)}</strong>` : '<em>aucune feuille choisie</em>';
   const choisirLbl = camp.fichier ? 'Autre fichier…' : 'Choisir la feuille…';
   const obj = _avisObjectif(cls, camp);
-  return `${_avisObjectifHTML(cls, camp)}
+  return `${_avisObjectifHTML(cls, camp)}${_avisPartageHTML(camp)}
     <div class="tb-hint" style="margin-bottom:8px">Pour <strong>${_escName(obj.long)}</strong> · feuille ${fichier} · ${cpt.n} avis rangé${cpt.n > 1 ? 's' : ''}${rap ? ` · relue à ${_escName(new Date(rap.quand).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }))}` : ''}</div>
     <div class="rel-wrap" style="margin-bottom:8px"><table class="dt"><thead><tr><th>Discipline</th><th style="text-align:right" title="Élèves sur qui la discipline a écrit quelque chose, sur les élèves de la feuille">Élèves avec un avis</th></tr></thead><tbody>${lignes}</tbody></table></div>
     ${rapport}
@@ -16828,8 +16845,10 @@ function avisLienUI(campId, val) {
   const l = _avisLienSur(val);
   if (String(val || '').trim() && !l) { toast('⚠️ Le lien doit commencer par https:// — copiez-le depuis « Partager » dans le Nuage.', 'warn'); return _avisRender(); }
   if (l === (camp.lien || '')) return;
+  const premier = !camp.lien;
   pushUndo(); camp.lien = l; save();
   _avisRender();
+  if (premier && l) toast('🔗 Lien enregistré — il est dans le message aux collègues (✉️), prêt à copier.');
 }
 // ── Les élèves demandés en particulier ──
 function _avisCiblesPickHTML(cls, camp) {
@@ -17010,8 +17029,9 @@ async function avisPreparerUI(telecharger, creer) {
   const pIdx = +(document.getElementById('mavis-per')?.value || 0);
   const dids = _avisDiscCoches();
   if (!dids.length) return toast('⚠️ Cochez au moins une discipline.', 'warn');
-  const lien = document.getElementById('mavis-lien')?.value || '';
-  if (String(lien).trim() && !_avisLienSur(lien)) return toast('⚠️ Le lien doit commencer par https:// — copiez-le depuis « Partager » dans le Nuage.', 'warn');
+  // Le lien de partage n'existe pas encore : la feuille n'est pas dans le Nuage (v1.55.1). Il se
+  // colle ensuite, à l'étape « partager » de la feuille (`_avisPartageHTML`).
+  const lien = '';
   const nom = _avisNomPropre(document.getElementById('mavis-nom')?.value || '') || _avisNomPropose(cls);
   let h = null;
   if (!telecharger) {
@@ -17036,7 +17056,10 @@ async function avisPreparerUI(telecharger, creer) {
   _avisCampId = camp.id;
   if (telecharger) { avisTelecharger(camp.id); _avisRender(); return; }
   await _avisEcrireFeuille(cls, camp, h, { nouvelle: true });
-  if (creer) toast('📄 Feuille créée et préparée — partagez-la dans le Nuage par lien public en modification, puis collez le lien dans la feuille.');
+  // L'étape « partager » vient à l'écran : on a cliqué en bas d'un long formulaire.
+  const etape = document.querySelector('.av-partage');
+  if (etape) { try { etape.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) { etape.scrollIntoView(); } }
+  if (creer && !camp.lien) toast('📄 Feuille créée et préparée — étape suivante : la partager dans le Nuage, puis coller le lien dans l\'encadré 🔗.');
 }
 // Écrit la feuille dans le fichier. Ce que le fichier contient déjà est relu d'abord :
 // ⚠️ s'il porte des avis que l'app n'a pas (ou pas pareils), RIEN n'est repris d'office —

@@ -656,3 +656,23 @@ test('Nouvelle feuille (v1.55.0) : un nom de fichier logique, modifiable ; « Cr
   assert.match(r.h3, /class="btn btn-p" onclick="avisPreparerUI\(false\)"/, 'Choisir redevient le bouton principal');
   assert.match(r.h4, /⬇ Télécharger la feuille/, 'sans File System Access : le téléchargement');
 });
+
+test('Lien de partage (v1.55.1) : pas demandé à la création, demandé ensuite par l\'étape « partager » tant qu\'il manque', () => {
+  ev(FIXTURE);
+  const r = JSON.parse(ev(`(() => {
+    const cls = getCls();
+    window.showSaveFilePicker = async () => null; window.showOpenFilePicker = async () => [];
+    const form = _avisNouvelleHTML(cls);
+    const c = avisCampagneCreer(cls, { pIdx: 0, disciplines: ['maths'] }); c.fichier = 'Avis <b>x</b>.ods';
+    const sans = _avisCampHTML(cls, c);
+    c.lien = 'https://nuage.example/s/abc';
+    const avec = _avisCampHTML(cls, c);
+    delete window.showSaveFilePicker; delete window.showOpenFilePicker;
+    return JSON.stringify({ form, sans, avec });
+  })()`));
+  assert.ok(!r.form.includes('mavis-lien'), 'aucun champ de lien dans le formulaire de création');
+  assert.match(r.sans, /Étape suivante : partager la feuille/);
+  assert.match(r.sans, /id="mavis-lien-etape"[^>]*onchange="avisLienUI\(/);
+  assert.ok(r.sans.includes('Avis &lt;b&gt;x&lt;/b&gt;.ods'), 'nom du fichier échappé');
+  assert.ok(!r.avec.includes('Étape suivante'), 'le lien collé, l\'étape disparaît');
+});

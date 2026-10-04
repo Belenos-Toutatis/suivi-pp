@@ -1322,6 +1322,13 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   `showSaveFilePicker`, pas de bouton Créer : Choisir redevient le bouton principal. Vérifié dans
   le navigateur avec un fichier OPFS à la place de la boîte (écrit, relu : les onglets) ;
   ⚠️ la vraie boîte et l'arrivée dans le Nuage, à essayer à la main.
+  **Le lien de partage vient APRÈS** (v1.55.1, l'utilisateur : *« je ne peux pas connaître le lien
+  de partage avant que la feuille ne soit créée »*) : le champ a quitté le formulaire de création.
+  Tant que la feuille n'a pas de lien, son panneau commence par l'encadré **🔗 Étape suivante :
+  partager la feuille** (`_avisPartageHTML` : le dossier où elle arrive, ＋ *Lien de partage*
+  réglé pour que ceux qui ont le lien puissent modifier, puis le champ `mavis-lien-etape` →
+  `avisLienUI`) ; amené à l'écran après la création. Collé (https seulement), l'encadré disparaît
+  et le lien se corrige dans *✉️ Le message aux collègues*.
 - **Sans File System Access** (Firefox) : télécharger la feuille, la déposer dans le Nuage,
   et relire par « Lire la feuille… » (choix de fichier).
 - **Où on l'ouvre** : ~~👥 Élèves → *🗣 Avis des collègues…*~~ — **depuis la v1.45.0, un
@@ -2262,6 +2269,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 135 | **Lien de partage demandé APRÈS la création** : plus de champ dans le formulaire de création ; encadré « 🔗 Étape suivante : partager la feuille » (comment faire dans le Nuage, champ du lien) tant que la feuille n'a pas de lien, amené à l'écran après la création ; 1 test. Vérifié dans le navigateur (création, lien refusé puis accepté, Ctrl+Z), audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.1) |
 | 134 | **Créer la feuille d'avis** depuis l'app (boîte « Enregistrer sous », `showSaveFilePicker`) avec un **nom logique** proposé (classe, objectif, période, année), qui suit les réglages tant qu'on ne l'a pas réécrit ; « Choisir une feuille existante » reste ; le téléchargement prend le même nom ; 1 test. Vérifié dans le navigateur (fichier OPFS écrit et relu), audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.0) |
 | 133 | **Lire les avis des collègues** : fenêtre `mavislire`, trois vues (une discipline, un élève, une case) ouvertes depuis la grille « Qui a écrit sur qui » (en-tête, case, total de la ligne, pied) et le tableau des disciplines, ◀ ▶ pour enchaîner ; 1 test, 1 test adapté. Audit 2 thèmes, 1 570 et 320 px, 0 défaut | ✅ **fait** (2026-10-04, v1.54.0) |
 | 132 | **Audit complet après la salve des élections** : 56 états × 2 thèmes × 2 largeurs (1 570 et 320 px, ≈ 100 000 nœuds), dix feuilles imprimées depuis les deux thèmes, scénario d'élection de bout en bout (nom écrit, acceptation, deux sièges, second tour, scrutin du suppléant). Quatre défauts corrigés : Δ illisible sur les deux derniers paliers du carnet imprimé (2,2:1), tiret « sans objet » de la grille imprimée à 4,48:1, **suppléant posé après le vote affiché comme s'il était sur le bulletin** (PV, candidatures, graphique), « Sont élus » au-dessus d'un seul élu ; auditeur : mode `papier` ; 2 tests | ✅ **fait** (2026-10-04, v1.53.2) |
