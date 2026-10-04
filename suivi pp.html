@@ -1010,6 +1010,12 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .av-titre { margin: 0 0 10px; font-size: 1.15em; color: var(--ink-deep); }
 .av-sous { margin: 18px 0 6px; font-size: 1em; color: var(--ink-deep); }
 .av-grille tfoot td { border-top: 2px solid var(--rule-line); }
+.el-chaleur th.ch-clic { cursor: pointer; }
+.el-chaleur th.ch-clic:hover, .el-chaleur th.ch-clic:focus-visible { outline: 2px solid var(--link-fg); outline-offset: -2px; }
+.av-dlien { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--link-fg); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-align: left; }
+.av-lire .pf-mx th.pf-dn { width: 180px; }
+.av-lire .av-lh { margin: 0 0 8px; color: var(--pencil); }
+.av-lire .pf-mx th.pf-dn small { display: block; font-weight: 400; color: var(--pencil); }
 .av-cols { display: grid; gap: 4px; }
 .av-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto auto; gap: 6px; align-items: center; }
 .av-col input[type=text] { width: 100%; min-width: 0; }
@@ -2426,6 +2432,19 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
+<!-- ═══════════════ LIRE LES AVIS DES COLLÈGUES (v1.54.0) ═══════════════ -->
+<div id="mavislire" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:1000px;width:100%">
+    <h2 id="mavl-title">🗣 Avis des collègues</h2>
+    <div id="mavl-body" class="av-lire"></div>
+    <div class="ma">
+      <button class="btn btn-g" id="mavl-prev" onclick="avisLireNav(-1)">◀ Précédent</button>
+      <button class="btn btn-g" id="mavl-next" onclick="avisLireNav(1)">Suivant ▶</button>
+      <button class="btn btn-g" onclick="closeMod2('mavislire')">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ CLASSES ═══════════════ -->
 <div id="mclasses" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:640px;width:100%">
@@ -2984,8 +3003,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.53.2';
-const APP_BUILD_DATE = '2026-10-03T22:11:13Z';
+const APP_VERSION    = '1.54.0';
+const APP_BUILD_DATE = '2026-10-04T19:59:17Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3319,6 +3338,7 @@ function _isTextEntryTarget(el) {
 const _MODAL_RERENDER = {
   mfiche:   () => { if (_ficheSid && S.eleves[_ficheSid]) { _ficheEdit = null; _ficheRender(); } else closeMod2('mfiche'); },
   mcontacts: () => { if (_remSid && S.eleves[_remSid]) _journalRender(); else closeMod2('mcontacts'); },
+  mavislire: () => _avisLireRender(),
   mtags:    () => renderTagsModal(),
   mclasses: () => renderClassesModal(),
 };
@@ -16199,7 +16219,9 @@ function _avisListeHTML(cls, camps) {
 function _avisGrilleHTML(cls, camp) {
   const eleves = _avisEleves(cls, camp), cols = _avisCols(camp), cibles = new Set(_avisCibles(cls, camp));
   if (!eleves.length || !camp.disciplines.length) return '';
-  const head = `<tr><th class="el-th-nom">Élève</th>${camp.disciplines.map((d, i) => `<th class="ch-sh${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + (d.profs ? ' — ' + d.profs : ''))}"><span>${_escName(d.onglet)}</span></th>`).join('')}<th class="ch-sh ch-g0"><span>disciplines</span></th></tr>`;
+  // Un clic (ou Entrée) ouvre la lecture : une discipline (en-tête, pied), une case, un élève (total).
+  const clic = vue => ` role="button" tabindex="0" onclick="event.stopPropagation();openAvisLire(${_escAttr(JSON.stringify(vue))})" onkeydown="if(event.key==='Enter'){event.stopPropagation();this.click()}"`;
+  const head = `<tr><th class="el-th-nom">Élève</th>${camp.disciplines.map((d, i) => `<th class="ch-sh ch-clic${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + (d.profs ? ' — ' + d.profs : '') + '\nCliquez : tous ses avis')}"${clic({ did: d.id })}><span>${_escName(d.onglet)}</span></th>`).join('')}<th class="ch-sh ch-g0"><span>disciplines</span></th></tr>`;
   const parDisc = Object.fromEntries(camp.disciplines.map(d => [d.id, 0]));
   const body = eleves.map(s => {
     let n = 0;
@@ -16208,15 +16230,88 @@ function _avisGrilleHTML(cls, camp) {
       if (!pleins.length) return `<td class="ch ch-no${i === 0 ? ' ch-g0' : ''}">·</td>`;
       n++; parDisc[d.id]++;
       const niv = pleins.length >= cols.length ? 3 : pleins.length * 2 >= cols.length ? 2 : 1;
-      return `<td class="ch ch-av${niv}${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + '\n' + pleins.map(c => (cols.length > 1 ? c.label + ' : ' : '') + String(a[c.key]).slice(0, 400)).join('\n'))}">${cols.length > 1 ? pleins.length : '✓'}</td>`;
+      return `<td class="ch ch-clic ch-av${niv}${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + '\n' + pleins.map(c => (cols.length > 1 ? c.label + ' : ' : '') + String(a[c.key]).slice(0, 400)).join('\n'))}"${clic({ did: d.id, sid: s.id })}>${cols.length > 1 ? pleins.length : '✓'}</td>`;
     }).join('');
-    return `<tr><td>${_nomFicheHTML(s.id, s.nom, s.prenom)}${cibles.has(s.id) ? ' <span title="Demandé en particulier">⭐</span>' : ''}</td>${cells}<td class="ch ch-g0"><strong>${n}</strong></td></tr>`;
+    return `<tr><td>${_nomFicheHTML(s.id, s.nom, s.prenom)}${cibles.has(s.id) ? ' <span title="Demandé en particulier">⭐</span>' : ''}</td>${cells}${n ? `<td class="ch ch-g0 ch-clic" title="Tous les avis sur cet élève"${clic({ sid: s.id })}><strong>${n}</strong></td>` : '<td class="ch ch-g0 ch-no">0</td>'}</tr>`;
   }).join('');
-  const pied = `<tr><td class="tb-hint">élèves</td>${camp.disciplines.map((d, i) => `<td class="ch${i === 0 ? ' ch-g0' : ''}"><strong>${parDisc[d.id]}</strong></td>`).join('')}<td class="ch ch-g0"></td></tr>`;
-  return `<h4 class="av-sous">Qui a écrit sur qui <span class="tb-hint">— survol : l'avis · clic sur un nom : la fiche</span></h4>
+  const pied = `<tr><td class="tb-hint">élèves</td>${camp.disciplines.map((d, i) => parDisc[d.id] ? `<td class="ch ch-clic${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom)} : tous ses avis"${clic({ did: d.id })}><strong>${parDisc[d.id]}</strong></td>` : `<td class="ch ch-no${i === 0 ? ' ch-g0' : ''}">0</td>`).join('')}<td class="ch ch-g0"></td></tr>`;
+  return `<h4 class="av-sous">Qui a écrit sur qui <span class="tb-hint">— cliquez une case : l'avis de cette discipline sur l'élève · une discipline : tous ses avis · le total d'une ligne : tous les avis sur l'élève · un nom : la fiche</span></h4>
     <div class="rel-wrap"><table class="dt el-chaleur av-grille"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${pied}</tfoot></table></div>
     <div class="ch-leg tb-hint"><span><i class="ch-sw ch-av3"></i><i class="ch-sw ch-av2"></i><i class="ch-sw ch-av1"></i> toutes les colonnes · la moitié · moins</span><span>· rien d'écrit</span>${cibles.size ? '<span>⭐ demandé en particulier</span>' : ''}</div>`;
 }
+// ── Lire les avis (v1.54.0, l'utilisateur : « si je clique sur la discipline, que je voie les avis
+// qu'elle a laissés pour chaque élève ; dans Qui a écrit sur qui, un chiffre : les avis de cette
+// discipline pour cette personne ; la dernière colonne : tous les avis sur cet élève »). Une fenêtre,
+// trois vues : `{ did }` (une discipline, un élève par ligne), `{ sid }` (un élève, une discipline
+// par ligne), `{ did, sid }` (une case, une colonne par ligne). ◀ ▶ enchaîne : les disciplines, les
+// élèves qui ont un avis, ou les élèves de la discipline. Lecture seule : la source est la feuille.
+let _avisLireVue = null;   // { campId, did?, sid? } — de séance
+function _avisALavis(camp, sid, did) { const a = camp.avis?.[sid]?.[did]; return !!a && _avisCols(camp).some(c => a[c.key]); }
+// Pur : { titre, html, prev, next } (prev / next : la vue voisine, ou null).
+function _avisLectureHTML(cls, camp, vue) {
+  const cols = _avisCols(camp), eleves = _avisEleves(cls, camp), cibles = new Set(_avisCibles(cls, camp));
+  const disc = camp.disciplines.find(d => d.id === vue.did) || null, stu = vue.sid ? S.eleves[vue.sid] : null;
+  const nomE = s => `${s.prenom} ${s.nom}`;
+  const etoile = sid => cibles.has(sid) ? ' <span title="Demandé en particulier">⭐</span>' : '';
+  const td = t => t ? `<td>${_escName(t)}</td>` : '<td class="pf-e"></td>';
+  const voisin = (liste, i, f) => ({ prev: i > 0 ? f(liste[i - 1]) : null, next: i >= 0 && i < liste.length - 1 ? f(liste[i + 1]) : null });
+  if (disc && stu) {
+    const a = camp.avis?.[stu.id]?.[disc.id] || {};
+    const avec = eleves.filter(s => _avisALavis(camp, s.id, disc.id));
+    const rows = cols.map(c => `<tr><th class="pf-dn">${_escName(c.label)}</th>${td(a[c.key])}</tr>`).join('');
+    return { titre: `🗣 ${disc.nom} — ${nomE(stu)}`,
+      html: `<p class="av-lh">${disc.profs ? _escName(disc.profs) + ' · ' : ''}<button class="av-dlien" onclick="openAvisLire({ did: '${_escJsAttr(disc.id)}' })">tous les avis de ${_escName(disc.nom)}</button> · <button class="av-dlien" onclick="openAvisLire({ sid: '${_escJsAttr(stu.id)}' })">tous les avis sur ${_escName(nomE(stu))}</button>${etoile(stu.id)}</p>
+        <div class="rel-wrap"><table class="pf-mx"><tbody>${rows}</tbody></table></div>`,
+      ...voisin(avec, avec.findIndex(s => s.id === stu.id), s => ({ did: disc.id, sid: s.id })) };
+  }
+  if (disc) {
+    const avec = eleves.filter(s => _avisALavis(camp, s.id, disc.id)), sans = eleves.filter(s => !_avisALavis(camp, s.id, disc.id));
+    const rows = avec.map(s => { const a = camp.avis[s.id][disc.id];
+      return `<tr><th class="pf-dn"><button class="av-dlien" onclick="openAvisLire({ sid: '${_escJsAttr(s.id)}' })" title="Tous les avis sur cet élève">${_escName(s.nom)} ${_escName(s.prenom)}</button>${etoile(s.id)}</th>${cols.map(c => td(a[c.key])).join('')}</tr>`; }).join('');
+    const i = camp.disciplines.findIndex(d => d.id === disc.id);
+    return { titre: `🗣 ${disc.nom} — ${_pl(avec.length, 'élève')} sur ${eleves.length}`,
+      html: `${disc.profs ? `<p class="av-lh">${_escName(disc.profs)}</p>` : ''}${avec.length
+        ? `<div class="rel-wrap"><table class="pf-mx"><thead><tr><th class="pf-dn">Élève</th>${cols.map(c => `<th>${_escName(c.label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`
+        : '<p class="pf-empty">Aucun avis de cette discipline pour l\'instant.</p>'}
+        ${avec.length && sans.length ? `<p class="pf-mu pf-sans">Sans avis : ${sans.map(s => _escName(nomE(s))).join(', ')}.</p>` : ''}`,
+      ...voisin(camp.disciplines, i, d => ({ did: d.id })) };
+  }
+  if (stu) {
+    const avec = camp.disciplines.filter(d => _avisALavis(camp, stu.id, d.id)), sans = camp.disciplines.filter(d => !_avisALavis(camp, stu.id, d.id));
+    const rows = avec.map(d => { const a = camp.avis[stu.id][d.id];
+      return `<tr><th class="pf-dn"><button class="av-dlien" onclick="openAvisLire({ did: '${_escJsAttr(d.id)}' })" title="Tous les avis de cette discipline">${_escName(d.nom)}</button>${d.profs ? `<small>${_escName(d.profs)}</small>` : ''}</th>${cols.map(c => td(a[c.key])).join('')}</tr>`; }).join('');
+    const parcours = eleves.filter(s => camp.disciplines.some(d => _avisALavis(camp, s.id, d.id)));
+    return { titre: `🗣 ${nomE(stu)} — ${_pl(avec.length, 'discipline')} sur ${camp.disciplines.length}`,
+      html: `<p class="av-lh">${etoile(stu.id) ? '⭐ demandé en particulier · ' : ''}<button class="av-dlien" onclick="closeMod2('mavislire');openFiche('${_escJsAttr(stu.id)}')">ouvrir la fiche</button></p>${avec.length
+        ? `<div class="rel-wrap"><table class="pf-mx"><thead><tr><th class="pf-dn">Discipline</th>${cols.map(c => `<th>${_escName(c.label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`
+        : '<p class="pf-empty">Aucun avis sur cet élève pour l\'instant.</p>'}
+        ${avec.length && sans.length ? `<p class="pf-mu pf-sans">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : ''}`,
+      ...voisin(parcours, parcours.findIndex(s => s.id === stu.id), s => ({ sid: s.id })) };
+  }
+  return { titre: '🗣 Avis des collègues', html: '<p class="pf-empty">Rien à afficher.</p>', prev: null, next: null };
+}
+function openAvisLire(vue) {
+  const camp = _avisCamp();
+  if (!camp || !vue) return;
+  _avisLireVue = { campId: camp.id, did: vue.did || null, sid: vue.sid || null };
+  _avisLireRender();
+  const m = document.getElementById('mavislire');
+  if (m && !m.classList.contains('on')) openMod('mavislire');
+}
+function _avisLireRender() {
+  const cls = _avisCls(), camp = cls && _avisLireVue ? _avisMap(cls.id)?.[_avisLireVue.campId] : null;
+  if (!camp) { closeMod2('mavislire'); return; }
+  const r = _avisLectureHTML(cls, camp, _avisLireVue);
+  const t = document.getElementById('mavl-title'), b = document.getElementById('mavl-body');
+  if (t) t.textContent = r.titre;
+  if (b) { b.innerHTML = r.html; b.scrollTop = 0; }
+  _avisLireVue.prev = r.prev; _avisLireVue.next = r.next;
+  const p = document.getElementById('mavl-prev'), n = document.getElementById('mavl-next');
+  if (p) p.disabled = !r.prev;
+  if (n) n.disabled = !r.next;
+}
+function avisLireNav(d) { const v = _avisLireVue && (d < 0 ? _avisLireVue.prev : _avisLireVue.next); if (v) openAvisLire(v); }
+
 // Les matières des moyennes qu'aucune discipline ne reconnaît : on DEMANDE où les ranger.
 function _avisRattacherHTML(cls) {
   const liste = _avisMatieresARattacher(cls.id);
@@ -16308,7 +16403,7 @@ function _avisCampHTML(cls, camp) {
   const total = _avisEleves(cls, camp).length;
   const rap = _avisRapport[camp.id];
   const lec = rap?.lec;
-  const lignes = camp.disciplines.map(d => `<tr><td><strong>${_escName(d.nom)}</strong>${d.profs ? ` <span class="fi-vide">${_escName(d.profs)}</span>` : ''}</td>
+  const lignes = camp.disciplines.map(d => `<tr><td>${cpt.parDisc[d.id] ? `<button class="av-dlien" onclick="openAvisLire({ did: '${_escJsAttr(d.id)}' })" title="Lire les avis de ${_escAttr(d.nom)}, élève par élève">${_escName(d.nom)}</button>` : `<strong>${_escName(d.nom)}</strong>`}${d.profs ? ` <span class="fi-vide">${_escName(d.profs)}</span>` : ''}</td>
       <td style="font-family:var(--font-mono);text-align:right">${cpt.parDisc[d.id] ? `<strong>${cpt.parDisc[d.id]}</strong>` : '<span class="tb-hint">0</span>'} / ${total}</td></tr>`).join('');
   const rapport = !lec ? '' : [
     lec.nonReconnus.length ? `<div class="al al-w" style="margin-top:6px">⚠️ ${lec.nonReconnus.length} ligne${lec.nonReconnus.length > 1 ? 's' : ''} écrite${lec.nonReconnus.length > 1 ? 's' : ''} sur un élève que l'app ne reconnaît pas (nom retouché, homonyme) — rien n'a été rangé : ${lec.nonReconnus.slice(0, 6).map(x => `${_escName(x.onglet)} : « ${_escName(x.nom)} »`).join(' · ')}${lec.nonReconnus.length > 6 ? '…' : ''}</div>` : '',

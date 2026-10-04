@@ -592,8 +592,42 @@ test('Onglet Avis des collègues : la liste des récoltes et la grille « qui a 
   assert.match(l, /2\/2 disciplines · 2 avis · 1 ⭐/);
   const g = ev(`_avisGrilleHTML(getCls(), window.__c)`);
   assert.match(g, /Qui a écrit sur qui/);
-  assert.match(g, /class="ch ch-av3/, 'toutes les colonnes : plein');
-  assert.match(g, /class="ch ch-av1/, 'une colonne sur trois : pâle');
+  assert.match(g, /class="ch ch-clic ch-av3/, 'toutes les colonnes : plein');
+  assert.match(g, /class="ch ch-clic ch-av1/, 'une colonne sur trois : pâle');
   assert.ok(!g.includes('<img src=x') && g.includes('&lt;img'), 'l\'avis en infobulle est échappé');
-  assert.match(g, /<td class="ch ch-g0"><strong>2<\/strong><\/td><\/tr>/, 'Léa : deux disciplines');
+  assert.match(g, /<td class="ch ch-g0 ch-clic"[^>]*><strong>2<\/strong><\/td><\/tr>/, 'Léa : deux disciplines');
+});
+
+test('Lire les avis (v1.54.0) : une discipline, un élève, une case — clics de la grille, ◀ ▶, tout échappé', () => {
+  ev(FIXTURE);
+  ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'] });
+      window.__c.avis = { s1: { maths: { travail: 'Bien', participation: 'Oui', comportement: 'Calme' }, anglais: { travail: '<img src=x onerror=alert(1)>' } },
+                          s3: { maths: { travail: 'Régulier\\nsecond paragraphe' } } };
+      _avisCampId = window.__c.id;`);
+  const r = JSON.parse(ev(`(() => {
+    const cls = getCls(), c = window.__c;
+    const disc = _avisLectureHTML(cls, c, { did: 'maths' }), eleve = _avisLectureHTML(cls, c, { sid: 's1' }), cas = _avisLectureHTML(cls, c, { did: 'anglais', sid: 's1' });
+    const cas3 = _avisLectureHTML(cls, c, { did: 'maths', sid: 's3' }), vide = _avisLectureHTML(cls, c, { sid: 's2' });
+    const g = _avisGrilleHTML(cls, c), t = _avisCampHTML(cls, c);
+    return JSON.stringify({ disc, eleve, cas, cas3, vide, g, t });
+  })()`));
+  // Une discipline : un élève par ligne, ceux qui n'ont rien sont nommés à part ; ◀ ▶ = les disciplines.
+  assert.match(r.disc.titre, /Mathématiques — 2 élèves sur 4/);
+  assert.ok(r.disc.html.includes('Calme') && r.disc.html.includes('Régulier'));
+  assert.match(r.disc.html, /Sans avis : .*Zoé/);
+  assert.ok(r.disc.prev || r.disc.next, 'une discipline voisine');
+  // Un élève : une discipline par ligne ; le suivant est le prochain élève qui a un avis.
+  assert.match(r.eleve.titre, /Léa DURAND — 2 disciplines sur 2/);
+  assert.ok(!r.eleve.html.includes('<img src=x') && r.eleve.html.includes('&lt;img'), 'échappé');
+  assert.deepStrictEqual(r.eleve.next, { sid: 's3' });
+  // Une case : une colonne par ligne ; ◀ ▶ descend la colonne de la discipline.
+  assert.match(r.cas.titre, /Anglais — Léa DURAND/);
+  assert.match(r.cas.html, /Travail/);
+  assert.deepStrictEqual(r.cas3.prev, { did: 'maths', sid: 's1' });
+  assert.match(r.vide.html, /Aucun avis sur cet élève/);
+  // Les clics : en-tête de discipline, case, total de la ligne, pied ; le nom dans le tableau des disciplines.
+  assert.match(r.g, /<th class="ch-sh ch-clic[^"]*"[^>]*openAvisLire\(\{&quot;did&quot;:&quot;maths&quot;\}\)/);
+  assert.match(r.g, /openAvisLire\(\{&quot;did&quot;:&quot;anglais&quot;,&quot;sid&quot;:&quot;s1&quot;\}\)/);
+  assert.match(r.g, /openAvisLire\(\{&quot;sid&quot;:&quot;s1&quot;\}\)/);
+  assert.match(r.t, /<button class="av-dlien" onclick="openAvisLire\(\{ did: 'maths' \}\)"/);
 });
