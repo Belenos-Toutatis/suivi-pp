@@ -1302,7 +1302,14 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   incluse s'appelle **« Andika SuiviPP »** (nom réécrit dans la table `name` des TTF) : sur un
   poste où Andika est installée, le tableur préférait la police du système, aux métriques
   d'origine (1,61 em), et les hauteurs fixées ne collaient plus. Vu dans LibreOffice, avec et
-  sans Andika installée. Reste une limite : une ligne d'élève qui CONTIENT déjà un long texte
+  sans Andika installée. ⚠️ **LibreOffice signale « Andika SuiviPP » comme manquante** dans la
+  case du nom de police (« La police active n'est pas disponible et va être substituée ») —
+  remonté par l'utilisateur le 2026-10-04. **Faux signal, à ne pas « corriger » en renommant** :
+  la case ne connaît que les polices INSTALLÉES ; le texte est bien dessiné avec la police
+  incluse (vu sous LibreOffice 26.2, export PDF : les quatre variantes `AndikaSuiviPP` incluses),
+  et la contre-épreuve — la police incluse renommée « Andika », Andika désinstallée — donne le
+  même avertissement. **Arbitré : on garde « Andika SuiviPP ».** Dans le Nuage (Collabora), la
+  feuille s'affiche bien (vu par l'utilisateur). Reste une limite : une ligne d'élève qui CONTIENT déjà un long texte
   à l'ouverture peut être mal dimensionnée (calcul fait avant la police) ; non vérifié
   dans Collabora Online. Non vérifié dans Collabora Online même. Validé par LibreOffice (réenregistrement,
   export CSV, gel vérifié sous python-uno) ; une feuille réenregistrée par LibreOffice est
