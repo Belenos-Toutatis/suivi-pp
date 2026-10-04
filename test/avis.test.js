@@ -676,3 +676,15 @@ test('Lien de partage (v1.55.1) : pas demandé à la création, demandé ensuite
   assert.ok(r.sans.includes('Avis &lt;b&gt;x&lt;/b&gt;.ods'), 'nom du fichier échappé');
   assert.ok(!r.avec.includes('Étape suivante'), 'le lien collé, l\'étape disparaît');
 });
+
+test('Nouvelle feuille (v1.55.2) : un nouveau rendu du formulaire (⭐, colonnes) garde période, objectif, mois et disciplines', () => {
+  const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const f = SRC.slice(SRC.indexOf('function _avisRender('), SRC.indexOf('function _avisNouvelleEtat('));
+  const lu = f.indexOf('_avisNouvelleEtat(box)'), ecrit = f.indexOf('box.innerHTML = camp'), remis = f.indexOf('_avisNouvelleRemettre(box, garde)');
+  assert.ok(lu > 0 && lu < ecrit && ecrit < remis, 'lu avant le rendu, reposé après');
+  const e = SRC.slice(SRC.indexOf('function _avisNouvelleEtat('), SRC.indexOf('function _avisNouvelleRemettre('));
+  for (const id of ['mavis-per', 'mavis-obj', 'mavis-mois', 'data-disc']) assert.ok(e.includes(id), id);
+  const r = SRC.slice(SRC.indexOf('function _avisNouvelleRemettre('), SRC.indexOf('function _avisNouvelleRemettre(') + 900);
+  assert.match(r, /mavis-mois-w/, 'le mois réapparaît avec « point du mois »');
+  assert.match(r, /_avisNomMaj\(\)/, 'le nom proposé suit');
+});

@@ -1329,6 +1329,12 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   réglé pour que ceux qui ont le lien puissent modifier, puis le champ `mavis-lien-etape` →
   `avisLienUI`) ; amené à l'écran après la création. Collé (https seulement), l'encadré disparaît
   et le lien se corrige dans *✉️ Le message aux collègues*.
+  ⚠️ **Le formulaire de création se redessine en cours de saisie** (⭐ un élève, une colonne, une
+  matière rattachée) : période, objectif, mois et disciplines ne vivent que dans ses champs, et
+  repartaient à leur défaut (v1.55.2, remontée de l'utilisateur : *« je sélectionne point du mois,
+  je coche les élèves, et l'objectif repasse en conseil de classe »*). `_avisRender` les lit
+  (`_avisNouvelleEtat`) avant de redessiner et les repose après (`_avisNouvelleRemettre`). Tout
+  nouveau champ de ce formulaire sans brouillon à lui s'ajoute là.
 - **Sans File System Access** (Firefox) : télécharger la feuille, la déposer dans le Nuage,
   et relire par « Lire la feuille… » (choix de fichier).
 - **Où on l'ouvre** : ~~👥 Élèves → *🗣 Avis des collègues…*~~ — **depuis la v1.45.0, un
@@ -2269,6 +2275,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 136 | **Formulaire de nouvelle feuille : les choix restent** quand il se redessine (⭐ un élève, une colonne, une matière rattachée) — l'objectif repassait en « conseil de classe », la période, le mois et les disciplines décochées revenaient au défaut (`_avisNouvelleEtat` / `_avisNouvelleRemettre`) ; 1 test. Vérifié dans le navigateur | ✅ **fait** (2026-10-04, v1.55.2) |
 | 135 | **Lien de partage demandé APRÈS la création** : plus de champ dans le formulaire de création ; encadré « 🔗 Étape suivante : partager la feuille » (comment faire dans le Nuage, champ du lien) tant que la feuille n'a pas de lien, amené à l'écran après la création ; 1 test. Vérifié dans le navigateur (création, lien refusé puis accepté, Ctrl+Z), audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.1) |
 | 134 | **Créer la feuille d'avis** depuis l'app (boîte « Enregistrer sous », `showSaveFilePicker`) avec un **nom logique** proposé (classe, objectif, période, année), qui suit les réglages tant qu'on ne l'a pas réécrit ; « Choisir une feuille existante » reste ; le téléchargement prend le même nom ; 1 test. Vérifié dans le navigateur (fichier OPFS écrit et relu), audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.0) |
 | 133 | **Lire les avis des collègues** : fenêtre `mavislire`, trois vues (une discipline, un élève, une case) ouvertes depuis la grille « Qui a écrit sur qui » (en-tête, case, total de la ligne, pied) et le tableau des disciplines, ◀ ▶ pour enchaîner ; 1 test, 1 test adapté. Audit 2 thèmes, 1 570 et 320 px, 0 défaut | ✅ **fait** (2026-10-04, v1.54.0) |

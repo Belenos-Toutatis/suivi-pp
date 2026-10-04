@@ -3006,8 +3006,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.1';
-const APP_BUILD_DATE = '2026-10-04T20:17:28Z';
+const APP_VERSION    = '1.55.2';
+const APP_BUILD_DATE = '2026-10-04T20:22:29Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -16223,8 +16223,29 @@ function _avisRender() {
   if (liste) liste.innerHTML = _avisListeHTML(cls, camps);
   if (_avisRevue && camp && _avisRevue.campId === camp.id) { box.innerHTML = _avisRevueHTML(cls, camp); return; }
   if (_avisRevue && (!camp || _avisRevue.campId !== camp.id)) _avisRevue = null;
+  // ⚠️ Le formulaire d'une NOUVELLE feuille se redessine en cours de saisie (⭐ un élève, une colonne,
+  // une matière rattachée) : ce qu'on y avait choisi — période, objectif, mois, disciplines
+  // décochées — repartait à son défaut (v1.55.2, remontée de l'utilisateur : « je sélectionne point
+  // du mois, je coche les élèves, et l'objectif repasse en conseil de classe »). On le garde.
+  const garde = !camp && box.querySelector('#mavis-per') ? _avisNouvelleEtat(box) : null;
   box.innerHTML = camp ? `<h3 class="av-titre">${_escName(_avisTitreFeuille(cls, camp))}</h3>${_avisCampHTML(cls, camp)}${_avisGrilleHTML(cls, camp)}`
     : `<h3 class="av-titre">＋ Nouvelle feuille d'avis</h3>${_avisNouvelleHTML(cls)}`;
+  if (garde) _avisNouvelleRemettre(box, garde);
+}
+// L'état du formulaire de création qui ne vit QUE dans ses champs (le nom, les colonnes et les ⭐
+// ont leur brouillon) : lu avant un nouveau rendu, reposé après.
+function _avisNouvelleEtat(box) {
+  const v = id => box.querySelector('#' + id)?.value;
+  return { per: v('mavis-per'), obj: v('mavis-obj'), mois: v('mavis-mois'),
+    disc: Object.fromEntries([...box.querySelectorAll('input[data-disc]')].map(c => [c.dataset.disc, c.checked])) };
+}
+function _avisNouvelleRemettre(box, g) {
+  const pose = (id, val) => { const el = box.querySelector('#' + id); if (el && val !== undefined && [...el.options].some(o => o.value === val)) el.value = val; };
+  pose('mavis-per', g.per); pose('mavis-obj', g.obj); pose('mavis-mois', g.mois);
+  const w = box.querySelector('#mavis-mois-w');
+  if (w) w.style.display = g.obj === 'mois' ? '' : 'none';
+  for (const c of box.querySelectorAll('input[data-disc]')) if (c.dataset.disc in g.disc) c.checked = g.disc[c.dataset.disc];
+  _avisNomMaj();
 }
 // « Conseil de classe · S1 » : le nom d'une récolte, dans la liste et en tête.
 function _avisTitreFeuille(cls, c) {
