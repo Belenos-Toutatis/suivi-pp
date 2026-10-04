@@ -1010,6 +1010,10 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .av-titre { margin: 0 0 10px; font-size: 1.15em; color: var(--ink-deep); }
 .av-sous { margin: 18px 0 6px; font-size: 1em; color: var(--ink-deep); }
 .av-grille tfoot td { border-top: 2px solid var(--rule-line); }
+.inc-choix-l { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.inc-choix-l .inc-choix { display: block; width: 100%; text-align: left; white-space: normal; height: auto; padding: 6px 10px; }
+.inc-choix-l .inc-choix small { display: block; color: var(--pencil); margin-top: 2px; font-weight: 400; }
+.inc-choix-d { font-family: var(--font-mono); font-size: .9em; }
 .av-partage { margin-bottom: 10px; }
 .av-partage ol { margin: 6px 0 8px 1.3em; padding: 0; }
 .av-partage li { margin: 2px 0; }
@@ -3006,8 +3010,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.2';
-const APP_BUILD_DATE = '2026-10-04T20:22:29Z';
+const APP_VERSION    = '1.55.3';
+const APP_BUILD_DATE = '2026-10-04T20:43:44Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6416,8 +6420,9 @@ function _avisCelluleHTML(cls, camp, sid) {
   const r = _avisResume(camp, sid);
   const obj = _avisObjectif(cls, camp);
   const tip = `${r.n} discipline${r.n > 1 ? 's' : ''} sur ${r.total} — feuille pour ${obj.long}${r.cible ? '\nDemandé en particulier ⭐' : ''}${
-    r.n ? '\n' + r.disc.filter(x => x.n).map(x => x.d.nom).join(', ') : ''}\nClic : la fiche de l'élève`;
-  return `<button class="el-av" onclick="openFiche('${_escJsAttr(sid)}')" title="${_escAttr(tip)}"><span class="el-avbar" aria-hidden="true">${
+    r.n ? '\n' + r.disc.filter(x => x.n).map(x => x.d.nom).join(', ') : ''}\nClic : ${r.n ? 'lire ses avis' : 'la fiche de l\'élève'}`;
+  const clic = r.n ? `openAvisLire({ sid: '${_escJsAttr(sid)}' }, '${_escJsAttr(camp.id)}')` : `openFiche('${_escJsAttr(sid)}')`;
+  return `<button class="el-av" onclick="event.stopPropagation();${clic}" title="${_escAttr(tip)}"><span class="el-avbar" aria-hidden="true">${
     r.disc.map(x => `<i class="${x.n ? (x.n >= r.ncols ? 'f' : 'p') : ''}"></i>`).join('')}</span><span class="el-av-n">${r.n}/${r.total}</span>${r.cible ? ' ⭐' : ''}</button>`;
 }
 
@@ -6528,9 +6533,11 @@ function _chaleurGroupes(cls, bcols, colM) {
         if (!pleins.length) return ['ch-no', '·', `${d?.nom || did} : pas d'avis`];
         const niv = pleins.length >= cols.length ? 3 : pleins.length * 2 >= cols.length ? 2 : 1;
         return ['ch-av' + niv, cols.length > 1 ? String(pleins.length) : '✓',
-          `${d?.nom || did}\n` + pleins.map(c => `${cols.length > 1 ? c.label + ' : ' : ''}${String(a[c.key]).slice(0, 300)}`).join('\n')];
+          `${d?.nom || did}\n` + pleins.map(c => `${cols.length > 1 ? c.label + ' : ' : ''}${String(a[c.key]).slice(0, 300)}`).join('\n') + '\nClic : lire cet avis',
+          `openAvisLire({ did: '${_escJsAttr(did)}', sid: '${_escJsAttr(sid)}' }, '${_escJsAttr(camp.id)}')`];
       },
-      sum: sid => { const r = _avisResume(camp, sid); return [r.n ? 'ch-av2' : 'ch-no', `${r.n}/${r.total}${r.cible ? ' ⭐' : ''}`, `${r.n} discipline(s) sur ${r.total}${r.cible ? ' — demandé en particulier' : ''}`]; } });
+      sum: sid => { const r = _avisResume(camp, sid); return [r.n ? 'ch-av2' : 'ch-no', `${r.n}/${r.total}${r.cible ? ' ⭐' : ''}`, `${r.n} discipline(s) sur ${r.total}${r.cible ? ' — demandé en particulier' : ''}${r.n ? '\nClic : lire tous ses avis' : ''}`,
+        r.n ? `openAvisLire({ sid: '${_escJsAttr(sid)}' }, '${_escJsAttr(camp.id)}')` : null]; } });
   }
   const docs = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= p.end));
   if (docs.length) G.push({ key: 'docs', label: 'Papiers', sub: docs.map(d => ({ id: d.id, l: d.titre.length > 13 ? d.titre.slice(0, 12) + '…' : d.titre, long: d.titre })),
@@ -6545,15 +6552,19 @@ function _chaleurGroupes(cls, bcols, colM) {
   // `clic` (v1.46.16) : la case s'ouvre d'un clic (4e élément de la case) et le groupe finit par
   // une case *Total* du moment — pour les contacts, comme la colonne des Indicateurs.
   const parMois = (key, label, liste, cl, fmt, clic) => {
-    const sum = sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? cl : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n') + (clic ? (x.length ? '\n' : '') + clic.tip : ''), clic ? clic.fn(sid) : null]; };
+    // `clic.fn(sid, début, fin, libellé)` : la case sait sur quelles dates elle compte (le mois borné
+    // au moment, ou tout le moment pour le Total) — les incidents s'en servent (v1.55.3).
+    const sum = sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? cl : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n') + (clic ? (x.length ? '\n' : '') + clic.tip : ''), clic ? clic.fn(sid, p.start, p.end, nomM) : null]; };
     G.push({ key, label, sub: [...mois.map(([id, l]) => ({ id, l, long: l })), ...(clic ? [{ id: '__tot', l: 'Total', long: `Total ${nomM}` }] : [])],
       cell: (sid, ym) => { if (ym === '__tot') return sum(sid);
         const x = liste(sid).filter(e => dansM(e) && String(e.date).startsWith(ym));
-        return x.length ? [cl, String(x.length), x.map(fmt).join('\n') + (clic ? '\n' + clic.tip : ''), clic ? clic.fn(sid) : null] : ['ch-no', '', clic ? clic.tip : '', clic ? clic.fn(sid) : null]; },
+        const a = `${ym}-01` > p.start ? `${ym}-01` : p.start, b = `${ym}-31` < p.end ? `${ym}-31` : p.end, lm = `${AVIS_MOIS[+ym.slice(5, 7) - 1] || ym} ${ym.slice(0, 4)}`;
+        return x.length ? [cl, String(x.length), x.map(fmt).join('\n') + (clic ? '\n' + clic.tip : ''), clic ? clic.fn(sid, a, b, lm) : null] : ['ch-no', '', clic ? clic.tipVide || clic.tip : '', clic ? clic.fn(sid, a, b, lm) : null]; },
       sum });
   };
   parMois('inc', 'Incidents', sid => (S.eleves[sid]?.incidents || []).filter(_isPlainObj), 'ch-inc', e => `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label} : ${e.objet || ''}`,
-    { fn: sid => `openIncident('${_escJsAttr(sid)}')`, tip: 'Clic : noter un incident (la fiche les liste tous)' });
+    { fn: (sid, a, b, lab) => `chaleurIncidentsUI('${_escJsAttr(sid)}','${_escJsAttr(a)}','${_escJsAttr(b)}','${_escJsAttr(lab)}')`,
+      tip: 'Clic : voir ces incidents, ou en noter un nouveau', tipVide: 'Clic : noter un incident' });
   parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`,
     { fn: sid => `openContacts('${_escJsAttr(sid)}')`, tip: 'Clic : la liste des contacts, pour les voir, les corriger, en noter un' });
   if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: (col && c.key === col.key ? '▶ ' : '') + c.court, long: c.long + (col && c.key === col.key ? ' — le moment choisi' : '') })),
@@ -7895,6 +7906,32 @@ function ficheSaut(i) {
 // INCIDENT — la modale de saisie (une entrée à la fois, ouverte depuis la fiche)
 // ═══════════════════════════════════════════════════════════════════════════
 let _incSid = null, _incId = null, _incPdfRetire = false;
+// Une case d'incidents de la carte de chaleur (v1.55.3, l'utilisateur : « quand je clique sur un
+// compteur d'incidents d'un mois, je devrais avoir le choix entre afficher les incidents déjà
+// enregistrés ou en créer un nouveau ») : vide → la saisie directement ; sinon la liste des
+// incidents que la case compte (dates [a, b]), chacun s'ouvre, et « ＋ Noter un nouvel incident ».
+function _chaleurIncidentsListe(sid, a, b) {
+  return (S.eleves[sid]?.incidents || []).filter(e => _isPlainObj(e) && e.date >= a && e.date <= b)
+    .sort((x, y) => String(x.date).localeCompare(String(y.date)) || (x.ts || 0) - (y.ts || 0));
+}
+function chaleurIncidentsUI(sid, a, b, lab) {
+  const stu = S.eleves[sid];
+  if (!stu) return;
+  const x = _chaleurIncidentsListe(sid, a, b);
+  if (!x.length) return openIncident(sid);
+  const items = x.map(e => `<button class="btn btn-g inc-choix" onclick="_appDialogValeur('${_escJsAttr(e.id)}')"><span class="inc-choix-d">${_escName(_fmtDateFr(e.date))}</span> <strong>${_escName(_instanceOf(e.type).label)}</strong>${e.objet ? ` — ${_escName(e.objet)}` : ''}${e.pdf ? ' 📎' : ''}${e.texte ? `<small>${_escName(String(e.texte).slice(0, 160))}${String(e.texte).length > 160 ? '…' : ''}</small>` : ''}</button>`).join('');
+  _appDialogShow({ title: `⚖️ ${stu.prenom} ${stu.nom} — ${_pl(x.length, 'incident')} · ${lab}`, type: 'question',
+    message: `<div class="inc-choix-l">${items}</div><p class="tb-hint" style="margin-top:6px">Cliquez une entrée pour la lire ou la modifier.</p>`,
+    buttons: [{ label: 'Fermer', value: null }, { label: '＋ Noter un nouvel incident', primary: true, value: '__new' }] })
+    .then(v => { if (v === '__new') openIncident(sid); else if (v && x.some(e => e.id === v)) openIncident(sid, v); });
+}
+// Une valeur rendue par un élément du MESSAGE de la fenêtre (pas un de ses boutons du bas).
+function _appDialogValeur(v) {
+  const r = _appDialogResolve;
+  _appDialogResolve = null;
+  closeMod2('mAppDialog');
+  if (r) r(v);
+}
 function openIncident(sid, id) {
   const stu = S.eleves[sid];
   if (!stu) return;
@@ -16344,8 +16381,13 @@ function _avisLectureHTML(cls, camp, vue) {
   }
   return { titre: '🗣 Avis des collègues', html: '<p class="pf-empty">Rien à afficher.</p>', prev: null, next: null };
 }
-function openAvisLire(vue) {
-  const camp = _avisCamp();
+function openAvisLire(vue, campId) {
+  // `campId` : la feuille, quand on vient d'ailleurs que l'onglet Avis (carte de chaleur, liste —
+  // v1.55.3) ; sans lui, la feuille déjà lue dans la fenêtre (ses liens, ◀ ▶), sinon celle de l'onglet.
+  const cls = _avisCls();
+  const ouverte = document.getElementById('mavislire')?.classList.contains('on');
+  const id = campId || (ouverte && _avisLireVue ? _avisLireVue.campId : null);
+  const camp = id ? _avisMap(cls?.id)?.[id] || null : _avisCamp();
   if (!camp || !vue) return;
   _avisLireVue = { campId: camp.id, did: vue.did || null, sid: vue.sid || null };
   _avisLireRender();

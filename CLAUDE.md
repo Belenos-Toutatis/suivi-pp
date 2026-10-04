@@ -1720,6 +1720,18 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        le groupe **Contacts** finit par une case **Total** du moment, et chaque case s'ouvre d'un
        clic sur la fenêtre des contacts (`parMois(…, clic)` ; 4e élément d'une case = son
        `onclick`, rendu par `td` en `role="button"`, sans ouvrir la fiche de la ligne).
+       **v1.55.3** (*« quand je clique sur un compteur d'incidents d'un mois, je devrais avoir le
+       choix entre afficher les incidents déjà enregistrés ou en créer un nouveau »* — puis *« et
+       quand je clique sur le compteur des avis, je devrais pouvoir les afficher directement »*) :
+       une case d'**incidents** (mois borné au moment, ou Total) appelle `chaleurIncidentsUI(sid,
+       début, fin, libellé)` — vide : la saisie ; sinon la fenêtre de dialogue liste les incidents
+       QUE LA CASE COMPTE (`_chaleurIncidentsListe`, chacun s'ouvre en modification) avec
+       *＋ Noter un nouvel incident* ; `clic.fn` reçoit désormais les dates de la case.
+       `_appDialogValeur(v)` : un élément du message de la fenêtre de dialogue qui rend une valeur.
+       Une case d'**avis** ouvre la lecture de cet avis (`openAvisLire({ did, sid }, campId)`), la
+       case repliée tous ses avis ; dans les Indicateurs, le compteur *n/N* aussi (la fiche quand
+       il n'y a aucun avis). `openAvisLire` prend la feuille en second argument hors de l'onglet
+       Avis ; ses liens et ◀ ▶ restent sur la feuille déjà ouverte.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
        discipline de la feuille d'avis (pleine / partielle), par papier (✓ ☐ —), par MOIS
@@ -2282,6 +2294,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 137 | **Carte de chaleur : une case d'incidents propose ses incidents ou un nouveau** (`chaleurIncidentsUI`, case vide = la saisie directement) · **une case d'avis, sa case repliée et le compteur n/N des Indicateurs ouvrent la lecture des avis** (`openAvisLire(vue, campId)`) ; 1 test, 1 test adapté. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.3) |
 | 136 | **Formulaire de nouvelle feuille : les choix restent** quand il se redessine (⭐ un élève, une colonne, une matière rattachée) — l'objectif repassait en « conseil de classe », la période, le mois et les disciplines décochées revenaient au défaut (`_avisNouvelleEtat` / `_avisNouvelleRemettre`) ; 1 test. Vérifié dans le navigateur | ✅ **fait** (2026-10-04, v1.55.2) |
 | 135 | **Lien de partage demandé APRÈS la création** : plus de champ dans le formulaire de création ; encadré « 🔗 Étape suivante : partager la feuille » (comment faire dans le Nuage, champ du lien) tant que la feuille n'a pas de lien, amené à l'écran après la création ; 1 test. Vérifié dans le navigateur (création, lien refusé puis accepté, Ctrl+Z), audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.1) |
 | 134 | **Créer la feuille d'avis** depuis l'app (boîte « Enregistrer sous », `showSaveFilePicker`) avec un **nom logique** proposé (classe, objectif, période, année), qui suit les réglages tant qu'on ne l'a pas réécrit ; « Choisir une feuille existante » reste ; le téléchargement prend le même nom ; 1 test. Vérifié dans le navigateur (fichier OPFS écrit et relu), audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.0) |

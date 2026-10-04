@@ -129,7 +129,7 @@ test('Points moyens (C6–C12) : moments dits indépendants, MBN corrigeable, im
   assert.match(don, /📥 Imports/);
   // C9 : incidents et bilans cliquables dans la carte de chaleur
   const G = `_chaleurGroupes(getCls(), _bilanColsVues(getCls(), _carnetCurrentPeriodIdx(getCls())))`;
-  assert.match(ev(`${G}.find(g => g.key === 'inc').cell(${J}, '__tot')[3]`), /^openIncident\(/);
+  assert.match(ev(`${G}.find(g => g.key === 'inc').cell(${J}, '__tot')[3]`), /^chaleurIncidentsUI\(/);
   assert.match(ev(`(g => g.cell(${J}, g.sub[0].id)[3])(${G}.find(g => g.key === 'bil'))`), /^elevesBilanOuvrir\(/);
   // C10 : une feuille d'un autre moment est dite
   ev(`_ficheMoment = 'bil:conseil:1'`);
@@ -188,4 +188,33 @@ test('Second audit (D1–D8)', () => {
   // D7 et D8
   assert.strictEqual(ev(`_pl(1, 'blanc') + ' · ' + _pl(2, 'nul') + ' · ' + _pl(0, 'blanc')`), '1 blanc · 2 nuls · 0 blanc');
   assert.match(rendu('mfiche-title', `_ficheSid = getCls().eleves[0]; _ficheRender()`), /^<span class="el-civ/);
+});
+
+test('Carte de chaleur (v1.55.3) : une case d\'incidents propose les incidents qu\'elle compte ou un nouveau ; une case d\'avis et le compteur n/N ouvrent la lecture des avis', () => {
+  ev(DEMO);
+  const r = JSON.parse(ev(`(() => {
+    const cls = getCls(), G = _chaleurGroupes(cls, _bilanColsVues(cls, _carnetCurrentPeriodIdx(cls)));
+    const inc = G.find(g => g.key === 'inc'), av = G.find(g => g.key === 'avis');
+    const sid = cls.eleves.find(id => (S.eleves[id].incidents || []).length);
+    const mois = inc.sub.find(m => m.id !== '__tot' && inc.cell(sid, m.id)[1]);
+    const cMois = inc.cell(sid, mois.id), cTot = inc.cell(sid, '__tot');
+    const args = cMois[3].match(/'([^']*)'/g).map(x => x.slice(1, -1));
+    const liste = _chaleurIncidentsListe(args[0], args[1], args[2]).length;
+    const sidAv = av ? cls.eleves.find(id => av.sub.some(d => av.cell(id, d.id)[3])) : null;
+    const dAv = sidAv ? av.sub.find(d => av.cell(sidAv, d.id)[3]) : null;
+    const camp = _avisDeLaPeriode(cls, _carnetCurrentPeriodIdx(cls));
+    return JSON.stringify({ cMois, cTot, liste, compte: +cMois[1], avCell: dAv ? av.cell(sidAv, dAv.id)[3] : '', avVide: av ? av.cell(cls.eleves.find(id => av.sub.some(d => !av.cell(id, d.id)[3])), av.sub[0].id) : null,
+      avSum: sidAv ? av.sum(sidAv)[3] : '', indic: camp && sidAv ? _avisCelluleHTML(cls, camp, sidAv) : '' });
+  })()`));
+  assert.match(r.cMois[3], /^chaleurIncidentsUI\('/);
+  assert.match(r.cTot[3], /^chaleurIncidentsUI\('/);
+  assert.strictEqual(r.liste, r.compte, 'la liste proposée = les incidents que la case compte');
+  assert.match(r.avCell, /^openAvisLire\(\{ did: '[^']+', sid: '[^']+' \}, '[^']+'\)$/);
+  assert.match(r.avSum, /^openAvisLire\(\{ sid: '[^']+' \}, '[^']+'\)$/);
+  if (r.indic) assert.match(r.indic, /onclick="event\.stopPropagation\(\);openAvisLire\(\{ sid:/);
+  const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const f = SRC.slice(SRC.indexOf('function chaleurIncidentsUI('), SRC.indexOf('function _appDialogValeur('));
+  assert.match(f, /if \(!x\.length\) return openIncident\(sid\)/, 'case vide : la saisie directement');
+  assert.match(f, /＋ Noter un nouvel incident/);
+  assert.match(f, /_appDialogValeur\(/);
 });
