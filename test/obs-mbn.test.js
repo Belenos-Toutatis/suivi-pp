@@ -311,8 +311,11 @@ test('Carte de chaleur : le groupe Contacts finit par un Total, et chaque case o
   const n = ev(`(() => { const b = _ficheBornes(getCls(), _chaleurMomentCourant(getCls())); return _journalOf(${J}).filter(e => e.date >= b.start && e.date <= b.end).length; })()`);
   const tot = evObj(`${g}.cell(${J}, '__tot')`);
   assert.strictEqual(tot[1], n ? String(n) : '·');
-  assert.strictEqual(tot[3], `openContacts('${sid}')`);
+  // v1.55.6 : la case propose les contacts qu'elle compte (ou d'en noter un), qui mènent à la fenêtre.
+  assert.match(tot[3], new RegExp(`^chaleurContactsUI\\('${sid}','`));
+  const b = evObj(`_ficheBornes(getCls(), _chaleurMomentCourant(getCls()))`);
+  assert.strictEqual(evObj(`_contactsListe(${J}, ${JSON.stringify(b.start)}, ${JSON.stringify(b.end)}).length`), n, 'la liste = ce que la case compte');
   const html = evObj(`_elevesChaleurHTML(getCls(), _elevesRows(getCls()), [])`).table;
-  assert.ok(html.includes(`onclick="event.stopPropagation();openContacts('${sid}')"`));
+  assert.ok(html.includes(`onclick="event.stopPropagation();chaleurContactsUI('${sid}'`));
   ev(`_ficheMoment = null`);
 });

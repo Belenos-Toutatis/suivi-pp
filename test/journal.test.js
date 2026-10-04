@@ -238,5 +238,7 @@ test('Contacts : fenêtre à part de la remarque ; date et type se corrigent (jo
   assert.match(mrem, /Remarque — texte libre/);
   assert.ok(!/Observations — texte libre/.test(src));
   assert.match(src, /<div id="mcontacts"[\s\S]*id="mrem-jlist"/);
-  assert.match(src, /onclick="openContacts\('\$\{j\}'\)"/, 'la colonne Contacts ouvre la fenêtre des contacts');
+  // v1.55.6 : le compteur propose d'abord la liste lisible (chaleurContactsUI), qui mène à la fenêtre ; sans contact, le point ouvre la saisie.
+  assert.match(src, /onclick="event\.stopPropagation\(\);chaleurContactsUI\('\$\{j\}'/, 'le compteur Contacts propose la liste');
+  assert.match(src, /dot\('Aucun contact avec la famille — clic : en noter un', `openContacts\('\$\{j\}'\)`\)/);
 });

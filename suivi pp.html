@@ -1017,6 +1017,7 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .inc-choix-l .pap-l { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--rule-line-soft); border-radius: var(--radius-sm, 6px); }
 .inc-choix-l .pap-l small { display: block; color: var(--pencil); }
 .inc-choix-l .pap-ok { color: var(--ok-fg); padding: 2px 10px; }
+#mrem-jlist tr.jl-cible td { box-shadow: inset 0 2px 0 var(--link-fg), inset 0 -2px 0 var(--link-fg); }
 .av-partage { margin-bottom: 10px; }
 .av-partage ol { margin: 6px 0 8px 1.3em; padding: 0; }
 .av-partage li { margin: 2px 0; }
@@ -3013,8 +3014,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.5';
-const APP_BUILD_DATE = '2026-10-04T20:50:23Z';
+const APP_VERSION    = '1.55.6';
+const APP_BUILD_DATE = '2026-10-04T20:54:01Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6569,7 +6570,8 @@ function _chaleurGroupes(cls, bcols, colM) {
     { fn: (sid, a, b, lab) => `chaleurIncidentsUI('${_escJsAttr(sid)}','${_escJsAttr(a)}','${_escJsAttr(b)}','${_escJsAttr(lab)}')`,
       tip: 'Clic : voir ces incidents, ou en noter un nouveau', tipVide: 'Clic : noter un incident' });
   parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`,
-    { fn: sid => `openContacts('${_escJsAttr(sid)}')`, tip: 'Clic : la liste des contacts, pour les voir, les corriger, en noter un' });
+    { fn: (sid, a, b, lab) => `chaleurContactsUI('${_escJsAttr(sid)}','${_escJsAttr(a)}','${_escJsAttr(b)}','${_escJsAttr(lab)}')`,
+      tip: 'Clic : lire ces contacts, en corriger un, en noter un nouveau', tipVide: 'Clic : noter un contact' });
   if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: (col && c.key === col.key ? '▶ ' : '') + c.court, long: c.long + (col && c.key === col.key ? ' — le moment choisi' : '') })),
     cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
       const dTxt = dc ? `\nDécisions : ${String(dc.texte).slice(0, 300)}` : '';
@@ -6859,7 +6861,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     td.contacts = () => {
       if (!r.nbContacts) return dot('Aucun contact avec la famille — clic : en noter un', `openContacts('${j}')`);
       const all = _journalOf(sid);
-      return `<button class="el-pill" onclick="openContacts('${j}')" title="${_escAttr(all.map(e => `${_fmtDateFr(e.date)} ${_journalType(e.type).label} : ${e.texte}`).join('\n') + '\nClic : voir, corriger, noter un contact')}">☎ ${r.nbContacts}</button> <span class="el-dl">${_escName(_fmtDateFr(r.contact.date).slice(0, 5))}</span>`;
+      return `<button class="el-pill" onclick="event.stopPropagation();chaleurContactsUI('${j}','0000-01-01','9999-12-31','${_escJsAttr(cls.annee || 'toute l\'année')}')" title="${_escAttr(all.map(e => `${_fmtDateFr(e.date)} ${_journalType(e.type).label} : ${e.texte}`).join('\n') + '\nClic : les lire, en corriger un, en noter un nouveau')}">☎ ${r.nbContacts}</button> <span class="el-dl">${_escName(_fmtDateFr(r.contact.date).slice(0, 5))}</span>`;
     };
     td.avis = () => _avisCelluleHTML(cls, campCour, sid);
     td.bilans = () => `<span class="el-bdots">${bcols.map((c, i) => {
@@ -6906,7 +6908,7 @@ function openRemarque(sid) {
 // Les contacts avec la famille : une fenêtre À PART (v1.46.14, l'utilisateur : « les contacts
 // avec les parents, c'est un élément à part qui ne devrait pas être dans la même fenêtre »),
 // ouverte par la colonne Contacts de la liste. Ajouter, et corriger date, type, texte ; 🗑.
-function openContacts(sid) {
+function openContacts(sid, focusId) {
   const s = S.eleves[sid];
   if (!s) return;
   _remSid = sid;
@@ -6920,6 +6922,9 @@ function openContacts(sid) {
   if (tx) tx.value = '';
   _journalRender();
   openMod('mcontacts');
+  // Une entrée choisie dans la liste (v1.55.6) : son texte reçoit le focus, la ligne est marquée.
+  const tr = focusId ? document.querySelector(`#mrem-jlist tr[data-jid="${CSS.escape(focusId)}"]`) : null;
+  if (tr) { tr.classList.add('jl-cible'); const i = tr.querySelector('input[type="text"]'); setTimeout(() => { try { tr.scrollIntoView({ block: 'center' }); i?.focus(); } catch (_) { } }, 30); }
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // FICHE ÉLÈVE — le rendu
@@ -7971,6 +7976,23 @@ function elevesPapierRenduUI(sid, docId) {
   }
   toast(`✓ ${doc.titre} : rendu.`);
 }
+// Les contacts, comme les incidents (v1.55.6, l'utilisateur : « fais pareil pour le compteur de
+// contacts des Indicateurs ») : la fenêtre des contacts les montre en champs d'une ligne, texte
+// coupé — on n'y LIT pas. La liste lisible d'abord (date, type, texte entier), chacun s'ouvre dans
+// la fenêtre des contacts (où il se corrige), « ＋ Noter un nouveau contact ». Vide : la saisie.
+function _contactsListe(sid, a, b) { return _journalOf(sid).filter(e => e.date >= a && e.date <= b).slice().sort((x, y) => String(x.date).localeCompare(String(y.date))); }
+function chaleurContactsUI(sid, a, b, lab) {
+  const stu = S.eleves[sid];
+  if (!stu) return;
+  const x = _contactsListe(sid, a, b);
+  if (!x.length) return openContacts(sid);
+  const items = x.map(e => { const t = _journalType(e.type);
+    return `<button class="btn btn-g inc-choix" onclick="_appDialogValeur('${_escJsAttr(e.id)}')"><span class="inc-choix-d">${_escName(_fmtDateFr(e.date))}</span> <strong>${t.icon} ${_escName(t.label)}</strong>${e.texte ? `<small class="pf-p">${_escName(e.texte)}</small>` : ''}</button>`; }).join('');
+  _appDialogShow({ title: `📇 ${stu.prenom} ${stu.nom} — ${_pl(x.length, 'contact')} · ${lab}`, type: 'question',
+    message: `<div class="inc-choix-l">${items}</div><p class="tb-hint" style="margin-top:6px">Cliquez un contact pour le corriger (date, type, texte) ou le supprimer.</p>`,
+    buttons: [{ label: 'Fermer', value: null }, { label: '＋ Noter un nouveau contact', primary: true, value: '__new' }] })
+    .then(v => { if (v === '__new') openContacts(sid); else if (v && x.some(e => e.id === v)) openContacts(sid, v); });
+}
 // Une valeur rendue par un élément du MESSAGE de la fenêtre (pas un de ses boutons du bas).
 function _appDialogValeur(v) {
   const r = _appDialogResolve;
@@ -8108,7 +8130,7 @@ function _journalRender() {
   if (!l.length) { box.innerHTML = `<div class="tb-hint" style="padding:8px 2px">Aucun contact noté. Le premier appel de l'année se note ici — c'est celui qu'on ne retrouve jamais après.</div>`; return; }
   box.innerHTML = `<div class="rel-wrap"><table class="dt"><tbody>${l.map(e => {
     const t = _journalType(e.type);
-    return `<tr>
+    return `<tr data-jid="${_escAttr(e.id)}">
       <td><input type="date" value="${_escAttr(e.date)}" style="max-width:150px;font-size:.88em" title="Date du contact — se corrige ici"
             onchange="journalDateUI('${_escJsAttr(e.id)}', this)"></td>
       <td><select style="font-size:.88em;max-width:170px" title="Type du contact — se corrige ici" onchange="journalTypeUI('${_escJsAttr(e.id)}', this.value)">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}"${t2.key === t.key ? ' selected' : ''}>${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></td>

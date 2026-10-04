@@ -1743,6 +1743,13 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        d'échéance ; *✓ Rendu* (`elevesPapierRenduUI`) passe par `_docMut` + `docSetRendu` (date du
        jour, un cran d'undo), redessine la liste et la fenêtre, qui reste ouverte (titre compris,
        jusqu'à « tout est rendu »). La date se corrige dans la fiche ou dans Retours.
+       **v1.55.6** (*« fais pareil pour le compteur de contacts des Indicateurs »*) : la fenêtre des
+       contacts les montre en champs d'une ligne, texte coupé — on n'y lit pas. *☎ n* (toutes les
+       entrées) et les cases *Contacts* de la carte de chaleur (le mois, le Total) appellent
+       `chaleurContactsUI(sid, début, fin, libellé)` : la liste lisible (`_contactsListe`, texte
+       entier), un contact s'ouvre dans la fenêtre des contacts (`openContacts(sid, focusId)` :
+       ligne `data-jid` marquée `jl-cible`, son texte au focus), *＋ Noter un nouveau contact* ;
+       case vide ou élève sans contact : la saisie directement.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
        discipline de la feuille d'avis (pleine / partielle), par papier (✓ ☐ —), par MOIS
@@ -2305,6 +2312,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 140 | **Contacts : la liste lisible d'abord** — le compteur ☎ n des Indicateurs et les cases de la carte de chaleur proposent les contacts (date, type, texte entier), chacun s'ouvre dans la fenêtre des contacts (ligne marquée, texte au focus), ou « ＋ Noter un nouveau contact » ; case vide = la saisie (`chaleurContactsUI`, `_contactsListe`, `openContacts(sid, focusId)`) ; 2 tests adaptés. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.6) |
 | 139 | **Indicateurs : le compteur « n à rendre » montre QUELS papiers et les valide** (`elevesPapiersUI`, `_papiersARendre` — les mêmes que la colonne —, « ✓ Rendu » à la date du jour, un cran d'undo par papier, la fenêtre reste ouverte et se met à jour) ; 1 test. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.5) |
 | 138 | **Indicateurs : le compteur ⚖ n propose aussi les incidents ou un nouveau** (toutes les entrées de l'élève, par `chaleurIncidentsUI`) ; la date du dernier ouvre toujours celui-ci ; 1 test adapté. Vérifié dans le navigateur | ✅ **fait** (2026-10-04, v1.55.4) |
 | 137 | **Carte de chaleur : une case d'incidents propose ses incidents ou un nouveau** (`chaleurIncidentsUI`, case vide = la saisie directement) · **une case d'avis, sa case repliée et le compteur n/N des Indicateurs ouvrent la lecture des avis** (`openAvisLire(vue, campId)`) ; 1 test, 1 test adapté. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.3) |
