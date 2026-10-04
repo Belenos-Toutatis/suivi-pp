@@ -218,3 +218,26 @@ test('Carte de chaleur (v1.55.3) : une case d\'incidents propose les incidents q
   assert.match(f, /＋ Noter un nouvel incident/);
   assert.match(f, /_appDialogValeur\(/);
 });
+
+test('Indicateurs (v1.55.5) : le compteur « n à rendre » montre quels papiers, et chacun se valide (date du jour, un cran d\'undo)', () => {
+  ev(DEMO);
+  const r = JSON.parse(ev(`(() => {
+    const cls = getCls();
+    const sid = cls.eleves.find(id => _syntheseRow(cls, S.eleves[id]).nonRendus.length >= 2);
+    const titres = _syntheseRow(cls, S.eleves[sid]).nonRendus;
+    const liste = _papiersARendre(cls, sid).map(d => d.titre);
+    const h = _papiersARendreHTML(cls, sid, []);
+    const d0 = _papiersARendre(cls, sid)[0];
+    const pile = undoStack.length;
+    elevesPapierRenduUI(sid, d0.id);
+    const apres = { rendu: _retour(S.documents[d0.id], sid).rendu, date: _retour(S.documents[d0.id], sid).dateRetour, reste: _papiersARendre(cls, sid).length, pile: undoStack.length - pile };
+    undoLast();
+    return JSON.stringify({ titres, liste, h, apres, annule: _retour(S.documents[d0.id], sid).rendu, auj: _todayYmd() });
+  })()`));
+  assert.deepStrictEqual(r.liste, r.titres, 'les mêmes papiers que la colonne');
+  assert.strictEqual((r.h.match(/elevesPapierRenduUI\(/g) || []).length, r.titres.length, 'un bouton « ✓ Rendu » par papier');
+  assert.deepStrictEqual(r.apres, { rendu: true, date: r.auj, reste: r.titres.length - 1, pile: 1 });
+  assert.strictEqual(r.annule, false, 'Ctrl+Z le défait');
+  const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  assert.match(SRC, /td\.docs = \(\) => r\.nonRendus\.length \? `<button class="el-pill warn" onclick="event\.stopPropagation\(\);elevesPapiersUI\(/);
+});

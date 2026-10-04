@@ -1736,6 +1736,13 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        *⚖ n* de la liste appelle `chaleurIncidentsUI` sur TOUTES les entrées de l'élève (il les
        compte toutes) ; la date du dernier, à côté, ouvre toujours celui-ci ; le point d'un élève
        sans incident, la saisie.
+       **v1.55.5** (*« si je clique sur un compteur de papiers à rendre, me montrer quels papiers,
+       et que je puisse les valider dans Indicateurs »*) : *n à rendre* est un bouton →
+       `elevesPapiersUI(sid)`, la fenêtre de dialogue liste `_papiersARendre(cls, sid)` (⚠️ le
+       MÊME filtre que `_syntheseRow.nonRendus` — testé) avec dates de distribution et
+       d'échéance ; *✓ Rendu* (`elevesPapierRenduUI`) passe par `_docMut` + `docSetRendu` (date du
+       jour, un cran d'undo), redessine la liste et la fenêtre, qui reste ouverte (titre compris,
+       jusqu'à « tout est rendu »). La date se corrige dans la fiche ou dans Retours.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
        discipline de la feuille d'avis (pleine / partielle), par papier (✓ ☐ —), par MOIS
@@ -2298,6 +2305,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 139 | **Indicateurs : le compteur « n à rendre » montre QUELS papiers et les valide** (`elevesPapiersUI`, `_papiersARendre` — les mêmes que la colonne —, « ✓ Rendu » à la date du jour, un cran d'undo par papier, la fenêtre reste ouverte et se met à jour) ; 1 test. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.5) |
 | 138 | **Indicateurs : le compteur ⚖ n propose aussi les incidents ou un nouveau** (toutes les entrées de l'élève, par `chaleurIncidentsUI`) ; la date du dernier ouvre toujours celui-ci ; 1 test adapté. Vérifié dans le navigateur | ✅ **fait** (2026-10-04, v1.55.4) |
 | 137 | **Carte de chaleur : une case d'incidents propose ses incidents ou un nouveau** (`chaleurIncidentsUI`, case vide = la saisie directement) · **une case d'avis, sa case repliée et le compteur n/N des Indicateurs ouvrent la lecture des avis** (`openAvisLire(vue, campId)`) ; 1 test, 1 test adapté. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.3) |
 | 136 | **Formulaire de nouvelle feuille : les choix restent** quand il se redessine (⭐ un élève, une colonne, une matière rattachée) — l'objectif repassait en « conseil de classe », la période, le mois et les disciplines décochées revenaient au défaut (`_avisNouvelleEtat` / `_avisNouvelleRemettre`) ; 1 test. Vérifié dans le navigateur | ✅ **fait** (2026-10-04, v1.55.2) |

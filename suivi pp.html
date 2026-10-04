@@ -1014,6 +1014,9 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .inc-choix-l .inc-choix { display: block; width: 100%; text-align: left; white-space: normal; height: auto; padding: 6px 10px; }
 .inc-choix-l .inc-choix small { display: block; color: var(--pencil); margin-top: 2px; font-weight: 400; }
 .inc-choix-d { font-family: var(--font-mono); font-size: .9em; }
+.inc-choix-l .pap-l { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--rule-line-soft); border-radius: var(--radius-sm, 6px); }
+.inc-choix-l .pap-l small { display: block; color: var(--pencil); }
+.inc-choix-l .pap-ok { color: var(--ok-fg); padding: 2px 10px; }
 .av-partage { margin-bottom: 10px; }
 .av-partage ol { margin: 6px 0 8px 1.3em; padding: 0; }
 .av-partage li { margin: 2px 0; }
@@ -3010,8 +3013,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.4';
-const APP_BUILD_DATE = '2026-10-04T20:48:09Z';
+const APP_VERSION    = '1.55.5';
+const APP_BUILD_DATE = '2026-10-04T20:50:23Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6844,7 +6847,8 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
       const tip = `Moyenne générale importée le ${_fmtDateFr(m.date)}${m.delta !== null ? ` — ${_fmtDelta(m.delta)} depuis l'import précédent` : ''}${m.sous10 ? `\n${m.sous10} matière${m.sous10 > 1 ? 's' : ''} sous 10` : ''}`;
       return `<span title="${_escAttr(tip)}"><span class="el-mv${m.generale < 10 ? ' lo' : ''}">${_escName(_fmtNote(m.generale, 1))}</span>${m.delta !== null ? `<span class="el-dm${m.delta <= -0.3 ? ' neg' : m.delta >= 0.3 ? ' pos' : ''}">${_escName(_fmtDelta(m.delta))}</span>` : ''}${m.sous10 ? ` <span class="el-pill bad">${m.sous10} &lt;10</span>` : ''}</span>`;
     };
-    td.docs = () => r.nonRendus.length ? `<span class="el-pill warn" title="${_escAttr(r.nonRendus.join('\n'))}">${r.nonRendus.length} à rendre</span>` : '<span class="el-ok" title="Tout est rendu">✓</span>';
+    // Le compteur montre QUELS papiers et permet de les valider (v1.55.5).
+    td.docs = () => r.nonRendus.length ? `<button class="el-pill warn" onclick="event.stopPropagation();elevesPapiersUI('${j}')" title="${_escAttr(r.nonRendus.join('\n') + '\nClic : les voir, valider ceux qui sont rendus')}">${r.nonRendus.length} à rendre</button>` : '<span class="el-ok" title="Tout est rendu">✓</span>';
     td.incidents = () => {
       if (!r.nbIncidents) return dot('Aucun incident — clic : en noter un', `openIncident('${j}')`);
       const all = (s.incidents || []).filter(_isPlainObj).sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -7926,6 +7930,46 @@ function chaleurIncidentsUI(sid, a, b, lab) {
     message: `<div class="inc-choix-l">${items}</div><p class="tb-hint" style="margin-top:6px">Cliquez une entrée pour la lire ou la modifier.</p>`,
     buttons: [{ label: 'Fermer', value: null }, { label: '＋ Noter un nouvel incident', primary: true, value: '__new' }] })
     .then(v => { if (v === '__new') openIncident(sid); else if (v && x.some(e => e.id === v)) openIncident(sid, v); });
+}
+// Les papiers à rendre d'un élève (v1.55.5, l'utilisateur : « si je clique sur un compteur de
+// papiers à rendre, me montrer quels papiers, et que je puisse les valider dans Indicateurs ») :
+// les mêmes que la colonne (`_syntheseRow.nonRendus` : documents non archivés de la classe, suivis,
+// où l'élève est attendu), chacun avec « ✓ Rendu » — la date du jour, par `docSetRendu`, un cran
+// d'undo par papier. La fenêtre reste ouverte et se met à jour : on en valide plusieurs d'affilée.
+function _papiersARendre(cls, sid) {
+  return _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cls.id) && d.suiviRetour !== false
+    && _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu);
+}
+function _papiersARendreHTML(cls, sid, faits) {
+  const x = _papiersARendre(cls, sid), j = _escJsAttr(sid);
+  const ok = (faits || []).map(t => `<div class="inc-choix pap-ok">✓ <strong>${_escName(t)}</strong> — rendu le ${_escName(_fmtDateFr(_todayYmd()))}</div>`).join('');
+  return `<div class="inc-choix-l">${ok}${x.map(d => `<div class="inc-choix pap-l"><span><strong>${_escName(d.titre)}</strong>${
+      d.dateDistribution || d.dateEcheance ? `<small>${d.dateDistribution ? `distribué le ${_escName(_fmtDateFr(d.dateDistribution))}` : ''}${d.dateDistribution && d.dateEcheance ? ' · ' : ''}${d.dateEcheance ? `à rendre pour le ${_escName(_fmtDateFr(d.dateEcheance))}` : ''}</small>` : ''}</span>
+      <button class="btn btn-s btn-sm" onclick="elevesPapierRenduUI('${j}','${_escJsAttr(d.id)}')" title="Noter ce papier rendu aujourd'hui (Ctrl+Z annule)">✓ Rendu</button></div>`).join('')}</div>
+    ${x.length ? '<p class="tb-hint" style="margin-top:6px">« ✓ Rendu » le note rendu aujourd\'hui ; la date se corrige dans la fiche ou dans Retours.</p>' : '<p class="tb-hint" style="margin-top:6px">Tout est rendu.</p>'}`;
+}
+let _papiersFaits = [];
+function elevesPapiersUI(sid) {
+  const cls = getCls(), stu = S.eleves[sid];
+  if (!cls || !stu) return;
+  _papiersFaits = [];
+  const n = _papiersARendre(cls, sid).length;
+  _appDialogShow({ title: `📄 ${stu.prenom} ${stu.nom} — ${_pl(n, 'papier')} à rendre`, type: 'question',
+    message: _papiersARendreHTML(cls, sid, []), buttons: [{ label: 'Fermer', primary: true, value: null }] });
+}
+function elevesPapierRenduUI(sid, docId) {
+  const cls = getCls(), doc = S.documents[docId];
+  if (!cls || !doc || _retour(doc, sid).rendu) return;
+  _docMut(docId, d => docSetRendu(d, sid, true));
+  _papiersFaits.push(doc.titre);
+  renderStudents();
+  const m = document.getElementById('appDialog-msg');
+  if (m && document.getElementById('mAppDialog')?.classList.contains('on')) {
+    m.innerHTML = _papiersARendreHTML(cls, sid, _papiersFaits);
+    const t = document.getElementById('appDialog-title'), n = _papiersARendre(cls, sid).length, stu = S.eleves[sid];
+    if (t && stu) t.textContent = `📄 ${stu.prenom} ${stu.nom} — ${n ? _pl(n, 'papier') + ' à rendre' : 'tout est rendu'}`;
+  }
+  toast(`✓ ${doc.titre} : rendu.`);
 }
 // Une valeur rendue par un élément du MESSAGE de la fenêtre (pas un de ses boutons du bas).
 function _appDialogValeur(v) {
