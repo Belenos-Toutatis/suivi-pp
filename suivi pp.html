@@ -3010,8 +3010,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.3';
-const APP_BUILD_DATE = '2026-10-04T20:43:44Z';
+const APP_VERSION    = '1.55.4';
+const APP_BUILD_DATE = '2026-10-04T20:48:09Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6848,7 +6848,9 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     td.incidents = () => {
       if (!r.nbIncidents) return dot('Aucun incident — clic : en noter un', `openIncident('${j}')`);
       const all = (s.incidents || []).filter(_isPlainObj).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-      return `<button class="el-pill bad" onclick="openIncident('${j}')" title="${_escAttr(all.map(e => `${_fmtDateFr(e.date)} ${_instanceOf(e.type).label} : ${e.objet}`).join('\n') + '\nClic : noter un nouvel incident')}">⚖ ${r.nbIncidents}</button> <button class="el-dl el-lien" onclick="openIncident('${j}','${_escJsAttr(r.incident.id)}')" title="${_escAttr(`${_instanceOf(r.incident.type).label} : ${r.incident.objet} — clic pour modifier cette entrée`)}">${_escName(_fmtDateFr(r.incident.date).slice(0, 5))}</button>`;
+      // Le compteur propose les incidents ou d'en noter un (v1.55.4, comme la carte de chaleur) : il
+      // compte TOUTES les entrées de l'élève, la liste aussi.
+      return `<button class="el-pill bad" onclick="chaleurIncidentsUI('${j}','0000-01-01','9999-12-31','${_escJsAttr(cls.annee || 'toute l\'année')}')" title="${_escAttr(all.map(e => `${_fmtDateFr(e.date)} ${_instanceOf(e.type).label} : ${e.objet}`).join('\n') + '\nClic : voir ces incidents, ou en noter un nouveau')}">⚖ ${r.nbIncidents}</button> <button class="el-dl el-lien" onclick="openIncident('${j}','${_escJsAttr(r.incident.id)}')" title="${_escAttr(`${_instanceOf(r.incident.type).label} : ${r.incident.objet} — clic pour modifier cette entrée`)}">${_escName(_fmtDateFr(r.incident.date).slice(0, 5))}</button>`;
     };
     td.contacts = () => {
       if (!r.nbContacts) return dot('Aucun contact avec la famille — clic : en noter un', `openContacts('${j}')`);

@@ -1732,6 +1732,10 @@ renomme l'écran, pas le modèle. Les noms ci-dessous sont ceux du code.
        case repliée tous ses avis ; dans les Indicateurs, le compteur *n/N* aussi (la fiche quand
        il n'y a aucun avis). `openAvisLire` prend la feuille en second argument hors de l'onglet
        Avis ; ses liens et ◀ ▶ restent sur la feuille déjà ouverte.
+       **v1.55.4** (*« fais pareil pour le compteur d'incidents des Indicateurs »*) : le bouton
+       *⚖ n* de la liste appelle `chaleurIncidentsUI` sur TOUTES les entrées de l'élève (il les
+       compte toutes) ; la date du dernier, à côté, ouvre toujours celui-ci ; le point d'un élève
+       sans incident, la saisie.
      - **▥ Carte de chaleur** (`_chaleurGroupes`, `_elevesChaleurHTML`) : une case par relevé
        (Δ coloré), par matière du dernier import de la période (sous 10 en alerte), par
        discipline de la feuille d'avis (pleine / partielle), par papier (✓ ☐ —), par MOIS
@@ -2294,6 +2298,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 138 | **Indicateurs : le compteur ⚖ n propose aussi les incidents ou un nouveau** (toutes les entrées de l'élève, par `chaleurIncidentsUI`) ; la date du dernier ouvre toujours celui-ci ; 1 test adapté. Vérifié dans le navigateur | ✅ **fait** (2026-10-04, v1.55.4) |
 | 137 | **Carte de chaleur : une case d'incidents propose ses incidents ou un nouveau** (`chaleurIncidentsUI`, case vide = la saisie directement) · **une case d'avis, sa case repliée et le compteur n/N des Indicateurs ouvrent la lecture des avis** (`openAvisLire(vue, campId)`) ; 1 test, 1 test adapté. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.3) |
 | 136 | **Formulaire de nouvelle feuille : les choix restent** quand il se redessine (⭐ un élève, une colonne, une matière rattachée) — l'objectif repassait en « conseil de classe », la période, le mois et les disciplines décochées revenaient au défaut (`_avisNouvelleEtat` / `_avisNouvelleRemettre`) ; 1 test. Vérifié dans le navigateur | ✅ **fait** (2026-10-04, v1.55.2) |
 | 135 | **Lien de partage demandé APRÈS la création** : plus de champ dans le formulaire de création ; encadré « 🔗 Étape suivante : partager la feuille » (comment faire dans le Nuage, champ du lien) tant que la feuille n'a pas de lien, amené à l'écran après la création ; 1 test. Vérifié dans le navigateur (création, lien refusé puis accepté, Ctrl+Z), audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.1) |

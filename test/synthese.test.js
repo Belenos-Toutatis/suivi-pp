@@ -139,7 +139,9 @@ test('liste des élèves : la case Incidents ouvre la saisie d\'une entrée, com
   ev(`incidentAdd('s1', { date:'2025-12-03', type:'retenue', objet:'Bavardages', texte:'' });
       incidentAdd('s1', { date:'2026-01-15', type:'commission_educative', objet:'Récidive', texte:'Décision : tutorat' });`);
   html = capture();
-  assert.ok(/onclick="openIncident\('s1'\)"[^>]*>⚖ 2<\/button>/.test(html), 'le nombre d\'entrées sur le bouton');
+  // v1.55.4 : le compteur propose les incidents enregistrés, ou d'en noter un nouveau.
+  assert.ok(/onclick="chaleurIncidentsUI\('s1','0000-01-01','9999-12-31','[^']*'\)"[^>]*>⚖ 2<\/button>/.test(html), 'le nombre d\'entrées sur le bouton, qui propose la liste');
+  assert.strictEqual(evObj(`_chaleurIncidentsListe('s1', '0000-01-01', '9999-12-31').length`), 2, 'toutes ses entrées');
   const id = evObj(`_incidentsOf('s1')[0].id`);
   assert.strictEqual(evObj(`_incidentsOf('s1')[0].date`), '2026-01-15', 'la plus récente d\'abord');
   assert.ok(html.includes(`openIncident('s1','${id}')`), 'la dernière entrée s\'ouvre en modification');
