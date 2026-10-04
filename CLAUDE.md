@@ -1308,6 +1308,20 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   export CSV, gel vérifié sous python-uno) ; une feuille réenregistrée par LibreOffice est
   gardée en fixture (`test/fixtures/avis-libreoffice.ods`, noms inventés). ⚠️ **Non vérifié
   dans Collabora Online** même : à regarder une fois dans le Nuage.
+- **Créer la feuille depuis l'app** (v1.55.0, l'utilisateur : *« tu ne pourrais pas aussi créer
+  la feuille et la préparer ? et proposer un nom logique que l'on peut modifier »*) : *📄 Créer la
+  feuille et la préparer…* (`avisPreparerUI(false, true)`, `_avisCreerHandle` →
+  `showSaveFilePicker`, le nom déjà écrit) — on l'enregistre dans un dossier que Nextcloud
+  synchronise, puis on la partage dans le Nuage par lien public en modification (le lien se colle
+  ensuite dans la feuille). *📂 Choisir une feuille existante…* reste pour une feuille vide créée
+  dans le Nuage. **Le nom** : champ `mavis-nom`, proposé par `_avisNomFichier` (pur :
+  « Avis des collègues — 5e C — conseil S1 — 2025-26.ods », « mi-S1 », « point de mars »), qui
+  suit période, objectif et mois (`_avisNomMaj`) tant qu'on ne l'a pas réécrit (`_avisNomDraft`,
+  de séance ; vidé, il redevient proposé) ; `_avisNomPropre` retire ce que les systèmes de
+  fichiers refusent et assure le `.ods`. Le téléchargement (Firefox) prend le même nom. Sans
+  `showSaveFilePicker`, pas de bouton Créer : Choisir redevient le bouton principal. Vérifié dans
+  le navigateur avec un fichier OPFS à la place de la boîte (écrit, relu : les onglets) ;
+  ⚠️ la vraie boîte et l'arrivée dans le Nuage, à essayer à la main.
 - **Sans File System Access** (Firefox) : télécharger la feuille, la déposer dans le Nuage,
   et relire par « Lire la feuille… » (choix de fichier).
 - **Où on l'ouvre** : ~~👥 Élèves → *🗣 Avis des collègues…*~~ — **depuis la v1.45.0, un
@@ -2248,6 +2262,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 134 | **Créer la feuille d'avis** depuis l'app (boîte « Enregistrer sous », `showSaveFilePicker`) avec un **nom logique** proposé (classe, objectif, période, année), qui suit les réglages tant qu'on ne l'a pas réécrit ; « Choisir une feuille existante » reste ; le téléchargement prend le même nom ; 1 test. Vérifié dans le navigateur (fichier OPFS écrit et relu), audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.0) |
 | 133 | **Lire les avis des collègues** : fenêtre `mavislire`, trois vues (une discipline, un élève, une case) ouvertes depuis la grille « Qui a écrit sur qui » (en-tête, case, total de la ligne, pied) et le tableau des disciplines, ◀ ▶ pour enchaîner ; 1 test, 1 test adapté. Audit 2 thèmes, 1 570 et 320 px, 0 défaut | ✅ **fait** (2026-10-04, v1.54.0) |
 | 132 | **Audit complet après la salve des élections** : 56 états × 2 thèmes × 2 largeurs (1 570 et 320 px, ≈ 100 000 nœuds), dix feuilles imprimées depuis les deux thèmes, scénario d'élection de bout en bout (nom écrit, acceptation, deux sièges, second tour, scrutin du suppléant). Quatre défauts corrigés : Δ illisible sur les deux derniers paliers du carnet imprimé (2,2:1), tiret « sans objet » de la grille imprimée à 4,48:1, **suppléant posé après le vote affiché comme s'il était sur le bulletin** (PV, candidatures, graphique), « Sont élus » au-dessus d'un seul élu ; auditeur : mode `papier` ; 2 tests | ✅ **fait** (2026-10-04, v1.53.2) |
 | 131 | **Sources hors Légifrance liées** (justice.fr, circulaire de 2004, service-public, académie de Versailles) dans les modalités, la question d'acceptation et le bureau de vote ; 1 test. Audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-03, v1.53.1) |

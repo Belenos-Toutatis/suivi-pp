@@ -631,3 +631,28 @@ test('Lire les avis (v1.54.0) : une discipline, un élève, une case — clics d
   assert.match(r.g, /openAvisLire\(\{&quot;sid&quot;:&quot;s1&quot;\}\)/);
   assert.match(r.t, /<button class="av-dlien" onclick="openAvisLire\(\{ did: 'maths' \}\)"/);
 });
+
+test('Nouvelle feuille (v1.55.0) : un nom de fichier logique, modifiable ; « Créer la feuille » à côté de « Choisir une feuille existante »', () => {
+  ev(FIXTURE);
+  const r = JSON.parse(ev(`(() => {
+    const cls = getCls();
+    const noms = [_avisNomFichier(cls, 0, 'conseil'), _avisNomFichier(cls, 1, 'miperiode'), _avisNomFichier(cls, 0, 'mois', 4)];
+    const propres = [_avisNomPropre('  Avis: 5C / S1 '), _avisNomPropre('déjà.ODS'), _avisNomPropre('   ')];
+    window.showSaveFilePicker = async () => null; window.showOpenFilePicker = async () => [];
+    _avisNomDraft = null; const h = _avisNouvelleHTML(cls);
+    _avisNomDraft = 'Mon nom à moi.ods'; const h2 = _avisNouvelleHTML(cls); _avisNomDraft = null;
+    delete window.showSaveFilePicker; const h3 = _avisNouvelleHTML(cls);
+    delete window.showOpenFilePicker; const h4 = _avisNouvelleHTML(cls);
+    return JSON.stringify({ noms, propres, h, h2, h3, h4 });
+  })()`));
+  assert.deepStrictEqual(r.noms, ['Avis des collègues — 5e C — conseil S1 — 2025-26.ods', 'Avis des collègues — 5e C — mi-S2 — 2025-26.ods', 'Avis des collègues — 5e C — point d\'avril — 2025-26.ods']);
+  assert.deepStrictEqual(r.propres, ['Avis- 5C - S1.ods', 'déjà.ods', '']);
+  assert.match(r.h, /id="mavis-nom"[^>]*value="Avis des collègues — 5e C — conseil S/);
+  assert.match(r.h, /onclick="avisPreparerUI\(false, true\)"[^>]*>📄 Créer la feuille et la préparer…/);
+  assert.match(r.h, /📂 Choisir une feuille existante et la préparer…/);
+  assert.match(r.h, /id="mavis-per"[^>]*onchange="_avisNomMaj\(\)"/, 'la période fait suivre le nom');
+  assert.match(r.h2, /value="Mon nom à moi\.ods"/, 'un nom tapé est gardé');
+  assert.ok(!r.h3.includes('Créer la feuille'), 'sans boîte « Enregistrer sous » : pas de bouton Créer');
+  assert.match(r.h3, /class="btn btn-p" onclick="avisPreparerUI\(false\)"/, 'Choisir redevient le bouton principal');
+  assert.match(r.h4, /⬇ Télécharger la feuille/, 'sans File System Access : le téléchargement');
+});

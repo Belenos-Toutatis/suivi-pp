@@ -3003,8 +3003,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.54.0';
-const APP_BUILD_DATE = '2026-10-04T19:59:17Z';
+const APP_VERSION    = '1.55.0';
+const APP_BUILD_DATE = '2026-10-04T20:10:46Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -16134,6 +16134,36 @@ async function _avisChoisirHandle() {
   if (!/\.ods$/i.test(h.name)) throw new Error('choisissez une feuille .ods — c\'est le format des feuilles de calcul du Nuage');
   return h;
 }
+// Créer le fichier (v1.55.0, l'utilisateur : « tu ne pourrais pas aussi créer la feuille et la
+// préparer ? Et proposer un nom logique que l'on peut modifier ») : la boîte « Enregistrer sous »
+// du navigateur, le nom proposé déjà écrit. On l'enregistre dans un dossier synchronisé : le
+// client Nextcloud la monte dans le Nuage, où on la partage.
+const _AVIS_CREER = () => typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
+async function _avisCreerHandle(nom) {
+  return window.showSaveFilePicker({ suggestedName: nom,
+    types: [{ description: 'Feuille de calcul du Nuage (.ods)', accept: { 'application/vnd.oasis.opendocument.spreadsheet': ['.ods'] } }] });
+}
+// Pur : « Avis des collègues — 5e C — conseil S1 — 2025-26.ods » (mi-S1, point de mars). Sans les
+// caractères que les systèmes de fichiers refusent ; « .ods » toujours au bout.
+function _avisNomFichier(cls, pIdx, moment, mois) {
+  const p = _periods(cls)[pIdx], lab = p ? p.label : '';
+  const quoi = moment === 'miperiode' ? `mi-${lab}` : moment === 'mois' ? `point ${_deMois(AVIS_MOIS[(mois || 1) - 1])}` : `conseil ${lab}`;
+  return _avisNomPropre([`Avis des collègues`, cls.nom, quoi.trim(), cls.annee || ''].filter(Boolean).join(' — '));
+}
+function _avisNomPropre(nom) {
+  const t = String(nom || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').replace(/\s+/g, ' ').trim().replace(/\.ods$/i, '').trim();
+  return t ? t + '.ods' : '';
+}
+let _avisNomDraft = null;   // le nom TAPÉ dans le formulaire d'une nouvelle feuille ; null = le nom proposé
+function _avisNomPropose(cls) {
+  return _avisNomFichier(cls, +(document.getElementById('mavis-per')?.value || 0), document.getElementById('mavis-obj')?.value || 'conseil', +(document.getElementById('mavis-mois')?.value || _todayYmd().slice(5, 7)));
+}
+// Période, objectif ou mois changent : le nom proposé suit, tant qu'on ne l'a pas réécrit.
+function _avisNomMaj() {
+  const cls = getCls(), i = document.getElementById('mavis-nom');
+  if (cls && i && _avisNomDraft === null) i.value = _avisNomPropose(cls);
+}
+function avisNomUI(v) { _avisNomDraft = String(v).trim() ? v : null; if (_avisNomDraft === null) _avisNomMaj(); }
 async function _avisLireOctets(bytes) {
   if (!bytes || !bytes.length) return [];          // une feuille vide de zéro octet : rien à lire
   return _odsRead(bytes);
@@ -16369,20 +16399,23 @@ function _avisNouvelleHTML(cls) {
   const ps = _periods(cls);
   const cur = _carnetCurrentPeriodIdx(cls);
   return `<div class="tb-hint" style="margin-bottom:10px">Une feuille de calcul du Nuage, un onglet par discipline, que les collègues remplissent par un lien de partage — sans compte. L'app la prépare, puis relit leurs réponses dans la copie que le client Nextcloud garde sur votre ordinateur.
-      <br><strong>Avant</strong> : créez une feuille de calcul vide dans le Nuage, dans un dossier synchronisé, et partagez-la par lien public <em>en modification</em>.</div>
+      <br>${_AVIS_CREER() ? '<strong>📄 Créer la feuille</strong> : enregistrez-la dans un dossier que Nextcloud synchronise ; une fois arrivée dans le Nuage, partagez-la par lien public <em>en modification</em> et collez le lien ici (ou plus tard). Une feuille vide déjà créée dans le Nuage se choisit par <strong>📂</strong>.' : '<strong>Avant</strong> : créez une feuille de calcul vide dans le Nuage, dans un dossier synchronisé, et partagez-la par lien public <em>en modification</em>.'}</div>
     <div class="fg"><label for="mavis-per">Pour la période</label>
-      <select id="mavis-per" style="max-width:100%">${ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('')}</select></div>
+      <select id="mavis-per" style="max-width:100%" onchange="_avisNomMaj()">${ps.map((p, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${_escName(p.label)} — du ${_escName(_fmtDateFr(p.start))} au ${_escName(_fmtDateFr(p.end))}</option>`).join('')}</select></div>
     ${_avisObjectifHTML(cls, null)}
     <div class="fg"><label>Colonnes de la feuille</label><div id="mavis-cols-new">${_avisColsEditHTML(null)}</div></div>
     ${_avisRattacherHTML(cls)}
     <div class="fg"><label>Disciplines</label>${_avisDiscPickHTML(cls, _disciplinesActives().map(d => d.id))}</div>
     ${_avisDetails('cibles-new', `<strong>⭐ Élèves sur qui je veux un avis en particulier</strong> <span class="tb-hint">— ${_avisCiblesDraft.size || 'aucun'} · surlignés en jaune dans la feuille</span>`,
       `<div class="tb-hint" style="margin:6px 0">Par exemple avant une rencontre avec la famille : leur nom sera surligné en jaune dans chaque onglet.</div>${_avisCiblesPickHTML(cls, null)}`)}
+    <div class="fg"><label for="mavis-nom">Nom du fichier <span class="tb-hint">(proposé d'après la classe, l'objectif et la période — modifiable ; une feuille existante choisie par 📂 garde son nom)</span></label>
+      <input id="mavis-nom" type="text" maxlength="120" value="${_escAttr(_avisNomDraft !== null ? _avisNomDraft : _avisNomFichier(cls, cur, 'conseil', +_todayYmd().slice(5, 7)))}" oninput="avisNomUI(this.value)" style="width:100%"></div>
     <div class="fg"><label for="mavis-lien">Lien de partage de la feuille <span class="tb-hint">(facultatif — il ira dans le message aux collègues)</span></label>
       <input id="mavis-lien" type="text" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%"></div>
     <div class="ma" style="flex-wrap:wrap">
       ${_AVIS_FS() ? '' : '<button class="btn btn-s" onclick="avisPreparerUI(true)" title="Votre navigateur ne sait pas écrire dans un fichier : la feuille se télécharge, à déposer ensuite dans le Nuage à la place de la feuille vide">⬇ Télécharger la feuille</button>'}
-      ${_AVIS_FS() ? '<button class="btn btn-p" onclick="avisPreparerUI(false)" title="Choisissez la copie locale de la feuille vide (dans votre dossier Nextcloud) : l\'app y écrit les onglets et les élèves">📝 Choisir la feuille et la préparer…</button>' : ''}
+      ${_AVIS_CREER() ? '<button class="btn btn-p" onclick="avisPreparerUI(false, true)" title="Créer le fichier sous le nom ci-dessus, dans le dossier de votre choix (un dossier synchronisé par Nextcloud) : l\'app y écrit les onglets et les élèves">📄 Créer la feuille et la préparer…</button>' : ''}
+      ${_AVIS_FS() ? `<button class="btn ${_AVIS_CREER() ? 'btn-s' : 'btn-p'}" onclick="avisPreparerUI(false)" title="Choisissez la copie locale d'une feuille vide déjà créée dans le Nuage : l'app y écrit les onglets et les élèves">📂 Choisir une feuille existante et la préparer…</button>` : ''}
     </div>`;
 }
 // Le choix de l'objectif : en tête d'une feuille existante (un changement se reporte sur la
@@ -16394,7 +16427,7 @@ function _avisObjectifHTML(cls, camp) {
   return `<div class="fi-form" style="margin-bottom:8px">
       <label>Objectif <select id="mavis-obj" ${camp ? surCamp('moment', 'this.value') : `onchange="avisObjectifNouvelleUI(this.value)"`}>${
         AVIS_MOMENTS.map(m => `<option value="${m.key}"${m.key === r.moment ? ' selected' : ''}>${_escName(m.label)}</option>`).join('')}</select></label>
-      <label id="mavis-mois-w"${moisVis}>Mois <select id="mavis-mois" ${surCamp('mois', '+this.value')}>${AVIS_MOIS.map((m, i) => `<option value="${i + 1}"${i + 1 === r.mois ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+      <label id="mavis-mois-w"${moisVis}>Mois <select id="mavis-mois" ${camp ? surCamp('mois', '+this.value') : 'onchange="_avisNomMaj()"'}>${AVIS_MOIS.map((m, i) => `<option value="${i + 1}"${i + 1 === r.mois ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
       ${camp ? '<span class="tb-hint">Changé ici, il arrive dans la feuille par <strong>📝 Mettre la feuille à jour</strong>.</span>' : ''}</div>`;
 }
 function _avisCampHTML(cls, camp) {
@@ -16885,6 +16918,7 @@ function avisColsBouger(i, k) {
 function avisObjectifNouvelleUI(val) {
   const w = document.getElementById('mavis-mois-w');
   if (w) w.style.display = val === 'mois' ? '' : 'none';
+  _avisNomMaj();
   const d = _avisColsDraftPour(null);
   if (d.touche) return;
   d.cols = _avisColsCopie(_avisModeleDefaut(val).colonnes);
@@ -16970,7 +17004,7 @@ async function avisCopierMessage(campId, brut) {
 
 // ── Préparer ── écrire les onglets dans la feuille. ⚠️ Le sélecteur de fichier s'ouvre
 // AVANT tout await : il exige un geste de l'utilisateur encore « frais ».
-async function avisPreparerUI(telecharger) {
+async function avisPreparerUI(telecharger, creer) {
   const cls = getCls();
   if (!cls) return;
   const pIdx = +(document.getElementById('mavis-per')?.value || 0);
@@ -16978,10 +17012,12 @@ async function avisPreparerUI(telecharger) {
   if (!dids.length) return toast('⚠️ Cochez au moins une discipline.', 'warn');
   const lien = document.getElementById('mavis-lien')?.value || '';
   if (String(lien).trim() && !_avisLienSur(lien)) return toast('⚠️ Le lien doit commencer par https:// — copiez-le depuis « Partager » dans le Nuage.', 'warn');
+  const nom = _avisNomPropre(document.getElementById('mavis-nom')?.value || '') || _avisNomPropose(cls);
   let h = null;
   if (!telecharger) {
-    try { h = await _avisChoisirHandle(); }
+    try { h = creer ? await _avisCreerHandle(nom) : await _avisChoisirHandle(); }
     catch (e) { if (e.name !== 'AbortError') toast('⚠️ ' + e.message, 'warn'); return; }
+    if (creer && !/\.ods$/i.test(h.name)) toast('⚠️ Le fichier ne finit pas par .ods : le Nuage risque de ne pas l\'ouvrir comme une feuille de calcul.', 'warn');
   }
   pushUndo();
   const objectif = document.getElementById('mavis-obj')?.value || 'conseil';
@@ -16993,11 +17029,14 @@ async function avisPreparerUI(telecharger) {
   if (!camp) { undoLast(); return toast('⚠️ Période ou disciplines invalides.', 'warn'); }
   _avisCiblesDraft = new Set();
   _avisColsDraft = null;
+  _avisNomDraft = null;
+  if (telecharger) camp.fichier = nom;
   if (h) { camp.fichier = h.name; _avisHandles[camp.id] = h; await idbSaveHandleKey(h, 'avis_' + camp.id); }
   save();
   _avisCampId = camp.id;
   if (telecharger) { avisTelecharger(camp.id); _avisRender(); return; }
   await _avisEcrireFeuille(cls, camp, h, { nouvelle: true });
+  if (creer) toast('📄 Feuille créée et préparée — partagez-la dans le Nuage par lien public en modification, puis collez le lien dans la feuille.');
 }
 // Écrit la feuille dans le fichier. Ce que le fichier contient déjà est relu d'abord :
 // ⚠️ s'il porte des avis que l'app n'a pas (ou pas pareils), RIEN n'est repris d'office —
@@ -17062,8 +17101,8 @@ function avisTelecharger(campId) {
   const cls = getCls();
   const camp = _avisMap(cls?.id)?.[campId];
   if (!camp) return;
-  const p = _avisPeriode(cls, camp);
-  const nom = `Avis des collègues — ${cls.nom}${p ? ' — ' + p.label : ''}.ods`.replace(/[\\/:*?"<>|]+/g, '-');
+  const p = _avisPeriode(cls, camp), r = _avisMsgReglages(camp);
+  const nom = _avisNomPropre(camp.fichier || '') || _avisNomFichier(cls, Math.max(0, _periods(cls).findIndex(x => p && x.start === p.start)), r.moment, r.mois);
   const url = URL.createObjectURL(new Blob([_odsBuild(_avisFeuilles(cls, camp), { police: { nom: 'Andika SuiviPP', variantes: _ODS_ANDIKA } })], { type: 'application/vnd.oasis.opendocument.spreadsheet' }));
   const a = document.createElement('a');
   a.href = url; a.download = nom; a.click();
