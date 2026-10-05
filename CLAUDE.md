@@ -2956,6 +2956,36 @@ git config --global user.email "emmanuel.wenner@gmail.com"
 En attendant, `git -c user.name=… -c user.email=… commit` dépanne pour un commit, sans
 rien écrire dans la configuration — c'est ce qui a servi pour `3c5d959`.
 
+### Fins de ligne — `LF` partout, imposé par `.gitattributes` (2026-10-05)
+
+⚠️ **Git for Windows pose `core.autocrlf=true` par défaut** : il écrit la copie de travail en
+`CRLF` alors que le dépôt est en `LF`. L'app s'en moque — mais pas les tests qui **lisent
+`suivi pp.html` comme du texte** pour y chercher un motif (polices embarquées, vignette devant
+les noms, en-tête collant de l'élection). Leurs motifs contiennent un `\n` ; le `\r` invisible
+s'intercale, le motif ne correspond plus, et `npm test` finit à **3 échecs sur ce poste et
+zéro ailleurs**.
+
+⚠️ **Le vrai danger n'est pas les trois : c'est le bruit.** Un `npm test` qui n'est jamais vert
+cesse d'être lu, et la règle du projet — *« tests verts se VÉRIFIE »* — devient inapplicable :
+une VRAIE régression s'ajouterait à une liste d'échecs déjà considérée comme normale.
+
+Corrigé **à la cause** (`.gitattributes` : `* text=auto eol=lf`, plus `binary` pour png/pdf/ods)
+plutôt qu'au symptôme (rendre les motifs tolérants au `\r` n'aurait traité que les trois
+connus, en laissant dormir les autres). Le fichier **voyage avec le dépôt** : il vaut pour ce
+poste, pour le portable et pour tout clone à venir, quel que soit le réglage de la machine.
+
+- **Mesure du 2026-10-05** : dépôt 21 214 `LF` / 0 `CRLF`, disque 21 214 `CRLF`, **même
+  contenu** (MD5 identique une fois les `\r` retirés) — la conversion est bien celle de git au
+  checkout, rien n'avait altéré les fichiers. ⚠️ Le proxy de l'employeur ne peut pas en être
+  la cause : git **vérifie l'empreinte SHA-1 de chaque objet reçu**, un intermédiaire qui
+  modifierait le contenu ferait échouer le `fetch`, pas glisser un `\r` en silence.
+- La copie de travail a été réécrite en `LF` **à la main** (aucun `reset --hard`, aucun
+  `rm --cached`) : 30 fichiers, contenu inchangé — le commit ne porte donc que
+  `.gitattributes`. Sur un clone neuf, git le fera tout seul.
+- ⚠️ `git update-index --refresh` ne suffit pas à faire taire le `M` de `git status` après une
+  telle réécriture (la taille a changé) : `git diff` vide est la bonne mesure, et `git add` remet
+  les choses d'aplomb.
+
 ## Installation comme application (PWA)
 
 Installable depuis la v1.8.0. Tout le reste était en place depuis l'étape 1 — manifeste,

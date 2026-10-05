@@ -1,0 +1,21 @@
+# Fins de ligne : LF sur le disque de TOUTES les machines, Windows comprise.
+#
+# ⚠️ Sans cette ligne, Git for Windows applique son défaut `core.autocrlf=true` et écrit la
+# copie de travail en CRLF (le dépôt, lui, a toujours été en LF). Or trois tests ne font pas
+# tourner l'app : ils LISENT « suivi pp.html » comme du texte et y cherchent un motif qui
+# contient un saut de ligne — polices embarquées, vignette devant les noms, en-tête collant
+# de l'élection. Le \r invisible s'intercale, le motif ne correspond plus, et `npm test` finit
+# à 3 échecs sur ce poste alors qu'il est vert ailleurs. Ni un défaut de l'app, ni une vraie
+# régression : du bruit, dans lequel une VRAIE régression passerait inaperçue.
+#
+# Mesuré le 2026-10-05 : dépôt 21 214 LF / 0 CRLF, disque 21 214 CRLF, même contenu (MD5
+# identique une fois les \r retirés). Corrigé ici plutôt que dans les motifs des tests : on
+# supprime la cause, pas le symptôme — et ce fichier voyage avec le dépôt, donc il vaut aussi
+# pour les clones à venir, quel que soit le réglage de la machine.
+* text=auto eol=lf
+
+# Binaires : jamais convertis. La détection automatique les reconnaît déjà ; c'est écrit pour
+# que personne n'ait à s'en assurer.
+*.png binary
+*.pdf binary
+*.ods binary
