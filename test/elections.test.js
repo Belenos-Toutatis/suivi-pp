@@ -749,25 +749,42 @@ test('Procès-verbal : une case de signature par élu (titulaires et suppléants
   assert.match(pv, /_pvElusSignHTML\(el, elus, sups, supsCiv\)/);
 });
 
-test('Assesseurs : saisis dans l\'élection (plus dans les modalités), deux élèves non candidats, figés à la clôture', () => {
+test('Assesseurs : saisis dans l\'élection, un CANDIDAT peut en être — signalé dans les menus, pas écarté ; figés à la clôture', () => {
   const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
   assert.ok(!/id="mel-a1"/.test(SRC), 'plus dans la fenêtre des modalités');
+  assert.ok(!/volontaires non candidats/.test(SRC), 'le rappel du rôle ne dit plus « non candidats »');
+  assert.ok(!/Cet élève est assesseur : il ne peut pas être candidat/.test(SRC), 'et + Candidature ne le refuse plus');
+  assert.ok(/Cet élève préside le bureau de vote : il ne peut pas être candidat/.test(SRC), 'le président, lui, ne se présente pas');
   const r = JSON.parse(ev(`(() => {
     S = _emptyState(); postLoadHook(); createDemo({ force: true });
     const cls = getCls();
     const el = electionCreate(cls.id, {}); S.elections[cls.id][el.id] = el;
     const ids = cls.eleves.filter(id => _isStudentActive(S.eleves[id]));
-    const c = electionAddCandidat(el, ids[0], ids[1]);
-    const candRefus = electionSetAssesseur(el, 0, ids[0]);
-    const a1 = electionSetAssesseur(el, 0, ids[2]), doublon = electionSetAssesseur(el, 1, ids[2]), a2 = electionSetAssesseur(el, 1, ids[3]);
+    electionAddCandidat(el, ids[0], ids[1]);
+    // ids[0] est candidat titulaire : il devient assesseur (refusé jusqu'à la v1.52.11).
+    const cand = electionSetAssesseur(el, 0, ids[0]);
+    const doublon = electionSetAssesseur(el, 1, ids[0]);
+    const a2 = electionSetAssesseur(el, 1, ids[3]);
     _elView = el.id;
-    const html = _elAssesseursHTML(el) + _elRenderCandidats(el, el.tours[0]);
-    const proposeAssCandidat = (_elRenderCandidats(el, el.tours[0]).match(new RegExp('value="' + ids[2] + '"', 'g')) || []).length;
+    // L'option d'un élève dans un menu, telle qu'elle est écrite.
+    const optDe = (html, sid) => { const i = html.indexOf('value="' + sid + '"'); return i < 0 ? '' : html.slice(i, html.indexOf('</option>', i)); };
+    const ass = _elAssesseursHTML(el), cands = _elRenderCandidats(el, el.tours[0]);
+    const optAssCandidat = optDe(ass, ids[0]);        // le candidat, dans le menu des assesseurs
+    const optAssSuppleant = optDe(ass, ids[1]);       // son suppléant aussi
+    const optCandAssesseur = optDe(cands, ids[3]);    // l'assesseur, dans le menu des candidatures
+    const optAssLuiMeme = optDe(ass, ids[3]);         // et dans SON menu, où « assesseur » serait du bruit
     el.clos = true;
     const clos = electionSetAssesseur(el, 0, ids[5]);
-    return JSON.stringify({ candRefus, a1, doublon, a2, noms: el.assesseursNoms.length, proposeAssCandidat, clos, figeHTML: _elAssesseursHTML(el).includes('<select') });
+    return JSON.stringify({ cand, doublon, a2, noms: el.assesseursNoms.length, optAssCandidat, optAssSuppleant, optCandAssesseur, optAssLuiMeme, clos, figeHTML: _elAssesseursHTML(el).includes('<select') });
   })()`));
-  assert.deepStrictEqual(r, { candRefus: false, a1: true, doublon: false, a2: true, noms: 2, proposeAssCandidat: 0, clos: false, figeHTML: false });
+  assert.strictEqual(r.cand, true, 'un candidat peut être assesseur');
+  assert.strictEqual(r.doublon, false, 'mais pas les deux assesseurs à la fois');
+  assert.deepStrictEqual([r.a2, r.noms, r.clos, r.figeHTML], [true, 2, false, false], 'second assesseur, noms figés, verrouillé à la clôture');
+  assert.match(r.optAssCandidat, / — candidate? titulaire|candidat\(e\) titulaire/, r.optAssCandidat);
+  assert.match(r.optAssCandidat, /selected/, 'et il est bien le choix retenu');
+  assert.match(r.optAssSuppleant, / — candidate? suppléante?|candidat\(e\) suppléant\(e\)/, r.optAssSuppleant);
+  assert.match(r.optCandAssesseur, / — assesseure?/, 'dans l’autre sens : l’assesseur reste proposé comme candidat, signalé');
+  assert.doesNotMatch(r.optAssLuiMeme, / — assesseure?/, 'dans son propre menu, inutile de lui redire qu’il est assesseur');
 });
 
 test('Président du bureau : le PP par défaut, ou le CPE, un élève non candidat, un autre adulte ; il signe le PV à ce titre', () => {

@@ -3017,8 +3017,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.7';
-const APP_BUILD_DATE = '2026-10-04T21:00:28Z';
+const APP_VERSION    = '1.55.8';
+const APP_BUILD_DATE = '2026-10-05T12:25:10Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12576,9 +12576,14 @@ function electionAddEcritUI() {
 }
 
 // Les ASSESSEURS (v1.52.11, l'utilisateur : « que les assesseurs ne soient pas dans les modalités,
-// mais saisis juste après les candidats ») : deux élèves volontaires NON CANDIDATS (la présentation
-// de l'utilisateur), qui surveillent le vote, comptent les bulletins et signent le PV. `i` = 0 ou 1.
-// Refus : élection close (le PV est fait), élève hors classe, candidat, ou déjà l'autre assesseur.
+// mais saisis juste après les candidats ») : deux élèves volontaires qui surveillent le vote,
+// comptent les bulletins et signent le PV. `i` = 0 ou 1.
+// ⚠️ **Un CANDIDAT peut être assesseur** (v1.55.8, demande de l'utilisateur ; la v1.52.11 le
+// refusait, d'après la présentation faite à la classe). Aucun texte national ne règle le bureau de
+// vote, donc rien ne réserve la fonction aux non-candidats — et dans une classe où presque tout le
+// monde se présente, il ne resterait personne à qui la confier. Les menus le SIGNALENT
+// (`_elRoleLabel`) au lieu de l'écarter : le choix doit être délibéré, pas accidentel.
+// Refus : élection close (le PV est fait), élève hors classe, déjà l'autre assesseur, président.
 // Noms FIGÉS, comme ceux des candidats : le PV reste lisible après le départ de l'élève.
 function electionSetAssesseur(el, i, sid) {
   if (!el || el.clos || (i !== 0 && i !== 1)) return false;
@@ -12587,7 +12592,6 @@ function electionSetAssesseur(el, i, sid) {
   if (sid) {
     const cls = S.classes[el.classId];
     if (!S.eleves[sid] || !cls || !cls.eleves.includes(sid)) return false;
-    if (el.candidats.some(c => c.sidTitulaire === sid || c.sidSuppleant === sid)) return false;
     if (a[1 - i] === sid) return false;
     if (_elPresident(el).sid === sid) return false;   // déjà président du bureau
   }
@@ -12642,6 +12646,20 @@ function electionPresidentUI(champ, v) {
   _elMut(e => { ok = electionSetPresident(e, o); });
   if (!ok) toast('⚠️ Président refusé : élève candidat ou assesseur, ou élection close.', 'warn');
 }
+// Le rôle qu'un élève tient DÉJÀ dans cette élection — pour le SIGNALER dans les menus (assesseurs,
+// candidatures) sans l'en écarter. Accordé en genre comme tout le reste des élections (v1.52.13).
+function _elRoleLabel(el, sid, sansAss) {
+  if (!el || !sid) return '';
+  const c = (el.candidats || []).find(x => x && (x.sidTitulaire === sid || x.sidSuppleant === sid));
+  if (c) {
+    if (c.sidSuppleant === sid) return _acc(_civCand(c, true), 'candidat suppléant', 'candidate suppléante', 'candidat(e) suppléant(e)');
+    return el.binome === false ? _acc(_civCand(c), 'candidat', 'candidate', 'candidat(e)')
+                               : _acc(_civCand(c), 'candidat titulaire', 'candidate titulaire', 'candidat(e) titulaire');
+  }
+  if (!sansAss && (el.assesseurs || []).includes(sid)) return _acc(_civOf(sid), 'assesseur', 'assesseure', 'assesseur');
+  if (_elPresident(el).sid === sid) return _acc(_civOf(sid), 'président du bureau', 'présidente du bureau', 'président(e) du bureau');
+  return '';
+}
 function _elAssesseursHTML(el) {
   const cls = getCls();
   if (!cls) return '';
@@ -12649,12 +12667,13 @@ function _elAssesseursHTML(el) {
   const P = _elPresident(el);
   const presTxt = `${P.fonction}${P.nom ? ' — ' + P.nom : ''}`;
   if (el.clos) return `<div class="el-block el-ass"><strong>🧑‍⚖️ Bureau de vote :</strong> ${_acc(_elPresidentCiv(el), 'président', 'présidente', 'président')} : ${_escName(presTxt)} · assesseurs : ${noms.length ? noms.map(_escName).join(' · ') : '<span class="tb-hint">aucun</span>'}</div>`;
-  const cands = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
-  if (P.sid) cands.add(P.sid);   // l'élève président n'est pas assesseur
-  const eleves = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !cands.has(s.id))
+  // ⚠️ Les candidats ne sont PAS écartés (v1.55.8) : ils sont SIGNALÉS. Seul l'élève président
+  // reste hors de cette liste — il tient déjà l'autre siège du bureau.
+  const horsBureau = new Set([P.sid].filter(Boolean));
+  const eleves = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !horsBureau.has(s.id))
     .sort((x, y) => (x.nom + x.prenom).localeCompare(y.nom + y.prenom, 'fr'));
   const sel = i => `<select id="el-ass-${i}" onchange="electionAssesseurUI(${i}, this.value)" aria-label="Assesseur ${i + 1}"><option value="">— assesseur ${i + 1} —</option>${
-    eleves.filter(s => s.id !== a[1 - i]).map(s => `<option value="${_escAttr(s.id)}"${s.id === a[i] ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select>`;
+    eleves.filter(s => s.id !== a[1 - i]).map(s => { const r = _elRoleLabel(el, s.id, s.id === a[i]); return `<option value="${_escAttr(s.id)}"${s.id === a[i] ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}${r ? ' — ' + _escName(r) : ''}</option>`; }).join('')}</select>`;
   const manque = 2 - a.length;
   // Le président : une fonction, puis l'élève (non candidat, non assesseur) ou le nom de l'adulte.
   const libresPres = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !el.candidats.some(c => c.sidTitulaire === s.id || c.sidSuppleant === s.id) && !a.includes(s.id))
@@ -12662,14 +12681,14 @@ function _elAssesseursHTML(el) {
   const pres = `<label class="tb-hint" for="el-pres-qui">Président</label><select id="el-pres-qui" onchange="electionPresidentUI('qui', this.value)">${EL_PRESIDENTS.map(x => `<option value="${x.qui}"${x.qui === P.qui ? ' selected' : ''}>${_escName(x.label)}</option>`).join('')}</select>${
     P.qui === 'eleve' ? `<select id="el-pres-sid" onchange="electionPresidentUI('sid', this.value)" aria-label="L'élève président"><option value="">— l'élève —</option>${libresPres.map(s => `<option value="${_escAttr(s.id)}"${s.id === P.sid ? ' selected' : ''}>${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select>`
     : `${P.qui === 'autre' ? `<input type="text" id="el-pres-fonction" maxlength="60" placeholder="fonction (ex. : principal adjoint)" value="${_escAttr(el.president?.fonction || '')}" onchange="electionPresidentUI('fonction', this.value)" aria-label="Fonction du président">` : ''}<input type="text" id="el-pres-nom" maxlength="80" placeholder="nom (facultatif)" value="${_escAttr(P.nom)}" onchange="electionPresidentUI('nom', this.value)" aria-label="Nom du président">`}`;
-  return `<div class="el-block el-ass"><strong>🧑‍⚖️ Bureau de vote</strong> <span class="tb-hint">— un président et deux assesseurs, élèves volontaires non candidats : ils surveillent le vote, comptent les bulletins et signent le procès-verbal. Aucun texte national ne les fixe : c'est l'usage de l'établissement — par exemple le ${_elSrc('versailles')}.</span>
+  return `<div class="el-block el-ass"><strong>🧑‍⚖️ Bureau de vote</strong> <span class="tb-hint">— un président et deux assesseurs, élèves volontaires : ils surveillent le vote, comptent les bulletins et signent le procès-verbal. <strong>Un candidat peut être assesseur</strong> : la liste le signale, elle ne l'écarte pas. Aucun texte national ne les fixe : c'est l'usage de l'établissement — par exemple le ${_elSrc('versailles')}.</span>
     <div class="tb" style="margin-top:4px">${pres}</div>
     <div class="tb" style="margin-top:4px"><span class="tb-hint">Assesseurs</span>${sel(0)}${sel(1)}${manque ? `<span class="tb-hint">${manque === 2 ? 'Aucun assesseur choisi.' : 'Un seul assesseur choisi.'}</span>` : ''}</div></div>`;
 }
 function electionAssesseurUI(i, sid) {
   let ok = false;
   _elMut(e => { ok = electionSetAssesseur(e, i, sid); });
-  if (!ok) toast('⚠️ Assesseur refusé : candidat, déjà l\'autre assesseur, ou élection close.', 'warn');
+  if (!ok) toast('⚠️ Assesseur refusé : déjà l\'autre assesseur, président du bureau, ou élection close.', 'warn');
 }
 
 // ── Bulletins ──
@@ -13423,10 +13442,13 @@ function _elRenderCandidats(el, t) {
   const cls = getCls();
   const taken = new Set(el.candidats.flatMap(c => [c.sidTitulaire, c.sidSuppleant]).filter(Boolean));
   const exclus = _elSupDeExclus(el);   // scrutin de suppléant : pas les élus de l'élection d'origine
-  const assess = new Set([...(el.assesseurs || []), _elPresident(el).sid].filter(Boolean));
+  // ⚠️ La règle vaut dans les DEUX sens (v1.55.8) : si un candidat peut être assesseur, un assesseur
+  // peut se porter candidat — l'interdire ici ne ferait qu'imposer un ordre de saisie. Signalé,
+  // comme ailleurs. Seul l'élève président reste écarté : il préside, il ne se présente pas.
+  const assess = new Set([_elPresident(el).sid].filter(Boolean));
   const eligibles = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !taken.has(s.id) && !exclus.has(s.id) && !assess.has(s.id))
     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
-  const opt = s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`;
+  const opt = s => { const r = _elRoleLabel(el, s.id); return `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}${r ? ' — ' + _escName(r) : ''}</option>`; };
   const canEdit = !el.clos && !t.bulletins.length && t.n === 1;
   const rows = el.candidats.slice().sort((a, b) => a.ordre - b.ordre).map(c => `<tr${c.retire ? ' class="inactive"' : ''}>
       <td><span class="el-swatch" style="background:${_safeColor(c.color)}"></span> <input type="color" value="${_escAttr(_safeColor(c.color))}" onchange="_elMut(e=>{_elCand(e,'${_escJsAttr(c.id)}').color=_safeColor(this.value)})" title="Couleur de la barre" style="width:26px;height:20px;padding:0;border:none;background:none;cursor:pointer;vertical-align:middle"></td>
@@ -13453,9 +13475,6 @@ function electionAddCandidatUI() {
   const el = _elCurrent();
   if (el?.binome !== false && !sidS) return toast('⚠️ Un binôme : choisissez aussi le suppléant.', 'warn');
   if (sidS === sidT) return toast('⚠️ Titulaire et suppléant doivent être deux élèves différents.', 'warn');
-  // Un assesseur n'est pas candidat (v1.52.11) — refusé à l'écran ; le modèle reste permissif
-  // pour les fichiers anciens qui auraient les deux.
-  if ((el?.assesseurs || []).some(a => a === sidT || a === sidS)) return toast('⚠️ Cet élève est assesseur : il ne peut pas être candidat.', 'warn');
   if (el && _elPresident(el).sid && [sidT, sidS].includes(_elPresident(el).sid)) return toast('⚠️ Cet élève préside le bureau de vote : il ne peut pas être candidat.', 'warn');
   _elMut(e => electionAddCandidat(e, sidT, sidS));
 }
@@ -21024,7 +21043,9 @@ function createDemo(opts) {
   //    qu'un autre atteigne un seuil. C'est aussi ce qui rend le réglage rencontrable.
   const el2 = electionCreate(cls.id, {
     date: D('05-19'), titre: 'Dépouillement en cours — démonstration de la projection',
-    assesseurs: [sids[3], sids[8]], nomsParBulletin: 2,
+    // ⚠️ sids[9] est le suppléant du deuxième binôme : un CANDIDAT assesseur (v1.55.8).
+    // Rien ne l'interdit, et l'élection n'étant pas close, les menus le signalent à l'écran.
+    assesseurs: [sids[9], sids[8]], nomsParBulletin: 2,
   });
   const c2 = binomes.map(([t, s]) => electionAddCandidat(el2, sids[t], sids[s]));
   el2.tours[0].votantsAnnonces = 25;

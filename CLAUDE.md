@@ -494,7 +494,7 @@ releveMoy = {
 - **bulletin vierge = blanc**, bulletin avec **trop de noms, des marques ou des inscriptions inappropriées = nul** ;
 - **second tour avec les mêmes candidats** si personne n'atteint la majorité absolue ;
 - **égalité de voix → le candidat le plus jeune est élu** ;
-- **deux assesseurs**, élèves volontaires non candidats, qui surveillent le vote, ramassent et comptent les bulletins, puis **signent le procès-verbal**.
+- **deux assesseurs**, élèves volontaires ~~non candidats~~, qui surveillent le vote, ramassent et comptent les bulletins, puis **signent le procès-verbal**. ⚠️ **Révisé le 2026-10-05 (v1.55.8), demande de l'utilisateur : un CANDIDAT peut être assesseur** — cf. la section ci-dessous.
 
 Ces variantes (uninominal ou plurinominal, binôme ou suppléants élus à part, départage par le plus jeune ou par le plus âgé) diffèrent d'un établissement à l'autre. **Conséquence de conception : les modalités sont des RÉGLAGES de l'élection, pas des constantes du code.** ~~Les valeurs par défaut sont celles de sa présentation.~~ **Révisé le 2026-09-12 (v1.30.0), arbitré par l'utilisateur : le DÉFAUT est celui des textes liés — scrutin UNINOMINAL, un nom par bulletin** (*« c'est ce qui est indiqué dans les textes officiels qui sont liés »*). Le reste des défauts ne bouge pas (deux titulaires, binômes, majorité absolue au 1er tour, le plus jeune). Le plurinominal de sa présentation reste au menu de la modale (« 2 (plurinominal) »). **La modale le DIT** (v1.30.1) : sous « Modalités », `_elDefautsHint(ty)` décrit les défauts du mandat en clair — *« Par défaut, ce que disent les textes : 2 titulaires, chacun avec son suppléant, 1 nom par bulletin (uninominal)… »* —, dérivé de `ty.defaults` pour ne jamais décrire autre chose que ce que le bouton **↺ Défauts des textes** (`_elDefautsReset`, inerte quand le dépouillement a commencé) remet.
   - ⚠️ **Les fixtures de tests et l'élection EN COURS de la démo restent plurinominales À DESSEIN** (`nomsParBulletin: 2` explicite, commenté) : c'est le cas arithmétiquement piégeux (exprimés en bulletins, pas en voix), et « déjà élu » + « un autre au seuil courant » ne coexistent qu'à deux noms par bulletin — en uninominal, celui qui a plus de la moitié des voix n'en laisse pas assez aux autres. L'élection CLOSE de la démo, elle, est uninominale (12 · 7 · 2 · 1 sur 22 exprimés : un seul siège pourvu au 1er tour, le second au 2nd), et le test le vérifie dans les deux sens.
@@ -566,12 +566,30 @@ bulletin = {
 L'utilisateur : *« que les assesseurs ne soient pas dans les modalités, mais saisis juste après les
 candidats »*. Les deux menus ont quitté la fenêtre ⚙ Modalités (`mel-a1`, `mel-a2` supprimés) ;
 le bloc **🧑‍⚖️ Assesseurs** (`_elAssesseursHTML`) est dans l'écran de l'élection, entre les
-candidatures et le dépouillement : deux élèves volontaires **non candidats** (leur rôle rappelé),
+candidatures et le dépouillement : deux élèves volontaires (leur rôle rappelé),
 `electionSetAssesseur(el, i, sid)` — refus : élection close (le PV est fait : affichage seul),
-élève hors classe, candidat, ou déjà l'autre assesseur ; noms FIGÉS. Dans l'autre sens, un assesseur
-n'est plus proposé comme candidat, et *+ Candidature* le refuse ; ⚠️ le MODÈLE (`electionAddCandidat`)
-reste permissif — d'anciens fichiers peuvent avoir un élève dans les deux rôles (fixture de
-`fiche.test.js`, cumul de rôles). Le scrutin d'un suppléant n'hérite plus des assesseurs.
+élève hors classe, déjà l'autre assesseur, ou président du bureau ; noms FIGÉS. Le scrutin d'un
+suppléant n'hérite plus des assesseurs.
+
+⚠️ **Un CANDIDAT peut être assesseur** (v1.55.8, demande de l'utilisateur ; la v1.52.11 l'interdisait,
+d'après la présentation faite à la classe). **Aucun texte national ne règle le bureau de vote** —
+c'est déjà écrit un paragraphe plus bas pour le président —, donc rien ne réserve la fonction aux
+non-candidats ; et dans une classe où presque tout le monde se présente, il ne resterait personne à
+qui la confier. **La règle vaut dans les DEUX sens** : un assesseur redevient proposable comme
+candidat (le filtre de `_elRenderCandidats` et le refus de *+ Candidature* sont retirés) — l'interdire
+d'un seul côté ne ferait qu'imposer un ordre de saisie. Le MODÈLE était déjà permissif
+(`electionAddCandidat`, fixture de `fiche.test.js` qui cumule les rôles) : c'est l'écran qui
+tranchait.
+  - ⚠️ **Signaler, pas écarter.** `_elRoleLabel(el, sid, sansAss)` écrit le rôle déjà tenu après le
+    nom, accordé en genre (« — candidate titulaire », « — candidat suppléant », « — assesseur »,
+    « — président du bureau ») dans les DEUX menus. Un menu muet rendrait le cumul accidentel, là
+    où un filtre le rendait impossible : ni l'un ni l'autre. Le bandeau du bloc le dit en clair.
+  - `sansAss` : dans SON propre menu, l'assesseur déjà choisi n'a pas à s'entendre redire qu'il est
+    assesseur (le menu le dit) — son rôle de candidat, lui, reste écrit.
+  - **Reste écarté des assesseurs : l'élève président du bureau** (il tient déjà l'autre siège), et
+    le président élève reste non candidat et non assesseur — ces règles-là n'ont pas bougé.
+  - Démo : l'assesseur de l'élection EN COURS est la suppléante du deuxième binôme — élection non
+    close, donc les menus sont à l'écran et l'étiquette s'y rencontre sans avoir à la créer.
 
 **Le président du bureau** (v1.52.12, l'utilisateur : *« ajoute le président du bureau au choix —
 le bureau pourrait aussi être présidé par le CPE »*). ⚠️ Aucun texte national ne règle le bureau de
@@ -2317,6 +2335,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 142 | **Un candidat peut être assesseur** (et réciproquement) : filtres retirés des deux menus, rôle déjà tenu SIGNALÉ à la place (`_elRoleLabel`, accordé en genre), bandeau, démo ; 1 test réécrit (l'ancien figeait le refus) | ✅ **fait** (2026-10-05, v1.55.8) |
 | 141 | **Contacts : le texte en entier dans la fenêtre des contacts**, retours à la ligne gardés (zones `textarea.jl-txt` à la hauteur du texte, plus de champ d'une ligne ni de limite à 300 caractères ; nouvelle entrée : Entrée = nouvelle ligne, Ctrl+Entrée = noter) ; 1 test. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.7) |
 | 140 | **Contacts : la liste lisible d'abord** — le compteur ☎ n des Indicateurs et les cases de la carte de chaleur proposent les contacts (date, type, texte entier), chacun s'ouvre dans la fenêtre des contacts (ligne marquée, texte au focus), ou « ＋ Noter un nouveau contact » ; case vide = la saisie (`chaleurContactsUI`, `_contactsListe`, `openContacts(sid, focusId)`) ; 2 tests adaptés. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.6) |
 | 139 | **Indicateurs : le compteur « n à rendre » montre QUELS papiers et les valide** (`elevesPapiersUI`, `_papiersARendre` — les mêmes que la colonne —, « ✓ Rendu » à la date du jour, un cran d'undo par papier, la fenêtre reste ouverte et se met à jour) ; 1 test. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.5) |
