@@ -214,7 +214,7 @@ test('Carte de chaleur (v1.55.3) : une case d\'incidents propose les incidents q
   if (r.indic) assert.match(r.indic, /onclick="event\.stopPropagation\(\);openAvisLire\(\{ sid:/);
   const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
   const f = SRC.slice(SRC.indexOf('function chaleurIncidentsUI('), SRC.indexOf('function _appDialogValeur('));
-  assert.match(f, /if \(!x\.length\) return openIncident\(sid\)/, 'case vide : la saisie directement');
+  assert.match(f, /if \(!x\.length\) return openIncident\(sid, null, \{ a, b \}\)/, 'case vide : la saisie directement, datée dans la case (v1.55.9)');
   assert.match(f, /＋ Noter un nouvel incident/);
   assert.match(f, /_appDialogValeur\(/);
 });

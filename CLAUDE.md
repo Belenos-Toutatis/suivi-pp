@@ -96,7 +96,7 @@ Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sono
 - `icons/` — les 5 PNG d'installation (192 et 512 en `any` et `maskable`, plus l'icône iOS 180)
 - `README.md`, `LICENSE` (MIT), `CLAUDE.md`
 - `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
-- `scripts/audit_static.js`, `scripts/audit_browser.js` — les deux auditeurs (cf. *Scores de référence*, v1.28.2) ; `scripts/gen_icons.py`
+- `scripts/audit_static.js`, `scripts/audit_browser.js` — les deux auditeurs (cf. *Scores de référence*, v1.28.2) ; `scripts/audit_parcours.js` — le parcours des états et des feuilles imprimées, à charger après `audit_browser.js` (v1.55.9) ; `scripts/gen_icons.py`
 - `test/harness.js`, `test/*.test.js`, `test/fixtures/` (dont `trombi/fake-trombi.pdf`, un faux trombinoscope), `package.json` (`npm test` → `node --test "test/*.test.js"`)
   ⚠️ Le glob, pas `node --test test/` : sous Node 22, l'argument-répertoire `test` échoue en `MODULE_NOT_FOUND`. Le glob a en prime l'avantage de n'exécuter que les `*.test.js`, donc `harness.js` n'est plus compté comme un test.
 
@@ -2335,6 +2335,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 143 | **Audit complet du 2026-10-06** : listes de la fenêtre de dialogue (papiers, incidents, contacts) **redessinées après Ctrl+Z** (`_appDialogRedessin` dans `_MODAL_RERENDER`), sans l'icône ❓ (type `liste`) · **date proposée** d'un nouvel incident, contact ou relevé ramenée dans la case puis dans l'année (`_dateParDefaut`, `_ymdJourValide`) · **focus** rendu au remplaçant redessiné de l'ouvreur, sinon sorti de la fenêtre fermée (`_modalOuvreur`) · lecture des avis : en-tête d'une discipline sans avis inerte, ◀ ▶ la saute · code mort retiré (`_regimeTexte`, `_moyPrintHTML`) · `scripts/audit_parcours.js` ; 9 tests (`test/audit-v1559.test.js`, tous vérifiés en échec sur la v1.55.8). Audit : 79 états × 2 thèmes à 1 009 px (12 feuilles comprises), 67 × 2 à 320 et à 1 570 px, ≈ 212 000 nœuds, 0 défaut | ✅ **fait** (2026-10-06, v1.55.9) |
 | 142 | **Un candidat peut être assesseur** (et réciproquement) : filtres retirés des deux menus, rôle déjà tenu SIGNALÉ à la place (`_elRoleLabel`, accordé en genre), bandeau, démo ; 1 test réécrit (l'ancien figeait le refus) | ✅ **fait** (2026-10-05, v1.55.8) |
 | 141 | **Contacts : le texte en entier dans la fenêtre des contacts**, retours à la ligne gardés (zones `textarea.jl-txt` à la hauteur du texte, plus de champ d'une ligne ni de limite à 300 caractères ; nouvelle entrée : Entrée = nouvelle ligne, Ctrl+Entrée = noter) ; 1 test. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.7) |
 | 140 | **Contacts : la liste lisible d'abord** — le compteur ☎ n des Indicateurs et les cases de la carte de chaleur proposent les contacts (date, type, texte entier), chacun s'ouvre dans la fenêtre des contacts (ligne marquée, texte au focus), ou « ＋ Noter un nouveau contact » ; case vide = la saisie (`chaleurContactsUI`, `_contactsListe`, `openContacts(sid, focusId)`) ; 2 tests adaptés. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.6) |
@@ -2733,6 +2734,36 @@ du suppléant, report, deux PV). Quatre défauts, corrigés :
 ⚠️ Leçon : la démo ne porte ni nom écrit ni scrutin de suppléant, donc l'audit des états ne les
 voyait pas — d'où le scénario. Et le parcours lui-même s'est trompé une fois (confirmation de
 clôture fermée par le script) : relire un résultat surprenant avant d'accuser l'app.
+
+**2026-10-06, v1.55.8 → v1.55.9 — AUDIT COMPLET** (67 états × 8 géométries et thèmes, 12 feuilles,
+clavier des 35 fenêtres, XSS en conditions réelles : 0 écart, 0 débordement, 0 erreur). Trois
+défauts, trois mineurs, tous corrigés en v1.55.9 :
+34. **Les listes de la fenêtre de dialogue ne se redessinaient pas après Ctrl+Z** : ✓ Rendu puis
+   Ctrl+Z, le papier redevenait à rendre et la fenêtre disait « tout est rendu ». `mAppDialog`
+   n'était pas dans `_MODAL_RERENDER` — une fenêtre générique, qui ne sait pas ce qu'elle montre.
+   → `_appDialogShow({ redessin })` pose `_appDialogRedessin`, appelé par `_MODAL_RERENDER`, oublié
+   à la fermeture (`_afterModalClose`). Les papiers déjà rendus se RELISENT dans les données
+   (`_papiersOuverts`), plus dans une liste de titres gardée à part. ⚠️ **Toute nouvelle liste
+   ouverte dans la fenêtre de dialogue passe un `redessin`.**
+35. **Un incident noté depuis une case vide de la carte de chaleur était daté d'aujourd'hui** —
+   hors du mois, hors de l'année (la démo est une année passée) : visible nulle part.
+   `_dateParDefaut(cls, a, b)` : aujourd'hui ramené dans la case (sa fin « AAAA-MM-31 » normalisée
+   par `_ymdJourValide`), puis dans l'année scolaire ; vaut pour l'incident, le contact, le relevé.
+   ⚠️ **Toute nouvelle saisie datée propose `_dateParDefaut`, jamais `_todayYmd()` nu.**
+   (Reste à part : ✓ Rendu note le papier rendu AUJOURD'HUI, c'est le geste documenté.)
+36. **Le focus restait dans une fenêtre fermée** quand son action avait redessiné la liste (l'ouvreur
+   détaché) : Tab repartait de nulle part. → `_modalOuvreur` reprend le remplaçant (même `onclick`,
+   ou même id) ; sinon le focus sort de la fenêtre (vers celle de dessous, ou rendu à la page).
+Mineurs : les listes portaient ❓ (type `liste`, sans icône) · l'en-tête d'une discipline sans avis
+ouvrait « 0 élève sur 25 » et ◀ ▶ s'y arrêtait · deux fonctions mortes (un test les détecte
+désormais, avec son méta-test). **Le parcours est gardé** (`scripts/audit_parcours.js`) : 67 états
+d'écran et 12 feuilles imprimées, `__parcours.demo()` puis `__parcours.run({ themes, papier })`.
+⚠️ Un appel de l'outil de navigateur est coupé à 45 s : lancer `run()` sans l'attendre et relire
+`__audit.report()` ensuite. Rejoué après correction : 158 états à 1 009 px (feuilles comprises),
+134 à 320 px, 134 à 1 570 px — ≈ 212 000 nœuds, 0 défaut, 0 erreur JS.
+⚠️ **Sur ce poste Windows**, `.claude/launch.json` (local, ignoré par git) lance
+`C:/Python313/python.exe -m http.server 8731 --bind 127.0.0.1` : `npx` y échoue (« 'C:\Program'
+n'est pas reconnu… »).
 
 **2026-10-02, v1.39.0 (Avis des collègues) : 0 écart**, clair et sombre — la liste des
 élèves, la modale (feuille relue et nouvelle feuille avec sa question « à rattacher »), la

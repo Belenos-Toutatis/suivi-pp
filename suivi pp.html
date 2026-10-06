@@ -3017,8 +3017,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.8';
-const APP_BUILD_DATE = '2026-10-05T12:25:10Z';
+const APP_VERSION    = '1.55.9';
+const APP_BUILD_DATE = '2026-10-06T13:12:14Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3353,6 +3353,10 @@ const _MODAL_RERENDER = {
   mfiche:   () => { if (_ficheSid && S.eleves[_ficheSid]) { _ficheEdit = null; _ficheRender(); } else closeMod2('mfiche'); },
   mcontacts: () => { if (_remSid && S.eleves[_remSid]) _journalRender(); else closeMod2('mcontacts'); },
   mavislire: () => _avisLireRender(),
+  // Les listes de la fenêtre de dialogue (papiers à rendre, incidents, contacts d'une case) :
+  // celle qui est ouverte a posé son redessin (audit du 2026-10-06, défaut 1 — ✓ Rendu puis
+  // Ctrl+Z : le papier redevenait à rendre, la fenêtre disait encore « tout est rendu »).
+  mAppDialog: () => { if (_appDialogRedessin) _appDialogRedessin(); },
   mtags:    () => renderTagsModal(),
   mclasses: () => renderClassesModal(),
 };
@@ -3635,12 +3639,32 @@ function _modalTeardownA11y(el) {
   if (el._a11yTrap) { el.removeEventListener('keydown', el._a11yTrap); el._a11yTrap = null; }
   // Retour du focus là où on l'avait pris — si l'ouvreur existe encore (un rendu a pu
   // le remplacer) et reste visible (une modale empilée a pu masquer son conteneur).
-  const o = el._opener;
+  const o = _modalOuvreur(el._opener);
   el._opener = null;
-  if (o && typeof o.focus === 'function' && document.contains(o)) {
-    const r = o.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) { try { o.focus({ preventScroll: true }); } catch (_) {} }
+  if (o) { try { o.focus({ preventScroll: true }); } catch (_) {} }
+  // ⚠️ Sans ouvreur à reprendre, le focus restait sur un élément CACHÉ dans la fenêtre fermée :
+  // Tab repartait de nulle part (audit du 2026-10-06, défaut 3). On l'en sort — vers la fenêtre
+  // encore ouverte dessous s'il y en a une, sinon on le rend à la page.
+  const a = document.activeElement;
+  if (a && a !== document.body && el.contains(a)) {
+    const dessous = Array.from(document.querySelectorAll('.mo.on')).filter(m => m !== el)
+      .sort((x, y) => parseInt(y.style.zIndex || '1000', 10) - parseInt(x.style.zIndex || '1000', 10))[0];
+    const mb = dessous && dessous.querySelector('.mb');
+    if (mb) { if (!mb.hasAttribute('tabindex')) mb.setAttribute('tabindex', '-1'); try { mb.focus({ preventScroll: true }); } catch (_) {} }
+    else { try { a.blur(); } catch (_) {} }
   }
+}
+// L'élément qui reprend le focus à la fermeture : l'ouvreur s'il est encore là et visible ; sinon,
+// quand l'action de la fenêtre a REDESSINÉ la liste (✓ Rendu…), son remplaçant — le premier
+// élément visible au même `onclick`, ou au même id. null s'il n'y en a pas.
+function _modalOuvreur(o) {
+  if (!o || typeof o.focus !== 'function') return null;
+  const visible = x => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  if (document.contains(o)) return visible(o) ? o : null;
+  if (o.id) { const x = document.getElementById(o.id); if (x && x !== o && document.contains(x) && visible(x)) return x; }
+  const oc = o.getAttribute && o.getAttribute('onclick');
+  if (!oc) return null;
+  return Array.from(document.querySelectorAll('[onclick]')).find(x => x.getAttribute('onclick') === oc && visible(x)) || null;
 }
 
 // Retour de modale : un panneau ouvert « en parenthèse » revient d'où il vient,
@@ -3648,6 +3672,7 @@ function _modalTeardownA11y(el) {
 let _modalReturnTo = {};
 function _afterModalClose(id) {
   // La fiche ancrée à côté de la liste : la liste reprend toute la largeur.
+  if (id === 'mAppDialog') _appDialogRedessin = null;
   if (id === 'mfiche') { document.body.classList.remove('fiche-cote'); if (document.querySelector('.tab.on')?.id === 'tab-eleves') try { renderStudents(); } catch (_) { } }
   const fn = _modalReturnTo[id];
   if (fn) { delete _modalReturnTo[id]; fn(); }
@@ -3655,11 +3680,19 @@ function _afterModalClose(id) {
 
 // ─── Dialogue générique appAlert / appConfirm ───
 let _appDialogResolve = null;
-function _appDialogShow({ title, message, type = 'info', buttons }) {
+// Le redessin de la liste ouverte dans la fenêtre (`redessin`), appelé après Ctrl+Z / Ctrl+Y ou une
+// synchronisation (`_MODAL_RERENDER`), oublié à la fermeture.
+let _appDialogRedessin = null;
+// type 'liste' : une liste à consulter (papiers, incidents, contacts) — pas d'icône, le titre porte
+// déjà la sienne ; « ❓ » y faisait lire une question qu'on ne pose pas (audit du 2026-10-06, défaut 4).
+function _appDialogShow({ title, message, type = 'info', buttons, redessin }) {
   return new Promise(resolve => {
     _appDialogResolve = resolve;
-    const ICONS = { info: 'ℹ️', warn: '⚠️', error: '🚫', success: '✅', danger: '🗑', question: '❓' };
-    document.getElementById('appDialog-icon').textContent = ICONS[type] || ICONS.info;
+    _appDialogRedessin = typeof redessin === 'function' ? redessin : null;
+    const ICONS = { info: 'ℹ️', warn: '⚠️', error: '🚫', success: '✅', danger: '🗑', question: '❓', liste: '' };
+    const ic = document.getElementById('appDialog-icon');
+    ic.textContent = type in ICONS ? ICONS[type] : ICONS.info;
+    ic.style.display = ic.textContent ? '' : 'none';
     document.getElementById('appDialog-title').textContent = title || '';
     // Le message peut contenir du HTML (préformaté par l'appelant, échappé si besoin)
     document.getElementById('appDialog-msg').innerHTML = message || '';
@@ -5597,12 +5630,6 @@ function _regimeBadgesHTML(stu) {
     en ? `<span class="el-reg el-entree" title="${_escAttr(`Régime d'entrée ${en}${_entreeLabel(en) ? ' — ' + _entreeLabel(en) : ''}`)}">${_escName(en)}</span>` : ''}${
     so ? `<span class="el-reg el-sortie" title="${_escAttr(`Régime de sortie ${so}${_sortieLabel(so) ? ' — ' + _sortieLabel(so) : ''}`)}">${_escName(so)}</span>` : ''}`;
 }
-function _regimeTexte(stu) {
-  const r = _regimeOf(stu.regime), en = stu.entree, so = stu.sortie;
-  return [r ? r.label + (stu.joursDP?.length ? ' (' + _joursTexte(stu.joursDP) + ')' : '') : '',
-    en ? `entrée ${en}${_entreeLabel(en) ? ' (' + _entreeLabel(en) + ')' : ''}` : '',
-    so ? `sortie ${so}${_sortieLabel(so) ? ' (' + _sortieLabel(so) + ')' : ''}` : ''].filter(Boolean).join(' · ');
-}
 // Saisie en série dans la liste (puce 🍽 Régimes) : une salve d'undo, comme les naissances.
 let _elevesReg = false;
 function eleveRegimeSet(sel) {
@@ -6911,14 +6938,15 @@ function openRemarque(sid) {
 // Les contacts avec la famille : une fenêtre À PART (v1.46.14, l'utilisateur : « les contacts
 // avec les parents, c'est un élément à part qui ne devrait pas être dans la même fenêtre »),
 // ouverte par la colonne Contacts de la liste. Ajouter, et corriger date, type, texte ; 🗑.
-function openContacts(sid, focusId) {
+// `bornes` = { a, b } : comme pour un incident, la date proposée d'un nouveau contact tombe dans la case.
+function openContacts(sid, focusId, bornes) {
   const s = S.eleves[sid];
   if (!s) return;
   _remSid = sid;
   const t = document.getElementById('mct-title');
   if (t) t.textContent = `📇 ${s.prenom} ${s.nom} — contacts avec la famille`;
   const d = document.getElementById('mrem-jdate');
-  if (d) d.value = _todayYmd();
+  if (d) d.value = _dateParDefaut(S.classes[s.classe_id] || getCls(), bornes?.a, bornes?.b);
   const ty = document.getElementById('mrem-jtype');
   if (ty) ty.innerHTML = _JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}">${t2.icon} ${_escName(t2.label)}</option>`).join('');
   const tx = document.getElementById('mrem-jtxt');
@@ -7931,13 +7959,23 @@ function _chaleurIncidentsListe(sid, a, b) {
 function chaleurIncidentsUI(sid, a, b, lab) {
   const stu = S.eleves[sid];
   if (!stu) return;
-  const x = _chaleurIncidentsListe(sid, a, b);
-  if (!x.length) return openIncident(sid);
-  const items = x.map(e => `<button class="btn btn-g inc-choix" onclick="_appDialogValeur('${_escJsAttr(e.id)}')"><span class="inc-choix-d">${_escName(_fmtDateFr(e.date))}</span> <strong>${_escName(_instanceOf(e.type).label)}</strong>${e.objet ? ` — ${_escName(e.objet)}` : ''}${e.pdf ? ' 📎' : ''}${e.texte ? `<small>${_escName(String(e.texte).slice(0, 160))}${String(e.texte).length > 160 ? '…' : ''}</small>` : ''}</button>`).join('');
-  _appDialogShow({ title: `⚖️ ${stu.prenom} ${stu.nom} — ${_pl(x.length, 'incident')} · ${lab}`, type: 'question',
-    message: `<div class="inc-choix-l">${items}</div><p class="tb-hint" style="margin-top:6px">Cliquez une entrée pour la lire ou la modifier.</p>`,
+  let x = _chaleurIncidentsListe(sid, a, b);
+  if (!x.length) return openIncident(sid, null, { a, b });
+  const titre = () => `⚖️ ${stu.prenom} ${stu.nom} — ${x.length ? _pl(x.length, 'incident') : 'plus aucun incident'} · ${lab}`;
+  const corps = () => x.length ? `<div class="inc-choix-l">${x.map(e => `<button class="btn btn-g inc-choix" onclick="_appDialogValeur('${_escJsAttr(e.id)}')"><span class="inc-choix-d">${_escName(_fmtDateFr(e.date))}</span> <strong>${_escName(_instanceOf(e.type).label)}</strong>${e.objet ? ` — ${_escName(e.objet)}` : ''}${e.pdf ? ' 📎' : ''}${e.texte ? `<small>${_escName(String(e.texte).slice(0, 160))}${String(e.texte).length > 160 ? '…' : ''}</small>` : ''}</button>`).join('')}</div><p class="tb-hint" style="margin-top:6px">Cliquez une entrée pour la lire ou la modifier.</p>`
+    : '<p class="tb-hint">Plus aucun incident dans cette case.</p>';
+  // Redessinée après Ctrl+Z / Ctrl+Y : la liste est relue (et `x` avec, que le choix vérifie).
+  const redessin = () => { if (!S.eleves[sid]) return closeMod2('mAppDialog'); x = _chaleurIncidentsListe(sid, a, b); _appDialogMaj(titre(), corps()); };
+  _appDialogShow({ title: titre(), type: 'liste', message: corps(), redessin,
     buttons: [{ label: 'Fermer', value: null }, { label: '＋ Noter un nouvel incident', primary: true, value: '__new' }] })
-    .then(v => { if (v === '__new') openIncident(sid); else if (v && x.some(e => e.id === v)) openIncident(sid, v); });
+    .then(v => { if (v === '__new') openIncident(sid, null, { a, b }); else if (v && x.some(e => e.id === v)) openIncident(sid, v); });
+}
+// Remplace le titre et le message de la fenêtre de dialogue OUVERTE (rien si elle est fermée).
+function _appDialogMaj(titre, html) {
+  if (!document.getElementById('mAppDialog')?.classList.contains('on')) return;
+  const t = document.getElementById('appDialog-title'), m = document.getElementById('appDialog-msg');
+  if (t) t.textContent = titre;
+  if (m) m.innerHTML = html;
 }
 // Les papiers à rendre d'un élève (v1.55.5, l'utilisateur : « si je clique sur un compteur de
 // papiers à rendre, me montrer quels papiers, et que je puisse les valider dans Indicateurs ») :
@@ -7948,35 +7986,38 @@ function _papiersARendre(cls, sid) {
   return _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cls.id) && d.suiviRetour !== false
     && _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu);
 }
-function _papiersARendreHTML(cls, sid, faits) {
+// `ouverts` : les papiers qui étaient à rendre à l'ouverture de la fenêtre. Ceux qui sont rendus
+// depuis se RELISENT dans les données (avec leur date) — un Ctrl+Z les remet à rendre, et la
+// fenêtre le montre (audit du 2026-10-06, défaut 1 : une liste de titres gardée à part ne
+// revenait pas en arrière).
+function _papiersARendreHTML(cls, sid, ouverts) {
   const x = _papiersARendre(cls, sid), j = _escJsAttr(sid);
-  const ok = (faits || []).map(t => `<div class="inc-choix pap-ok">✓ <strong>${_escName(t)}</strong> — rendu le ${_escName(_fmtDateFr(_todayYmd()))}</div>`).join('');
+  const ok = (ouverts || []).map(id => S.documents[id]).filter(d => d && _retour(d, sid).rendu).map(d => { const r = _retour(d, sid);
+    return `<div class="inc-choix pap-ok">✓ <strong>${_escName(d.titre)}</strong> — rendu${r.dateRetour ? ` le ${_escName(_fmtDateFr(r.dateRetour))}` : ''}</div>`; }).join('');
   return `<div class="inc-choix-l">${ok}${x.map(d => `<div class="inc-choix pap-l"><span><strong>${_escName(d.titre)}</strong>${
       d.dateDistribution || d.dateEcheance ? `<small>${d.dateDistribution ? `distribué le ${_escName(_fmtDateFr(d.dateDistribution))}` : ''}${d.dateDistribution && d.dateEcheance ? ' · ' : ''}${d.dateEcheance ? `à rendre pour le ${_escName(_fmtDateFr(d.dateEcheance))}` : ''}</small>` : ''}</span>
       <button class="btn btn-s btn-sm" onclick="elevesPapierRenduUI('${j}','${_escJsAttr(d.id)}')" title="Noter ce papier rendu aujourd'hui (Ctrl+Z annule)">✓ Rendu</button></div>`).join('')}</div>
     ${x.length ? '<p class="tb-hint" style="margin-top:6px">« ✓ Rendu » le note rendu aujourd\'hui ; la date se corrige dans la fiche ou dans Retours.</p>' : '<p class="tb-hint" style="margin-top:6px">Tout est rendu.</p>'}`;
 }
-let _papiersFaits = [];
+function _papiersTitre(cls, sid) {
+  const stu = S.eleves[sid], n = _papiersARendre(cls, sid).length;
+  return `📄 ${stu.prenom} ${stu.nom} — ${n ? _pl(n, 'papier') + ' à rendre' : 'tout est rendu'}`;
+}
+let _papiersOuverts = [];
 function elevesPapiersUI(sid) {
   const cls = getCls(), stu = S.eleves[sid];
   if (!cls || !stu) return;
-  _papiersFaits = [];
-  const n = _papiersARendre(cls, sid).length;
-  _appDialogShow({ title: `📄 ${stu.prenom} ${stu.nom} — ${_pl(n, 'papier')} à rendre`, type: 'question',
-    message: _papiersARendreHTML(cls, sid, []), buttons: [{ label: 'Fermer', primary: true, value: null }] });
+  _papiersOuverts = _papiersARendre(cls, sid).map(d => d.id);
+  const redessin = () => { const c = getCls(); if (!c || !S.eleves[sid]) return closeMod2('mAppDialog'); _appDialogMaj(_papiersTitre(c, sid), _papiersARendreHTML(c, sid, _papiersOuverts)); };
+  _appDialogShow({ title: _papiersTitre(cls, sid), type: 'liste', redessin,
+    message: _papiersARendreHTML(cls, sid, _papiersOuverts), buttons: [{ label: 'Fermer', primary: true, value: null }] });
 }
 function elevesPapierRenduUI(sid, docId) {
   const cls = getCls(), doc = S.documents[docId];
   if (!cls || !doc || _retour(doc, sid).rendu) return;
   _docMut(docId, d => docSetRendu(d, sid, true));
-  _papiersFaits.push(doc.titre);
   renderStudents();
-  const m = document.getElementById('appDialog-msg');
-  if (m && document.getElementById('mAppDialog')?.classList.contains('on')) {
-    m.innerHTML = _papiersARendreHTML(cls, sid, _papiersFaits);
-    const t = document.getElementById('appDialog-title'), n = _papiersARendre(cls, sid).length, stu = S.eleves[sid];
-    if (t && stu) t.textContent = `📄 ${stu.prenom} ${stu.nom} — ${n ? _pl(n, 'papier') + ' à rendre' : 'tout est rendu'}`;
-  }
+  if (_appDialogRedessin) _appDialogRedessin();
   toast(`✓ ${doc.titre} : rendu.`);
 }
 // Les contacts, comme les incidents (v1.55.6, l'utilisateur : « fais pareil pour le compteur de
@@ -7987,14 +8028,16 @@ function _contactsListe(sid, a, b) { return _journalOf(sid).filter(e => e.date >
 function chaleurContactsUI(sid, a, b, lab) {
   const stu = S.eleves[sid];
   if (!stu) return;
-  const x = _contactsListe(sid, a, b);
-  if (!x.length) return openContacts(sid);
-  const items = x.map(e => { const t = _journalType(e.type);
-    return `<button class="btn btn-g inc-choix" onclick="_appDialogValeur('${_escJsAttr(e.id)}')"><span class="inc-choix-d">${_escName(_fmtDateFr(e.date))}</span> <strong>${t.icon} ${_escName(t.label)}</strong>${e.texte ? `<small class="pf-p">${_escName(e.texte)}</small>` : ''}</button>`; }).join('');
-  _appDialogShow({ title: `📇 ${stu.prenom} ${stu.nom} — ${_pl(x.length, 'contact')} · ${lab}`, type: 'question',
-    message: `<div class="inc-choix-l">${items}</div><p class="tb-hint" style="margin-top:6px">Cliquez un contact pour le corriger (date, type, texte) ou le supprimer.</p>`,
+  let x = _contactsListe(sid, a, b);
+  if (!x.length) return openContacts(sid, null, { a, b });
+  const titre = () => `📇 ${stu.prenom} ${stu.nom} — ${x.length ? _pl(x.length, 'contact') : 'plus aucun contact'} · ${lab}`;
+  const corps = () => x.length ? `<div class="inc-choix-l">${x.map(e => { const t = _journalType(e.type);
+    return `<button class="btn btn-g inc-choix" onclick="_appDialogValeur('${_escJsAttr(e.id)}')"><span class="inc-choix-d">${_escName(_fmtDateFr(e.date))}</span> <strong>${t.icon} ${_escName(t.label)}</strong>${e.texte ? `<small class="pf-p">${_escName(e.texte)}</small>` : ''}</button>`; }).join('')}</div><p class="tb-hint" style="margin-top:6px">Cliquez un contact pour le corriger (date, type, texte) ou le supprimer.</p>`
+    : '<p class="tb-hint">Plus aucun contact dans cette case.</p>';
+  const redessin = () => { if (!S.eleves[sid]) return closeMod2('mAppDialog'); x = _contactsListe(sid, a, b); _appDialogMaj(titre(), corps()); };
+  _appDialogShow({ title: titre(), type: 'liste', message: corps(), redessin,
     buttons: [{ label: 'Fermer', value: null }, { label: '＋ Noter un nouveau contact', primary: true, value: '__new' }] })
-    .then(v => { if (v === '__new') openContacts(sid); else if (v && x.some(e => e.id === v)) openContacts(sid, v); });
+    .then(v => { if (v === '__new') openContacts(sid, null, { a, b }); else if (v && x.some(e => e.id === v)) openContacts(sid, v); });
 }
 // Une valeur rendue par un élément du MESSAGE de la fenêtre (pas un de ses boutons du bas).
 function _appDialogValeur(v) {
@@ -8003,7 +8046,8 @@ function _appDialogValeur(v) {
   closeMod2('mAppDialog');
   if (r) r(v);
 }
-function openIncident(sid, id) {
+// `bornes` = { a, b } : venue d'une case de la carte de chaleur, la date proposée tombe dans la case.
+function openIncident(sid, id, bornes) {
   const stu = S.eleves[sid];
   if (!stu) return;
   _incSid = sid; _incId = id || null; _incPdfRetire = false;
@@ -8017,7 +8061,7 @@ function openIncident(sid, id) {
   if (sel) sel.innerHTML = _instancesParFamille(liste).map(g => `<optgroup label="${_escAttr(g.titre)}">${
       g.items.map(i => `<option value="${_escAttr(i.id)}"${e && e.type === i.id ? ' selected' : ''}>${_escName(i.label)}</option>`).join('')}</optgroup>`).join('');
   const d = document.getElementById('minc-date');
-  if (d) d.value = e ? e.date : _todayYmd();
+  if (d) d.value = e ? e.date : _dateParDefaut(S.classes[stu.classe_id] || getCls(), bornes?.a, bornes?.b);
   const o = document.getElementById('minc-objet');
   if (o) o.value = e ? e.objet : '';
   const tx = document.getElementById('minc-txt');
@@ -10235,6 +10279,25 @@ function _ymdClampAnnee(cls, ymd) {
   const debut = ps[0].start, fin = ps[ps.length - 1].end;
   return ymd < debut ? debut : ymd > fin ? fin : ymd;
 }
+// Un jour qui dépasse la fin de son mois ramené au vrai dernier jour : « 2026-02-31 » → « 2026-02-28 ».
+// (Les cases de la carte de chaleur bornent un mois par « AAAA-MM-31 », juste pour comparer.)
+function _ymdJourValide(ymd) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
+  if (!m) return ymd;
+  const y = +m[1], mo = +m[2], bis = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const fin = [31, bis ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1];
+  return fin && +m[3] > fin ? `${m[1]}-${m[2]}-${String(fin).padStart(2, '0')}` : ymd;
+}
+// La date proposée pour une NOUVELLE entrée (incident, contact, relevé) — PUR sauf aujourd'hui.
+// Aujourd'hui, ramené dans [a, b] quand on vient d'une case (un mois, un moment), puis dans l'année
+// scolaire de la classe (audit du 2026-10-06, défaut 2 : la case vide « février » d'une année passée
+// donnait un incident daté d'aujourd'hui — hors du mois, hors de l'année, visible nulle part).
+function _dateParDefaut(cls, a, b, auj) {
+  let d = auj || _todayYmd();
+  if (a && d < a) d = a;
+  if (b) { const f = _ymdJourValide(b); if (d > f) d = f; }
+  return cls ? _ymdClampAnnee(cls, d) : d;
+}
 function _periodOf(cls, ymd) {
   return _periods(cls).find(p => ymd >= p.start && ymd <= p.end) || null;
 }
@@ -10747,7 +10810,7 @@ function openReleveNew() {
   if (!getCls()) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
   _relEditYmd = null;
   document.getElementById('mrel-title').textContent = '📓 Relever les carnets';
-  document.getElementById('mrel-date').value = _todayYmd();
+  document.getElementById('mrel-date').value = _dateParDefaut(getCls());
   document.getElementById('mrel-label').value = '';
   document.getElementById('mrel-del').style.display = 'none';
   document.getElementById('mrel-ok').textContent = '✓ Créer la colonne';
@@ -14934,13 +14997,6 @@ function _syntheseRow(cls, stu) {
     nbBilans: Array.isArray(stu.bilans) ? stu.bilans.length : 0,
   };
 }
-// La case « Moy. » de la liste des élèves, et sa version papier (sans couleur : le Δ
-// entre parenthèses, les matières sous 10 en toutes lettres).
-function _moyPrintHTML(m) {
-  if (!m || m.generale === null) return '';
-  return `${_escName(_fmtNote(m.generale))}${m.delta !== null ? ` <small>(${_escName(_fmtDelta(m.delta))})</small>` : ''}${
-    m.sous10 ? `<br><small>${m.sous10} matière${m.sous10 > 1 ? 's' : ''} &lt; 10</small>` : ''}`;
-}
 function _syntheseRows(cls) {
   return cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => _syntheseRow(cls, s));
 }
@@ -16405,7 +16461,6 @@ function _avisGrilleHTML(cls, camp) {
   if (!eleves.length || !camp.disciplines.length) return '';
   // Un clic (ou Entrée) ouvre la lecture : une discipline (en-tête, pied), une case, un élève (total).
   const clic = vue => ` role="button" tabindex="0" onclick="event.stopPropagation();openAvisLire(${_escAttr(JSON.stringify(vue))})" onkeydown="if(event.key==='Enter'){event.stopPropagation();this.click()}"`;
-  const head = `<tr><th class="el-th-nom">Élève</th>${camp.disciplines.map((d, i) => `<th class="ch-sh ch-clic${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + (d.profs ? ' — ' + d.profs : '') + '\nCliquez : tous ses avis')}"${clic({ did: d.id })}><span>${_escName(d.onglet)}</span></th>`).join('')}<th class="ch-sh ch-g0"><span>disciplines</span></th></tr>`;
   const parDisc = Object.fromEntries(camp.disciplines.map(d => [d.id, 0]));
   const body = eleves.map(s => {
     let n = 0;
@@ -16418,6 +16473,11 @@ function _avisGrilleHTML(cls, camp) {
     }).join('');
     return `<tr><td>${_nomFicheHTML(s.id, s.nom, s.prenom)}${cibles.has(s.id) ? ' <span title="Demandé en particulier">⭐</span>' : ''}</td>${cells}${n ? `<td class="ch ch-g0 ch-clic" title="Tous les avis sur cet élève"${clic({ sid: s.id })}><strong>${n}</strong></td>` : '<td class="ch ch-g0 ch-no">0</td>'}</tr>`;
   }).join('');
+  // L'en-tête d'une discipline sans aucun avis ne s'ouvre pas, comme son pied (audit du 2026-10-06,
+  // défaut 5 : il ouvrait une fenêtre « 0 élève sur 25 »). Calculé après le corps, qui compte.
+  const head = `<tr><th class="el-th-nom">Élève</th>${camp.disciplines.map((d, i) => parDisc[d.id]
+    ? `<th class="ch-sh ch-clic${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + (d.profs ? ' — ' + d.profs : '') + '\nCliquez : tous ses avis')}"${clic({ did: d.id })}><span>${_escName(d.onglet)}</span></th>`
+    : `<th class="ch-sh${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom + (d.profs ? ' — ' + d.profs : '') + '\nPas encore d\'avis')}"><span>${_escName(d.onglet)}</span></th>`).join('')}<th class="ch-sh ch-g0"><span>disciplines</span></th></tr>`;
   const pied = `<tr><td class="tb-hint">élèves</td>${camp.disciplines.map((d, i) => parDisc[d.id] ? `<td class="ch ch-clic${i === 0 ? ' ch-g0' : ''}" title="${_escAttr(d.nom)} : tous ses avis"${clic({ did: d.id })}><strong>${parDisc[d.id]}</strong></td>` : `<td class="ch ch-no${i === 0 ? ' ch-g0' : ''}">0</td>`).join('')}<td class="ch ch-g0"></td></tr>`;
   return `<h4 class="av-sous">Qui a écrit sur qui <span class="tb-hint">— cliquez une case : l'avis de cette discipline sur l'élève · une discipline : tous ses avis · le total d'une ligne : tous les avis sur l'élève · un nom : la fiche</span></h4>
     <div class="rel-wrap"><table class="dt el-chaleur av-grille"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${pied}</tfoot></table></div>
@@ -16452,13 +16512,16 @@ function _avisLectureHTML(cls, camp, vue) {
     const avec = eleves.filter(s => _avisALavis(camp, s.id, disc.id)), sans = eleves.filter(s => !_avisALavis(camp, s.id, disc.id));
     const rows = avec.map(s => { const a = camp.avis[s.id][disc.id];
       return `<tr><th class="pf-dn"><button class="av-dlien" onclick="openAvisLire({ sid: '${_escJsAttr(s.id)}' })" title="Tous les avis sur cet élève">${_escName(s.nom)} ${_escName(s.prenom)}</button>${etoile(s.id)}</th>${cols.map(c => td(a[c.key])).join('')}</tr>`; }).join('');
-    const i = camp.disciplines.findIndex(d => d.id === disc.id);
+    // ◀ ▶ saute les disciplines sans avis, comme il saute les élèves sans avis (audit du 2026-10-06,
+    // défaut 5) — celle qu'on lit reste dans le parcours, même vide, pour avoir ses voisines.
+    const parcours = camp.disciplines.filter(d => d.id === disc.id || eleves.some(s => _avisALavis(camp, s.id, d.id)));
+    const i = parcours.findIndex(d => d.id === disc.id);
     return { titre: `🗣 ${disc.nom} — ${_pl(avec.length, 'élève')} sur ${eleves.length}`,
       html: `${disc.profs ? `<p class="av-lh">${_escName(disc.profs)}</p>` : ''}${avec.length
         ? `<div class="rel-wrap"><table class="pf-mx"><thead><tr><th class="pf-dn">Élève</th>${cols.map(c => `<th>${_escName(c.label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`
         : '<p class="pf-empty">Aucun avis de cette discipline pour l\'instant.</p>'}
         ${avec.length && sans.length ? `<p class="pf-mu pf-sans">Sans avis : ${sans.map(s => _escName(nomE(s))).join(', ')}.</p>` : ''}`,
-      ...voisin(camp.disciplines, i, d => ({ did: d.id })) };
+      ...voisin(parcours, i, d => ({ did: d.id })) };
   }
   if (stu) {
     const avec = camp.disciplines.filter(d => _avisALavis(camp, stu.id, d.id)), sans = camp.disciplines.filter(d => !_avisALavis(camp, stu.id, d.id));
