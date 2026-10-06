@@ -3017,8 +3017,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.9';
-const APP_BUILD_DATE = '2026-10-06T13:12:14Z';
+const APP_VERSION    = '1.55.10';
+const APP_BUILD_DATE = '2026-10-06T14:33:42Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -13583,7 +13583,11 @@ function _elEcritHTML(el) {
   const libres = cls.eleves.map(id => S.eleves[id]).filter(s => s && _isStudentActive(s, el.date) && !pris.has(s.id) && !exclus.has(s.id))
     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom, 'fr'));
   if (!libres.length) return '';
-  return `<span class="el-ecrit"><select id="el-ecrit" aria-label="Élève dont le nom est écrit sur le bulletin"><option value="">— nom écrit, non candidat —</option>${libres.map(s => `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}</option>`).join('')}</select><button class="btn btn-g btn-sm" onclick="electionAddEcritUI()" title="${el.nonCandidat === 'nul' ? 'Un bulletin porte le nom d\'un élève non candidat : il devient une colonne, et tout bulletin où il est coché est NUL (modalité de cette élection).' : 'Un bulletin porte le nom d\'un élève qui n\'était pas candidat (feuille blanche) : il devient une colonne, sans suppléant. Élu, il doit accepter son élection.'}">✍️ + Nouveau nom${el.nonCandidat === 'nul' ? ' (bulletin nul)' : ''}</button></span>`;
+  // Le président du bureau et les assesseurs restent proposés — on ne refuse pas de compter un
+  // bulletin qui porte leur nom —, mais leur rôle est DIT, comme dans les autres menus (v1.55.10,
+  // audit du 2026-10-06, point 6, arbitré par l'utilisateur : « signaler, pas écarter »).
+  const opt = s => { const r = _elRoleLabel(el, s.id); return `<option value="${_escAttr(s.id)}">${_escName(s.nom)} ${_escName(s.prenom)}${r ? ' — ' + _escName(r) : ''}</option>`; };
+  return `<span class="el-ecrit"><select id="el-ecrit" aria-label="Élève dont le nom est écrit sur le bulletin"><option value="">— nom écrit, non candidat —</option>${libres.map(opt).join('')}</select><button class="btn btn-g btn-sm" onclick="electionAddEcritUI()" title="${el.nonCandidat === 'nul' ? 'Un bulletin porte le nom d\'un élève non candidat : il devient une colonne, et tout bulletin où il est coché est NUL (modalité de cette élection).' : 'Un bulletin porte le nom d\'un élève qui n\'était pas candidat (feuille blanche) : il devient une colonne, sans suppléant. Élu, il doit accepter son élection.'}">✍️ + Nouveau nom${el.nonCandidat === 'nul' ? ' (bulletin nul)' : ''}</button></span>`;
 }
 // Le compte de l'urne : il fixe l'axe du graphique ET prépare autant de lignes à lire (v1.52.5).
 function electionUrneUI(tourIdx, v) {

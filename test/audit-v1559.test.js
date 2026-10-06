@@ -195,3 +195,18 @@ test('défaut 7 — aucune fonction morte', () => {
 test('défaut 7 — méta-test : le détecteur voit une fonction morte injectée', () => {
   assert.deepStrictEqual(fonctionsMortes(SRC + '\nfunction _zzMorteDeTest(x) { return x; }\n', AUTRES), ['_zzMorteDeTest']);
 });
+
+test('point 6 (v1.55.10) — le menu « nom écrit » dit que l\'élève préside le bureau, sans l\'écarter', () => {
+  ev(DEMO);
+  const r = evObj(`(() => {
+    const cls = getCls(), el = _elList(cls.id).find(e => !e.clos);
+    const libre = cls.eleves.find(id => !el.candidats.some(c => c.sidTitulaire === id || c.sidSuppleant === id) && !(el.assesseurs || []).includes(id));
+    const ok = electionSetPresident(el, { qui: 'eleve', sid: libre });
+    const s = S.eleves[libre], h = _elEcritHTML(el);
+    const opt = (h.match(new RegExp('<option value="' + libre + '">[^<]*</option>')) || [''])[0];
+    return { ok, opt, nom: s.nom + ' ' + s.prenom, accepte: !!electionAddEcrit(el, libre) };
+  })()`);
+  assert.ok(r.ok, 'président posé');
+  assert.match(r.opt, new RegExp(`${r.nom} — président(e)? du bureau`), 'son rôle est écrit dans le menu');
+  assert.ok(r.accepte, 'et son nom se compte quand même');
+});

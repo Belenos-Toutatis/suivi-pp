@@ -586,6 +586,9 @@ tranchait.
     où un filtre le rendait impossible : ni l'un ni l'autre. Le bandeau du bloc le dit en clair.
   - `sansAss` : dans SON propre menu, l'assesseur déjà choisi n'a pas à s'entendre redire qu'il est
     assesseur (le menu le dit) — son rôle de candidat, lui, reste écrit.
+  - **Le menu « ✍️ nom écrit » signale aussi** (v1.55.10, audit du 2026-10-06, arbitré par
+    l'utilisateur) : le président du bureau et les assesseurs y restent proposés, leur rôle écrit
+    après le nom — on ne peut pas refuser de compter un bulletin qui porte leur nom.
   - **Reste écarté des assesseurs : l'élève président du bureau** (il tient déjà l'autre siège), et
     le président élève reste non candidat et non assesseur — ces règles-là n'ont pas bougé.
   - Démo : l'assesseur de l'élection EN COURS est la suppléante du deuxième binôme — élection non
@@ -2335,6 +2338,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 144 | **Menu « ✍️ nom écrit » : le rôle de l'élève est dit** (« — président du bureau », « — assesseur », par `_elRoleLabel`), sans l'écarter : on ne refuse pas de compter un bulletin qui porte son nom (audit du 2026-10-06, point 6, arbitré par l'utilisateur) ; 1 test, vérifié en échec sur la v1.55.9. Audit Vie de classe 2 thèmes, 1 265 et 320 px, PV compris, 0 défaut | ✅ **fait** (2026-10-06, v1.55.10) |
 | 143 | **Audit complet du 2026-10-06** : listes de la fenêtre de dialogue (papiers, incidents, contacts) **redessinées après Ctrl+Z** (`_appDialogRedessin` dans `_MODAL_RERENDER`), sans l'icône ❓ (type `liste`) · **date proposée** d'un nouvel incident, contact ou relevé ramenée dans la case puis dans l'année (`_dateParDefaut`, `_ymdJourValide`) · **focus** rendu au remplaçant redessiné de l'ouvreur, sinon sorti de la fenêtre fermée (`_modalOuvreur`) · lecture des avis : en-tête d'une discipline sans avis inerte, ◀ ▶ la saute · code mort retiré (`_regimeTexte`, `_moyPrintHTML`) · `scripts/audit_parcours.js` ; 9 tests (`test/audit-v1559.test.js`, tous vérifiés en échec sur la v1.55.8). Audit : 79 états × 2 thèmes à 1 009 px (12 feuilles comprises), 67 × 2 à 320 et à 1 570 px, ≈ 212 000 nœuds, 0 défaut | ✅ **fait** (2026-10-06, v1.55.9) |
 | 142 | **Un candidat peut être assesseur** (et réciproquement) : filtres retirés des deux menus, rôle déjà tenu SIGNALÉ à la place (`_elRoleLabel`, accordé en genre), bandeau, démo ; 1 test réécrit (l'ancien figeait le refus) | ✅ **fait** (2026-10-05, v1.55.8) |
 | 141 | **Contacts : le texte en entier dans la fenêtre des contacts**, retours à la ligne gardés (zones `textarea.jl-txt` à la hauteur du texte, plus de champ d'une ligne ni de limite à 300 caractères ; nouvelle entrée : Entrée = nouvelle ligne, Ctrl+Entrée = noter) ; 1 test. Vérifié dans le navigateur, audit 2 thèmes, 0 défaut | ✅ **fait** (2026-10-04, v1.55.7) |
