@@ -1344,7 +1344,7 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   ensuite dans la feuille). *📂 Choisir une feuille existante…* reste pour une feuille vide créée
   dans le Nuage. **Le nom** : champ `mavis-nom`, proposé par `_avisNomFichier` (pur :
   « Avis des collègues — 5e C — conseil S1 — 2025-26.ods », « mi-S1 », « point de mars »), qui
-  suit période, objectif et mois (`_avisNomMaj`) tant qu'on ne l'a pas réécrit (`_avisNomDraft`,
+  suit période, objectif et mois (`_avisNomMaj`) tant qu'on ne l'a pas réécrit (`_avisNomDraft`, oublié au changement de classe depuis la v1.55.11,
   de séance ; vidé, il redevient proposé) ; `_avisNomPropre` retire ce que les systèmes de
   fichiers refusent et assure le `.ods`. Le téléchargement (Firefox) prend le même nom. Sans
   `showSaveFilePicker`, pas de bouton Créer : Choisir redevient le bouton principal. Vérifié dans
@@ -2338,6 +2338,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 145 | **Audit du 2026-10-06 (second poste)** : parcours rejoué (67 états × 2 thèmes à 1 570 px avec les 12 feuilles, 67 × 2 à 320 px — ≈ 143 000 nœuds, 0 défaut, 0 erreur JS) et relecture du code v1.54 → v1.55.10. Corrigé : **le compte d'une discipline dans une feuille d'avis** ne porte plus que sur les élèves de la feuille (`_avisCompte(camp, sids)`) — un élève hors de la feuille faisait un lien vers « aucun avis » · **le nom tapé d'une nouvelle feuille** est oublié au changement de classe (`switchClass`) · corriger un contact par des espaces seulement n'empile plus de Ctrl+Z vide · **après « ✓ Rendu »**, le focus passe au papier suivant (`_appDialogMaj`) ; 4 tests (`test/audit-v15511.test.js`, vérifiés en échec sur la v1.55.10) | ✅ **fait** (2026-10-06, v1.55.11) |
 | 144 | **Menu « ✍️ nom écrit » : le rôle de l'élève est dit** (« — président du bureau », « — assesseur », par `_elRoleLabel`), sans l'écarter : on ne refuse pas de compter un bulletin qui porte son nom (audit du 2026-10-06, point 6, arbitré par l'utilisateur) ; 1 test, vérifié en échec sur la v1.55.9. Audit Vie de classe 2 thèmes, 1 265 et 320 px, PV compris, 0 défaut | ✅ **fait** (2026-10-06, v1.55.10) |
 | 143 | **Audit complet du 2026-10-06** : listes de la fenêtre de dialogue (papiers, incidents, contacts) **redessinées après Ctrl+Z** (`_appDialogRedessin` dans `_MODAL_RERENDER`), sans l'icône ❓ (type `liste`) · **date proposée** d'un nouvel incident, contact ou relevé ramenée dans la case puis dans l'année (`_dateParDefaut`, `_ymdJourValide`) · **focus** rendu au remplaçant redessiné de l'ouvreur, sinon sorti de la fenêtre fermée (`_modalOuvreur`) · lecture des avis : en-tête d'une discipline sans avis inerte, ◀ ▶ la saute · code mort retiré (`_regimeTexte`, `_moyPrintHTML`) · `scripts/audit_parcours.js` ; 9 tests (`test/audit-v1559.test.js`, tous vérifiés en échec sur la v1.55.8). Audit : 79 états × 2 thèmes à 1 009 px (12 feuilles comprises), 67 × 2 à 320 et à 1 570 px, ≈ 212 000 nœuds, 0 défaut | ✅ **fait** (2026-10-06, v1.55.9) |
 | 142 | **Un candidat peut être assesseur** (et réciproquement) : filtres retirés des deux menus, rôle déjà tenu SIGNALÉ à la place (`_elRoleLabel`, accordé en genre), bandeau, démo ; 1 test réécrit (l'ancien figeait le refus) | ✅ **fait** (2026-10-05, v1.55.8) |
@@ -2765,6 +2766,23 @@ d'écran et 12 feuilles imprimées, `__parcours.demo()` puis `__parcours.run({ t
 ⚠️ Un appel de l'outil de navigateur est coupé à 45 s : lancer `run()` sans l'attendre et relire
 `__audit.report()` ensuite. Rejoué après correction : 158 états à 1 009 px (feuilles comprises),
 134 à 320 px, 134 à 1 570 px — ≈ 212 000 nœuds, 0 défaut, 0 erreur JS.
+**2026-10-06, v1.55.10 → v1.55.11 — audit rejoué sur l'autre poste** (Linux) : `audit_parcours.js` tel quel,
+158 états à 1 570 px (feuilles comprises), 134 à 320 px, 0 défaut ; scénarios (papiers validés puis
+Ctrl+Z, case vide d'incidents, contact multi-ligne corrigé puis annulé, toutes les cases de la grille
+des avis) sans écart. La relecture du code par un agent a trouvé ce que l'écran ne montre pas :
+37. **Compteur et fenêtre divergeaient** dans le tableau d'une feuille d'avis : `_avisCompte` comptait
+   tout `camp.avis`, la fenêtre de lecture les seuls élèves de la feuille (`_avisEleves`). Un élève
+   parti avant la période gardait un lien « 1 / 24 » vers « aucun avis ». → `_avisCompte(camp, sids)`,
+   la liste des feuilles et le tableau comptent sur les élèves de la feuille ; « Oublier la feuille »
+   compte toujours tout (c'est ce qui disparaît).
+38. **Le nom tapé d'une nouvelle feuille survivait au changement de classe** (`_avisNomDraft` global) :
+   la feuille de la 4B se serait créée sous le nom de la 5C. → oublié dans `switchClass`.
+Mineurs : un contact corrigé par des espaces de bord seulement empilait un Ctrl+Z vide (`journalEditUI`) ;
+après « ✓ Rendu », le focus tombait sur la boîte — il passe désormais au bouton qui remplace celui
+qu'on a cliqué (`_appDialogMaj`), donc au papier suivant, puis à « Fermer ».
+⚠️ Pane du navigateur caché : les minuteries ralentissent, le parcours prend quelques minutes —
+`tabs_select` sur l'onglet de test avant de lancer `run()`.
+
 ⚠️ **Sur ce poste Windows**, `.claude/launch.json` (local, ignoré par git) lance
 `C:/Python313/python.exe -m http.server 8731 --bind 127.0.0.1` : `npx` y échoue (« 'C:\Program'
 n'est pas reconnu… »).

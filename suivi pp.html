@@ -3017,8 +3017,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.10';
-const APP_BUILD_DATE = '2026-10-06T14:33:42Z';
+const APP_VERSION    = '1.55.11';
+const APP_BUILD_DATE = '2026-10-06T19:20:53Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4168,6 +4168,7 @@ function refreshSelector() {
 }
 
 function switchClass(id) {
+  if ((id || null) !== S.cur) _avisNomDraft = null;
   S.cur = id || null;
   save();
   refreshSelector();
@@ -7975,7 +7976,12 @@ function _appDialogMaj(titre, html) {
   if (!document.getElementById('mAppDialog')?.classList.contains('on')) return;
   const t = document.getElementById('appDialog-title'), m = document.getElementById('appDialog-msg');
   if (t) t.textContent = titre;
-  if (m) m.innerHTML = html;
+  if (!m) return;
+  // Le bouton cliqué disparaît avec l'ancien contenu (« ✓ Rendu » validé) : le focus passe au
+  // bouton qui prend sa place — le papier suivant —, pas à la boîte, pour enchaîner au clavier.
+  const avant = [...m.querySelectorAll('button')], i = avant.indexOf(document.activeElement);
+  m.innerHTML = html;
+  if (i >= 0) { const apres = [...m.querySelectorAll('button')]; const b = apres[Math.min(i, apres.length - 1)] || document.querySelector('#mAppDialog .ma button'); if (b) b.focus(); }
 }
 // Les papiers à rendre d'un élève (v1.55.5, l'utilisateur : « si je clique sur un compteur de
 // papiers à rendre, me montrer quels papiers, et que je puisse les valider dans Indicateurs ») :
@@ -8208,6 +8214,8 @@ function journalAddUI() {
 }
 function journalEditUI(id, txt) {
   if (!String(txt || '').trim()) { toast('⚠️ Un contact sans texte se supprime, il ne se vide pas.', 'warn'); _journalRender(); return; }
+  const avant = _journalOf(_remSid).find(e => e.id === id);
+  if (avant && avant.texte === String(txt).trim()) return;   // espaces de bord seulement : rien à annuler
   pushUndo();
   journalSetTexte(_remSid, id, txt);
   save();
@@ -16110,11 +16118,14 @@ function _avisEleves(cls, camp) {
     .filter(s => !p || (!(s.departureDate && s.departureDate <= p.start) && !(s.arrivalDate && s.arrivalDate > p.end)))
     .sort((a, b) => `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`, 'fr', { sensitivity: 'base' }));
 }
-function _avisCompte(camp) {
+// `sids` (facultatif) : ne compter que ces élèves — ceux de la feuille (`_avisEleves`). Sans lui,
+// tout ce qui est rangé, élèves partis compris (ce qu'oublier la feuille ferait disparaître).
+function _avisCompte(camp, sids) {
   const parDisc = {};
   let n = 0;
+  const garder = sids ? new Set(sids) : null;
   for (const d of camp.disciplines || []) parDisc[d.id] = 0;
-  for (const parSid of Object.values(camp.avis || {})) for (const [did, a] of Object.entries(parSid)) {
+  for (const [sid, parSid] of Object.entries(camp.avis || {})) if (!garder || garder.has(sid)) for (const [did, a] of Object.entries(parSid || {})) {
     if (_avisCols(camp).some(c => a?.[c.key])) { parDisc[did] = (parDisc[did] || 0) + 1; n++; }
   }
   return { parDisc, n };
@@ -16348,6 +16359,7 @@ function _avisNomPropre(nom) {
   return t ? t + '.ods' : '';
 }
 let _avisNomDraft = null;   // le nom TAPÉ dans le formulaire d'une nouvelle feuille ; null = le nom proposé
+                           // (oublié au changement de classe : il porte le nom de l'autre classe)
 function _avisNomPropose(cls) {
   return _avisNomFichier(cls, +(document.getElementById('mavis-per')?.value || 0), document.getElementById('mavis-obj')?.value || 'conseil', +(document.getElementById('mavis-mois')?.value || _todayYmd().slice(5, 7)));
 }
@@ -16448,7 +16460,7 @@ function _avisListeHTML(cls, camps) {
   const nouv = `<button class="av-fcard av-nouv${!_avisCampId ? ' on' : ''}" onclick="avisChoisirFeuille(null)">＋ Nouvelle feuille d'avis</button>`;
   if (!camps.length) return nouv + '<p class="tb-hint">Aucune feuille encore. Une feuille = une récolte : avant un conseil, un point du mois, une rencontre avec une famille.</p>';
   return nouv + camps.map(c => {
-    const cpt = _avisCompte(c), nD = c.disciplines.length, rep = c.disciplines.filter(d => cpt.parDisc[d.id]).length;
+    const cpt = _avisCompte(c, _avisEleves(cls, c).map(s => s.id)), nD = c.disciplines.length, rep = c.disciplines.filter(d => cpt.parDisc[d.id]).length;
     const nc = _avisCibles(cls, c).length;
     return `<button class="av-fcard${c.id === _avisCampId ? ' on' : ''}" onclick="avisChoisirFeuille('${_escJsAttr(c.id)}')" aria-pressed="${c.id === _avisCampId}">
       <strong>${_escName(_avisTitreFeuille(cls, c))}</strong>
@@ -16672,8 +16684,11 @@ function _avisPartageHTML(camp) {
 }
 function _avisCampHTML(cls, camp) {
   const p = _avisPeriode(cls, camp);
-  const cpt = _avisCompte(camp);
-  const total = _avisEleves(cls, camp).length;
+  const elevesF = _avisEleves(cls, camp);
+  // Compté sur les élèves de la feuille, comme le total et la fenêtre de lecture : un élève parti
+  // avant la période garde ses avis, mais la fenêtre ne le montre pas — un lien vers « aucun avis ».
+  const cpt = _avisCompte(camp, elevesF.map(s => s.id));
+  const total = elevesF.length;
   const rap = _avisRapport[camp.id];
   const lec = rap?.lec;
   const lignes = camp.disciplines.map(d => `<tr><td>${cpt.parDisc[d.id] ? `<button class="av-dlien" onclick="openAvisLire({ did: '${_escJsAttr(d.id)}' })" title="Lire les avis de ${_escAttr(d.nom)}, élève par élève">${_escName(d.nom)}</button>` : `<strong>${_escName(d.nom)}</strong>`}${d.profs ? ` <span class="fi-vide">${_escName(d.profs)}</span>` : ''}</td>
