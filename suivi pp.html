@@ -2683,6 +2683,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="fg" id="mmoyp-stats-wrap"><label>Statistiques en pied du tableau</label>
       <div id="mmoyp-stats" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       <div class="tb-hint" style="margin-top:4px">Le même choix vaut pour l'écran.</div></div>
+    <div class="fg" id="mmoyp-delta-wrap"><label>Évolution</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-deep)"><input type="checkbox" id="mmoyp-delta" checked style="width:16px;height:16px" onchange="_moyPrintRefresh()"> Imprimer l'évolution depuis l'import précédent <span class="tb-hint">— « 12,5 +1 »</span></label>
+      <div class="tb-hint" style="margin-top:4px">Décochée, la feuille ne porte que les moyennes de cet import ; l'écran garde l'évolution.</div></div>
     <div class="fg"><label for="mmoyp-format">Papier</label>
       <select id="mmoyp-format" data-autofocus onchange="_moyPrintRefresh()" style="max-width:100%">
         <option value="A4">A4 paysage</option>
@@ -3017,8 +3020,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.55.11';
-const APP_BUILD_DATE = '2026-10-06T19:20:53Z';
+const APP_VERSION    = '1.56.0';
+const APP_BUILD_DATE = '2026-10-06T22:29:40Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -14718,7 +14721,12 @@ function _moyStatsPickHTML(onchangeCtx) {
 // ⚠️ Sur le papier, « sous 10 » se marque en GRAS, pas en couleur : la feuille sort souvent
 // en noir et blanc, et un fond rose y devient un gris qu'on ne distingue plus.
 let _moyPrintFormat = 'A4';
-function _moyFeuilleHTML(cls) {
+// L'évolution depuis l'import précédent, sur le papier (v1.56.0, l'utilisateur : « une option pour
+// empêcher l'impression de la différence avec les moyennes précédentes ») — réglage de séance, comme
+// le Δ de la feuille du carnet ; l'écran la garde toujours.
+let _moyPrintDelta = true;
+function _moyFeuilleHTML(cls, opts) {
+  const avecDelta = (opts || {}).delta !== false;
   const cur = cls ? _moyCourant(cls) : null;
   if (!cur?.rel) return null;
   const { periode, list, rel } = cur;
@@ -14753,7 +14761,7 @@ function _moyFeuilleHTML(cls) {
       const gc = mid === null ? ' g' : '';
       if (v === null) return `<td class="c${gc}"></td>`;
       if (typeof v === 'string') return `<td class="c${gc}"><em>${_escName(v)}</em></td>`;
-      const d = _moyDelta(cls.id, rel.id, sid, mid);
+      const d = avecDelta ? _moyDelta(cls.id, rel.id, sid, mid) : null;
       const txt = _escName(_fmtNote(v));
       return `<td class="c${gc}">${v < 10 ? `<strong>${txt}</strong>` : txt}${d && d.delta ? ` <small>${_escName(_fmtDelta(d.delta))}</small>` : ''}</td>`;
     };
@@ -14762,7 +14770,7 @@ function _moyFeuilleHTML(cls) {
     const stats = _MOY_STATS.filter(st => _moyStatsShown().includes(st.key));
     foot = stats.length ? `<tfoot>${stats.map(st => `<tr><th>${_escName(st.label)}</th>${ids.map(mid => `<td class="c${mid === null ? ' g' : ''}">${_escName(st.fmt(_moyColStats(rel, mid, sids)))}</td>`).join('')}<td></td></tr>`).join('')}</tfoot>` : '';
     const i = list.indexOf(rel);
-    sous = `import du ${_fmtDateFr(rel.date)}${rel.label ? ' — ' + rel.label : ''}${i > 0 ? ` · évolution depuis le ${_fmtDateFr(list[i - 1].date)}` : ''} · en gras : sous 10${
+    sous = `import du ${_fmtDateFr(rel.date)}${rel.label ? ' — ' + rel.label : ''}${i > 0 && avecDelta ? ` · évolution depuis le ${_fmtDateFr(list[i - 1].date)}` : ''} · en gras : sous 10${
       _moyStatsShown().includes('ecartType') ? ' · écart type de la classe (σ)' : ''}`;
   }
   return { kind: 'landscape', html: `<div class="pp-titre">Moyennes — ${_escName(cls.nom)} — ${_escName(periode)}</div>
@@ -14776,6 +14784,7 @@ function openMoyPrint() {
   const cls = getCls();
   if (!cls || !_moyCourant(cls).rel) return toast('⚠️ Aucune moyenne importée à imprimer.', 'warn');
   document.getElementById('mmoyp-format').value = _moyPrintFormat;
+  document.getElementById('mmoyp-delta').checked = _moyPrintDelta;
   openMod('mmoyprint');
   _moyPrintRefresh();
   _printFontLoad().then(() => { if (document.getElementById('mmoyprint')?.classList.contains('on')) _moyPrintRefresh(); });
@@ -14785,18 +14794,23 @@ function _moyPrintRefresh() {
   _moyPrintFormat = document.getElementById('mmoyp-format').value === 'A3' ? 'A3' : 'A4';
   const box = document.getElementById('mmoyp-stats-wrap');
   box.style.display = _moyVue === 'evolution' ? 'none' : '';
+  _moyPrintDelta = document.getElementById('mmoyp-delta').checked !== false;
+  const n0 = cls ? _moyCourant(cls) : null;
+  // Rien à comparer en vue Évolution, ni au premier import de la période.
+  document.getElementById('mmoyp-delta-wrap').style.display = _moyVue === 'evolution' || !n0?.rel || n0.list.indexOf(n0.rel) < 1 ? 'none' : '';
   document.getElementById('mmoyp-stats').innerHTML = _moyStatsPickHTML();
-  const out = cls ? _moyFeuilleHTML(cls) : null;
+  const out = cls ? _moyFeuilleHTML(cls, { delta: _moyPrintDelta }) : null;
   const fit = out ? _printFitMeasure(out.html, out.kind, _moyPrintFormat) : null;
   const n = cls ? _moyCourant(cls) : null;
   document.getElementById('mmoyp-hint').textContent = [
     _moyVue === 'evolution' ? `vue Évolution — ${n.list.length} import${n.list.length > 1 ? 's' : ''}` : `import du ${_fmtDateFr(n.rel.date)}, tri de l'écran`,
     _moyVue === 'evolution' ? '' : `${_moyStatsShown().length} statistique${_moyStatsShown().length > 1 ? 's' : ''} en pied`,
+    _moyVue === 'evolution' || n.list.indexOf(n.rel) < 1 ? '' : (_moyPrintDelta ? 'avec l\'évolution' : 'sans l\'évolution'),
     _periodeFitTexte(fit, _moyPrintFormat)].filter(Boolean).join(' · ');
 }
 function moyPrintOk() {
   const cls = getCls();
-  const out = cls ? _moyFeuilleHTML(cls) : null;
+  const out = cls ? _moyFeuilleHTML(cls, { delta: _moyPrintDelta }) : null;
   if (!out) return closeMod2('mmoyprint');
   const fit = _printFitMeasure(out.html, out.kind, _moyPrintFormat);
   closeMod2('mmoyprint');

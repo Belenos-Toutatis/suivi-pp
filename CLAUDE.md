@@ -457,6 +457,12 @@ releveMoy = {
   dans une colonne de matière. Mesuré sur le cas réel de l'utilisateur (27 élèves) avec la
   démo à onze matières : 7,75 pt en A4 avec les huit statistiques, 8,5 pt avec quatre,
   11,75 pt en A3.
+  **L'évolution se décoche pour le papier** (v1.56.0, l'utilisateur : *« une option pour
+  empêcher l'impression de la différence avec les moyennes précédentes »*) : case dans la
+  fenêtre (`_moyPrintDelta`, de séance comme le Δ de la feuille du carnet, cochée par défaut ;
+  cachée au premier import d'une période, où il n'y a rien à comparer, et en vue Évolution).
+  Décochée : ni « +1 » sous les moyennes ni « évolution depuis le … » au sous-titre ; la taille
+  est recalculée. L'écran, lui, garde toujours l'évolution.
 
 ## Élection des délégués de classe
 
@@ -2338,6 +2344,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 146 | **Moyennes imprimées sans l'évolution, au choix** : case *Imprimer l'évolution depuis l'import précédent* dans `mmoyprint` (cochée par défaut, réglage de séance `_moyPrintDelta`, absente au premier import d'une période et en vue Évolution), `_moyFeuilleHTML(cls, { delta })` ; l'écran garde l'évolution ; 1 test. Vérifié dans le navigateur (feuille sans aucun écart, 186 avec), audit de la fenêtre 2 thèmes, 0 défaut | ✅ **fait** (2026-10-07, v1.56.0) |
 | 145 | **Audit du 2026-10-06 (second poste)** : parcours rejoué (67 états × 2 thèmes à 1 570 px avec les 12 feuilles, 67 × 2 à 320 px — ≈ 143 000 nœuds, 0 défaut, 0 erreur JS) et relecture du code v1.54 → v1.55.10. Corrigé : **le compte d'une discipline dans une feuille d'avis** ne porte plus que sur les élèves de la feuille (`_avisCompte(camp, sids)`) — un élève hors de la feuille faisait un lien vers « aucun avis » · **le nom tapé d'une nouvelle feuille** est oublié au changement de classe (`switchClass`) · corriger un contact par des espaces seulement n'empile plus de Ctrl+Z vide · **après « ✓ Rendu »**, le focus passe au papier suivant (`_appDialogMaj`) ; 4 tests (`test/audit-v15511.test.js`, vérifiés en échec sur la v1.55.10) | ✅ **fait** (2026-10-06, v1.55.11) |
 | 144 | **Menu « ✍️ nom écrit » : le rôle de l'élève est dit** (« — président du bureau », « — assesseur », par `_elRoleLabel`), sans l'écarter : on ne refuse pas de compter un bulletin qui porte son nom (audit du 2026-10-06, point 6, arbitré par l'utilisateur) ; 1 test, vérifié en échec sur la v1.55.9. Audit Vie de classe 2 thèmes, 1 265 et 320 px, PV compris, 0 défaut | ✅ **fait** (2026-10-06, v1.55.10) |
 | 143 | **Audit complet du 2026-10-06** : listes de la fenêtre de dialogue (papiers, incidents, contacts) **redessinées après Ctrl+Z** (`_appDialogRedessin` dans `_MODAL_RERENDER`), sans l'icône ❓ (type `liste`) · **date proposée** d'un nouvel incident, contact ou relevé ramenée dans la case puis dans l'année (`_dateParDefaut`, `_ymdJourValide`) · **focus** rendu au remplaçant redessiné de l'ouvreur, sinon sorti de la fenêtre fermée (`_modalOuvreur`) · lecture des avis : en-tête d'une discipline sans avis inerte, ◀ ▶ la saute · code mort retiré (`_regimeTexte`, `_moyPrintHTML`) · `scripts/audit_parcours.js` ; 9 tests (`test/audit-v1559.test.js`, tous vérifiés en échec sur la v1.55.8). Audit : 79 états × 2 thèmes à 1 009 px (12 feuilles comprises), 67 × 2 à 320 et à 1 570 px, ≈ 212 000 nœuds, 0 défaut | ✅ **fait** (2026-10-06, v1.55.9) |

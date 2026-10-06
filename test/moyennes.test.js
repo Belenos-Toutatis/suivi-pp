@@ -435,3 +435,22 @@ test('Feuille des moyennes : seules les statistiques cochées, colonnes fixes, s
   ev(`S.prefs.moyStats = []`);
   assert.ok(!evObj(`_moyFeuilleHTML(S.classes['5C'])`).html.includes('<tfoot>'), 'aucune statistique : pas de pied du tout');
 });
+
+test('Feuille des moyennes : l\'évolution depuis l\'import précédent s\'imprime ou non, au choix', () => {
+  ev(CLASSE);
+  imp(CSV1, '2025-10-01');
+  imp(CSV2, '2025-10-22');
+  ev(`_moyVue = 'tableau'; _moyPeriodeSel = null; _moyRidSel = null; moySort = 'nom'; S.prefs.moyStats = ['moyenne']`);
+  const avec = evObj(`_moyFeuilleHTML(S.classes['5C'])`).html;
+  const sans = evObj(`_moyFeuilleHTML(S.classes['5C'], { delta: false })`).html;
+  const corps = h => h.slice(h.indexOf('<tbody>'), h.indexOf('</tbody>'));
+  assert.ok(/<small>[+−-]/.test(corps(avec)), 'par défaut : l\'évolution sous chaque moyenne');
+  assert.ok(avec.includes('évolution depuis le'), 'et dite au sous-titre');
+  assert.ok(!corps(sans).includes('<small>'), 'décochée : aucune évolution dans le tableau');
+  assert.ok(!sans.includes('évolution depuis le'), 'ni au sous-titre');
+  assert.strictEqual(corps(sans).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').length < corps(avec).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').length, true);
+  // La fenêtre porte la case, relue au rafraîchissement.
+  const SRC = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  assert.match(SRC, /id="mmoyp-delta"/);
+  assert.match(SRC, /_moyFeuilleHTML\(cls, \{ delta: _moyPrintDelta \}\)/);
+});
