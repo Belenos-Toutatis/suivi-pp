@@ -875,6 +875,10 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
   border: 1px solid var(--rule-line);
 }
 .tagpick input { width: 13px; height: 13px; margin: 0; }
+.struct-mots { display: flex; flex-wrap: wrap; gap: 4px; max-height: 150px; overflow-y: auto; }
+.struct-mots .tagpick { background: var(--paper-warm); font-weight: 500; }
+.struct-mots .tagpick small { color: var(--pencil); font-weight: 400; }
+.struct-out { width: 100%; font: .78em/1.45 var(--font-mono); white-space: pre; overflow: auto; min-height: 160px; max-height: 40vh; }
 
 /* Colonne du mappage d'import */
 .imp-col {
@@ -2545,6 +2549,32 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
+<!-- ═══════════════ Décrire un fichier sans ses données (v1.57.0) ═══════════════ -->
+<div id="mstruct" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:980px;width:100%">
+    <h2>🔍 Décrire un fichier sans ses données</h2>
+    <div class="al al-i" style="margin-bottom:10px">Pour faire connaître la FORME d'un fichier (un récapitulatif PDF de Mon Bureau Numérique, un tableau d'une fiche élève) sans en montrer le contenu. Tout se passe sur cet ordinateur : le fichier n'est envoyé nulle part. Le résultat garde la mise en page — lignes, colonnes, positions en millimètres, tailles de texte — mais chaque lettre y devient X ou x et chaque chiffre 9, sauf les mots cochés plus bas. <strong>Relisez le résultat avant de le transmettre : aucun nom ni aucun texte sur un élève ne doit y rester en clair.</strong></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <input type="file" id="struct-file" accept="application/pdf,.pdf" data-autofocus onchange="_structFichier(this.files[0])" aria-label="Fichier PDF à décrire" style="max-width:100%">
+      <label for="struct-pages" style="font-size:.88em">Pages décrites</label>
+      <select id="struct-pages" onchange="_structRender()" style="max-width:100%">
+        <option value="1">la première</option><option value="2" selected>les 2 premières</option><option value="3">les 3 premières</option><option value="9999">toutes</option>
+      </select>
+      <span id="struct-status" class="tb-hint"></span>
+    </div>
+    <div class="fg"><label for="struct-txt">… ou un tableau copié dans une page (sélectionnez-le, Ctrl+C, puis collez-le ici)</label>
+      <textarea id="struct-txt" rows="2" placeholder="Collez ici" oninput="_structColle(this.value)" style="width:100%"></textarea></div>
+    <div class="fg"><label>Mots laissés en clair — cochez seulement ce qui n'est PAS une donnée d'élève (titres de colonnes, types, motifs)</label>
+      <div id="struct-mots" class="struct-mots"></div></div>
+    <div class="fg"><label for="struct-out">Le résultat, à relire puis à copier</label>
+      <textarea id="struct-out" class="struct-out" rows="12" readonly wrap="off" spellcheck="false"></textarea></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mstruct')">Fermer</button>
+      <button class="btn btn-p" onclick="structCopier()">📋 Copier le résultat</button>
+    </div>
+  </div>
+</div>
+
 <div id="mpdf" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:960px;width:100%;height:min(92vh,900px);display:flex;flex-direction:column">
     <h2 id="mpdf-title" style="flex:none">📎 PDF</h2>
@@ -3020,8 +3050,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.56.0';
-const APP_BUILD_DATE = '2026-10-06T22:29:40Z';
+const APP_VERSION    = '1.57.0';
+const APP_BUILD_DATE = '2026-10-09T05:30:14Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4243,6 +4273,7 @@ function _renderDonneesInner(el) {
       ${imp('📈', 'Moyennes (bureau numérique)', 'export des moyennes (.csv)', 'dans Moyennes', b('openMoyImport()', '📥 Importer…'))}
       ${imp('🗣', 'Avis des collègues', 'la feuille .ods du Nuage, relue', 'dans Avis des collègues', b("switchTab('avis')", 'Ouvrir l\'onglet'))}
       ${imp('⬆', 'Sauvegarde complète', 'fichier .json exporté par l\'app : REMPLACE tout après confirmation (Ctrl+Z annule)', '', b("document.getElementById('imp-file').click()", '📥 Importer…'))}
+      ${imp('🔍', 'Décrire un fichier sans ses données', 'un PDF ou un tableau collé : la mise en page reste, les lettres deviennent X et les chiffres 9 — pour faire connaître un format sans le montrer', '', b('openStructure()', '🔍 Ouvrir…'))}
       ${imp('🩹', 'Récupérer des dates', 'une ancienne sauvegarde .json : remplit seulement les naissances, arrivées, départs et civilités vides', '', b("document.getElementById('imp-file-recup').click()", '📥 Importer…'))}
     </div>
     <h3 style="margin-bottom:10px">⚙ Réglages</h3>
@@ -18569,10 +18600,41 @@ async function _pdfStreamBytes(doc, o, keepDct) {
   for (const f of filters) {
     const name = _pdfGet(doc, f);
     if (name === 'FlateDecode' || name === 'Fl') bytes = await _pdfInflate(bytes);
+    else if (name === 'ASCII85Decode' || name === 'A85') bytes = _pdfA85(bytes);
+    else if (name === 'ASCIIHexDecode' || name === 'AHx') bytes = _pdfAHx(bytes);
     else if (name === 'DCTDecode' || name === 'DCT') { if (keepDct) return bytes; }
     else throw new Error('Filtre non pris en charge : ' + name);
   }
   return bytes;
+}
+// Deux filtres texte (v1.57.0) : certains générateurs (ReportLab…) les posent devant FlateDecode.
+function _pdfA85(u8) {
+  const out = [];
+  let grp = [], i = 0;
+  const pousse = n => { let v = 0; for (let k = 0; k < 5; k++) v = v * 85 + (grp[k] ?? 84); for (let k = 3; k >= 4 - n; k--) out.push((v >>> (8 * k)) & 255); };
+  if (u8[0] === 0x3C && u8[1] === 0x7E) i = 2;                     // « <~ » facultatif
+  for (; i < u8.length; i++) {
+    const c = u8[i];
+    if (c === 0x7E) break;                                          // « ~> » : fin
+    if (c <= 32) continue;
+    if (c === 0x7A && !grp.length) { out.push(0, 0, 0, 0); continue; }   // « z » = quatre zéros
+    grp.push(c - 33);
+    if (grp.length === 5) { pousse(4); grp = []; }
+  }
+  if (grp.length > 1) pousse(grp.length - 1);
+  return new Uint8Array(out);
+}
+function _pdfAHx(u8) {
+  const out = [];
+  let hi = -1;
+  for (const c of u8) {
+    if (c === 0x3E) break;                                          // « > » : fin
+    const v = c >= 48 && c <= 57 ? c - 48 : c >= 65 && c <= 70 ? c - 55 : c >= 97 && c <= 102 ? c - 87 : -1;
+    if (v < 0) continue;
+    if (hi < 0) hi = v; else { out.push(hi * 16 + v); hi = -1; }
+  }
+  if (hi >= 0) out.push(hi * 16);
+  return new Uint8Array(out);
 }
 
 // ─── Polices : décodage du texte et largeurs ─────────────────────────────────
@@ -18621,7 +18683,11 @@ async function _pdfFont(doc, ref, cache) {
     f.w = c => wm.has(c) ? wm.get(c) : dw;
   } else {
     const first = d.FirstChar || 0, ws = _pdfGet(doc, d.Widths) || [];
-    f.w = c => { const v = _pdfGet(doc, ws[c - first]); return typeof v === 'number' ? v : 500; };
+    // Sans /Widths (une des 14 polices standard, Helvetica…) : une chasse approchée par sorte de
+    // caractère plutôt que 500 partout — sinon les fins de mots débordent sur la colonne voisine et
+    // deux cases d'un tableau se lisent comme une seule (v1.57.0).
+    const approx = c => c === 32 ? 278 : c >= 65 && c <= 90 ? 667 : c >= 48 && c <= 57 ? 556 : /[ijlt.,;:'!|]/.test(String.fromCharCode(c)) ? 278 : c >= 192 && c <= 222 ? 667 : 500;
+    f.w = c => { const v = _pdfGet(doc, ws[c - first]); return typeof v === 'number' ? v : ws.length ? 500 : approx(c); };
   }
   if (key != null) cache.set(key, f);
   return f;
@@ -18765,8 +18831,10 @@ async function _pdfScanPage(doc, page, fontCache) {
 }
 
 // Regroupe des glyphes en lignes : même ligne de base, puis coupure aux grands blancs.
-// Un blanc de plus de ~0,2 corps entre deux glyphes devient une espace.
-function _trombiLines(glyphs) {
+// Un blanc de plus de ~0,2 corps entre deux glyphes devient une espace. `coupe` : le blanc (en
+// corps) au-delà duquel on change de segment — 1,2 pour les noms du trombinoscope, moins pour
+// séparer les cases d'un tableau (outil « Décrire un fichier », v1.57.0).
+function _trombiLines(glyphs, coupe = 1.2) {
   const gs = glyphs.filter(g => g.ch !== '' && g.size > 0).slice().sort((a, b) => b.y - a.y || a.x - b.x);
   const rows = [];
   for (const g of gs) {
@@ -18778,7 +18846,7 @@ function _trombiLines(glyphs) {
     r.gs.sort((a, b) => a.x - b.x);
     let cur = null;
     for (const g of r.gs) {
-      if (cur && g.x - cur.x2 > g.size * 1.2) { lines.push(cur); cur = null; }
+      if (cur && g.x - cur.x2 > g.size * coupe) { lines.push(cur); cur = null; }
       if (!cur) cur = { y: r.y, x: g.x, x2: g.x2, size: g.size, text: '' };
       else if (g.x - cur.x2 > g.size * 0.18 && !/\s$/.test(cur.text) && g.ch !== ' ') cur.text += ' ';
       cur.text += g.ch;
@@ -18789,6 +18857,114 @@ function _trombiLines(glyphs) {
   }
   lines.forEach(l => { l.text = l.text.replace(/\s+/g, ' ').trim(); });
   return lines.filter(l => l.text);
+}
+
+// ── Décrire un fichier sans ses données (v1.57.0) ──
+// L'utilisateur, le 2026-10-09 : l'export .xlsx des observations demande des droits d'admin qu'il
+// va perdre ; les mêmes informations existent dans un récapitulatif PDF de MBN et dans un tableau de
+// chaque fiche élève. Pour en écrire la lecture sans voir de données d'élèves (« il faut un outil
+// qui permette que je t'indique quoi figure où »), l'app décrit le fichier SUR LE POSTE : la mise en
+// page (lignes, colonnes en mm, tailles), chaque lettre en X / x et chaque chiffre en 9, sauf les mots
+// que l'utilisateur coche (les mots courants des en-têtes le sont d'office). Rien n'est gardé dans S.
+const STRUCT_MOTS_COURANTS = new Set(`a au aux avec bilan classe commentaire commentaires complementaire complementaires cours
+  d de debut demandeur des donnee donnees du duree e edite edition eleve eleves en et exclusion exclusions fin heure heures
+  incident incidents informations journee journees justifie justifiee justifiees justifies l la le les motif motifs
+  nombre non observation observations oui page par periode pour professeur principal punition punitions recapitulatif
+  retard retards retenue retenues s sanction sanctions saisi saisie scolaire semestre statut sur total totaux trimestre
+  type types vie absence absences annee date dates matiere matieres regle regles regularise regularisee`.split(/\s+/).filter(Boolean));
+const _structNorm = w => String(w || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// PUR : le texte masqué — lettres en X / x, chiffres en 9, ponctuation et espaces gardés ; un mot
+// dont la forme normalisée est dans `garder` reste en clair.
+function _structMasque(txt, garder) {
+  return String(txt || '').replace(/\p{L}+|\p{N}/gu, t => /^\p{N}$/u.test(t) ? '9'
+    : garder && garder.has(_structNorm(t)) ? t : t.replace(/\p{L}/gu, c => /\p{Lu}/u.test(c) ? 'X' : 'x'));
+}
+// PUR : les mots rencontrés, du plus fréquent au plus rare (un mot = une suite de lettres).
+function _structMots(textes) {
+  const m = new Map();
+  for (const t of textes) for (const w of String(t || '').match(/\p{L}+/gu) || []) {
+    const k = _structNorm(w), e = m.get(k) || { k, w, n: 0 };
+    e.n++; m.set(k, e);
+  }
+  return [...m.values()].sort((a, b) => b.n - a.n || a.k.localeCompare(b.k));
+}
+// PUR : une page lue → ses rangées, du haut vers le bas, chaque segment à sa position (mm depuis le
+// bord gauche) avec sa taille de texte. Pages : [{ w, h, x0, y1, images, lines: _trombiLines(…) }].
+function _structPdfTexte(pages, garder, max) {
+  const mm = v => Math.round(v * 25.4 / 72);
+  const out = [`PDF : ${pages.length} page${pages.length > 1 ? 's' : ''}${pages.length > max ? ` — ${max} décrite${max > 1 ? 's' : ''}` : ''}`];
+  pages.slice(0, max).forEach((p, i) => {
+    out.push('', `— Page ${i + 1} — ${mm(p.w)} × ${mm(p.h)} mm${p.images ? ` · ${p.images} image${p.images > 1 ? 's' : ''}` : ''}${p.lines.length ? '' : ' · AUCUN TEXTE LISIBLE (page scannée ?)'}`);
+    const rows = [];
+    for (const l of p.lines) {
+      const y = mm(p.y1 - l.y);
+      let r = rows.find(x => Math.abs(x.y - y) <= 1);
+      if (!r) rows.push(r = { y, ls: [] });
+      r.ls.push(l);
+    }
+    rows.sort((a, b) => a.y - b.y).forEach(r => out.push(`${String(r.y).padStart(4)} mm │ ` + r.ls.sort((a, b) => a.x - b.x)
+      .map(l => `${mm(l.x - p.x0)}: ${_structMasque(l.text, garder)} (${Math.round(l.size)} pt)`).join(' │ ')));
+  });
+  return out.join('\n');
+}
+// PUR : un tableau collé, ligne par ligne ; une tabulation (changement de colonne) devient « ⇥ ».
+function _structColleTexte(txt, garder) {
+  const ls = String(txt || '').replace(/\r/g, '').replace(/\n+$/, '').split('\n');
+  return [`Texte collé : ${ls.length} ligne${ls.length > 1 ? 's' : ''} (⇥ = changement de colonne)`, '']
+    .concat(ls.map(l => _structMasque(l, garder).replace(/\t/g, ' ⇥ '))).join('\n');
+}
+let _struct = null;   // { pdf: [pages] | null, texte, garder: Set } — de séance, oublié à la fermeture
+function openStructure() {
+  _struct = { pdf: null, texte: '', garder: new Set(STRUCT_MOTS_COURANTS) };
+  const f = document.getElementById('struct-file'); if (f) f.value = '';
+  const t = document.getElementById('struct-txt'); if (t) t.value = '';
+  document.getElementById('struct-status').textContent = '';
+  _structRender();
+  openMod('mstruct');
+  _modalReturnTo['mstruct'] = () => { _struct = null; };
+}
+async function _structFichier(file) {
+  if (!file || !_struct) return;
+  const st = document.getElementById('struct-status');
+  st.textContent = '⏳ Lecture du PDF…';
+  try {
+    const doc = await _pdfOpen(new Uint8Array(await file.arrayBuffer()));
+    const pages = _pdfPages(doc), fc = new Map(), lues = [];
+    for (const p of pages) {
+      const { glyphs, images } = await _pdfScanPage(doc, p, fc);
+      const [x0, y0, x1, y1] = p.mb.map(Number);
+      lues.push({ w: x1 - x0, h: y1 - y0, x0, y1, images: images.length, lines: _trombiLines(glyphs, 0.6) });
+    }
+    _struct.pdf = lues; _struct.texte = '';
+    document.getElementById('struct-txt').value = '';
+    st.textContent = `${lues.length} page${lues.length > 1 ? 's' : ''} lue${lues.length > 1 ? 's' : ''}.`;
+  } catch (e) { _struct.pdf = null; st.textContent = `⚠️ ${e.message || e}`; }
+  _structRender();
+}
+function _structColle(v) {
+  if (!_struct) return;
+  _struct.texte = String(v || '');
+  if (_struct.texte.trim()) { _struct.pdf = null; document.getElementById('struct-file').value = ''; document.getElementById('struct-status').textContent = ''; }
+  _structRender();
+}
+function structMotUI(k, on) { if (!_struct) return; if (on) _struct.garder.add(k); else _struct.garder.delete(k); _structRender(true); }
+function _structRender(motsSeuls) {
+  const out = document.getElementById('struct-out'), box = document.getElementById('struct-mots');
+  if (!_struct || !out || !box) return;
+  const max = +document.getElementById('struct-pages').value || 2;
+  const textes = _struct.pdf ? _struct.pdf.slice(0, max).flatMap(p => p.lines.map(l => l.text)) : _struct.texte ? [_struct.texte] : [];
+  out.value = _struct.pdf ? _structPdfTexte(_struct.pdf, _struct.garder, max) : _struct.texte.trim() ? _structColleTexte(_struct.texte, _struct.garder) : '';
+  if (motsSeuls) return;
+  const mots = _structMots(textes);
+  box.innerHTML = !mots.length ? '<span class="tb-hint">Choisissez un PDF ou collez un tableau : ses mots apparaîtront ici.</span>'
+    : mots.slice(0, 300).map(m => `<label class="tagpick"><input type="checkbox"${_struct.garder.has(m.k) ? ' checked' : ''} onchange="structMotUI('${_escJsAttr(m.k)}', this.checked)"> ${_escName(m.w)} <small>${m.n}</small></label>`).join('')
+      + (mots.length > 300 ? `<span class="tb-hint">… et ${mots.length - 300} autres, masqués.</span>` : '');
+}
+async function structCopier() {
+  const ta = document.getElementById('struct-out');
+  if (!ta?.value) return toast('⚠️ Rien à copier : choisissez un PDF ou collez un tableau.', 'warn');
+  try { await navigator.clipboard.writeText(ta.value); toast('📋 Résultat copié — relisez-le avant de le transmettre.'); }
+  catch (_) { ta.focus(); ta.select(); toast('Sélectionné — Ctrl+C pour copier.', 'info'); }
 }
 
 // Lit le thrombinoscope : en-tête + une entrée par photo, avec le nom écrit dessous.

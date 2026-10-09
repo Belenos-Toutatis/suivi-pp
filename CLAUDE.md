@@ -331,6 +331,16 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   le champ n'est jamais créé d'office. Rien à purger à part : il part avec l'élève.
   Démo : onze observations MBN sur cinq élèves.
 
+- ⚠️ **L'export .xlsx demande des droits d'administrateur** (remonté le 2026-10-09 : l'utilisateur
+  l'obtient grâce à des droits qu'il va perdre, et sa session ordinaire ne le propose pas). Ce que
+  la session ordinaire montre : un tableau *Observations* dans chaque fiche élève (onglet de la vie
+  scolaire, un élève à la fois), et un **récapitulatif PDF** de la classe (absences, retards,
+  observations, punitions). Pour en écrire la lecture SANS voir de données d'élèves : l'outil
+  **🔍 Décrire un fichier sans ses données** (v1.57.0, 💾 Données ▸ Imports) — l'utilisateur y
+  dépose le PDF ou colle le tableau, relit la description masquée et la transmet. ⚠️ **Ne jamais
+  demander le fichier lui-même**, ni une capture : la description masquée suffit à écrire un
+  lecteur, et une fixture INVENTÉE (même mise en page, noms fictifs) sert aux tests.
+
 ### Documents — un même papier porte plusieurs réponses
 
 Le cas Devoirs Faits est le plus simple : `suiviRetour: true` + un champ `choix` à trois options `OUI / NON / ULYSS`. ⚠️ **Trois, pas deux** : le tableur réel porte cette troisième valeur (dispositif alternatif). Un booléen « participe » aurait été trop étroit — d'où le choix unique paramétrable dès la v1.
@@ -2344,6 +2354,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 147 | **🔍 Décrire un fichier sans ses données** (💾 Données ▸ Imports, fenêtre `mstruct`) : un PDF ou un tableau collé, décrit sur le poste — rangées en mm, colonnes, tailles ; lettres en X / x, chiffres en 9, sauf les mots cochés (`STRUCT_MOTS_COURANTS` d'office) ; rien dans `S`, oublié à la fermeture (`_structMasque`, `_structMots`, `_structPdfTexte`, `_structColleTexte`) · lecteur PDF : filtres **ASCII85** et **ASCIIHex**, chasse approchée des polices standard sans /Widths, `_trombiLines(glyphs, coupe)` ; 5 tests (`test/structure.test.js`, fixture inventée `recap-invente.pdf`). Audit 2 thèmes, 1 400 et 320 px, 0 défaut | ✅ **fait** (2026-10-09, v1.57.0) |
 | 146 | **Moyennes imprimées sans l'évolution, au choix** : case *Imprimer l'évolution depuis l'import précédent* dans `mmoyprint` (cochée par défaut, réglage de séance `_moyPrintDelta`, absente au premier import d'une période et en vue Évolution), `_moyFeuilleHTML(cls, { delta })` ; l'écran garde l'évolution ; 1 test. Vérifié dans le navigateur (feuille sans aucun écart, 186 avec), audit de la fenêtre 2 thèmes, 0 défaut | ✅ **fait** (2026-10-07, v1.56.0) |
 | 145 | **Audit du 2026-10-06 (second poste)** : parcours rejoué (67 états × 2 thèmes à 1 570 px avec les 12 feuilles, 67 × 2 à 320 px — ≈ 143 000 nœuds, 0 défaut, 0 erreur JS) et relecture du code v1.54 → v1.55.10. Corrigé : **le compte d'une discipline dans une feuille d'avis** ne porte plus que sur les élèves de la feuille (`_avisCompte(camp, sids)`) — un élève hors de la feuille faisait un lien vers « aucun avis » · **le nom tapé d'une nouvelle feuille** est oublié au changement de classe (`switchClass`) · corriger un contact par des espaces seulement n'empile plus de Ctrl+Z vide · **après « ✓ Rendu »**, le focus passe au papier suivant (`_appDialogMaj`) ; 4 tests (`test/audit-v15511.test.js`, vérifiés en échec sur la v1.55.10) | ✅ **fait** (2026-10-06, v1.55.11) |
 | 144 | **Menu « ✍️ nom écrit » : le rôle de l'élève est dit** (« — président du bureau », « — assesseur », par `_elRoleLabel`), sans l'écarter : on ne refuse pas de compter un bulletin qui porte son nom (audit du 2026-10-06, point 6, arbitré par l'utilisateur) ; 1 test, vérifié en échec sur la v1.55.9. Audit Vie de classe 2 thèmes, 1 265 et 320 px, PV compris, 0 défaut | ✅ **fait** (2026-10-06, v1.55.10) |
