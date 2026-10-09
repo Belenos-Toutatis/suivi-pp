@@ -3081,8 +3081,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.58.0';
-const APP_BUILD_DATE = '2026-10-09T06:24:09Z';
+const APP_VERSION    = '1.58.1';
+const APP_BUILD_DATE = '2026-10-09T06:37:08Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -6202,8 +6202,16 @@ function _recapLire(pages) {
     }
     rows.sort((a, b) => a.y - b.y).forEach(r => r.segs.sort((a, b) => a.x - b.x));
     const tete = rows.find(r => r.y < 16 && r.segs.some(x => x.size >= 10.5 && x.x > 20));
-    if (tete) {
-      cur = { nom: tete.segs.find(x => x.size >= 10.5 && x.x > 20).text, page: pi + 1, naissance: null, classe: '', groupes: [], regime: '', sortie: '', sections: [] };
+    // Un élève sur plusieurs pages (v1.58.1) : une page SANS en-tête est la suite du précédent ; une
+    // page dont l'en-tête REDIT le même nom aussi — on saute alors ce qu'elle répète (identité,
+    // résumé, semaine) jusqu'à ce qui continue : un titre de section, la ligne des en-têtes de
+    // colonnes, ou une rangée qui commence par une date (« Le 02/10/2025… », « 9 oct. 2025 »).
+    const nomTete = tete ? tete.segs.find(x => x.size >= 10.5 && x.x > 20).text : null;
+    let saute = false;
+    const sautees = [];
+    if (tete && cur && _moyNameKey(nomTete) === _moyNameKey(cur.nom)) saute = true;
+    else if (tete) {
+      cur = { nom: nomTete, page: pi + 1, naissance: null, classe: '', groupes: [], regime: '', sortie: '', sections: [] };
       eleves.push(cur); sect = null;
     }
     if (!cur) return;
@@ -6211,8 +6219,16 @@ function _recapLire(pages) {
       if (r === tete) return;
       const t0 = r.segs[0].text, n0 = _structNorm(t0), tout = r.segs.map(x => x.text).join(' ');
       if (r.segs.length === 1 && r.segs[0].x < 12 && r.segs[0].size >= 7.6 && _RECAP_SECTIONS[n0]) {
-        sect = { kind: _RECAP_SECTIONS[n0], rows: [] }; cur.sections.push(sect); return;
+        sect = { kind: _RECAP_SECTIONS[n0], rows: [] }; cur.sections.push(sect); saute = false; return;
       }
+      if (saute && r.segs[0].x < 12 && (/^(le|du|recurrence du) \d{1,2}\//.test(n0) || /^\d{1,2}(er)? [a-z]+\.? \d{4}/.test(n0)
+        || (r.segs.filter(x => _recapColCle(x.text)).length >= 2 && !/\d/.test(tout)))) {
+        saute = false;
+        // Les rangées sautées juste au-dessus appartiennent à la même ligne (« Séances » au-dessus
+        // d'« impactées », la première ligne d'un motif) : elles reviennent.
+        if (sect) for (const q of sautees.filter(q => q.y >= r.y - 4.2)) sect.rows.push({ y: pi * 400 + q.y, segs: q.segs });
+      }
+      if (saute) { sautees.push(r); return; }
       if (sect) { sect.rows.push({ y: pi * 400 + r.y, segs: r.segs }); return; }
       let m;
       if (!cur.naissance && (m = /\d+\s*ans\s*-\s*(\d{1,2}\/\d{1,2}\/\d{4})/.exec(tout))) cur.naissance = _recapDmy(m[1]);
@@ -7077,12 +7093,14 @@ function _chaleurGroupes(cls, bcols, colM) {
   const parMois = (key, label, liste, cl, fmt, clic) => {
     // `clic.fn(sid, début, fin, libellé)` : la case sait sur quelles dates elle compte (le mois borné
     // au moment, ou tout le moment pour le Total) — les incidents s'en servent (v1.55.3).
-    const sum = sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? cl : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n') + (clic ? (x.length ? '\n' : '') + clic.tip : ''), clic ? clic.fn(sid, p.start, p.end, nomM) : null]; };
+    // `cl` : une classe, ou une fonction des entrées de la case (absences : rouge s'il y a du non valable).
+    const kl = x => typeof cl === 'function' ? cl(x) : cl;
+    const sum = sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? kl(x) : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n') + (clic ? (x.length ? '\n' : '') + clic.tip : ''), clic ? clic.fn(sid, p.start, p.end, nomM) : null]; };
     G.push({ key, label, sub: [...mois.map(([id, l]) => ({ id, l, long: l })), ...(clic ? [{ id: '__tot', l: 'Total', long: `Total ${nomM}` }] : [])],
       cell: (sid, ym) => { if (ym === '__tot') return sum(sid);
         const x = liste(sid).filter(e => dansM(e) && String(e.date).startsWith(ym));
         const a = `${ym}-01` > p.start ? `${ym}-01` : p.start, b = `${ym}-31` < p.end ? `${ym}-31` : p.end, lm = `${AVIS_MOIS[+ym.slice(5, 7) - 1] || ym} ${ym.slice(0, 4)}`;
-        return x.length ? [cl, String(x.length), x.map(fmt).join('\n') + (clic ? '\n' + clic.tip : ''), clic ? clic.fn(sid, a, b, lm) : null] : ['ch-no', '', clic ? clic.tipVide || clic.tip : '', clic ? clic.fn(sid, a, b, lm) : null]; },
+        return x.length ? [kl(x), String(x.length), x.map(fmt).join('\n') + (clic ? '\n' + clic.tip : ''), clic ? clic.fn(sid, a, b, lm) : null] : ['ch-no', '', clic ? clic.tipVide || clic.tip : '', clic ? clic.fn(sid, a, b, lm) : null]; },
       sum });
   };
   parMois('inc', 'Incidents', sid => (S.eleves[sid]?.incidents || []).filter(_isPlainObj), 'ch-inc', e => `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label} : ${e.objet || ''}`,
@@ -7091,6 +7109,13 @@ function _chaleurGroupes(cls, bcols, colM) {
   parMois('ct', 'Contacts', sid => (S.eleves[sid]?.journal || []).filter(_isPlainObj), 'ch-ct', e => `${_fmtDateFr(e.date)} — ${_journalType(e.type).label} : ${e.texte || ''}`,
     { fn: (sid, a, b, lab) => `chaleurContactsUI('${_escJsAttr(sid)}','${_escJsAttr(a)}','${_escJsAttr(b)}','${_escJsAttr(lab)}')`,
       tip: 'Clic : lire ces contacts, en corriger un, en noter un nouveau', tipVide: 'Clic : noter un contact' });
+  // Absences et retards (v1.58.1, l'utilisateur : « intégrer les absences et retards dans la carte
+  // de chaleur ») : lus dans le récapitulatif de MBN, un événement compte dans le mois où il
+  // commence ; rouge s'il y a du non valable. Rien à noter à la main : une case vide ne s'ouvre pas.
+  if (_absMbnClasseAny(cls)) parMois('abs', 'Absences et retards', sid => _absMbnOf(sid).map(e => ({ ...e, date: e.debut })),
+    x => x.some(e => e.valable === false) ? 'ch-inc' : 'ch-ct', _absMbnTexte,
+    { fn: (sid, a, b, lab) => _absMbnResume(sid, a, b).list.length ? `absencesUI('${_escJsAttr(sid)}','${_escJsAttr(a)}','${_escJsAttr(b)}','${_escJsAttr(lab)}')` : null,
+      tip: 'Clic : les voir', tipVide: '' });
   if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: (col && c.key === col.key ? '▶ ' : '') + c.court, long: c.long + (col && c.key === col.key ? ' — le moment choisi' : '') })),
     cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
       const dTxt = dc ? `\nDécisions : ${String(dc.texte).slice(0, 300)}` : '';

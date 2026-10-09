@@ -361,7 +361,10 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   `mrecap` — depuis la fenêtre des observations MBN (*Sans accès à cet export ?*) et 💾 Données ▸
   Imports. Lecture pure : `_recapPages` (le lecteur PDF de l'app, `_trombiLines(…, 0.6)`) →
   `_recapLire` (mm depuis le haut ; un élève par page à en-tête — nom ≥ 10,5 pt dans les 16 premiers
-  mm —, une page sans en-tête est la SUITE du précédent ; une section = un titre SEUL sur sa ligne en
+  mm —, une page sans en-tête est la SUITE du précédent, une page dont l'en-tête REDIT le même nom
+  aussi (v1.58.1 : on saute l'identité, le résumé et la semaine qu'elle répète, jusqu'à un titre de
+  section, une ligne d'en-têtes de colonnes — avec les lignes juste au-dessus, « Séances » sur
+  « impactées » — ou une rangée qui commence par une date) ; une section = un titre SEUL sur sa ligne en
   8 pt ; ses rangées se groupent en événements par l'écart vertical — **< 4,2 mm = le même
   événement** (une case sur deux lignes, au-dessus OU au-dessous du reste), ≥ 5 mm entre deux ; le
   premier paquet sans chiffre = les en-têtes, leurs positions font les colonnes). Dates
@@ -384,7 +387,9 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   · 5 h · 1 ret. », rouge s'il y a du non valable ; clic → la liste, `absencesUI`), seulement quand
   la classe en a ; vues *Préparer le conseil* et *Appeler les familles* (« abs » ne compte pas pour
   reconnaître une vue enregistrée) ; carte *Absences et retards* de la fiche (bornée au moment) ;
-  bloc de la synthèse de période et partie de la fiche imprimée. Calcul pur : `_absMbnResume` (un
+  bloc de la synthèse de période et partie de la fiche imprimée ; **carte de chaleur** (v1.58.1) :
+  groupe *Absences et retards*, un mois par case et un Total, rouge s'il y a du non valable, une
+  case remplie ouvre la liste (une vide ne s'ouvre pas : rien ne se note à la main). Calcul pur : `_absMbnResume` (un
   événement compte dans la période où il commence ; demi-journées NON calculées — elles ne se
   déduisent pas des événements). Démo : dix absences et retards.
   Fixture : `test/fixtures/recap-mbn-invente.pdf`, fabriquée par `scripts/gen_recap_fixture.py` à la
@@ -2404,6 +2409,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 151 | **Absences et retards dans la carte de chaleur** (groupe par mois + Total, rouge s'il y a du non valable, case → la liste ; `parMois` accepte une classe calculée) · **récapitulatif : élève sur deux pages avec l'en-tête REDIT** (même nom = la suite ; l'en-tête répété est sauté jusqu'à un titre de section, une ligne d'en-têtes de colonnes — les lignes juste au-dessus reviennent — ou une rangée datée) ; fixture : deux élèves de plus ; 2 tests, 1 test adapté. Audit Élèves et fiche, 2 thèmes, 1 400 et 320 px, 0 défaut | ✅ **fait** (2026-10-09, v1.58.1) |
 | 150 | **📄 Import du récapitulatif vie scolaire de MBN (PDF)** : observations (reconnues par date + motif), punitions → incidents, **absences et retards** (`stu.absMbn`, mis à jour au réimport), compléments de fiche (champs vides seulement), revue avant application, rattachement manuel ; absences dans les Indicateurs (colonne), la fiche, la synthèse de période, la fiche imprimée ; démo ; fixture inventée à la mise en page relevée ; 6 tests (`test/recap.test.js`). Audit complet : 69 états × 2 thèmes à 1 400 px avec les 12 feuilles (162 mesures), 138 à 320 px, ≈ 149 000 nœuds, 0 défaut — après correction d'un débordement : le volet « 🗓 Moments », poussé hors de l'écran par la puce de plus, se recale contre le bord (`_popRecaler`) | ✅ **fait** (2026-10-09, v1.58.0) |
 | 149 | **Décrire un fichier : la page DESSINÉE et cliquable** (l'utilisateur : *« que l'outil affiche le fichier, que je clique sur les informations et précise le type d'information »*) — chaque texte à sa place (pas les traits ni les images), ◀ ▶ entre les pages décrites ; un clic : *lisible*, *masqué*, *selon les mots cochés*, ou ce qu'il contient (`STRUCT_TYPES` : nom de l'élève, date, motif… ou *Autre…*), transmis « ⟨date : 99/99/9999⟩ » (`_structSeg`) ; *aussi au même endroit sur les autres pages* (coché d'office). Tout reste masqué d'office sauf les mots courants ; 1 test. Audit 2 thèmes, 1 400 et 320 px, dialogue compris, 0 défaut | ✅ **fait** (2026-10-09, v1.57.2) |
 | 148 | **Décrire un fichier : des pages choisies** (« ou les pages n° 5, 8-9 », `_structPagesNums`) — la page d'un élève qui A des observations, pas seulement les premières ; 1 test. Audit 2 thèmes, 1 400 et 320 px, 0 défaut | ✅ **fait** (2026-10-09, v1.57.1) |

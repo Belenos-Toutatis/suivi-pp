@@ -91,5 +91,36 @@ entete('Zoé INCONNUE', '12 ans - 01/01/2013', '5E-GP3', 'EXTERNE LIBRE', 'D1',
 tete_obs(100)
 t(6, 110, '3 oct. 2025'); t(34, 110, 'Bavardage'); t(92, 110, 'Négatif'); t(149, 110, 'BETA Claire')
 pied(1, 1); c.showPage()
+
+# ── 5. Inès FAURE : deux pages, l'en-tête REDIT en page 2, le tableau des absences continue
+#       directement par une rangée (sans ses en-têtes de colonnes) ──
+def semaine():
+    for x, j in zip((6, 46, 86, 126, 166), ('Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi')): t(x, 113, j, 8)
+    t(6, 118, 'AB (M1) - 15 sept.', 6); t(46, 118, 'Aucun évènement', 6)
+ENT5 = ('Inès FAURE', '12 ans - 05/05/2013', '5E-GP2', 'EXTERNE LIBRE', 'D1', ('3 demi-j. (9 h)', '1 retard', '0 observation', '0 punition', '0 dispense'))
+entete(*ENT5); semaine()
+tete_abs(137, 'Absences')
+ligne_abs(153, ('Le 15/09/2025, de 08:00 à 12:00', 'Oui', 'Raison de santé', 'Oui', '4', '4 h', 'Oui'))
+pied(1, 2); c.showPage()
+entete(*ENT5); semaine()
+ligne_abs(130, ('Le 06/10/2025, de 13:30 à 17:00', 'Non', 'Raison de santé', 'Oui', '3', '3 h 30 min', 'Oui'))
+tete_abs(140, 'Retards')
+ligne_abs(156, ('Le 07/10/2025, de 08:00 à 08:10', 'Oui', 'Problèmes de transport', 'Oui', '1', '10 min', 'Oui'))
+pied(2, 2); c.showPage()
+
+# ── 6. Hugo PETIT : deux pages, l'en-tête redit, et le tableau reprend par ses en-têtes de colonnes ──
+ENT6 = ('Hugo PETIT', '13 ans - 20/12/2012', '5E-GP1', "DEMI-PENSIONNAIRE DANS L'ETABLISSEMENT", 'D2', ('2 demi-j. (6 h)', '0 retard', '1 observation', '0 punition', '0 dispense'))
+entete(*ENT6); semaine()
+tete_abs(137, 'Absences')
+ligne_abs(153, ('Le 16/09/2025, de 08:00 à 11:00', 'Oui', 'Rendez-vous médical', 'Oui', '3', '3 h', 'Oui'))
+pied(1, 2); c.showPage()
+entete(*ENT6); semaine()
+t(143, 127, 'Séances'); t(164, 127, 'Durée de')
+for x, s_ in zip((6, 53, 74, 121, 143, 164, 185), ('Période', 'Régularisé', 'Motif', 'Valable', 'impactées', 'séances', 'Comptabilisé')): t(x, 130, s_)
+t(164, 133, 'manquées')
+ligne_abs(139, ('Le 30/09/2025, de 14:00 à 17:00', 'Non', 'Raison de santé', 'Non', '3', '3 h', 'Oui'))
+tete_obs(150)
+t(6, 160, '8 oct. 2025'); t(34, 160, 'Bavardage'); t(92, 160, 'Négatif'); t(149, 160, 'BETA Claire')
+pied(2, 2); c.showPage()
 c.save()
 print(OUT)

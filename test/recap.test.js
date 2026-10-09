@@ -29,7 +29,8 @@ test('dates et périodes du récapitulatif : mois abrégés, « 1er », « Le �
 test('lecture : un élève par page (la suite sans en-tête rattachée), cases sur deux lignes, dispenses écartées', async () => {
   const lu = await LIRE();
   assert.deepStrictEqual(lu.periode, { a: '2025-09-01', b: '2025-10-09' });
-  assert.deepStrictEqual(lu.eleves.map(e => [e.nom, e.page]), [['Noé MARTIN', 1], ['Léa DUPONT', 2], ['Jean-Marc DE LA TOUR', 4], ['Zoé INCONNUE', 5]]);
+  assert.deepStrictEqual(lu.eleves.map(e => [e.nom, e.page]), [['Noé MARTIN', 1], ['Léa DUPONT', 2], ['Jean-Marc DE LA TOUR', 4], ['Zoé INCONNUE', 5], ['Inès FAURE', 6], ['Hugo PETIT', 8]],
+    'un en-tête qui redit le même nom en page 2 ne crée pas un second élève');
   const [noe, lea, jm] = lu.eleves;
   assert.strictEqual(noe.naissance, '2013-03-14');
   assert.deepStrictEqual([noe.regime, noe.sortie, noe.groupes], ["DEMI-PENSIONNAIRE DANS L'ETABLISSEMENT", 'D2', ['5DE-CATHO', '5E-GP2']]);
@@ -107,4 +108,29 @@ test('absences : le compte d\'une période, la colonne seulement quand la classe
   // Une entrée abîmée est écartée au chargement.
   ev(`(() => { const s = S.eleves[getCls().eleves[0]]; s.absMbn = [{ kind: 'absence', debut: '2025-09-01' }, { kind: 'zzz', debut: '2025-09-01' }, 'x', { kind: 'retard', debut: 'n/a' }]; postLoadHook(); })()`);
   assert.strictEqual(ev(`S.eleves[getCls().eleves[0]].absMbn.length`), 1);
+});
+
+test('élève sur deux pages, en-tête redit : le tableau continue par une rangée ou par ses en-têtes de colonnes, rien n\'est lu dans l\'en-tête répété', async () => {
+  const lu = await LIRE();
+  const ines = lu.eleves.find(e => e.nom === 'Inès FAURE'), hugo = lu.eleves.find(e => e.nom === 'Hugo PETIT');
+  assert.deepStrictEqual(ines.absences.map(a => [a.kind, a.debut, a.duree, a.seances]), [['absence', '2025-09-15', 240, 4], ['absence', '2025-10-06', 210, 3], ['retard', '2025-10-07', 10, 1]]);
+  assert.deepStrictEqual(hugo.absences.map(a => [a.debut, a.duree, a.seances, a.valable]), [['2025-09-16', 180, 3, true], ['2025-09-30', 180, 3, false]],
+    '« Séances / impactées » et « Durée de / séances / manquées » reconstitués au-dessus de la reprise');
+  assert.deepStrictEqual(hugo.observations.map(o => o.date), ['2025-10-08']);
+  assert.deepStrictEqual([ines.illisibles, hugo.illisibles], [0, 0]);
+});
+
+test('carte de chaleur : un groupe « Absences et retards » par mois, rouge s\'il y a du non valable, la case ouvre la liste', () => {
+  ev(DEMO);
+  const g = evObj(`(() => { const cls = getCls(); const G = _chaleurGroupes(cls, [], _chaleurMomentsTous(cls).find(c => c.type === 'conseil' && c.pIdx === 0));
+    const a = G.find(x => x.key === 'abs'); if (!a) return null; const sid = cls.eleves[9];
+    const cases = a.sub.map(s => a.cell(sid, s.id)).filter(c => c[1]);
+    return { label: a.label, tot: a.sum(sid).slice(0, 2), cases: cases.map(c => [c[0], c[1], /absencesUI/.test(c[3] || '')]),
+      vide: a.cell(cls.eleves[1], a.sub[0].id)[3] }; })()`);
+  assert.ok(g, 'le groupe existe quand la classe a des absences');
+  assert.strictEqual(g.label, 'Absences et retards');
+  assert.ok(g.cases.length && g.cases.every(c => c[2]), 'une case remplie s\'ouvre sur la liste');
+  assert.strictEqual(g.vide, null, 'une case vide ne s\'ouvre pas : rien à noter à la main');
+  ev(`for (const s of Object.values(S.eleves)) delete s.absMbn`);
+  assert.strictEqual(ev(`!!_chaleurGroupes(getCls(), []).find(x => x.key === 'abs')`), false, 'sans absences : pas de groupe');
 });
