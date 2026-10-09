@@ -340,6 +340,17 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   dépose le PDF ou colle le tableau, relit la description masquée et la transmet. ⚠️ **Ne jamais
   demander le fichier lui-même**, ni une capture : la description masquée suffit à écrire un
   lecteur, et une fixture INVENTÉE (même mise en page, noms fictifs) sert aux tests.
+  **Ce qu'on sait du récapitulatif PDF** (description masquée du 2026-10-09, 27 pages pour la
+  classe) : UNE page par élève (pied « Page n sur n » — à voir : un élève sur deux pages répète-t-il
+  l'en-tête ?), A4, une image (la photo) ; nom en 12 pt à x = 33 mm (« Prénom NOM »), « nn ans -
+  jj/mm/aaaa » (naissance), Classe, Groupes (codes Pronote), Régime de ½ pension, Régime de sortie ;
+  « Évènements du j mois aaaa au j mois aaaa » (la période choisie à l'édition — elle borne ce que
+  l'import peut retirer) ; résumé (absences · retards · observations · punitions · dispenses, à
+  46, 86, 126, 166 mm) ; boîtes « Motifs d'observation » (« Motif (n) » ou « Aucune observation »),
+  semaine type, puis un tableau par sorte d'événement (« Retards », « Absences » : Période ·
+  Régularisé · Motif · Valable · Séances impactées · Durée · Comptabilisé ; « Le jj/mm/aaaa, de
+  hh:mm à hh:mm », « Du … au … » sur deux lignes). ⚠️ **Le tableau des OBSERVATIONS n'a pas encore
+  été vu** : les deux pages décrites n'en avaient aucune.
 
 ### Documents — un même papier porte plusieurs réponses
 
@@ -2354,6 +2365,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 148 | **Décrire un fichier : des pages choisies** (« ou les pages n° 5, 8-9 », `_structPagesNums`) — la page d'un élève qui A des observations, pas seulement les premières ; 1 test. Audit 2 thèmes, 1 400 et 320 px, 0 défaut | ✅ **fait** (2026-10-09, v1.57.1) |
 | 147 | **🔍 Décrire un fichier sans ses données** (💾 Données ▸ Imports, fenêtre `mstruct`) : un PDF ou un tableau collé, décrit sur le poste — rangées en mm, colonnes, tailles ; lettres en X / x, chiffres en 9, sauf les mots cochés (`STRUCT_MOTS_COURANTS` d'office) ; rien dans `S`, oublié à la fermeture (`_structMasque`, `_structMots`, `_structPdfTexte`, `_structColleTexte`) · lecteur PDF : filtres **ASCII85** et **ASCIIHex**, chasse approchée des polices standard sans /Widths, `_trombiLines(glyphs, coupe)` ; 5 tests (`test/structure.test.js`, fixture inventée `recap-invente.pdf`). Audit 2 thèmes, 1 400 et 320 px, 0 défaut | ✅ **fait** (2026-10-09, v1.57.0) |
 | 146 | **Moyennes imprimées sans l'évolution, au choix** : case *Imprimer l'évolution depuis l'import précédent* dans `mmoyprint` (cochée par défaut, réglage de séance `_moyPrintDelta`, absente au premier import d'une période et en vue Évolution), `_moyFeuilleHTML(cls, { delta })` ; l'écran garde l'évolution ; 1 test. Vérifié dans le navigateur (feuille sans aucun écart, 186 avec), audit de la fenêtre 2 thèmes, 0 défaut | ✅ **fait** (2026-10-07, v1.56.0) |
 | 145 | **Audit du 2026-10-06 (second poste)** : parcours rejoué (67 états × 2 thèmes à 1 570 px avec les 12 feuilles, 67 × 2 à 320 px — ≈ 143 000 nœuds, 0 défaut, 0 erreur JS) et relecture du code v1.54 → v1.55.10. Corrigé : **le compte d'une discipline dans une feuille d'avis** ne porte plus que sur les élèves de la feuille (`_avisCompte(camp, sids)`) — un élève hors de la feuille faisait un lien vers « aucun avis » · **le nom tapé d'une nouvelle feuille** est oublié au changement de classe (`switchClass`) · corriger un contact par des espaces seulement n'empile plus de Ctrl+Z vide · **après « ✓ Rendu »**, le focus passe au papier suivant (`_appDialogMaj`) ; 4 tests (`test/audit-v15511.test.js`, vérifiés en échec sur la v1.55.10) | ✅ **fait** (2026-10-06, v1.55.11) |

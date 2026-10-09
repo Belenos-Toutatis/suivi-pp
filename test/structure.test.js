@@ -60,3 +60,17 @@ test('lecteur PDF : filtres ASCII85 et ASCIIHex (posés par certains générateu
     [..._pdfA85(new TextEncoder().encode('z~>'))], new TextDecoder().decode(_pdfAHx(new TextEncoder().encode('48 65 6C6c6F>')))])`));
   assert.deepStrictEqual(r, ['Hello World!', [0, 0, 0, 0], 'Hello']);
 });
+
+test('pages choisies : « 5, 8-9 » décrit ces pages-là, dans l\'ordre, et le dit', async () => {
+  assert.deepStrictEqual(JSON.parse(ev(`JSON.stringify([_structPagesNums('5, 8-9'), _structPagesNums('9-8 2'), _structPagesNums('abc'), _structPagesNums('')])`)),
+    [[4, 7, 8], [1, 7, 8], null, null]);
+  sb.__u8 = PDF;
+  const t = await ev(`(async () => {
+    const doc = await _pdfOpen(__u8), pages = _pdfPages(doc), fc = new Map(), lues = [];
+    for (const p of pages) { const { glyphs, images } = await _pdfScanPage(doc, p, fc); const [x0, y0, x1, y1] = p.mb.map(Number);
+      lues.push({ w: x1 - x0, h: y1 - y0, x0, y1, images: images.length, lines: _trombiLines(glyphs, 0.6) }); }
+    return _structPdfTexte(lues, STRUCT_MOTS_COURANTS, [1, 7]);
+  })()`);
+  assert.match(t, /^PDF : 2 pages — 1 décrite/, 'une page qui n\'existe pas est ignorée');
+  assert.ok(t.includes('— Page 2 —') && !t.includes('— Page 1 —'));
+});

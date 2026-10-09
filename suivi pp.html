@@ -2560,6 +2560,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <select id="struct-pages" onchange="_structRender()" style="max-width:100%">
         <option value="1">la première</option><option value="2" selected>les 2 premières</option><option value="3">les 3 premières</option><option value="9999">toutes</option>
       </select>
+      <label for="struct-pnums" style="font-size:.88em">ou les pages n°</label>
+      <input id="struct-pnums" type="text" placeholder="ex. 5, 8-9" oninput="_structRender()" style="width:110px" aria-label="Numéros des pages à décrire">
       <span id="struct-status" class="tb-hint"></span>
     </div>
     <div class="fg"><label for="struct-txt">… ou un tableau copié dans une page (sélectionnez-le, Ctrl+C, puis collez-le ici)</label>
@@ -3050,8 +3052,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.57.0';
-const APP_BUILD_DATE = '2026-10-09T05:30:14Z';
+const APP_VERSION    = '1.57.1';
+const APP_BUILD_DATE = '2026-10-09T05:44:04Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -18892,8 +18894,10 @@ function _structMots(textes) {
 // bord gauche) avec sa taille de texte. Pages : [{ w, h, x0, y1, images, lines: _trombiLines(…) }].
 function _structPdfTexte(pages, garder, max) {
   const mm = v => Math.round(v * 25.4 / 72);
-  const out = [`PDF : ${pages.length} page${pages.length > 1 ? 's' : ''}${pages.length > max ? ` — ${max} décrite${max > 1 ? 's' : ''}` : ''}`];
-  pages.slice(0, max).forEach((p, i) => {
+  // `max` : les N premières pages, ou la liste des numéros voulus (« ou les pages n° 5, 8-9 »).
+  const idx = Array.isArray(max) ? max.filter(i => i >= 0 && i < pages.length) : pages.map((_, i) => i).slice(0, max);
+  const out = [`PDF : ${pages.length} page${pages.length > 1 ? 's' : ''}${idx.length < pages.length ? ` — ${idx.length} décrite${idx.length > 1 ? 's' : ''}` : ''}`];
+  idx.map(i => [pages[i], i]).forEach(([p, i]) => {
     out.push('', `— Page ${i + 1} — ${mm(p.w)} × ${mm(p.h)} mm${p.images ? ` · ${p.images} image${p.images > 1 ? 's' : ''}` : ''}${p.lines.length ? '' : ' · AUCUN TEXTE LISIBLE (page scannée ?)'}`);
     const rows = [];
     for (const l of p.lines) {
@@ -18913,11 +18917,23 @@ function _structColleTexte(txt, garder) {
   return [`Texte collé : ${ls.length} ligne${ls.length > 1 ? 's' : ''} (⇥ = changement de colonne)`, '']
     .concat(ls.map(l => _structMasque(l, garder).replace(/\t/g, ' ⇥ '))).join('\n');
 }
+// PUR : « 5, 8-9 » → [4, 7, 8] (indices) ; rien de lisible → null.
+function _structPagesNums(v) {
+  const out = new Set();
+  for (const part of String(v || '').split(/[,;\s]+/)) {
+    const m = /^(\d+)(?:-(\d+))?$/.exec(part);
+    if (!m) continue;
+    const a = +m[1], b = m[2] ? +m[2] : a;
+    for (let k = Math.min(a, b); k <= Math.max(a, b) && k - Math.min(a, b) < 500; k++) if (k >= 1) out.add(k - 1);
+  }
+  return out.size ? [...out].sort((x, y) => x - y) : null;
+}
 let _struct = null;   // { pdf: [pages] | null, texte, garder: Set } — de séance, oublié à la fermeture
 function openStructure() {
   _struct = { pdf: null, texte: '', garder: new Set(STRUCT_MOTS_COURANTS) };
   const f = document.getElementById('struct-file'); if (f) f.value = '';
   const t = document.getElementById('struct-txt'); if (t) t.value = '';
+  const pn = document.getElementById('struct-pnums'); if (pn) pn.value = '';
   document.getElementById('struct-status').textContent = '';
   _structRender();
   openMod('mstruct');
@@ -18951,8 +18967,9 @@ function structMotUI(k, on) { if (!_struct) return; if (on) _struct.garder.add(k
 function _structRender(motsSeuls) {
   const out = document.getElementById('struct-out'), box = document.getElementById('struct-mots');
   if (!_struct || !out || !box) return;
-  const max = +document.getElementById('struct-pages').value || 2;
-  const textes = _struct.pdf ? _struct.pdf.slice(0, max).flatMap(p => p.lines.map(l => l.text)) : _struct.texte ? [_struct.texte] : [];
+  const max = _structPagesNums(document.getElementById('struct-pnums')?.value) || (+document.getElementById('struct-pages').value || 2);
+  const choisies = !_struct.pdf ? [] : Array.isArray(max) ? max.map(i => _struct.pdf[i]).filter(Boolean) : _struct.pdf.slice(0, max);
+  const textes = _struct.pdf ? choisies.flatMap(p => p.lines.map(l => l.text)) : _struct.texte ? [_struct.texte] : [];
   out.value = _struct.pdf ? _structPdfTexte(_struct.pdf, _struct.garder, max) : _struct.texte.trim() ? _structColleTexte(_struct.texte, _struct.garder) : '';
   if (motsSeuls) return;
   const mots = _structMots(textes);
