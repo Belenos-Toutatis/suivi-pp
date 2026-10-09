@@ -878,6 +878,17 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
 .struct-mots { display: flex; flex-wrap: wrap; gap: 4px; max-height: 150px; overflow-y: auto; }
 .struct-mots .tagpick { background: var(--paper-warm); font-weight: 500; }
 .struct-mots .tagpick small { color: var(--pencil); font-weight: 400; }
+.struct-leg { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; font-size: .82em; }
+.struct-leg .st-seg { position: static; font-size: 1em; padding: 1px 6px; cursor: default; }
+.struct-vue { overflow: auto; max-height: 60vh; border: 1px solid var(--rule-line); border-radius: var(--radius-md); background: var(--paper-deep); padding: 8px; }
+.st-page { position: relative; background: var(--paper); box-shadow: 0 1px 3px rgba(0,0,0,.25); margin: 0 auto; }
+.st-seg { position: absolute; white-space: nowrap; line-height: 1.05; padding: 0 1px; margin: 0; border-radius: 2px; cursor: pointer;
+  font-family: var(--font-sans); color: var(--ink-deep); background: transparent; border: 1px dashed var(--pencil-soft); }
+.st-seg:hover, .st-seg:focus-visible { outline: 2px solid var(--ink-blue, #2b4c7e); outline-offset: 1px; }
+.st-seg.st-clair { border: 1px solid var(--ok-fg); }
+.st-seg.st-masque { background: var(--paper-deep); text-decoration: line-through; border: 1px solid var(--pencil-soft); }
+.st-seg.st-type { background: var(--alert-bg); color: var(--alert-fg); border: 1px solid var(--alert-fg); }
+.struct-types { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .struct-out { width: 100%; font: .78em/1.45 var(--font-mono); white-space: pre; overflow: auto; min-height: 160px; max-height: 40vh; }
 
 /* Colonne du mappage d'import */
@@ -2553,7 +2564,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <div id="mstruct" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:980px;width:100%">
     <h2>🔍 Décrire un fichier sans ses données</h2>
-    <div class="al al-i" style="margin-bottom:10px">Pour faire connaître la FORME d'un fichier (un récapitulatif PDF de Mon Bureau Numérique, un tableau d'une fiche élève) sans en montrer le contenu. Tout se passe sur cet ordinateur : le fichier n'est envoyé nulle part. Le résultat garde la mise en page — lignes, colonnes, positions en millimètres, tailles de texte — mais chaque lettre y devient X ou x et chaque chiffre 9, sauf les mots cochés plus bas. <strong>Relisez le résultat avant de le transmettre : aucun nom ni aucun texte sur un élève ne doit y rester en clair.</strong></div>
+    <div class="al al-i" style="margin-bottom:10px">Pour faire connaître la FORME d'un fichier (un récapitulatif PDF de Mon Bureau Numérique, un tableau d'une fiche élève) sans en montrer le contenu. Tout se passe sur cet ordinateur : le fichier n'est envoyé nulle part. Le résultat garde la mise en page — lignes, colonnes, positions en millimètres, tailles de texte — mais chaque lettre y devient X ou x et chaque chiffre 9, sauf les mots cochés plus bas. Sur la page dessinée, un clic sur un texte le laisse lisible, le masque, ou dit ce qu'il contient (« nom de l'élève », « date »…) : c'est ce qui aide le plus à écrire la lecture. <strong>Relisez le résultat avant de le transmettre : aucun nom ni aucun texte sur un élève ne doit y rester en clair.</strong></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
       <input type="file" id="struct-file" accept="application/pdf,.pdf" data-autofocus onchange="_structFichier(this.files[0])" aria-label="Fichier PDF à décrire" style="max-width:100%">
       <label for="struct-pages" style="font-size:.88em">Pages décrites</label>
@@ -2566,6 +2577,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
     <div class="fg"><label for="struct-txt">… ou un tableau copié dans une page (sélectionnez-le, Ctrl+C, puis collez-le ici)</label>
       <textarea id="struct-txt" rows="2" placeholder="Collez ici" oninput="_structColle(this.value)" style="width:100%"></textarea></div>
+    <div class="fg" id="struct-vue-wrap" style="display:none"><label>La page — cliquez un texte pour le laisser lisible, le masquer, ou dire ce qu'il contient</label>
+      <div class="struct-leg"><span class="st-seg st-auto">mots cochés seulement</span> <span class="st-seg st-clair">lisible</span> <span class="st-seg st-masque">masqué</span> <span class="st-seg st-type">« ce qu'il contient »</span>
+        <span style="flex:1"></span><button class="btn btn-g btn-sm" onclick="structPage(-1)" aria-label="Page précédente">◀</button> <span id="struct-pnum" class="tb-hint"></span> <button class="btn btn-g btn-sm" onclick="structPage(1)" aria-label="Page suivante">▶</button></div>
+      <div class="struct-vue" id="struct-vue"></div></div>
     <div class="fg"><label>Mots laissés en clair — cochez seulement ce qui n'est PAS une donnée d'élève (titres de colonnes, types, motifs)</label>
       <div id="struct-mots" class="struct-mots"></div></div>
     <div class="fg"><label for="struct-out">Le résultat, à relire puis à copier</label>
@@ -3052,8 +3067,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.57.1';
-const APP_BUILD_DATE = '2026-10-09T05:44:04Z';
+const APP_VERSION    = '1.57.2';
+const APP_BUILD_DATE = '2026-10-09T05:52:56Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -18890,9 +18905,22 @@ function _structMots(textes) {
   }
   return [...m.values()].sort((a, b) => b.n - a.n || a.k.localeCompare(b.k));
 }
+// Ce qu'un texte peut contenir — choisi au clic sur la page dessinée (v1.57.2, l'utilisateur :
+// « que l'outil affiche le fichier et que je puisse cliquer sur les informations, et préciser le
+// type d'information contenue »).
+const STRUCT_TYPES = ['nom de l\'élève', 'prénom de l\'élève', 'date', 'heure', 'période (du … au …)', 'nom d\'un adulte',
+  'classe ou groupe', 'motif', 'type d\'événement', 'texte libre (commentaire)', 'nombre', 'titre ou en-tête'];
+// PUR : un texte selon son état — absent : les mots cochés ; 'clair' ; 'masque' (tout) ;
+// 'type' : « ⟨date : 99/99/9999⟩ » (ce qu'il contient, et sa forme masquée).
+function _structSeg(text, e, garder) {
+  if (!e) return _structMasque(text, garder);
+  if (e.mode === 'clair') return String(text);
+  if (e.mode === 'type') return `⟨${e.type} : ${_structMasque(text, null)}⟩`;
+  return _structMasque(text, null);
+}
 // PUR : une page lue → ses rangées, du haut vers le bas, chaque segment à sa position (mm depuis le
 // bord gauche) avec sa taille de texte. Pages : [{ w, h, x0, y1, images, lines: _trombiLines(…) }].
-function _structPdfTexte(pages, garder, max) {
+function _structPdfTexte(pages, garder, max, etat) {
   const mm = v => Math.round(v * 25.4 / 72);
   // `max` : les N premières pages, ou la liste des numéros voulus (« ou les pages n° 5, 8-9 »).
   const idx = Array.isArray(max) ? max.filter(i => i >= 0 && i < pages.length) : pages.map((_, i) => i).slice(0, max);
@@ -18900,14 +18928,15 @@ function _structPdfTexte(pages, garder, max) {
   idx.map(i => [pages[i], i]).forEach(([p, i]) => {
     out.push('', `— Page ${i + 1} — ${mm(p.w)} × ${mm(p.h)} mm${p.images ? ` · ${p.images} image${p.images > 1 ? 's' : ''}` : ''}${p.lines.length ? '' : ' · AUCUN TEXTE LISIBLE (page scannée ?)'}`);
     const rows = [];
-    for (const l of p.lines) {
+    for (const [li, l0] of p.lines.entries()) {
+      const l = { ...l0, e: etat && etat.get(`${i}:${li}`) };
       const y = mm(p.y1 - l.y);
       let r = rows.find(x => Math.abs(x.y - y) <= 1);
       if (!r) rows.push(r = { y, ls: [] });
       r.ls.push(l);
     }
     rows.sort((a, b) => a.y - b.y).forEach(r => out.push(`${String(r.y).padStart(4)} mm │ ` + r.ls.sort((a, b) => a.x - b.x)
-      .map(l => `${mm(l.x - p.x0)}: ${_structMasque(l.text, garder)} (${Math.round(l.size)} pt)`).join(' │ ')));
+      .map(l => `${mm(l.x - p.x0)}: ${_structSeg(l.text, l.e, garder)} (${Math.round(l.size)} pt)`).join(' │ ')));
   });
   return out.join('\n');
 }
@@ -18930,7 +18959,7 @@ function _structPagesNums(v) {
 }
 let _struct = null;   // { pdf: [pages] | null, texte, garder: Set } — de séance, oublié à la fermeture
 function openStructure() {
-  _struct = { pdf: null, texte: '', garder: new Set(STRUCT_MOTS_COURANTS) };
+  _struct = { pdf: null, texte: '', garder: new Set(STRUCT_MOTS_COURANTS), etat: new Map(), page: 0 };
   const f = document.getElementById('struct-file'); if (f) f.value = '';
   const t = document.getElementById('struct-txt'); if (t) t.value = '';
   const pn = document.getElementById('struct-pnums'); if (pn) pn.value = '';
@@ -18951,7 +18980,7 @@ async function _structFichier(file) {
       const [x0, y0, x1, y1] = p.mb.map(Number);
       lues.push({ w: x1 - x0, h: y1 - y0, x0, y1, images: images.length, lines: _trombiLines(glyphs, 0.6) });
     }
-    _struct.pdf = lues; _struct.texte = '';
+    _struct.pdf = lues; _struct.texte = ''; _struct.etat = new Map(); _struct.page = 0;
     document.getElementById('struct-txt').value = '';
     st.textContent = `${lues.length} page${lues.length > 1 ? 's' : ''} lue${lues.length > 1 ? 's' : ''}.`;
   } catch (e) { _struct.pdf = null; st.textContent = `⚠️ ${e.message || e}`; }
@@ -18970,12 +18999,62 @@ function _structRender(motsSeuls) {
   const max = _structPagesNums(document.getElementById('struct-pnums')?.value) || (+document.getElementById('struct-pages').value || 2);
   const choisies = !_struct.pdf ? [] : Array.isArray(max) ? max.map(i => _struct.pdf[i]).filter(Boolean) : _struct.pdf.slice(0, max);
   const textes = _struct.pdf ? choisies.flatMap(p => p.lines.map(l => l.text)) : _struct.texte ? [_struct.texte] : [];
-  out.value = _struct.pdf ? _structPdfTexte(_struct.pdf, _struct.garder, max) : _struct.texte.trim() ? _structColleTexte(_struct.texte, _struct.garder) : '';
+  out.value = _struct.pdf ? _structPdfTexte(_struct.pdf, _struct.garder, max, _struct.etat) : _struct.texte.trim() ? _structColleTexte(_struct.texte, _struct.garder) : '';
+  _structVue(max);
   if (motsSeuls) return;
   const mots = _structMots(textes);
   box.innerHTML = !mots.length ? '<span class="tb-hint">Choisissez un PDF ou collez un tableau : ses mots apparaîtront ici.</span>'
     : mots.slice(0, 300).map(m => `<label class="tagpick"><input type="checkbox"${_struct.garder.has(m.k) ? ' checked' : ''} onchange="structMotUI('${_escJsAttr(m.k)}', this.checked)"> ${_escName(m.w)} <small>${m.n}</small></label>`).join('')
       + (mots.length > 300 ? `<span class="tb-hint">… et ${mots.length - 300} autres, masqués.</span>` : '');
+}
+// La page dessinée : chaque texte à sa place (pas les traits ni les images — l'app n'a pas de moteur
+// de rendu PDF), à 1,3 px par point ; on parcourt les pages DÉCRITES (◀ ▶).
+function _structIdx(max) { return !_struct?.pdf ? [] : Array.isArray(max) ? max.filter(i => i < _struct.pdf.length) : _struct.pdf.map((_, i) => i).slice(0, max); }
+function _structVue(max) {
+  const wrap = document.getElementById('struct-vue-wrap'), box = document.getElementById('struct-vue');
+  if (!wrap || !box) return;
+  const idx = _structIdx(max);
+  wrap.style.display = idx.length ? '' : 'none';
+  if (!idx.length) { box.innerHTML = ''; return; }
+  if (!idx.includes(_struct.page)) _struct.page = idx[0];
+  const pi = _struct.page, p = _struct.pdf[pi], k = 1.3;
+  document.getElementById('struct-pnum').textContent = `page ${pi + 1} (${idx.indexOf(pi) + 1} / ${idx.length})`;
+  const cls = e => !e ? 'st-auto' : e.mode === 'clair' ? 'st-clair' : e.mode === 'type' ? 'st-type' : 'st-masque';
+  box.innerHTML = `<div class="st-page" style="width:${Math.round(p.w * k)}px;height:${Math.round(p.h * k)}px">${p.lines.map((l, li) => {
+    const e = _struct.etat.get(`${pi}:${li}`);
+    const tip = `Transmis : ${_structSeg(l.text, e, _struct.garder)}`;
+    return `<button class="st-seg ${cls(e)}" style="left:${((l.x - p.x0) * k).toFixed(1)}px;top:${((p.y1 - l.y - l.size * 0.85) * k).toFixed(1)}px;font-size:${(l.size * k).toFixed(1)}px" title="${_escAttr(tip)}" onclick="structSegUI(${pi}, ${li})">${_escName(l.text)}</button>`;
+  }).join('')}</div>`;
+}
+function structPage(d) {
+  if (!_struct?.pdf) return;
+  const max = _structPagesNums(document.getElementById('struct-pnums')?.value) || (+document.getElementById('struct-pages').value || 2);
+  const idx = _structIdx(max), i = idx.indexOf(_struct.page);
+  _struct.page = idx[Math.max(0, Math.min(idx.length - 1, (i < 0 ? 0 : i) + d))];
+  _structVue(max);
+}
+let _structMemePlace = true;   // un choix vaut aussi pour le texte au même endroit des autres pages
+async function structSegUI(pi, li) {
+  const l = _struct?.pdf?.[pi]?.lines[li];
+  if (!l) return;
+  const btn = (v, lab) => `<button class="btn btn-g btn-sm" onclick="_appDialogValeur('${_escJsAttr(v)}')">${_escName(lab)}</button>`;
+  const v = await _appDialogShow({ title: `« ${l.text} »`, type: 'liste',
+    message: `<div class="struct-types">${btn('=clair', '👁 Laisser lisible')}${btn('=masque', '▒ Masquer')}${btn('=auto', '↺ Selon les mots cochés')}</div>
+      <div class="tb-hint">Ou dites ce qu'il contient (il reste masqué) :</div>
+      <div class="struct-types">${STRUCT_TYPES.map(t => btn(t, t)).join('')}${btn('=autre', '✏️ Autre…')}</div>
+      <label style="display:flex;gap:6px;align-items:center;font-size:.9em"><input type="checkbox"${_structMemePlace ? ' checked' : ''} onchange="_structMemePlace=this.checked"> Aussi au même endroit sur les autres pages</label>`,
+    buttons: [{ label: 'Annuler', value: undefined }] });
+  if (v === undefined || !_struct) return;
+  const poser = e => {
+    const cibles = [[pi, li]];
+    if (_structMemePlace) _struct.pdf.forEach((p, j) => p.lines.forEach((m, mi) => {
+      if ((j !== pi || mi !== li) && Math.abs(m.x - l.x) < 5 && Math.abs((p.y1 - m.y) - (_struct.pdf[pi].y1 - l.y)) < 4 && Math.abs(m.size - l.size) < 0.6) cibles.push([j, mi]);
+    }));
+    for (const [j, mi] of cibles) { if (e) _struct.etat.set(`${j}:${mi}`, e); else _struct.etat.delete(`${j}:${mi}`); }
+    _structRender(true);
+  };
+  if (v === '=autre') return _uiPrompt({ title: 'Ce que contient ce texte', label: `« ${l.text} »`, value: '', maxlength: 40, placeholder: 'ex. code de la matière', onOk: t => { t = String(t || '').trim().slice(0, 40); if (t) poser({ mode: 'type', type: t }); } });
+  poser(v === '=clair' ? { mode: 'clair' } : v === '=masque' ? { mode: 'masque' } : v === '=auto' ? null : { mode: 'type', type: v });
 }
 async function structCopier() {
   const ta = document.getElementById('struct-out');

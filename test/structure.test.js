@@ -74,3 +74,22 @@ test('pages choisies : « 5, 8-9 » décrit ces pages-là, dans l\'ordre, et le 
   assert.match(t, /^PDF : 2 pages — 1 décrite/, 'une page qui n\'existe pas est ignorée');
   assert.ok(t.includes('— Page 2 —') && !t.includes('— Page 1 —'));
 });
+
+test('page dessinée : un texte peut rester lisible, être masqué, ou dire ce qu\'il contient', async () => {
+  assert.deepStrictEqual(JSON.parse(ev(`JSON.stringify([
+    _structSeg('MARTIN Noé', null, STRUCT_MOTS_COURANTS),
+    _structSeg('Date', { mode: 'masque' }, STRUCT_MOTS_COURANTS),
+    _structSeg('Bavardage', { mode: 'clair' }, STRUCT_MOTS_COURANTS),
+    _structSeg('12/09/2025', { mode: 'type', type: 'date' }, STRUCT_MOTS_COURANTS)])`)),
+    ['XXXXXX Xxx', 'Xxxx', 'Bavardage', '⟨date : 99/99/9999⟩']);
+  sb.__u8 = PDF;
+  const t = await ev(`(async () => {
+    const doc = await _pdfOpen(__u8), pages = _pdfPages(doc), fc = new Map(), lues = [];
+    for (const p of pages) { const { glyphs, images } = await _pdfScanPage(doc, p, fc); const [x0, y0, x1, y1] = p.mb.map(Number);
+      lues.push({ w: x1 - x0, h: y1 - y0, x0, y1, images: images.length, lines: _trombiLines(glyphs, 0.6) }); }
+    const li = lues[0].lines.findIndex(l => /MARTIN/.test(l.text));
+    return _structPdfTexte(lues, STRUCT_MOTS_COURANTS, 1, new Map([['0:' + li, { mode: 'type', type: 'nom de l\\'élève' }]]));
+  })()`);
+  assert.ok(t.includes("⟨nom de l'élève : Xxxxxxxxxxxxx xxx xxxxxxxx — XXXXXX Xxx — 9x X⟩"), t.split('\n')[3]);
+  assert.ok(!t.includes('MARTIN'));
+});
