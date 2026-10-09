@@ -875,6 +875,12 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
   border: 1px solid var(--rule-line);
 }
 .tagpick input { width: 13px; height: 13px; margin: 0; }
+.rc-body { max-height: 58vh; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px; }
+.rc-sec h3 { font-size: .98em; margin: 0 0 4px; }
+.rc-list { display: flex; flex-direction: column; gap: 3px; font-size: .88em; margin-top: 4px; }
+.rc-l { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.rc-l input { margin-top: 3px; flex: none; }
+.rc-grid { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 4px 10px; margin-top: 6px; align-items: center; }
 .struct-mots { display: flex; flex-wrap: wrap; gap: 4px; max-height: 150px; overflow-y: auto; }
 .struct-mots .tagpick { background: var(--paper-warm); font-weight: 500; }
 .struct-mots .tagpick small { color: var(--pencil); font-weight: 400; }
@@ -2690,6 +2696,14 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   </div>
 </div>
 
+<!-- ═══════════════ RÉCAPITULATIF VIE SCOLAIRE (MBN, PDF) — v1.58.0 ═══════════════ -->
+<div id="mrecap" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:860px;width:100%">
+    <h2>📥 Récapitulatif vie scolaire (Mon Bureau Numérique)</h2>
+    <div id="mrecap-body"></div>
+  </div>
+</div>
+
 <!-- ═══════════════ OBSERVATIONS DU CARNET — impression ═══════════════ -->
 <div id="mcarprint" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%" onkeydown="if(event.key==='Enter'&&event.target.tagName!=='BUTTON'){event.preventDefault();carPrintOk()}">
@@ -3067,8 +3081,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.57.2';
-const APP_BUILD_DATE = '2026-10-09T05:52:56Z';
+const APP_VERSION    = '1.58.0';
+const APP_BUILD_DATE = '2026-10-09T06:24:09Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3913,6 +3927,8 @@ function _sanitizeCoreSections() {
     if (e.decisions !== undefined) { if (Array.isArray(e.decisions)) e.decisions = e.decisions.filter(x => _isPlainObj(x) && _ymdValid(x.date)); else delete e.decisions; }
     // Observations notées dans MBN (v1.46.0) : absent = aucune ; jamais créé d'office.
     if (e.obsMbn !== undefined) { if (Array.isArray(e.obsMbn)) e.obsMbn = e.obsMbn.filter(x => _isPlainObj(x) && _ymdValid(x.date)); else delete e.obsMbn; }
+    // Absences et retards relevés dans MBN (v1.58.0) : absent = aucun ; jamais créé d'office.
+    if (e.absMbn !== undefined) { if (Array.isArray(e.absMbn)) e.absMbn = e.absMbn.filter(x => _isPlainObj(x) && _ymdValid(x.debut) && (x.kind === 'absence' || x.kind === 'retard')); else delete e.absMbn; }
   }
   for (const byId of Object.values(S.moyennes)) {
     for (const r of Object.values(byId)) {
@@ -4286,6 +4302,7 @@ function _renderDonneesInner(el) {
       ${imp('🪑', 'Depuis Plan de classe', 'plan-classe-*.json : élèves, groupes, options, places, ordres de ramassage', '', b("document.getElementById('imp-file-pdc').click()", '📥 Importer…'))}
       ${imp('🍽', 'Régimes (Mon Bureau Numérique)', 'export « régimes de sortie » (.xlsx) : demi-pension, entrée, sortie', 'dans Élèves ▸ 🍽 Régimes', b('openMbnImport()', '📥 Importer…'))}
       ${imp('📓', 'Observations (Mon Bureau Numérique)', 'export des observations (.xlsx)', 'dans Observations', b('openObsMbnImport()', '📥 Importer…'))}
+      ${imp('📄', 'Récapitulatif vie scolaire (Mon Bureau Numérique)', 'le PDF de la classe : observations, punitions, absences et retards, naissance, régimes, groupes', 'dans Observations ▸ Observations MBN', b('openRecapImport()', '📥 Importer…'))}
       ${imp('📷', 'Photos (Mon Bureau Numérique)', 'le trombinoscope de la classe (.pdf), lu dans le navigateur', 'une à la fois dans la fiche', b('openTrombiImport()', '📥 Importer…'))}
       ${imp('📈', 'Moyennes (bureau numérique)', 'export des moyennes (.csv)', 'dans Moyennes', b('openMoyImport()', '📥 Importer…'))}
       ${imp('🗣', 'Avis des collègues', 'la feuille .ods du Nuage, relue', 'dans Avis des collègues', b("switchTab('avis')", 'Ouvrir l\'onglet'))}
@@ -5542,6 +5559,7 @@ function _elevesRows(cls) {
   const num = (x) => col === 'cumul' ? x.r.obsTotal : col === 'delta' ? x.r.delta : col === 'periode' ? x.r.periodeTotal
     : col === 'docs' ? x.r.nonRendus.length : col === 'incidents' ? x.r.nbIncidents : col === 'bilan' ? (x.r.bilan ? 1 : 0)
     : col === 'contacts' ? x.r.nbContacts : col === 'rem' ? (x.s.remarque ? 1 : 0)
+    : col === 'abs' ? (x.r.absences ? x.r.absences.min + x.r.absences.n + x.r.absences.ret / 100 : null)
     : col === 'bilans' ? bcolsT.filter(c => _bilanDeColonne(cls, x.s.id, c)).length : null;
   return rows.sort((a, b) => {
     // Les élèves sans date de naissance vont au bout dans les DEUX sens : ils ne sont pas
@@ -5568,7 +5586,7 @@ function _elevesRows(cls) {
       const v = x => { const r = _avisResume(camp, x.s.id); return (r.cible ? 100 : 0) + r.n; };
       return (v(b) - v(a)) * dir || byName(a, b);
     }
-    if (['cumul', 'delta', 'periode', 'docs', 'incidents', 'bilan', 'contacts', 'rem', 'bilans'].includes(col)) {
+    if (['cumul', 'delta', 'periode', 'docs', 'incidents', 'bilan', 'contacts', 'rem', 'bilans', 'abs'].includes(col)) {
       const va = num(a), vb = num(b);
       if ((va === null) !== (vb === null)) return va === null ? 1 : -1;
       const d = ((vb ?? 0) - (va ?? 0)) * dir;
@@ -5597,6 +5615,7 @@ const ELEVES_COLS = [
   { key: 'docs',      label: 'Papiers' },
   { key: 'incidents', label: 'Incidents' },
   { key: 'contacts',  label: 'Contacts' },
+  { key: 'abs',       label: 'Absences' },
   { key: 'avis',      label: 'Avis coll.' },
   { key: 'bilans',    label: 'Bilans' },
   { key: 'rem',       label: 'Remarque' },
@@ -6068,7 +6087,8 @@ function _obsMbnRender() {
   if (!box || !cls) return;
   const I = _obsMbnImp;
   const choix = `<label class="btn btn-p" style="cursor:pointer">📂 Choisir l'export MBN… <input type="file" accept=".xlsx,.ods,.csv,.tsv,.txt" style="display:none" onchange="obsMbnFichierUI(this)"></label>`;
-  const intro = `<div class="tb-hint" style="margin-bottom:10px">Dans Mon Bureau Numérique, l'export des <strong>observations</strong> de la classe (.xlsx) : élève, type, motif, demandeur, date. Elles sont gardées <strong>à part</strong> du relevé du carnet, et comptées à côté de lui. Réimporter le même export n'ajoute que les nouvelles.</div>`;
+  const intro = `<div class="tb-hint" style="margin-bottom:10px">Dans Mon Bureau Numérique, l'export des <strong>observations</strong> de la classe (.xlsx) : élève, type, motif, demandeur, date. Elles sont gardées <strong>à part</strong> du relevé du carnet, et comptées à côté de lui. Réimporter le même export n'ajoute que les nouvelles.</div>
+    <div class="al al-i" style="margin-bottom:10px">Sans accès à cet export ? Le <strong>récapitulatif vie scolaire</strong> de la classe (PDF) porte aussi les observations — et les punitions, les absences et les retards. <button class="btn btn-g btn-sm" onclick="closeMod2('mobsmbn');openRecapImport()">📄 Importer le récapitulatif PDF…</button></div>`;
   const fermer = `<div class="ma"><button class="btn btn-g" onclick="closeMod2('mobsmbn')">Fermer</button></div>`;
   if (!I) { box.innerHTML = intro + `<div class="ma" style="justify-content:flex-start">${choix}</div>` + fermer; return; }
   if (I.err) { box.innerHTML = intro + `<div class="al al-w">⚠️ ${_escName(I.err)}</div><div class="ma" style="justify-content:flex-start">${choix}</div>` + fermer; return; }
@@ -6112,6 +6132,420 @@ function obsMbnAppliquerUI() {
   toast(`✓ ${bil.nouveaux.length} observation${bil.nouveaux.length > 1 ? 's' : ''} MBN ajoutée${bil.nouveaux.length > 1 ? 's' : ''}${ret.length ? `, ${ret.length} retirée${ret.length > 1 ? 's' : ''}` : ''} — Ctrl+Z pour annuler.`);
 }
 
+// ══ Le RÉCAPITULATIF VIE SCOLAIRE de MBN, en PDF (v1.58.0) ══
+// L'utilisateur, le 2026-10-09 : l'export .xlsx des observations demande des droits d'admin qu'il
+// va perdre ; sa session ordinaire édite, pour la classe, un PDF « récapitulatif » — UNE page par
+// élève (parfois deux : la suite n'a pas d'en-tête), décrit sans ses données par l'outil 🔍 :
+//   en-tête — nom (12 pt, x ≈ 33 mm, « Prénom NOM »), « nn ans - jj/mm/aaaa », Classe, Groupes
+//   (codes Pronote), Régime de ½ pension, Régime de sortie ; « Évènements du j mois. aaaa au … »
+//   (la période choisie à l'édition) ; un résumé ; puis un TABLEAU par sorte d'événement, titre seul
+//   sur sa ligne en 8 pt : Absences · Retards (Période · Régularisé · Motif · Valable · Séances
+//   impactées · Durée de séances manquées · Comptabilisé), Observations (Date · Motif · Type ·
+//   Demandeur), Punitions (Date de l'évènement · Conséquence · Motifs · État · Demandeur), Dispenses.
+// Une case peut tenir sur deux lignes, au-dessus ou au-dessous du reste de sa rangée : les rangées
+// d'un même événement sont à moins de 4 mm l'une de l'autre, deux événements à 5 mm au moins.
+// Arbitré par l'utilisateur : reprendre les observations, les punitions (en incidents), les absences
+// et retards, et compléter la fiche (naissance, régimes, groupes) — pas les dispenses.
+const _RECAP_MOIS = { janv: 1, janvier: 1, fev: 2, fevr: 2, fevrier: 2, mars: 3, avr: 4, avril: 4, mai: 5, juin: 6, juil: 7, juillet: 7,
+  aout: 8, sept: 9, septembre: 9, oct: 10, octobre: 10, nov: 11, novembre: 11, dec: 12, decembre: 12 };
+// « 9 sept. 2025 » → '2025-09-09' | null. PUR.
+function _recapDateFr(t) {
+  const m = /(\d{1,2})(?:er)?\s+([A-Za-zÀ-ÿ]+)\.?\s+(\d{4})/.exec(String(t || ''));
+  const mo = m && _RECAP_MOIS[_structNorm(m[2])];
+  if (!mo) return null;
+  const ymd = `${m[3]}-${String(mo).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return _ymdValid(ymd) ? ymd : null;
+}
+function _recapDmy(t) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(t || '').trim());
+  const ymd = m && `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return ymd && _ymdValid(ymd) ? ymd : null;
+}
+const _recapHeure = t => { const m = /^(\d{1,2})[:h](\d{2})$/.exec(String(t || '').trim()); return m ? `${m[1].padStart(2, '0')}:${m[2]}` : ''; };
+// « Le 15/09/2025, de 08:00 à 10:00 » · « Du 22/09/2025 08:00 au 23/09/2025 17:00 » →
+// { debut, hDebut, fin, hFin } | null. PUR.
+function _recapPeriode(t) {
+  t = String(t || '').replace(/\s+/g, ' ').trim();
+  const D = '(\\d{1,2}/\\d{1,2}/\\d{4})', Hh = '(\\d{1,2}[:h]\\d{2})';
+  let m = new RegExp(`^Le ${D},? de ${Hh} à ${Hh}`, 'i').exec(t);
+  if (m) { const d = _recapDmy(m[1]); return d ? { debut: d, hDebut: _recapHeure(m[2]), fin: d, hFin: _recapHeure(m[3]) } : null; }
+  m = new RegExp(`^Du ${D}(?: ${Hh})? au ${D}(?: ${Hh})?`, 'i').exec(t);
+  if (m) { const a = _recapDmy(m[1]), b = _recapDmy(m[3]); return a && b ? { debut: a, hDebut: _recapHeure(m[2] || ''), fin: b, hFin: _recapHeure(m[4] || '') } : null; }
+  m = new RegExp(`^Le ${D}`, 'i').exec(t);
+  if (m) { const d = _recapDmy(m[1]); return d ? { debut: d, hDebut: '', fin: d, hFin: '' } : null; }
+  return null;
+}
+// « 1 h 30 min » → 90 ; « 15 min » → 15 ; rien de lisible → null. PUR.
+function _recapDuree(t) { const s = String(t || ''), h = /(\d+)\s*h/.exec(s), mn = /(\d+)\s*min/.exec(s); return h || mn ? (h ? +h[1] * 60 : 0) + (mn ? +mn[1] : 0) : null; }
+const _recapOui = t => { const n = _structNorm(String(t || '').trim()); return n === 'oui' ? true : n === 'non' ? false : null; };
+const _RECAP_SECTIONS = { absences: 'absences', retards: 'retards', observations: 'observations', punitions: 'punitions', dispenses: 'dispenses' };
+function _recapColCle(h) {
+  const n = _structNorm(h);
+  const T = [[/^periode/, 'periode'], [/^regularise/, 'regul'], [/^motif/, 'motif'], [/^valable/, 'valable'], [/^seances/, 'seances'],
+    [/^duree/, 'duree'], [/^comptabilise/, 'compte'], [/^date/, 'date'], [/^type/, 'type'], [/^demandeur/, 'par'],
+    [/^consequence/, 'consequence'], [/^etat/, 'etat']];
+  return (T.find(([re]) => re.test(n)) || [])[1] || null;
+}
+// PUR : les pages lues (`{ w, h, x0, y1, lines: _trombiLines(…, 0.6) }`) → { periode: { a, b } | null,
+// eleves: [{ nom, page, naissance, classe, groupes, regime, sortie, observations, punitions,
+// absences, illisibles }] }. Ne rattache rien, ne décide rien.
+function _recapLire(pages) {
+  const mm = v => v * 25.4 / 72;
+  const eleves = [];
+  let cur = null, sect = null, periode = null;
+  (pages || []).forEach((p, pi) => {
+    const rows = [];
+    for (const l of p.lines.map(l => ({ x: mm(l.x - p.x0), y: mm(p.y1 - l.y), size: l.size, text: String(l.text || '').trim() })).filter(l => l.text && l.y < 286)) {
+      let r = rows.find(x => Math.abs(x.y - l.y) < 1);
+      if (!r) rows.push(r = { y: l.y, segs: [] });
+      r.segs.push(l);
+    }
+    rows.sort((a, b) => a.y - b.y).forEach(r => r.segs.sort((a, b) => a.x - b.x));
+    const tete = rows.find(r => r.y < 16 && r.segs.some(x => x.size >= 10.5 && x.x > 20));
+    if (tete) {
+      cur = { nom: tete.segs.find(x => x.size >= 10.5 && x.x > 20).text, page: pi + 1, naissance: null, classe: '', groupes: [], regime: '', sortie: '', sections: [] };
+      eleves.push(cur); sect = null;
+    }
+    if (!cur) return;
+    rows.forEach((r, ri) => {
+      if (r === tete) return;
+      const t0 = r.segs[0].text, n0 = _structNorm(t0), tout = r.segs.map(x => x.text).join(' ');
+      if (r.segs.length === 1 && r.segs[0].x < 12 && r.segs[0].size >= 7.6 && _RECAP_SECTIONS[n0]) {
+        sect = { kind: _RECAP_SECTIONS[n0], rows: [] }; cur.sections.push(sect); return;
+      }
+      if (sect) { sect.rows.push({ y: pi * 400 + r.y, segs: r.segs }); return; }
+      let m;
+      if (!cur.naissance && (m = /\d+\s*ans\s*-\s*(\d{1,2}\/\d{1,2}\/\d{4})/.exec(tout))) cur.naissance = _recapDmy(m[1]);
+      if (!periode && (m = /^[ÉE]v[èée]nements du (.+?) au (.+)$/i.exec(t0))) { const a = _recapDateFr(m[1]), b = _recapDateFr(m[2]); if (a && b) periode = { a, b }; }
+      if (r.segs[0].x < 25 && r.y < 60) {
+        const val = r.segs.filter(x => x.x >= 28).map(x => x.text).join(' ').trim();
+        if (n0 === 'classe') cur.classe = val;
+        else if (n0 === 'groupes') cur.groupes = _impSplitCodes(val);
+        else if (/^regime de/.test(n0)) { if (/sortie/.test(_structNorm(rows[ri + 1]?.segs[0]?.text || ''))) cur.sortie = val; else cur.regime = val; }
+      }
+    });
+  });
+  const out = eleves.map(el => {
+    const r = { nom: el.nom, page: el.page, naissance: el.naissance, classe: el.classe, groupes: el.groupes, regime: el.regime, sortie: el.sortie,
+      observations: [], punitions: [], absences: [], illisibles: 0 };
+    for (const s of el.sections) {
+      if (s.kind === 'dispenses') continue;
+      const paquets = [];
+      for (const row of s.rows) { const c = paquets[paquets.length - 1]; if (c && row.y - c[c.length - 1].y < 4.2) c.push(row); else paquets.push([row]); }
+      let cols = null;
+      for (const c of paquets) {
+        const segs = c.flatMap(row => row.segs.map(x => ({ ...x, y: row.y })));
+        const tete = !segs.some(x => /\d/.test(x.text)) && segs.filter(x => _recapColCle(x.text)).length >= 2;
+        if (tete) {
+          const cs = [];
+          for (const x of segs.slice().sort((a, b) => a.x - b.x || a.y - b.y)) { const k = cs.find(cc => Math.abs(cc.x - x.x) < 3); if (k) k.parts.push(x); else cs.push({ x: x.x, parts: [x] }); }
+          cols = cs.map(cc => ({ x: cc.x, cle: _recapColCle(cc.parts.sort((a, b) => a.y - b.y).map(x => x.text).join(' ')) })).sort((a, b) => a.x - b.x);
+          continue;
+        }
+        if (!cols) { r.illisibles++; continue; }
+        const cells = {};
+        for (const x of segs.slice().sort((a, b) => a.y - b.y || a.x - b.x)) {
+          const col = cols.filter(cc => cc.x <= x.x + 2.5).pop() || cols[0];
+          if (col.cle) cells[col.cle] = cells[col.cle] ? cells[col.cle] + ' ' + x.text : x.text;
+        }
+        if (s.kind === 'observations') {
+          const date = _recapDateFr(cells.date);
+          if (!date) { r.illisibles++; continue; }
+          const ty = cells.type || '';
+          r.observations.push({ date, motif: cells.motif || '', type: /n[ée]gati/i.test(ty) ? 'Observation négative' : /positi/i.test(ty) ? 'Observation positive' : ty, par: cells.par || '' });
+        } else if (s.kind === 'punitions') {
+          const date = _recapDateFr(cells.date);
+          if (!date) { r.illisibles++; continue; }
+          r.punitions.push({ date, consequence: cells.consequence || '', motif: cells.motif || '', etat: cells.etat || '', par: cells.par || '' });
+        } else {
+          const per = _recapPeriode(cells.periode);
+          if (!per) { r.illisibles++; continue; }
+          r.absences.push({ kind: s.kind === 'retards' ? 'retard' : 'absence', ...per, motif: cells.motif || '', regul: _recapOui(cells.regul),
+            valable: _recapOui(cells.valable), seances: /^\d+$/.test(cells.seances || '') ? +cells.seances : null, duree: _recapDuree(cells.duree), compte: _recapOui(cells.compte) });
+        }
+      }
+    }
+    return r;
+  });
+  return { periode, eleves: out };
+}
+// ── Absences et retards (v1.58.0) ── des ÉVÉNEMENTS lus dans le récapitulatif, comme les
+// observations : `stu.absMbn = [{ id, ts, kind: 'absence'|'retard', debut, hDebut, fin, hFin, motif,
+// regul, valable, seances, duree (min), compte }]` (booléens : null = non lu). Un événement se
+// reconnaît à sa sorte et à ses bornes ; un réimport MET À JOUR le reste (une absence se régularise).
+function _absMbnOf(sid) {
+  return (S.eleves[sid]?.absMbn || []).filter(_isPlainObj)
+    .slice().sort((a, b) => (a.debut + (a.hDebut || '')).localeCompare(b.debut + (b.hDebut || '')));
+}
+const _absMbnCle = e => [e.kind, e.debut, e.hDebut || '', e.fin || e.debut, e.hFin || ''].join('|');
+const _ABS_CHAMPS = ['motif', 'regul', 'valable', 'seances', 'duree', 'compte'];
+function _absMbnTexte(e) {
+  const h = m => m === null || m === undefined ? '' : m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`;
+  const quand = e.fin && e.fin !== e.debut ? `du ${_fmtDateFr(e.debut)}${e.hDebut ? ' ' + e.hDebut : ''} au ${_fmtDateFr(e.fin)}${e.hFin ? ' ' + e.hFin : ''}`
+    : `le ${_fmtDateFr(e.debut)}${e.hDebut ? `, ${e.hDebut}${e.hFin ? '–' + e.hFin : ''}` : ''}`;
+  return `${e.kind === 'retard' ? 'Retard' : 'Absence'} ${quand}${e.duree ? ` (${h(e.duree)})` : ''}${e.motif ? ' — ' + e.motif : ''}${e.valable === false ? ' · non valable' : ''}${e.regul === false ? ' · à régulariser' : ''}`;
+}
+function _absMbnClasseAny(cls) { return !!cls && cls.eleves.some(id => _absMbnOf(id).length); }
+// PUR : le compte d'une période — absences (et leurs heures manquées), retards, non valables,
+// à régulariser. Un événement compte dans la période où il COMMENCE.
+function _absMbnResume(sid, a, b) {
+  const list = _absMbnOf(sid).filter(e => e.debut >= a && e.debut <= b);
+  const abs = list.filter(e => e.kind === 'absence'), ret = list.filter(e => e.kind === 'retard');
+  return { list, n: abs.length, min: abs.reduce((t, e) => t + (e.duree || 0), 0), ret: ret.length,
+    nonVal: list.filter(e => e.valable === false).length, aRegul: list.filter(e => e.regul === false).length };
+}
+function _absDureeTexte(m) { return !m ? '' : m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`; }
+function _absResumeTexte(r) {
+  return [r.n ? `${_pl(r.n, 'absence')}${r.min ? ` (${_absDureeTexte(r.min)})` : ''}` : '', r.ret ? _pl(r.ret, 'retard') : '',
+    r.nonVal ? `${r.nonVal} non valable${r.nonVal > 1 ? 's' : ''}` : '', r.aRegul ? `${r.aRegul} à régulariser` : ''].filter(Boolean).join(' · ') || 'aucune absence ni retard';
+}
+// Les absences et retards d'un élève sur des dates, en clair (compteur des Indicateurs). Lecture
+// seule : la source est le récapitulatif de MBN, qu'un nouvel import met à jour.
+function absencesUI(sid, a, b, lab) {
+  const stu = S.eleves[sid];
+  if (!stu) return;
+  const corps = () => { const r = _absMbnResume(sid, a, b);
+    return r.list.length ? `<p class="tb-hint" style="margin:0 0 6px">${_escName(_absResumeTexte(r))}</p><div class="inc-choix-l">${r.list.map(e => `<div class="inc-choix" style="cursor:default"><span class="inc-choix-d">${_escName(_fmtDateFr(e.debut))}</span> ${_escName(_absMbnTexte(e))}</div>`).join('')}</div><p class="tb-hint" style="margin-top:6px">D'après le récapitulatif vie scolaire de Mon Bureau Numérique — un nouvel import le met à jour.</p>`
+      : '<p class="tb-hint">Plus aucune absence ni aucun retard sur ces dates.</p>'; };
+  const titre = () => `🕒 ${stu.prenom} ${stu.nom} — absences et retards · ${lab}`;
+  _appDialogShow({ title: titre(), type: 'liste', message: corps(), buttons: [{ label: 'Fermer', primary: true }],
+    redessin: () => { if (!S.eleves[sid]) return closeMod2('mAppDialog'); _appDialogMaj(titre(), corps()); } });
+}
+// PUR : la conséquence d'une punition → une instance du catalogue (Retenue, Exclusion ponctuelle de
+// cours…), par son nom ; à défaut « Autre punition ».
+function _recapInstance(consequence) {
+  const n = _structNorm(consequence);
+  const T = [[/retenue|colle/, 'retenue'], [/exclu.*cours/, 'exclusion_cours'], [/devoir/, 'devoir_supp'], [/excuse/, 'excuse'], [/avertissement/, 'avertissement'], [/blame/, 'blame']];
+  const hit = T.find(([re]) => re.test(n));
+  if (hit && S.instances[hit[1]]) return hit[1];
+  const lab = n && Object.values(S.instances).find(i => _structNorm(i.label) === n);
+  return lab ? lab.id : S.instances.punition ? 'punition' : 'autre';
+}
+function _recapIncident(x) {
+  const type = _recapInstance(x.consequence);
+  const conseq = x.consequence && _structNorm(_instanceOf(type).label) !== _structNorm(x.consequence) ? x.consequence : '';
+  return { date: x.date, type, objet: x.motif || x.consequence || 'Punition',
+    texte: [conseq, x.etat ? `État : ${x.etat}` : '', x.par ? `Demandeur : ${x.par}` : '', 'D\'après le récapitulatif vie scolaire de Mon Bureau Numérique.'].filter(Boolean).join(' · ') };
+}
+function _recapRattache(cls, lu, manuel) {
+  return _mbnRapprocher(cls, lu.eleves).map(l => manuel && manuel[l.nom] !== undefined ? { ...l, sid: manuel[l.nom] || null } : l);
+}
+// PUR (sauf la lecture de S) : ce que l'import changerait.
+// → { obs: { nouveaux, connus, retirables }, abs: { nouveaux, modifies, connus, retirables },
+//     pun: [{ sid, inc, cle, deja }], fiche: [{ sid, champ, label, avant, apres, texte, cle }], sids }
+// ⚠️ Le PDF n'a ni l'heure ni le texte d'une observation : on la reconnaît à sa date et à son motif
+// (en multiensemble) — une observation déjà importée de l'export .xlsx n'est pas reprise une
+// seconde fois. Rien n'est proposé au retrait hors de la période du récapitulatif, ni pour un élève
+// qui n'y figure pas. La fiche n'est COMPLÉTÉE que là où elle est vide.
+function _recapBilan(cls, lu, manuel) {
+  const L = _recapRattache(cls, lu, manuel).filter(l => l.sid && S.eleves[l.sid]);
+  const sids = [...new Set(L.map(l => l.sid))];
+  const per = lu.periode || null, dans = d => !!per && d >= per.a && d <= per.b;
+  const cleObs = e => [e.date, e.motif].map(x => _impNormHeader(String(x || ''))).join('|');
+  const obs = { nouveaux: [], connus: 0, retirables: [] }, abs = { nouveaux: [], modifies: [], connus: 0, retirables: [] };
+  const pun = [], fiche = [];
+  for (const sid of sids) {
+    const lignes = L.filter(l => l.sid === sid), stu = S.eleves[sid];
+    const dispo = new Map();
+    for (const e of _obsMbnOf(sid)) { const k = cleObs(e); dispo.set(k, [...(dispo.get(k) || []), e]); }
+    for (const l of lignes) for (const o of l.observations) {
+      const pile = dispo.get(cleObs(o));
+      if (pile && pile.length) { pile.shift(); obs.connus++; }
+      else obs.nouveaux.push({ sid, ev: { date: o.date, heure: '', type: o.type, motif: o.motif, par: o.par, info: '' } });
+    }
+    for (const pile of dispo.values()) for (const e of pile) if (dans(e.date)) obs.retirables.push({ sid, ev: e });
+    const app = new Map(_absMbnOf(sid).map(e => [_absMbnCle(e), e])), vus = new Set();
+    for (const l of lignes) for (const a of l.absences) {
+      const k = _absMbnCle(a);
+      if (vus.has(k)) continue;
+      vus.add(k);
+      const e = app.get(k);
+      if (!e) { abs.nouveaux.push({ sid, ev: a }); continue; }
+      const champs = _ABS_CHAMPS.filter(c => (e[c] ?? null) !== (a[c] ?? null));
+      if (champs.length) abs.modifies.push({ sid, id: e.id, avant: e, apres: a, champs }); else abs.connus++;
+    }
+    for (const [k, e] of app) if (!vus.has(k) && dans(e.debut)) abs.retirables.push({ sid, ev: e });
+    for (const l of lignes) for (const x of l.punitions) {
+      const inc = _recapIncident(x);
+      const deja = (stu.incidents || []).some(i => i && i.date === inc.date && i.type === inc.type && _impNormHeader(i.objet) === _impNormHeader(inc.objet));
+      pun.push({ sid, inc, deja, cle: `${sid}|${inc.date}|${inc.type}|${_impNormHeader(inc.objet)}` });
+    }
+    const l = lignes[0], vide = v => v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length);
+    const champ = (k, label, apres, texte) => { if (!vide(apres) && vide(stu[k])) fiche.push({ sid, champ: k, label, avant: stu[k] ?? null, apres, texte, cle: `${sid}|${k}` }); };
+    champ('naissance', 'Naissance', l.naissance, l.naissance && _fmtDateFr(l.naissance));
+    const rg = _impNormRegime(l.regime);
+    champ('regime', 'Demi-pension', rg, _regimeOf(rg)?.label || rg);
+    const so = _impNormSortie(l.sortie);
+    champ('sortie', 'Régime de sortie', so, so);
+    const interp = (l.groupes || []).map(c => _impDefaultCodeInterp(_impStripClassPrefix(c)));
+    const g = interp.find(i => i.kind === 'grp');
+    champ('groupe', 'Groupe', g ? g.n : null, g ? `G${g.n}` : '');
+    const abbrs = [...new Set(interp.filter(i => i.kind === 'tag').flatMap(i => i.abbrs))];
+    champ('tags', 'Options', abbrs.length ? abbrs : null, abbrs.join(', '));
+  }
+  return { obs, abs, pun, fiche, sids };
+}
+// Sans pushUndo ni save. `choix` : { obs, abs (bool), retObs, retAbs (Set d'ids), pun, fiche (Set de clés) }.
+function _recapAppliquer(bil, choix) {
+  const n = { obs: 0, retObs: 0, abs: 0, maj: 0, retAbs: 0, pun: 0, fiche: 0 };
+  const retObs = [...(choix.retObs || [])].filter(id => bil.obs.retirables.some(x => x.ev.id === id));
+  _obsMbnAppliquer(choix.obs ? bil.obs.nouveaux : [], retObs);
+  if (choix.obs) n.obs = bil.obs.nouveaux.length;
+  n.retObs = retObs.length;
+  if (choix.abs) {
+    for (const { sid, ev } of bil.abs.nouveaux) { const s = S.eleves[sid]; if (!s) continue; (s.absMbn = Array.isArray(s.absMbn) ? s.absMbn : []).push({ id: uid('abs'), ts: Date.now(), ...ev }); n.abs++; }
+    for (const m of bil.abs.modifies) { const e = (S.eleves[m.sid]?.absMbn || []).find(x => x.id === m.id); if (e) { for (const c of _ABS_CHAMPS) e[c] = m.apres[c] ?? null; n.maj++; } }
+  }
+  const ret = new Set([...(choix.retAbs || [])].filter(id => bil.abs.retirables.some(x => x.ev.id === id)));
+  if (ret.size) for (const s of Object.values(S.eleves)) if (Array.isArray(s.absMbn)) {
+    const k = s.absMbn.length; s.absMbn = s.absMbn.filter(e => !ret.has(e?.id)); n.retAbs += k - s.absMbn.length; if (!s.absMbn.length) delete s.absMbn;
+  }
+  for (const x of bil.pun) if (!x.deja && choix.pun?.has(x.cle) && incidentAdd(x.sid, x.inc)) n.pun++;
+  for (const f of bil.fiche) {
+    if (!choix.fiche?.has(f.cle)) continue;
+    const s = S.eleves[f.sid];
+    if (!s) continue;
+    s[f.champ] = f.champ === 'tags' ? f.apres.map(a => createTag(a)?.id).filter(Boolean) : f.apres;
+    n.fiche++;
+  }
+  return n;
+}
+
+// ── La fenêtre d'import ── rien n'est appliqué sans le bouton ; chaque sorte se coche ou non,
+// les punitions et les compléments de fiche un par un ; un retrait n'est JAMAIS coché d'office.
+let _recap = null;   // { fichier, lu, manuel, obs, abs (bool), retObs, retAbs, punOff, ficheOff (Set), err } — la séance
+function openRecapImport() {
+  if (!getCls()) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
+  _recap = null;
+  _recapRender();
+  openMod('mrecap');
+  _modalReturnTo['mrecap'] = () => { _recap = null; };
+}
+async function recapFichierUI(input) {
+  const f = input?.files?.[0];
+  if (!f) return;
+  input.value = '';
+  try {
+    const lu = _recapLire(await _recapPages(new Uint8Array(await f.arrayBuffer())));
+    if (!lu.eleves.length) _recap = { fichier: f.name, err: 'Aucun élève trouvé : est-ce bien le récapitulatif vie scolaire de Mon Bureau Numérique (un PDF avec du texte, pas une page scannée) ?' };
+    else _recap = { fichier: f.name, lu, manuel: {}, obs: true, abs: true, retObs: new Set(), retAbs: new Set(), punOff: new Set(), ficheOff: new Set() };
+  } catch (e) { _recap = { fichier: f.name, err: 'Lecture impossible : ' + (e && e.message || e) }; }
+  _recapRender();
+}
+function recapUI(quoi, cle, on) {
+  if (!_recap?.lu) return;
+  if (quoi === 'obs' || quoi === 'abs') _recap[quoi] = !!on;
+  else if (quoi === 'retObs' || quoi === 'retAbs') { if (on) _recap[quoi].add(cle); else _recap[quoi].delete(cle); }
+  else if (quoi === 'pun' || quoi === 'fiche') { const set = _recap[quoi + 'Off']; if (on) set.delete(cle); else set.add(cle); }
+  else if (quoi === 'rattacher') _recap.manuel[cle] = on || '';
+  _recapRender();
+}
+function _recapChoix(bil) {
+  return { obs: _recap.obs, abs: _recap.abs, retObs: _recap.retObs, retAbs: _recap.retAbs,
+    pun: new Set(bil.pun.filter(x => !x.deja && !_recap.punOff.has(x.cle)).map(x => x.cle)),
+    fiche: new Set(bil.fiche.filter(f => !_recap.ficheOff.has(f.cle)).map(f => f.cle)) };
+}
+// Combien de changements le bouton appliquerait (0 : le bouton est grisé).
+function _recapPrevu(bil, C) {
+  return (C.obs ? bil.obs.nouveaux.length : 0) + [...C.retObs].filter(id => bil.obs.retirables.some(x => x.ev.id === id)).length
+    + (C.abs ? bil.abs.nouveaux.length + bil.abs.modifies.length : 0) + [...C.retAbs].filter(id => bil.abs.retirables.some(x => x.ev.id === id)).length
+    + C.pun.size + C.fiche.size;
+}
+function _recapRender() {
+  const box = document.getElementById('mrecap-body'), cls = getCls();
+  if (!box || !cls) return;
+  const R = _recap;
+  const choix = `<label class="btn btn-p" style="cursor:pointer">📂 Choisir le récapitulatif (PDF)… <input type="file" accept="application/pdf,.pdf" style="display:none" onchange="recapFichierUI(this)"></label>`;
+  const intro = `<div class="tb-hint" style="margin-bottom:10px">Dans Mon Bureau Numérique, le <strong>récapitulatif vie scolaire</strong> de la classe (un PDF, une page par élève). L'app y lit les <strong>observations</strong>, les <strong>punitions</strong> (rangées en incidents), les <strong>absences et retards</strong>, et de quoi <strong>compléter</strong> les fiches (naissance, régimes, groupes — seulement là où elles sont vides). Le fichier est lu sur cet ordinateur ; rien n'est appliqué avant que vous ne validiez. Réimporter un récapitulatif plus récent n'ajoute que le nouveau et met à jour les absences régularisées.</div>`;
+  const fermer = `<div class="ma"><button class="btn btn-g" onclick="closeMod2('mrecap')">Fermer</button></div>`;
+  if (!R) { box.innerHTML = intro + `<div class="ma" style="justify-content:flex-start">${choix}</div>` + fermer; return; }
+  if (R.err) { box.innerHTML = intro + `<div class="al al-w">⚠️ ${_escName(R.err)}</div><div class="ma" style="justify-content:flex-start">${choix}</div>` + fermer; return; }
+  const bil = _recapBilan(cls, R.lu, R.manuel), C = _recapChoix(bil);
+  const nom = sid => { const s = S.eleves[sid]; return s ? `${s.nom} ${s.prenom}` : sid; };
+  const per = R.lu.periode;
+  const L = _recapRattache(cls, R.lu, R.manuel);
+  const ck = (quoi, cle, on, lab) => `<label class="rc-l"><input type="checkbox"${on ? ' checked' : ''} onchange="recapUI('${quoi}', '${_escJsAttr(cle)}', this.checked)"> <span>${lab}</span></label>`;
+  const blocs = [];
+  // Rattachement
+  const sans = L.filter(l => !l.sid);
+  const opts = l => `<option value="">— ignorer —</option>${cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => `<option value="${_escAttr(s.id)}"${l.sid === s.id ? ' selected' : ''}>${_escName(s.nom + ' ' + s.prenom)}</option>`).join('')}`;
+  if (sans.length) blocs.push(`<div class="al al-w"><strong>${_pl(sans.length, 'nom')} à rattacher</strong> (introuvable${sans.some(l => l.homonyme) ? ' ou homonymes' : ''}) — choisissez l'élève, ou laissez « ignorer » :
+    <div class="rc-grid">${sans.map(l => `<span>${_escName(l.nom)} · page ${l.page}</span><select onchange="recapUI('rattacher', '${_escJsAttr(l.nom)}', this.value)" style="max-width:100%">${opts(l)}</select>`).join('')}</div></div>`);
+  const absents = cls.eleves.filter(id => S.eleves[id] && _isStudentActive(S.eleves[id]) && !bil.sids.includes(id));
+  if (absents.length) blocs.push(`<div class="tb-hint">Élèves de la classe absents du récapitulatif : ${absents.map(id => _escName(nom(id))).join(', ')}.</div>`);
+  const liste = (items, f) => items.length ? `<div class="rc-list">${items.map(f).join('')}</div>` : '';
+  // Observations
+  const parEl = new Map(); for (const x of bil.obs.nouveaux) parEl.set(x.sid, [...(parEl.get(x.sid) || []), x.ev]);
+  blocs.push(`<section class="rc-sec"><h3>📓 Observations</h3>${bil.obs.nouveaux.length
+    ? ck('obs', '', R.obs, `Ajouter <strong>${_pl(bil.obs.nouveaux.length, 'observation')}</strong> nouvelle${bil.obs.nouveaux.length > 1 ? 's' : ''}${bil.obs.connus ? ` · ${bil.obs.connus} déjà dans l'app` : ''}`)
+      + liste([...parEl.entries()], ([sid, evs]) => `<div><strong>${_escName(nom(sid))}</strong> — ${evs.map(e => _escName(_obsMbnTexte(e))).join(' ; ')}</div>`)
+    : `<p class="tb-hint">Aucune observation nouvelle${bil.obs.connus ? ` (${bil.obs.connus} déjà dans l'app)` : ''}.</p>`}${bil.obs.retirables.length
+    ? `<div class="al" style="margin-top:6px">${_pl(bil.obs.retirables.length, 'observation')} de l'app, dans la période du récapitulatif, n'y ${bil.obs.retirables.length > 1 ? 'figurent' : 'figure'} pas — effacée${bil.obs.retirables.length > 1 ? 's' : ''} dans MBN ? Rien n'est retiré sans être coché :${liste(bil.obs.retirables, x => ck('retObs', x.ev.id, R.retObs.has(x.ev.id), `${_escName(nom(x.sid))} · ${_escName(_obsMbnTexte(x.ev))}`))}</div>` : ''}</section>`);
+  // Punitions
+  const punN = bil.pun.filter(x => !x.deja);
+  blocs.push(`<section class="rc-sec"><h3>⚖️ Punitions → incidents</h3>${bil.pun.length ? liste(bil.pun, x => x.deja
+    ? `<div class="tb-hint">✓ ${_escName(nom(x.sid))} · ${_escName(_fmtDateFr(x.inc.date))} · ${_escName(_instanceOf(x.inc.type).label)} — ${_escName(x.inc.objet)} : déjà dans l'app</div>`
+    : ck('pun', x.cle, C.pun.has(x.cle), `<strong>${_escName(nom(x.sid))}</strong> · ${_escName(_fmtDateFr(x.inc.date))} · ${_escName(_instanceOf(x.inc.type).label)} — ${_escName(x.inc.objet)} <span class="tb-hint">(${_escName(x.inc.texte.replace(/ · D'après.*$/, ''))})</span>`))
+    : '<p class="tb-hint">Aucune punition dans le récapitulatif.</p>'}</section>`);
+  // Absences et retards
+  const parElA = new Map(); for (const x of bil.abs.nouveaux) parElA.set(x.sid, [...(parElA.get(x.sid) || []), x.ev]);
+  const nA = bil.abs.nouveaux.length, nM = bil.abs.modifies.length;
+  blocs.push(`<section class="rc-sec"><h3>🕒 Absences et retards</h3>${nA || nM
+    ? ck('abs', '', R.abs, `${nA ? `Ajouter <strong>${nA}</strong> absence${nA > 1 ? 's' : ''} ou retard${nA > 1 ? 's' : ''}` : ''}${nA && nM ? ' · ' : ''}${nM ? `mettre à jour <strong>${nM}</strong> (régularisée, motif…)` : ''}${bil.abs.connus ? ` · ${bil.abs.connus} déjà à jour` : ''}`)
+      + liste([...parElA.entries()], ([sid, evs]) => `<div><strong>${_escName(nom(sid))}</strong> — ${evs.map(e => _escName(_absMbnTexte(e))).join(' ; ')}</div>`)
+      + liste(bil.abs.modifies, m => `<div>${_escName(nom(m.sid))} · ${_escName(_absMbnTexte(m.avant))} → <strong>${_escName(_absMbnTexte(m.apres))}</strong></div>`)
+    : `<p class="tb-hint">Rien de nouveau${bil.abs.connus ? ` (${bil.abs.connus} déjà à jour)` : ''}.</p>`}${bil.abs.retirables.length
+    ? `<div class="al" style="margin-top:6px">${bil.abs.retirables.length} absence${bil.abs.retirables.length > 1 ? 's' : ''} ou retard${bil.abs.retirables.length > 1 ? 's' : ''} de l'app, dans la période, n'y ${bil.abs.retirables.length > 1 ? 'figurent' : 'figure'} pas. Rien n'est retiré sans être coché :${liste(bil.abs.retirables, x => ck('retAbs', x.ev.id, R.retAbs.has(x.ev.id), `${_escName(nom(x.sid))} · ${_escName(_absMbnTexte(x.ev))}`))}</div>` : ''}</section>`);
+  // Fiche
+  blocs.push(`<section class="rc-sec"><h3>🪪 Compléter les fiches <span class="tb-hint">— seulement ce qui est vide dans l'app</span></h3>${bil.fiche.length
+    ? liste(bil.fiche, f => ck('fiche', f.cle, C.fiche.has(f.cle), `${_escName(nom(f.sid))} · ${_escName(f.label)} : <strong>${_escName(f.texte)}</strong>${f.champ === 'tags' ? ` <span class="tb-hint">(${f.apres.filter(a => !tagByAbbr(a)).length ? 'les options inconnues seront ajoutées au catalogue' : 'options déjà au catalogue'})</span>` : ''}`))
+    : '<p class="tb-hint">Rien à compléter.</p>'}</section>`);
+  const n = _recapPrevu(bil, C);
+  box.innerHTML = intro + `<div class="tb-hint" style="margin-bottom:8px">📄 ${_escName(R.fichier)} · ${_pl(R.lu.eleves.length, 'élève')} lu${R.lu.eleves.length > 1 ? 's' : ''}${per ? ` · évènements du ${_escName(_fmtDateFr(per.a))} au ${_escName(_fmtDateFr(per.b))}` : ''}${(t => t ? ` · ⚠️ ${_pl(t, 'ligne')} illisible${t > 1 ? 's' : ''}, écartée${t > 1 ? 's' : ''}` : '')(R.lu.eleves.reduce((a, e) => a + e.illisibles, 0))}</div>
+    <div class="rc-body">${blocs.join('')}</div>
+    <div class="ma" style="flex-wrap:wrap"><span style="margin-right:auto">${choix.replace('btn-p', 'btn-g').replace('Choisir le récapitulatif (PDF)…', 'Un autre fichier…')}</span>
+      <button class="btn btn-g" onclick="closeMod2('mrecap')">Annuler</button>
+      <button class="btn btn-p" onclick="recapAppliquerUI()"${n ? '' : ' disabled'}>${n ? '✓ Appliquer' : 'Rien à faire'}</button></div>`;
+}
+function recapAppliquerUI() {
+  const cls = getCls();
+  if (!_recap?.lu || !cls) return;
+  const bil = _recapBilan(cls, _recap.lu, _recap.manuel), C = _recapChoix(bil);
+  if (!_recapPrevu(bil, C)) return toast('Rien à appliquer.', 'info');
+  pushUndo();
+  const n = _recapAppliquer(bil, C);
+  save();
+  closeMod2('mrecap');
+  renderCarnets();
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+  if (document.querySelector('.tab.on')?.id === 'tab-donnees') renderDonnees();
+  toast(`✓ Récapitulatif : ${[n.obs && _pl(n.obs, 'observation'), n.pun && _pl(n.pun, 'incident'), n.abs && `${n.abs} absence(s) ou retard(s)`, n.maj && `${n.maj} mis à jour`,
+    n.fiche && `${n.fiche} complément(s) de fiche`, (n.retObs + n.retAbs) && `${n.retObs + n.retAbs} retiré(s)`].filter(Boolean).join(', ')} — Ctrl+Z pour annuler.`);
+}
+
+// Les pages d'un PDF, lues comme l'outil 🔍 les lit. Navigateur ET harnais.
+async function _recapPages(u8) {
+  const doc = await _pdfOpen(u8), fc = new Map(), out = [];
+  for (const p of _pdfPages(doc)) {
+    const { glyphs, images } = await _pdfScanPage(doc, p, fc);
+    const [x0, y0, x1, y1] = p.mb.map(Number);
+    out.push({ w: x1 - x0, h: y1 - y0, x0, y1, images: images.length, lines: _trombiLines(glyphs, 0.6) });
+  }
+  return out;
+}
+
+// Un volet de puce (🗓 Moments, 📅 +n, Synthèse pour ▾) s'ouvre vers la droite depuis sa puce :
+// quand la barre s'allonge (une colonne de plus, v1.58.0), il sortait de l'écran et la page
+// défilait en largeur. Ouvert, il se recale contre le bord droit s'il le dépasse. Un `toggle`
+// part aussi quand le volet est redessiné déjà ouvert.
+function _popRecaler(det) {
+  const p = det && det.querySelector(':scope > .el-cols-p');
+  if (!p || getComputedStyle(p).position !== 'absolute') return;
+  p.style.left = ''; p.style.right = '';
+  const W = document.documentElement.clientWidth, r = p.getBoundingClientRect();
+  if (r.right > W - 8) { p.style.left = 'auto'; p.style.right = '0'; }
+}
+if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('toggle', e => { const d = e.target; if (d && d.open && d.matches && d.matches('details.el-cols')) _popRecaler(d); }, true);
 // L'en-tête de la colonne des élèves : deux tris, par NOM et par PRÉNOM (v1.44.4).
 function _elevesThNomHTML() {
   const b = (k, l) => { const on = eleveSort.col === k;
@@ -6466,15 +6900,18 @@ function _elevesFiltresHTML(cls) {
 // préférence que le volet ☰ Colonnes (on affine ensuite), un cran d'undo.
 const ELEVES_VUES = [
   // Contacts ajoutés en v1.46.15 (l'utilisateur : « affiche aussi la colonne Contacts dans la vue Préparer le conseil »).
-  { key: 'conseil', label: 'Préparer le conseil', cols: ['carnet', 'moy', 'incidents', 'contacts', 'avis', 'bilans', 'rem'] },
-  { key: 'parents', label: 'Appeler les familles', cols: ['carnet', 'moy', 'docs', 'incidents', 'contacts', 'rem'] },
+  // Absences ajoutées en v1.58.0 (récapitulatif de MBN) — la colonne n'existe que si la classe en a.
+  { key: 'conseil', label: 'Préparer le conseil', cols: ['carnet', 'moy', 'incidents', 'contacts', 'abs', 'avis', 'bilans', 'rem'] },
+  { key: 'parents', label: 'Appeler les familles', cols: ['carnet', 'moy', 'docs', 'incidents', 'contacts', 'abs', 'rem'] },
   { key: 'papiers', label: 'Papiers', cols: ['grp', 'docs', 'contacts'] },
   { key: 'tout',    label: 'Tout', cols: null },
 ];
 function _elevesVueOff(v) { return v.cols ? ELEVES_COLS.map(c => c.key).filter(k => !v.cols.includes(k)) : []; }
+// ⚠️ « abs » (v1.58.0) ne compte pas pour reconnaître une vue : les réglages enregistrés avant la
+// colonne ne la nomment pas, et la vue de chacun doit rester reconnue.
 function _elevesVueCourante() {
-  const off = new Set(_elevesColsOff());
-  const v = ELEVES_VUES.find(v => { const o = _elevesVueOff(v); return o.length === off.size && o.every(k => off.has(k)); });
+  const off = new Set(_elevesColsOff().filter(k => k !== 'abs'));
+  const v = ELEVES_VUES.find(v => { const o = _elevesVueOff(v).filter(k => k !== 'abs'); return o.length === off.size && o.every(k => off.has(k)); });
   return v ? v.key : '';
 }
 function elevesVueUI(key) {
@@ -6872,7 +7309,8 @@ async function printTrombi(o) {
 function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const cid = cls.id, today = _todayYmd();
   // Aucun moment dans la colonne Bilans (tous retirés par 🗓 Moments) : pas de colonne (v1.46.1).
-  const cols = ELEVES_COLS.filter(c => _elevesColVue(c.key) && (c.key !== 'bilans' || bcols.length));
+  // Absences : seulement quand la classe en a (elles viennent du récapitulatif de MBN, v1.58.0).
+  const cols = ELEVES_COLS.filter(c => _elevesColVue(c.key) && (c.key !== 'bilans' || bcols.length) && (c.key !== 'abs' || _absMbnClasseAny(cls)));
   const fiche = _ficheSid && document.body.classList.contains('fiche-cote') && document.getElementById('mfiche')?.classList.contains('on') ? _ficheSid : null;
   const per = _periods(cls)[_carnetCurrentPeriodIdx(cls)];
   const triCle = { carnet: 'cumul' };
@@ -6944,6 +7382,12 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
       if (!r.nbContacts) return dot('Aucun contact avec la famille — clic : en noter un', `openContacts('${j}')`);
       const all = _journalOf(sid);
       return `<button class="el-pill" onclick="event.stopPropagation();chaleurContactsUI('${j}','0000-01-01','9999-12-31','${_escJsAttr(cls.annee || 'toute l\'année')}')" title="${_escAttr(all.map(e => `${_fmtDateFr(e.date)} ${_journalType(e.type).label} : ${e.texte}`).join('\n') + '\nClic : les lire, en corriger un, en noter un nouveau')}">☎ ${r.nbContacts}</button> <span class="el-dl">${_escName(_fmtDateFr(r.contact.date).slice(0, 5))}</span>`;
+    };
+    td.abs = () => {
+      const a = r.absences;
+      if (!a || !a.list.length) return '<span class="el-0" title="Aucune absence ni aucun retard sur la période">·</span>';
+      const tip = `${per ? per.label + ' : ' : ''}${_absResumeTexte(a)}\n` + a.list.map(_absMbnTexte).join('\n') + '\nClic : les voir';
+      return `<button class="el-pill${a.nonVal ? ' bad' : ''}" onclick="event.stopPropagation();absencesUI('${j}','${_escJsAttr(per?.start || '0000-01-01')}','${_escJsAttr(per?.end || '9999-12-31')}','${_escJsAttr(per?.label || '')}')" title="${_escAttr(tip)}">🕒 ${[a.n ? `${a.n} abs.${a.min ? ` · ${_escName(_absDureeTexte(a.min))}` : ''}` : '', a.ret ? `${a.ret} ret.` : ''].filter(Boolean).join(' · ')}</button>`;
     };
     td.avis = () => _avisCelluleHTML(cls, campCour, sid);
     td.bilans = () => `<span class="el-bdots">${bcols.map((c, i) => {
@@ -7863,6 +8307,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     : '<p class="pf-empty">Aucun relevé sur la période.</p>';
   const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
+  const absR = _absMbnClasseAny(cls) ? _absMbnResume(sid, b.start, b.end) : null;
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
   const manq = docs.filter(d => d.suiviRetour !== false && (r => !r.rendu || (r.dateRetour && r.dateRetour > b.end))(_retour(d, sid)));
   // Moyennes : matières en lignes, imports en colonnes, Δ du premier au dernier.
@@ -7916,6 +8361,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
     ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
+    ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x).replace(/^(Absence|Retard) (le|du) [^—(]*/, '$1 '))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
     ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
     ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
       return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : `<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
@@ -15061,6 +15507,8 @@ function _syntheseRow(cls, stu) {
     // savoir quand on a joint celle-ci pour la dernière fois y vaut autant qu'un cumul.
     contact: (() => { const e = _journalLast(stu.id); return e ? { date: e.date, type: e.type, texte: e.texte } : null; })(),
     nbContacts: Array.isArray(stu.journal) ? stu.journal.length : 0,
+    // Absences et retards de la période courante, lus dans le récapitulatif de MBN (v1.58.0).
+    absences: periode ? _absMbnResume(stu.id, periode.start, periode.end) : null,
     // Incidents et instances : le nombre, et le dernier — c'est ce qu'on regarde avant un
     // conseil de classe ou une commission, quand il faut dire « depuis quand, et combien ».
     nbIncidents: Array.isArray(stu.incidents) ? stu.incidents.length : 0,
@@ -17671,6 +18119,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
       .map(e => ({ date: e.date, type: e.type, objet: e.objet, texte: e.texte || '' })).reverse();
     const contacts = _journalOf(stu.id).filter(e => e.date >= p.start && e.date <= p.end)
       .map(e => ({ date: e.date, type: e.type, texte: e.texte })).reverse();
+    const abs = _absMbnResume(stu.id, p.start, p.end);
     const b = o.col ? _bilanCible(cls, stu.id, { type: o.col.type, date: o.col.date }) : _bilanPeriode(cls, stu.id, periodIdx, o.type || 'conseil');
     return {
       sid: stu.id, nom: stu.nom, prenom: stu.prenom, groupe: stu.groupe || null,
@@ -17679,7 +18128,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
       parti: stu.departureDate && stu.departureDate <= p.end ? stu.departureDate : null,
       cumulFin, cumulFinDate, totalPeriode: B ? _obsEntre(cid, stu.id, p.start, p.end) : _relPeriodTotal(cid, stu.id, periodIdx), absents,
       mbn: _obsMbnEntre(stu.id, p.start, p.end).length,
-      nonRendus, incidents, contacts,
+      nonRendus, incidents, contacts, abs,
       moyennes: _moyPeriodeEleve(mp, stu.id),
       bilan: b ? { date: b.date, type: b.type, texte: b.texte } : null,
       // Les décisions du même moment (v1.46.13), sous le bilan sur la feuille.
@@ -17701,6 +18150,7 @@ const _PERIODE_BLOCS = [
   { key: 'docs',      label: 'Documents non rendus', hint: 'Papiers distribués jusqu\'à la fin de la période et toujours pas rendus' },
   { key: 'incidents', label: 'Incidents',           hint: 'Incidents, punitions, sanctions, instances DE la période' },
   { key: 'contacts',  label: 'Contacts',            hint: 'Contacts avec la famille DE la période' },
+  { key: 'abs',       label: 'Absences et retards', hint: 'Absences (heures manquées), retards, non valables — lus dans le récapitulatif de Mon Bureau Numérique' },
   { key: 'bilan',     label: 'Bilan',               hint: 'Ce que j\'ai rédigé pour ce conseil (ou ce bilan de mi-période)' },
   { key: 'avis',      label: 'Avis des collègues',  hint: 'Ce que les collègues ont écrit dans la feuille d\'avis de la période — travail, participation, comportement' },
   { key: 'hvc',       label: 'Heures de vie de classe', hint: 'Les heures de vie de classe tenues pendant la période, en tête de la feuille' },
@@ -17764,11 +18214,11 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   // double la hauteur de TOUTE la rangée — mesuré sur la démo, 25 rangées de 27 px au
   // minimum à 7 pt, soit la page entière avant même le premier bilan.
   const cols = [['eleve', 11], ['ident', 7], on('obs') && ['obs', 7], on('moy') && ['moy', 16], on('docs') && ['docs', 9],
-    on('incidents') && ['incidents', 16], on('contacts') && ['contacts', 8], on('avis') && ['avis', 26], on('bilan') && ['bilan', 26]].filter(Boolean);
+    on('incidents') && ['incidents', 16], on('contacts') && ['contacts', 8], on('abs') && _absMbnClasseAny(cls) && ['abs', 9], on('avis') && ['avis', 26], on('bilan') && ['bilan', 26]].filter(Boolean);
   const tot = cols.reduce((n, c) => n + c[1], 0);
   const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c[1] / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
   const titres = { eleve: 'Élève', ident: 'Groupe · options', obs: `Observ. ${_escName(p.label)}`, moy: 'Moyenne',
-    docs: 'Non rendus', incidents: 'Incidents', contacts: 'Contacts', avis: 'Avis des collègues', bilan: o.type === 'conseil' || !o.type ? 'Conseil' : 'Bilan' };
+    docs: 'Non rendus', incidents: 'Incidents', contacts: 'Contacts', abs: 'Absences', avis: 'Avis des collègues', bilan: o.type === 'conseil' || !o.type ? 'Conseil' : 'Bilan' };
   const premier = syn.moyennes ? syn.moyennes.premier : null;
   const cell = {
     eleve: r => `<span class="pp-nom">${_escName(r.nom)}</span> ${_escName(r.prenom)}${
@@ -17784,6 +18234,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     docs: r => r.nonRendus.length ? `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` : '',
     incidents: r => `<small>${r.incidents.map(e => `<span class="pp-l">${_escName(jm(e.date))} <strong>${_escName(_instanceOf(e.type).label)}</strong> — ${_escName(e.objet)}</span>`).join('')}</small>`,
     contacts: r => `<small>${r.contacts.map(e => `${_escName(jm(e.date))} ${_escName(_journalType(e.type).label.toLowerCase())}`).join(' · ')}</small>`,
+    abs: r => r.abs.list.length ? `<small>${r.abs.n ? `${r.abs.n} abs.${r.abs.min ? ` (${_escName(_absDureeTexte(r.abs.min))})` : ''}` : ''}${r.abs.n && r.abs.ret ? ' · ' : ''}${r.abs.ret ? `${r.abs.ret} ret.` : ''}${r.abs.nonVal ? ` · <strong>${r.abs.nonVal} non val.</strong>` : ''}</small>` : '',
     avis: r => `<small>${r.avis.map(a => `<span class="pp-l"><strong>${_escName(a.onglet)}</strong> ${avisLigne(a)}</span>`).join('')}</small>`,
     bilan: r => `<div class="pp-rem">${bilCell(r)}</div>`,
   };
@@ -17925,6 +18376,7 @@ const FICHE_PRINT_PARTS = [
   { key: 'avis',      label: 'Avis des collègues',  hint: 'La feuille d\'avis du moment, discipline par discipline' },
   { key: 'incidents', label: 'Incidents',           hint: 'Incidents et instances du moment, avec la décision' },
   { key: 'contacts',  label: 'Contacts',            hint: 'Contacts avec la famille du moment' },
+  { key: 'abs',       label: 'Absences et retards', hint: 'Lus dans le récapitulatif de Mon Bureau Numérique, sur le moment' },
   { key: 'papiers',   label: 'Papiers',             hint: 'Documents distribués : rendu ou non, choix portés' },
   { key: 'bilans',    label: 'Autres bilans',       hint: 'Les bilans et décisions des autres moments de l\'année' },
 ];
@@ -18011,6 +18463,8 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
   const incH = inc.length ? inc.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<br>${pl(x.texte)}` : ''}</span></div>`).join('') : vide('Aucun incident sur le moment.');
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const ctH = ct.length ? ct.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_journalType(x.type).label.toLowerCase())}</strong> — ${pl(x.texte || '')}</span></div>`).join('') : vide('Aucun contact sur le moment.');
+  const absR = _absMbnResume(sid, b.start, b.end);
+  const absH = `<p class="fp-mu fp-small">${_escName(_absResumeTexte(absR))}</p>` + absR.list.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.debut)}</span><span>${_escName(_absMbnTexte(x).replace(/^(Absence|Retard) (le|du) [^—(]*/, '$1 '))}</span></div>`).join('');
   const infos = _ficheDocuments(cls, sid);
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
   const papH = docs.length ? docs.map(d => { const r = _retour(d, sid), info = infos.find(x => x.docId === d.id);
@@ -18031,6 +18485,7 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
       ${on('moy') ? sec('Moyennes', moyH) : ''}
       ${on('incidents') ? sec('Incidents', incH) : ''}
       ${on('contacts') ? sec('Contacts avec la famille', ctH) : ''}
+      ${on('abs') && _absMbnClasseAny(cls) ? sec('Absences et retards', absH) : ''}
       ${on('papiers') ? sec('Papiers', papH) : ''}
     </div>
     ${on('avis') ? sec(`Avis des collègues${av ? ' — ' + _escName(_avisObjectif(cls, av.camp).long) : ''}`, avisH, 'fp-large') : ''}
@@ -18973,13 +19428,7 @@ async function _structFichier(file) {
   const st = document.getElementById('struct-status');
   st.textContent = '⏳ Lecture du PDF…';
   try {
-    const doc = await _pdfOpen(new Uint8Array(await file.arrayBuffer()));
-    const pages = _pdfPages(doc), fc = new Map(), lues = [];
-    for (const p of pages) {
-      const { glyphs, images } = await _pdfScanPage(doc, p, fc);
-      const [x0, y0, x1, y1] = p.mb.map(Number);
-      lues.push({ w: x1 - x0, h: y1 - y0, x0, y1, images: images.length, lines: _trombiLines(glyphs, 0.6) });
-    }
+    const lues = await _recapPages(new Uint8Array(await file.arrayBuffer()));
     _struct.pdf = lues; _struct.texte = ''; _struct.etat = new Map(); _struct.page = 0;
     document.getElementById('struct-txt').value = '';
     st.textContent = `${lues.length} page${lues.length > 1 ? 's' : ''} lue${lues.length > 1 ? 's' : ''}.`;
@@ -21006,6 +21455,21 @@ function createDemo(opts) {
     const s = S.eleves[sids[i]];
     if (!s) return;
     (s.obsMbn = s.obsMbn || []).push({ id: `demo_m${String(k + 1).padStart(2, '0')}`, ts: Date.parse(D(md) + 'T12:00:00'), date: D(md), heure, type: 'Observation négative', motif, par, info });
+  });
+  // ── Absences et retards, comme lus dans le récapitulatif vie scolaire de MBN (v1.58.0) :
+  // [élève, sorte, début, h, fin, h, motif, régularisé, valable, séances, durée (min)].
+  const absMbn = [
+    [0, 'absence', '09-22', '08:00', '09-23', '17:00', 'Raison de santé', true, true, 12, 600], [0, 'retard', '10-01', '08:00', '10-01', '08:15', 'Problèmes de transport', false, true, 1, 15],
+    [0, 'absence', '01-15', '10:00', '01-15', '12:00', 'Absent en cours/présent dans l\'établissement', true, false, 2, 120],
+    [3, 'absence', '11-17', '08:00', '11-17', '12:00', 'Rendez-vous médical', true, true, 4, 240], [3, 'retard', '03-02', '13:30', '03-02', '13:45', 'Panne de réveil', false, false, 1, 15],
+    [9, 'absence', '10-06', '08:00', '10-07', '17:00', '', false, null, 14, 690], [9, 'retard', '10-14', '08:00', '10-14', '08:10', 'Problèmes de transport', true, true, 1, 10],
+    [9, 'retard', '02-09', '08:00', '02-09', '08:20', 'Problèmes de transport', true, true, 1, 20],
+    [14, 'absence', '12-08', '13:30', '12-08', '17:00', 'Raison de santé', true, true, 3, 210], [20, 'retard', '04-07', '10:00', '04-07', '10:05', 'Passage à l\'infirmerie', true, true, 1, 5],
+  ];
+  absMbn.forEach(([i, kind, md1, h1, md2, h2, motif, regul, valable, seances, duree], k) => {
+    const s = S.eleves[sids[i]];
+    if (!s) return;
+    (s.absMbn = s.absMbn || []).push({ id: `demo_a${String(k + 1).padStart(2, '0')}`, ts: Date.parse(D(md1) + 'T12:00:00'), kind, debut: D(md1), hDebut: h1, fin: D(md2), hFin: h2, motif, regul, valable, seances, duree, compte: true });
   });
   // ── Heures de vie de classe — le journal de la classe, une par mois environ.
   const hvcs = [

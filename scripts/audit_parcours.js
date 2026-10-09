@@ -30,7 +30,9 @@
   const docMulti = () => docs().find(d => (d.champs || []).length >= 2) || docs()[0];
   const camps = () => Object.values(_avisMap(cls().id) || {}).sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const theme = t => { if ((document.documentElement.dataset.theme || 'light') !== t) toggleAppTheme(); };
-  const onglet = id => { fermer(); _elView = null; _elProject = false; showTab(id); };
+  // Les volets de puce se referment entre deux états (un « moments ouverts » laissé ouvert faisait
+  // compter son débordement à tous les états suivants de l'onglet).
+  const onglet = id => { fermer(); _elView = null; _elProject = false; _elMomOpen = false; showTab(id); };
 
   // [libellé, préparation] — chaque préparation part d'un état fermé (fenêtres refermées avant).
   const ETATS = [
@@ -73,6 +75,7 @@
     ['fenêtre · nouveau relevé', () => { onglet('carnets'); openReleveNew(); }],
     ['fenêtre · imprimer le carnet', () => { onglet('carnets'); openCarnetPrint(); }],
     ['fenêtre · observations MBN', () => { onglet('carnets'); openObsMbnImport(); }],
+    ['fenêtre · récapitulatif MBN (PDF)', () => { onglet('carnets'); openRecapImport(); }],
     // 📈 Moyennes
     ['moyennes · tableau', () => { onglet('moyennes'); setMoyVue('tableau'); }],
     ['moyennes · évolution', () => { onglet('moyennes'); setMoyVue('evolution'); }],
@@ -109,6 +112,7 @@
     ['fenêtre · confirmation', () => { onglet('donnees'); _uiConfirm({ title: 'Confirmer ?', message: 'Texte de confirmation.', okLabel: 'OK' }); }],
     ['fenêtre · saisie', () => { onglet('donnees'); _uiPrompt({ title: 'Nom ?', message: 'Texte.', value: 'valeur' }); }],
     ['fenêtre · dialogue', () => { onglet('donnees'); appAlert('Titre', 'Un message.', 'warn'); }],
+    ['fenêtre · décrire un fichier', () => { onglet('donnees'); openStructure(); }],
     ['fenêtre · import Plan de classe', () => { onglet('donnees'); _pdcOpenChooser({ classes: { [cls().id]: { id: cls().id, nom: cls().nom, annee: cls().annee, eleves: eleves() } }, eleves: Object.fromEntries(eleves().map(id => [id, { ...S.eleves[id] }])) }); }],
   ];
 

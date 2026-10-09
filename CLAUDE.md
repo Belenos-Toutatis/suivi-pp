@@ -96,7 +96,7 @@ Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sono
 - `icons/` — les 5 PNG d'installation (192 et 512 en `any` et `maskable`, plus l'icône iOS 180)
 - `README.md`, `LICENSE` (MIT), `CLAUDE.md`
 - `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
-- `scripts/audit_static.js`, `scripts/audit_browser.js` — les deux auditeurs (cf. *Scores de référence*, v1.28.2) ; `scripts/audit_parcours.js` — le parcours des états et des feuilles imprimées, à charger après `audit_browser.js` (v1.55.9) ; `scripts/gen_icons.py`
+- `scripts/audit_static.js`, `scripts/audit_browser.js` — les deux auditeurs (cf. *Scores de référence*, v1.28.2) ; `scripts/audit_parcours.js` — le parcours des états et des feuilles imprimées, à charger après `audit_browser.js` (v1.55.9) ; `scripts/gen_icons.py` ; `scripts/gen_recap_fixture.py` (le faux récapitulatif MBN des tests, v1.58.0)
 - `test/harness.js`, `test/*.test.js`, `test/fixtures/` (dont `trombi/fake-trombi.pdf`, un faux trombinoscope), `package.json` (`npm test` → `node --test "test/*.test.js"`)
   ⚠️ Le glob, pas `node --test test/` : sous Node 22, l'argument-répertoire `test` échoue en `MODULE_NOT_FOUND`. Le glob a en prime l'avantage de n'exécuter que les `*.test.js`, donc `harness.js` n'est plus compté comme un test.
 
@@ -167,6 +167,8 @@ stu = {
   sortie,                  // code du régime de SORTIE ('D1', 'D2', 'D3') | absent (v1.45.1, révisé v1.45.2)
   // Observations notées dans Mon Bureau Numérique (v1.46.0) — des ÉVÉNEMENTS, pas un cumul.
   obsMbn: [ { id, ts, date: 'YYYY-MM-DD', heure: 'HH:MM' | '', type, motif, par, info } ],   // absent = aucune
+  // Absences et retards lus dans le récapitulatif vie scolaire de MBN (v1.58.0) — des ÉVÉNEMENTS.
+  absMbn: [ { id, ts, kind: 'absence'|'retard', debut, hDebut, fin, hFin, motif, regul, valable, seances, duree /* min */, compte } ],
   // Journal des contacts avec la famille — DATÉ et qualifié, à côté du texte libre.
   journal: [ { id, date: 'YYYY-MM-DD', ts, type: 'appel'|'rencontre'|'courriel'|'mot'|'autre', texte } ],
   // Incidents et instances (2026-09-11) : fiche incident, punition, commission éducative…
@@ -350,7 +352,44 @@ une ligne par observation, « Donnée le » en **nombre de série** Excel dans l
   semaine type, puis un tableau par sorte d'événement (« Retards », « Absences » : Période ·
   Régularisé · Motif · Valable · Séances impactées · Durée · Comptabilisé ; « Le jj/mm/aaaa, de
   hh:mm à hh:mm », « Du … au … » sur deux lignes). ⚠️ **Le tableau des OBSERVATIONS n'a pas encore
-  été vu** : les deux pages décrites n'en avaient aucune.
+  été vu** : les deux pages décrites n'en avaient aucune. ~~(…)~~ Vu ensuite (pages d'élèves qui en ont) :
+  *Observations* = Date (« 9 sept. 2025 ») · Motif · Type (« Négatif », « Positif ») · Demandeur — **ni
+  heure ni informations complémentaires** ; *Punitions* = Date de l'évènement · Conséquence · Motifs ·
+  État · Demandeur.
+- **📄 Import du récapitulatif PDF** (v1.58.0, arbitré par l'utilisateur : observations, punitions →
+  incidents, absences et retards, compléter la fiche ; PAS les dispenses). `openRecapImport`, fenêtre
+  `mrecap` — depuis la fenêtre des observations MBN (*Sans accès à cet export ?*) et 💾 Données ▸
+  Imports. Lecture pure : `_recapPages` (le lecteur PDF de l'app, `_trombiLines(…, 0.6)`) →
+  `_recapLire` (mm depuis le haut ; un élève par page à en-tête — nom ≥ 10,5 pt dans les 16 premiers
+  mm —, une page sans en-tête est la SUITE du précédent ; une section = un titre SEUL sur sa ligne en
+  8 pt ; ses rangées se groupent en événements par l'écart vertical — **< 4,2 mm = le même
+  événement** (une case sur deux lignes, au-dessus OU au-dessous du reste), ≥ 5 mm entre deux ; le
+  premier paquet sans chiffre = les en-têtes, leurs positions font les colonnes). Dates
+  `_recapDateFr` (mois abrégés), `_recapPeriode` (« Le … de … à … », « Du … au … »), `_recapDuree`.
+  Puis `_recapBilan` (revue) et `_recapAppliquer` (un cran d'undo) :
+  - **observations** → `stu.obsMbn`, type « Observation négative / positive » ; ⚠️ reconnues par
+    **date + motif** seulement (le PDF n'a ni heure ni texte) : une observation importée de l'export
+    .xlsx n'est pas reprise une seconde fois ;
+  - **punitions** → incidents (`_recapInstance` : Retenue, Exclusion ponctuelle de cours, Devoir
+    supplémentaire…, sinon « Autre punition » ; objet = le motif ; texte = état, demandeur, source),
+    cochées une par une, « déjà dans l'app » si même date, instance et objet ;
+  - **absences et retards** → `stu.absMbn`, reconnus par sorte + bornes ; un réimport **met à jour**
+    le reste (une absence se régularise) ;
+  - **fiche** : naissance, demi-pension, régime de sortie, groupe (code GPn), options (autres codes,
+    créées au catalogue si besoin) — **seulement les champs VIDES**, un par un.
+  ⚠️ Un retrait (observation ou absence de l'app absente du PDF) n'est proposé que DANS la période
+  du récapitulatif (« Évènements du … au … ») et pour un élève qui y figure, et jamais coché d'office.
+  Les noms non reconnus se rattachent à la main (« ignorer » par défaut).
+- **Où l'on voit les absences** : colonne **Absences** des Indicateurs (période courante, « 🕒 2 abs.
+  · 5 h · 1 ret. », rouge s'il y a du non valable ; clic → la liste, `absencesUI`), seulement quand
+  la classe en a ; vues *Préparer le conseil* et *Appeler les familles* (« abs » ne compte pas pour
+  reconnaître une vue enregistrée) ; carte *Absences et retards* de la fiche (bornée au moment) ;
+  bloc de la synthèse de période et partie de la fiche imprimée. Calcul pur : `_absMbnResume` (un
+  événement compte dans la période où il commence ; demi-journées NON calculées — elles ne se
+  déduisent pas des événements). Démo : dix absences et retards.
+  Fixture : `test/fixtures/recap-mbn-invente.pdf`, fabriquée par `scripts/gen_recap_fixture.py` à la
+  mise en page relevée (noms inventés). ⚠️ **Vérifié sur la seule fixture** : le vrai fichier, à
+  essayer par l'utilisateur (la revue montre tout avant d'appliquer).
 
 ### Documents — un même papier porte plusieurs réponses
 
@@ -2365,6 +2404,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 150 | **📄 Import du récapitulatif vie scolaire de MBN (PDF)** : observations (reconnues par date + motif), punitions → incidents, **absences et retards** (`stu.absMbn`, mis à jour au réimport), compléments de fiche (champs vides seulement), revue avant application, rattachement manuel ; absences dans les Indicateurs (colonne), la fiche, la synthèse de période, la fiche imprimée ; démo ; fixture inventée à la mise en page relevée ; 6 tests (`test/recap.test.js`). Audit complet : 69 états × 2 thèmes à 1 400 px avec les 12 feuilles (162 mesures), 138 à 320 px, ≈ 149 000 nœuds, 0 défaut — après correction d'un débordement : le volet « 🗓 Moments », poussé hors de l'écran par la puce de plus, se recale contre le bord (`_popRecaler`) | ✅ **fait** (2026-10-09, v1.58.0) |
 | 149 | **Décrire un fichier : la page DESSINÉE et cliquable** (l'utilisateur : *« que l'outil affiche le fichier, que je clique sur les informations et précise le type d'information »*) — chaque texte à sa place (pas les traits ni les images), ◀ ▶ entre les pages décrites ; un clic : *lisible*, *masqué*, *selon les mots cochés*, ou ce qu'il contient (`STRUCT_TYPES` : nom de l'élève, date, motif… ou *Autre…*), transmis « ⟨date : 99/99/9999⟩ » (`_structSeg`) ; *aussi au même endroit sur les autres pages* (coché d'office). Tout reste masqué d'office sauf les mots courants ; 1 test. Audit 2 thèmes, 1 400 et 320 px, dialogue compris, 0 défaut | ✅ **fait** (2026-10-09, v1.57.2) |
 | 148 | **Décrire un fichier : des pages choisies** (« ou les pages n° 5, 8-9 », `_structPagesNums`) — la page d'un élève qui A des observations, pas seulement les premières ; 1 test. Audit 2 thèmes, 1 400 et 320 px, 0 défaut | ✅ **fait** (2026-10-09, v1.57.1) |
 | 147 | **🔍 Décrire un fichier sans ses données** (💾 Données ▸ Imports, fenêtre `mstruct`) : un PDF ou un tableau collé, décrit sur le poste — rangées en mm, colonnes, tailles ; lettres en X / x, chiffres en 9, sauf les mots cochés (`STRUCT_MOTS_COURANTS` d'office) ; rien dans `S`, oublié à la fermeture (`_structMasque`, `_structMots`, `_structPdfTexte`, `_structColleTexte`) · lecteur PDF : filtres **ASCII85** et **ASCIIHex**, chasse approchée des polices standard sans /Widths, `_trombiLines(glyphs, coupe)` ; 5 tests (`test/structure.test.js`, fixture inventée `recap-invente.pdf`). Audit 2 thèmes, 1 400 et 320 px, 0 défaut | ✅ **fait** (2026-10-09, v1.57.0) |
