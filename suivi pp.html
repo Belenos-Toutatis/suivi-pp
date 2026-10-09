@@ -3081,8 +3081,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.58.1';
-const APP_BUILD_DATE = '2026-10-09T06:37:08Z';
+const APP_VERSION    = '1.58.2';
+const APP_BUILD_DATE = '2026-10-09T06:50:41Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3928,7 +3928,8 @@ function _sanitizeCoreSections() {
     // Observations notées dans MBN (v1.46.0) : absent = aucune ; jamais créé d'office.
     if (e.obsMbn !== undefined) { if (Array.isArray(e.obsMbn)) e.obsMbn = e.obsMbn.filter(x => _isPlainObj(x) && _ymdValid(x.date)); else delete e.obsMbn; }
     // Absences et retards relevés dans MBN (v1.58.0) : absent = aucun ; jamais créé d'office.
-    if (e.absMbn !== undefined) { if (Array.isArray(e.absMbn)) e.absMbn = e.absMbn.filter(x => _isPlainObj(x) && _ymdValid(x.debut) && (x.kind === 'absence' || x.kind === 'retard')); else delete e.absMbn; }
+    if (e.absMbn !== undefined) { if (Array.isArray(e.absMbn)) e.absMbn = e.absMbn.filter(x => _isPlainObj(x) && _ymdValid(x.debut) && (x.kind === 'absence' || x.kind === 'retard')); else delete e.absMbn;
+      for (const x of e.absMbn || []) if (!_ymdValid(x.fin)) x.fin = x.debut; }
   }
   for (const byId of Object.values(S.moyennes)) {
     for (const r of Object.values(byId)) {
@@ -6147,7 +6148,7 @@ function obsMbnAppliquerUI() {
 // Arbitré par l'utilisateur : reprendre les observations, les punitions (en incidents), les absences
 // et retards, et compléter la fiche (naissance, régimes, groupes) — pas les dispenses.
 const _RECAP_MOIS = { janv: 1, janvier: 1, fev: 2, fevr: 2, fevrier: 2, mars: 3, avr: 4, avril: 4, mai: 5, juin: 6, juil: 7, juillet: 7,
-  aout: 8, sept: 9, septembre: 9, oct: 10, octobre: 10, nov: 11, novembre: 11, dec: 12, decembre: 12 };
+  juill: 7, aout: 8, sep: 9, sept: 9, septembre: 9, oct: 10, octobre: 10, nov: 11, novembre: 11, dec: 12, decembre: 12 };
 // « 9 sept. 2025 » → '2025-09-09' | null. PUR.
 function _recapDateFr(t) {
   const m = /(\d{1,2})(?:er)?\s+([A-Za-zÀ-ÿ]+)\.?\s+(\d{4})/.exec(String(t || ''));
@@ -6295,11 +6296,11 @@ function _absMbnOf(sid) {
 }
 const _absMbnCle = e => [e.kind, e.debut, e.hDebut || '', e.fin || e.debut, e.hFin || ''].join('|');
 const _ABS_CHAMPS = ['motif', 'regul', 'valable', 'seances', 'duree', 'compte'];
-function _absMbnTexte(e) {
+function _absMbnTexte(e, sansDate) {
   const h = m => m === null || m === undefined ? '' : m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`;
   const quand = e.fin && e.fin !== e.debut ? `du ${_fmtDateFr(e.debut)}${e.hDebut ? ' ' + e.hDebut : ''} au ${_fmtDateFr(e.fin)}${e.hFin ? ' ' + e.hFin : ''}`
     : `le ${_fmtDateFr(e.debut)}${e.hDebut ? `, ${e.hDebut}${e.hFin ? '–' + e.hFin : ''}` : ''}`;
-  return `${e.kind === 'retard' ? 'Retard' : 'Absence'} ${quand}${e.duree ? ` (${h(e.duree)})` : ''}${e.motif ? ' — ' + e.motif : ''}${e.valable === false ? ' · non valable' : ''}${e.regul === false ? ' · à régulariser' : ''}`;
+  return `${e.kind === 'retard' ? 'Retard' : 'Absence'}${sansDate ? (e.fin && e.fin !== e.debut ? ` jusqu'au ${_fmtDateFr(e.fin)}` : e.hDebut ? `, ${e.hDebut}${e.hFin ? '–' + e.hFin : ''}` : '') : ' ' + quand}${e.duree ? ` (${h(e.duree)})` : ''}${e.motif ? ' — ' + e.motif : ''}${e.valable === false ? ' · non valable' : ''}${e.regul === false ? ' · à régulariser' : ''}`;
 }
 function _absMbnClasseAny(cls) { return !!cls && cls.eleves.some(id => _absMbnOf(id).length); }
 // PUR : le compte d'une période — absences (et leurs heures manquées), retards, non valables,
@@ -6381,10 +6382,13 @@ function _recapBilan(cls, lu, manuel) {
       if (champs.length) abs.modifies.push({ sid, id: e.id, avant: e, apres: a, champs }); else abs.connus++;
     }
     for (const [k, e] of app) if (!vus.has(k) && dans(e.debut)) abs.retirables.push({ sid, ev: e });
+    const vuesP = new Map();
     for (const l of lignes) for (const x of l.punitions) {
       const inc = _recapIncident(x);
       const deja = (stu.incidents || []).some(i => i && i.date === inc.date && i.type === inc.type && _impNormHeader(i.objet) === _impNormHeader(inc.objet));
-      pun.push({ sid, inc, deja, cle: `${sid}|${inc.date}|${inc.type}|${_impNormHeader(inc.objet)}` });
+      const c0 = `${sid}|${inc.date}|${inc.type}|${_impNormHeader(inc.objet)}`, k = (vuesP.get(c0) || 0) + 1;
+      vuesP.set(c0, k);
+      pun.push({ sid, inc, deja, cle: k > 1 ? `${c0}#${k}` : c0 });   // deux punitions identiques : deux cases
     }
     const l = lignes[0], vide = v => v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length);
     const champ = (k, label, apres, texte) => { if (!vide(apres) && vide(stu[k])) fiche.push({ sid, champ: k, label, avant: stu[k] ?? null, apres, texte, cle: `${sid}|${k}` }); };
@@ -6517,11 +6521,13 @@ function _recapRender() {
     ? liste(bil.fiche, f => ck('fiche', f.cle, C.fiche.has(f.cle), `${_escName(nom(f.sid))} · ${_escName(f.label)} : <strong>${_escName(f.texte)}</strong>${f.champ === 'tags' ? ` <span class="tb-hint">(${f.apres.filter(a => !tagByAbbr(a)).length ? 'les options inconnues seront ajoutées au catalogue' : 'options déjà au catalogue'})</span>` : ''}`))
     : '<p class="tb-hint">Rien à compléter.</p>'}</section>`);
   const n = _recapPrevu(bil, C);
+  const haut = box.querySelector('.rc-body')?.scrollTop || 0;   // cocher une case ne renvoie pas la liste en haut
   box.innerHTML = intro + `<div class="tb-hint" style="margin-bottom:8px">📄 ${_escName(R.fichier)} · ${_pl(R.lu.eleves.length, 'élève')} lu${R.lu.eleves.length > 1 ? 's' : ''}${per ? ` · évènements du ${_escName(_fmtDateFr(per.a))} au ${_escName(_fmtDateFr(per.b))}` : ''}${(t => t ? ` · ⚠️ ${_pl(t, 'ligne')} illisible${t > 1 ? 's' : ''}, écartée${t > 1 ? 's' : ''}` : '')(R.lu.eleves.reduce((a, e) => a + e.illisibles, 0))}</div>
     <div class="rc-body">${blocs.join('')}</div>
     <div class="ma" style="flex-wrap:wrap"><span style="margin-right:auto">${choix.replace('btn-p', 'btn-g').replace('Choisir le récapitulatif (PDF)…', 'Un autre fichier…')}</span>
       <button class="btn btn-g" onclick="closeMod2('mrecap')">Annuler</button>
       <button class="btn btn-p" onclick="recapAppliquerUI()"${n ? '' : ' disabled'}>${n ? '✓ Appliquer' : 'Rien à faire'}</button></div>`;
+  const rb = box.querySelector('.rc-body'); if (rb && haut) rb.scrollTop = haut;
 }
 function recapAppliquerUI() {
   const cls = getCls();
@@ -7095,12 +7101,12 @@ function _chaleurGroupes(cls, bcols, colM) {
     // au moment, ou tout le moment pour le Total) — les incidents s'en servent (v1.55.3).
     // `cl` : une classe, ou une fonction des entrées de la case (absences : rouge s'il y a du non valable).
     const kl = x => typeof cl === 'function' ? cl(x) : cl;
-    const sum = sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? kl(x) : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n') + (clic ? (x.length ? '\n' : '') + clic.tip : ''), clic ? clic.fn(sid, p.start, p.end, nomM) : null]; };
+    const sum = sid => { const x = liste(sid).filter(e => e.date >= p.start && e.date <= p.end); return [x.length ? kl(x) : 'ch-no', x.length ? String(x.length) : '·', x.map(fmt).join('\n') + (clic && (x.length || clic.tipVide !== '') ? (x.length ? '\n' : '') + (x.length ? clic.tip : clic.tipVide ?? clic.tip) : ''), clic ? clic.fn(sid, p.start, p.end, nomM) : null]; };
     G.push({ key, label, sub: [...mois.map(([id, l]) => ({ id, l, long: l })), ...(clic ? [{ id: '__tot', l: 'Total', long: `Total ${nomM}` }] : [])],
       cell: (sid, ym) => { if (ym === '__tot') return sum(sid);
         const x = liste(sid).filter(e => dansM(e) && String(e.date).startsWith(ym));
         const a = `${ym}-01` > p.start ? `${ym}-01` : p.start, b = `${ym}-31` < p.end ? `${ym}-31` : p.end, lm = `${AVIS_MOIS[+ym.slice(5, 7) - 1] || ym} ${ym.slice(0, 4)}`;
-        return x.length ? [kl(x), String(x.length), x.map(fmt).join('\n') + (clic ? '\n' + clic.tip : ''), clic ? clic.fn(sid, a, b, lm) : null] : ['ch-no', '', clic ? clic.tipVide || clic.tip : '', clic ? clic.fn(sid, a, b, lm) : null]; },
+        return x.length ? [kl(x), String(x.length), x.map(fmt).join('\n') + (clic ? '\n' + clic.tip : ''), clic ? clic.fn(sid, a, b, lm) : null] : ['ch-no', '', clic ? (clic.tipVide !== undefined ? clic.tipVide : clic.tip) : '', clic ? clic.fn(sid, a, b, lm) : null]; },
       sum });
   };
   parMois('inc', 'Incidents', sid => (S.eleves[sid]?.incidents || []).filter(_isPlainObj), 'ch-inc', e => `${_fmtDateFr(e.date)} — ${_instanceOf(e.type).label} : ${e.objet || ''}`,
@@ -7348,6 +7354,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     moy: 'Dernière moyenne générale importée, son évolution, le nombre de matières sous 10 — la plus basse d\'abord', docs: 'Papiers à rendre',
     incidents: 'Incidents et instances : le nombre et la date du dernier — clic : en noter un', contacts: 'Contacts avec la famille : le nombre et la date du dernier — clic : la liste, pour les voir, les corriger, en noter un',
     avis: campCour ? `Avis des collègues — feuille pour ${_avisObjectif(cls, campCour).long} : un trait par discipline, ⭐ demandé en particulier` : 'Aucune feuille d\'avis pour cette période',
+    abs: `Absences et retards de la période${per ? ' ' + per.label : ''}, lus dans le récapitulatif vie scolaire de MBN : le nombre d'absences et leurs heures, les retards — rouge s'il y a du non valable ; clic : la liste`,
     bilans: `Un point par moment de bilan (${bcols.map(c => c.court).join(', ')}) : plein = écrit — clic : écrire celui-là`, rem: 'La remarque libre — clic : la modifier',
   };
   const head = `<tr><th class="el-th-nom">${_elevesThNomHTML()}</th>${
@@ -8386,7 +8393,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
     ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
-    ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x).replace(/^(Absence|Retard) (le|du) [^—(]*/, '$1 '))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
+    ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
     ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
     ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
       return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : `<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
@@ -18489,7 +18496,7 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const ctH = ct.length ? ct.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_journalType(x.type).label.toLowerCase())}</strong> — ${pl(x.texte || '')}</span></div>`).join('') : vide('Aucun contact sur le moment.');
   const absR = _absMbnResume(sid, b.start, b.end);
-  const absH = `<p class="fp-mu fp-small">${_escName(_absResumeTexte(absR))}</p>` + absR.list.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.debut)}</span><span>${_escName(_absMbnTexte(x).replace(/^(Absence|Retard) (le|du) [^—(]*/, '$1 '))}</span></div>`).join('');
+  const absH = `<p class="fp-mu fp-small">${_escName(_absResumeTexte(absR))}</p>` + absR.list.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.debut)}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('');
   const infos = _ficheDocuments(cls, sid);
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
   const papH = docs.length ? docs.map(d => { const r = _retour(d, sid), info = infos.find(x => x.docId === d.id);
@@ -19363,11 +19370,13 @@ function _trombiLines(glyphs, coupe = 1.2) {
 // qui permette que je t'indique quoi figure où »), l'app décrit le fichier SUR LE POSTE : la mise en
 // page (lignes, colonnes en mm, tailles), chaque lettre en X / x et chaque chiffre en 9, sauf les mots
 // que l'utilisateur coche (les mots courants des en-têtes le sont d'office). Rien n'est gardé dans S.
-const STRUCT_MOTS_COURANTS = new Set(`a au aux avec bilan classe commentaire commentaires complementaire complementaires cours
-  d de debut demandeur des donnee donnees du duree e edite edition eleve eleves en et exclusion exclusions fin heure heures
-  incident incidents informations journee journees justifie justifiee justifiees justifies l la le les motif motifs
+// ⚠️ Ni particules (« de », « la », « du »…) ni lettres isolées (audit du 2026-10-09) : « DE LA TOUR »
+// ou l'initiale d'un prénom sortaient en clair d'un nom par ailleurs masqué.
+const STRUCT_MOTS_COURANTS = new Set(`au aux avec bilan classe commentaire commentaires complementaire complementaires cours
+  debut demandeur donnee donnees duree edite edition eleve eleves en et exclusion exclusions fin heure heures
+  incident incidents informations journee journees justifie justifiee justifiees justifies les motif motifs
   nombre non observation observations oui page par periode pour professeur principal punition punitions recapitulatif
-  retard retards retenue retenues s sanction sanctions saisi saisie scolaire semestre statut sur total totaux trimestre
+  retard retards retenue retenues sanction sanctions saisi saisie scolaire semestre statut sur total totaux trimestre
   type types vie absence absences annee date dates matiere matieres regle regles regularise regularisee`.split(/\s+/).filter(Boolean));
 const _structNorm = w => String(w || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 // PUR : le texte masqué — lettres en X / x, chiffres en 9, ponctuation et espaces gardés ; un mot
@@ -19522,7 +19531,11 @@ async function structSegUI(pi, li) {
   const poser = e => {
     const cibles = [[pi, li]];
     if (_structMemePlace) _struct.pdf.forEach((p, j) => p.lines.forEach((m, mi) => {
-      if ((j !== pi || mi !== li) && Math.abs(m.x - l.x) < 5 && Math.abs((p.y1 - m.y) - (_struct.pdf[pi].y1 - l.y)) < 4 && Math.abs(m.size - l.size) < 0.6) cibles.push([j, mi]);
+      // ⚠️ « Lisible » ne se propage qu'au MÊME texte (audit du 2026-10-09) : par la seule position, un
+      // en-tête « Motif » laissé lisible rendait lisible le motif d'absence écrit au même endroit d'une
+      // autre page. Masquer ou nommer le contenu, eux, se propagent par la position (ils cachent plus).
+      if ((j !== pi || mi !== li) && Math.abs(m.x - l.x) < 5 && Math.abs((p.y1 - m.y) - (_struct.pdf[pi].y1 - l.y)) < 4 && Math.abs(m.size - l.size) < 0.6
+        && (!e || e.mode !== 'clair' || _structNorm(m.text) === _structNorm(l.text))) cibles.push([j, mi]);
     }));
     for (const [j, mi] of cibles) { if (e) _struct.etat.set(`${j}:${mi}`, e); else _struct.etat.delete(`${j}:${mi}`); }
     _structRender(true);
