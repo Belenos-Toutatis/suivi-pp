@@ -1,0 +1,67 @@
+const puppeteer = require("/usr/local/lib/node_modules/puppeteer"); const fs = require("fs"); const DIR = __dirname;
+const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+(async () => { const prof = fs.mkdtempSync(DIR + "/sorties/chrome-tmp-");
+  const b = await puppeteer.launch({ executablePath: "/opt/google/chrome/chrome", headless: true, userDataDir: prof, args: ["--no-sandbox"] });
+  const p = await b.newPage(); await require("./boites")(p, {}); await p.setViewport({ width: 1366, height: 900 }); const errs = []; p.on("pageerror", e => errs.push(e.message));
+  await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
+  await p.evaluate(() => { doDemo(); window.__t = []; window.print = () => { window.__t.push([document.title, document.querySelectorAll("#print-area .page").length]); }; location.hash = "#classesem/3"; }); await wait(500);
+  ok(await p.evaluate(() => !document.querySelector(".recap-inc-feuille") && !document.querySelector(".cl-suivi")), "fiche de la semaine seule (le récapitulatif est supprimé, « Semaine après semaine » a son menu)");
+  ok(await p.evaluate(() => codeCl === null && !document.querySelector('[data-pal-cl].on')), "palette : aucun code choisi à l’ouverture");
+  const D = "2026-11-17";
+  await p.evaluate(D => { const j = S.jours[D]; for (let s = 0; s < 6; s++) delete j.cl[`${s}.1`]; commit(); }, D); await wait(300);
+  const ctr = sel => p.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, sel);
+  // sans code : le clic choisit la case ; B dans la palette l'y met (et B est choisi) ; ensuite un clic met B tout de suite, un 2e le retire
+  const c01 = await ctr(`td[data-cl="0.1"][data-d="${D}"]`);
+  await p.mouse.click(...c01); await wait(250);
+  ok(await p.evaluate(D => !S.jours[D].cl["0.1"] && document.activeElement.dataset.cl === "0.1" && document.querySelector("#pop-cl").hidden, D), "sans code choisi : un clic choisit la case, rien n’est écrit");
+  await p.click('[data-pal-cl="B"]'); await wait(250);
+  ok(await p.evaluate(D => S.jours[D].cl["0.1"] === "B" && codeCl === "B", D), "puis B dans la palette : B ajouté dans la case, B choisi");
+  await p.mouse.click(...c01); await wait(250);
+  ok(await p.evaluate(D => !S.jours[D].cl["0.1"], D), "B choisi : un clic sur la même case le retire");
+  await p.mouse.click(...c01); await wait(250);
+  ok(await p.evaluate(D => S.jours[D].cl["0.1"] === "B", D), "B choisi : un simple clic l’ajoute tout de suite, sans fenêtre");
+  await p.mouse.click(...c01); await wait(250);
+  await p.click('[data-pal-cl="B"]'); await wait(200);
+  ok(await p.evaluate(() => codeCl === null), "clic sur le code déjà choisi : il est désélectionné");
+  // glisser sur 4 élèves avec le code T
+  await p.click('[data-pal-cl="T"]'); await wait(100);
+  const a = await ctr(`td[data-cl="1.1"][data-d="${D}"]`), z = await ctr(`td[data-cl="4.1"][data-d="${D}"]`);
+  await p.mouse.move(...a); await p.mouse.down(); await p.mouse.move(z[0], z[1], { steps: 8 }); await p.mouse.up(); await wait(300);
+  ok(await p.evaluate(D => [1, 2, 3, 4].every(s => S.jours[D].cl[`${s}.1`] === "T"), D), "cliquer-glisser avec T : 4 élèves d’un coup");
+  await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await wait(300);
+  ok(await p.evaluate(D => [1, 2, 3, 4].every(s => !S.jours[D].cl[`${s}.1`]), D), "Ctrl+Z annule tout le glisser");
+  // codes choisis dans la palette : B, puis absent (remplace), puis gomme
+  const c51 = await ctr(`td[data-cl="5.1"][data-d="${D}"]`);
+  await p.click(`[data-pal-cl="B"]`); await p.mouse.click(...c51); await wait(200);
+  ok(await p.evaluate(D => S.jours[D].cl["5.1"] === "B", D), "B choisi, clic : B écrit");
+  await p.click(`[data-pal-cl="A"]`); await p.mouse.click(...c51); await wait(200);
+  ok(await p.evaluate(D => S.jours[D].cl["5.1"] === "A", D), "« absent » remplace les autres codes");
+  await p.click(`[data-pal-cl="-"]`); await p.mouse.click(...c51); await wait(200);
+  ok(await p.evaluate(D => !S.jours[D].cl["5.1"], D), "gomme : case vidée");
+  // clavier : lettre puis Espace
+  await p.click(`[data-pal-cl="-"]`); await wait(150); await p.evaluate(D => { delete S.jours[D].cl["0.1"]; commit(); }, D); await wait(200);
+  await p.focus(`td[data-cl="0.1"][data-d="${D}"]`); await p.keyboard.press("m"); await wait(200); await p.keyboard.press(" "); await wait(100);
+  ok(await p.evaluate(D => S.jours[D].cl["0.1"] === "M" && document.activeElement.dataset.cl === "1.1", D), "clavier : « m » met M, Espace passe à l’élève suivant");
+  // semaine après semaine (menu à part)
+  await p.evaluate(() => { location.hash = "#classesuivi/3"; }); await wait(400);
+  const r = await p.evaluate(() => ({ cols: [...document.querySelectorAll(".cl-sem thead th")].map(t => t.textContent).join(","), lignes: document.querySelectorAll(".cl-sem tbody tr").length, barres: document.querySelectorAll("svg.cl-graphe rect").length, on: document.querySelector(".cl-sem th.on").textContent }));
+  console.log(JSON.stringify(r));
+  ok(r.lignes === 26 + 2 && r.barres >= 4 && r.on === "S47", "tableau : 26 élèves + incidents de la classe + élèves en retenue ; graphique par semaine ; semaine affichée surlignée");
+  const coherent = await p.evaluate(() => { const sems = semaines(S), b = bilanSemaineClasse(sems[3]); const k = [...document.querySelectorAll(".cl-sem thead th")].findIndex(t => t.textContent === "S47");
+    return [...document.querySelectorAll(".cl-sem tbody tr")].slice(0, 26).every((tr, s) => (tr.children[k].querySelector(".pn") || { textContent: "0" }).textContent === String(b[s].total) || (!b[s].total)); });
+  ok(coherent, "chaque case = total de la semaine de la fiche (remarques − positifs)");
+  const info = await p.evaluate(() => { const sems = semaines(S), w = sems[0], b = bilanSemaineClasse(w), s1 = b.findIndex(x => x.neg >= 2 && !x.pos), s2 = b.findIndex(x => x.neg && x.pos);
+    return [infoSemaineEleve(S.classeEleves[s1], s1, w, b[s1]), s2 >= 0 ? infoSemaineEleve(S.classeEleves[s2], s2, w, b[s2]) : ""]; });
+  ok(/remarques\*\* :\n• \d+ × [A-Z]/.test(info[0]) && /par jour : /.test(info[0]) && !/Total/.test(info[0]), "infobule : détail par code et par jour, pas de « total » sans code positif");
+  ok(!info[1] || /\*\*Total : \d+ − \d+ = \d+/.test(info[1]), "avec un code positif : le calcul du total est donné");
+  await p.click(".cl-sem thead th:nth-child(3) a"); await wait(400);
+  ok(await p.evaluate(() => location.hash === "#classesem/1"), "clic sur une semaine : sa fiche");
+  ok(await p.evaluate(() => document.documentElement.scrollWidth <= 1366), "pas de défilement horizontal");
+  await p.evaluate(() => { location.hash = "#classesuivi/3"; }); await wait(400); await p.screenshot({ path: DIR + "/sorties/cl-suivi.png" });
+  await p.evaluate(() => { location.hash = "#classesem/3"; }); await wait(400);
+  await p.click('[data-act="print-cl-sem"]'); await wait(200);
+  ok(await p.evaluate(() => window.__t.pop()[1] === 1), "impression de la fiche de la semaine : toujours 1 page");
+  console.log(errs.length ? "ERREURS JS : " + errs.join(" | ") : "aucune erreur JS");
+  await b.close(); fs.rmSync(prof, { recursive: true, force: true });
+})();

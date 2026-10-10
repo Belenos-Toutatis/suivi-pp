@@ -1,0 +1,18 @@
+const puppeteer = require("/usr/local/lib/node_modules/puppeteer"); const fs = require("fs"); const DIR = __dirname;
+const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m);
+(async () => { const prof = fs.mkdtempSync(DIR + "/sorties/chrome-tmp-");
+  const b = await puppeteer.launch({ executablePath: "/opt/google/chrome/chrome", headless: true, userDataDir: prof, args: ["--no-sandbox"] });
+  const p = await b.newPage(); await require("./boites")(p); await p.setViewport({ width: 1366, height: 1000 });
+  const errs = []; p.on("pageerror", e => errs.push(e.message));
+  await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
+  await p.evaluate(() => doDemo());
+  const u = await p.evaluate(() => [[.80, .70], [.79, .70], [.75, .70], [.74, .70], [.70, .70], [.66, .70], [.65, .70], [.61, .70], [.60, .70], [.70, null]].map(([a, b]) => evolution(a, b)));
+  ok(u.join(" ") === "↑ ↗ ↗ = = = ↘ ↘ ↓ ", `seuils : +10 ↑, +9 ↗, +5 ↗, +4 =, 0 =, −4 =, −5 ↘, −9 ↘, −10 ↓ (${u.join(" ")})`);
+  await p.evaluate(() => { location.hash = "#totaux/5"; }); await new Promise(r => setTimeout(r, 400));
+  const r = await p.evaluate(() => { const c = {}; document.querySelectorAll("table.tot td.ev").forEach(td => { const k = td.classList.contains("up2") ? "↗" : td.classList.contains("down2") ? "↘" : td.textContent; c[k] = (c[k] || 0) + 1; }); const o = document.querySelector("table.tot td.ev.up2, table.tot td.ev.down2"); return { c, t: o && o.title, col: o && getComputedStyle(o).color }; });
+  ok((r.c["↗"] || 0) + (r.c["↘"] || 0) > 0, `flèches obliques présentes dans la démo ${JSON.stringify(r.c)} ; infobule : « ${r.t} » (couleur ${r.col})`);
+  ok(await p.$eval(".legende-past", e => e.textContent.includes("↑ +5 à +9")), "légende des flèches sous le titre");
+  const td = await p.$("table.tot td.ev.up2, table.tot td.ev.down2"); await td.evaluate(e => e.scrollIntoView({ block: "center" }));
+  const box = await td.boundingBox(); await p.screenshot({ path: DIR + "/sorties/fleches.png", clip: { x: box.x - 260, y: box.y - 80, width: 520, height: 200 } });
+  console.log(errs.length ? "ERREURS " + errs.join(" | ") : "aucune erreur JS");
+  await b.close(); fs.rmSync(prof, { recursive: true, force: true }); })();

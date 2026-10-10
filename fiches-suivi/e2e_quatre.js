@@ -1,0 +1,112 @@
+// Les quatre points laissés après l'audit 6 : seuils, logo allongé, Entrée dans « Nouveau suivi individuel », nom d'enseignant corrigé partout
+const puppeteer = require("/usr/local/lib/node_modules/puppeteer"); const fs = require("fs");
+const D = __dirname, ok = (c, m) => console.log((c ? "OK    " : "ÉCHEC ") + m), att = ms => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const prof = fs.mkdtempSync(D + "/sorties/chrome-tmp-");
+  const b = await puppeteer.launch({ executablePath: "/opt/google/chrome/chrome", headless: true, userDataDir: prof, args: ["--no-sandbox", "--lang=fr-FR"] });
+  const p = await b.newPage(); const msgs = []; await require(D + "/boites.js")(p, { messages: msgs });
+  const errs = []; p.on("pageerror", e => errs.push(e.message));
+  await p.setViewport({ width: 1024, height: 768 });
+  await p.goto("file://" + D + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
+  await p.evaluate(() => doDemo()); await att(300);
+  // 1. seuils
+  await p.evaluate(() => { location.hash = "#reglages/pastilles"; }); await att(400);
+  const champ = async (cle, v) => { await p.evaluate((cle, v) => { const t = document.querySelector(`input[data-num="seuils.${cle}"]`); t.value = v; t.dispatchEvent(new Event("change", { bubbles: true })); }, cle, v); await att(250); };
+  const s0 = await p.evaluate(() => ({ ...S.seuils }));
+  await champ("rouge", ""); ok(await p.evaluate(() => S.seuils.rouge) === s0.rouge, "seuil vidé : l’ancienne valeur est gardée");
+  await champ("orange", "150"); ok(await p.evaluate(() => S.seuils.orange) === 100, "seuil 150 % ramené à 100 %");
+  await champ("rouge", "-5"); ok(await p.evaluate(() => S.seuils.rouge) === 0, "seuil négatif ramené à 0 %");
+  await champ("orange", "70"); await champ("rouge", "85");
+  let r = await p.evaluate(() => ({ ...S.seuils })); ok(r.rouge === 85 && r.orange === 85 && r.vert >= 85, "rouge au-dessus de l’orange : l’orange suit, l’ordre est gardé " + JSON.stringify(r));
+  ok(await p.evaluate(() => document.querySelector('input[data-num="seuils.orange"]').value) === "85", "le champ affiche la valeur enregistrée");
+  // 2. logo très allongé, seul : plus large dans la marge
+  r = await p.evaluate(async () => { const c = document.createElement("canvas"); c.width = 2000; c.height = 100; const g = c.getContext("2d"); g.fillStyle = "#036"; g.fillRect(0, 0, 2000, 100);
+    const mmL = () => { const m = /image-set\("[^"]+" ([\d.]+)x\)/.exec(document.getElementById("style-etab-marge").textContent); return Math.round(logoMarge.w / Number(m[1]) * 25.4 / 96); };
+    S.etablissement = { nom: "Collège", logo: c.toDataURL("image/png") }; render(); await new Promise(r => setTimeout(r, 400)); pagesAvecEtab(["<p>x</p>"]); const avec = mmL();
+    S.etablissement.sansNom = true; pagesAvecEtab(["<p>x</p>"]); const seul = mmL(); return [avec, seul]; });
+  ok(r[0] <= 45 && r[1] >= 85 && r[1] <= 110, "logo 20:1 dans la marge : " + r[0] + " mm avec le nom, " + r[1] + " mm seul");
+  // 4. nom d'enseignant corrigé : proposé aussi dans les absences longues
+  await p.evaluate(() => { location.hash = "#reglages/matieres"; }); await att(400);
+  const k = await p.evaluate(() => { const k = S.matieres.findIndex(m => m.prof); S.absencesProf.push({ prof: S.matieres[k].prof, du: "2026-11-16", au: "2026-11-20", remplacant: "" }); render(); return k; }); await att(300);
+  msgs.length = 0;
+  await p.evaluate(k => { const t = document.querySelector(`input[data-path="matieres.${k}.prof"]`); t.value = "M. NOUVEAUNOM"; t.dispatchEvent(new Event("change", { bubbles: true })); }, k); await att(500);
+  r = await p.evaluate(() => S.absencesProf.at(-1).prof);
+  ok(msgs.some(m => /Corriger le nom partout/.test(m) && /absences longues/.test(m)) && r === "M. NOUVEAUNOM", "nom d’enseignant corrigé : proposé et corrigé aussi dans les absences (" + r + ")");
+  // audit 7 : créneaux partagés entre groupes, absence longue d'un des enseignants
+  r = await p.evaluate(() => { const sems = semaines(S), d = "2026-11-23"; S.absencesProf.push({ prof: "M. ROUGET", du: d, au: d, remplacant: "" }); viderCacheCalc();
+    const g1 = S.classeEleves.find(e => (e.groupes || []).includes("Groupe 1")), g2 = S.classeEleves.find(e => (e.groupes || []).includes("Groupe 2"));
+    const a = [caseClasseActive(sems, d, 3, g1), caseClasseActive(sems, d, 3, g2)];
+    const d2 = "2026-11-25", w = semaineDuJour(sems, d2), E = edtPour(S, d2); E[w.type][2][3] = { mat: "Éd. Musicale", salle: "", grp: [{ g: "Latin", mat: "Latin", salle: "105" }] };
+    const pm = profDe(S, "Éd. Musicale", d2); S.absencesProf.push({ prof: pm, du: d2, au: d2, remplacant: "" });
+    const cr = creneau(S, sems, d2, 3); const b2 = [coursPour(cr, ["Groupe 2"]).absent, coursPour(cr, ["Latin"]).absent];
+    S.absencesProf.splice(-2, 2); E[w.type][2][3] = { mat: "", salle: "" }; return [...a, ...b2]; });
+  ok(JSON.stringify(r) === "[false,true,true,false]", "créneau partagé : l’absence longue d’un des enseignants ferme seulement les cases de ses élèves " + JSON.stringify(r));
+  r = await p.evaluate(() => { S.seuils = { ...SEUILS_DEFAUT }; const v0 = S.pastillesVertes; S.pastillesVertes = true; const a = [pnColl(.97, 3), pnColl(.97, 0)]; S.pastillesVertes = false; a.push(pnColl(.97, 0)); S.pastillesVertes = v0; return a; });
+  ok(r[0] === "" && /bon/.test(r[1]) && r[2] === "", "fiche élève et conseil : pas de vert avec une croix « I », ni sans « pastilles vertes aussi » " + JSON.stringify(r));
+  r = await p.evaluate(() => normalizeState({ ...S, absencesProf: [{ prof: "Mme  SOLE ", du: "2026-11-20", au: "2026-11-16" }] }).absencesProf[0]);
+  ok(r.prof === "Mme SOLE" && r.du === "2026-11-16" && r.au === "2026-11-20", "fichier : absence aux dates inversées remise dans l’ordre, espaces du nom réduites");
+  // audit 7 : réglages
+  await p.evaluate(() => { location.hash = "#reglages/calendrier"; }); await att(400);
+  r = await p.evaluate(() => { const i = S.vacances.findIndex(v => v.debut && v.reprise), r0 = S.vacances[i].reprise, t = document.querySelector(`input[data-path="vacances.${i}.reprise"]`);
+    t.value = "2026-09-01"; t.dispatchEvent(new Event("change", { bubbles: true })); return [S.vacances[i].reprise === r0, document.querySelector("#toast").textContent]; });
+  ok(r[0] && /reprise des vacances/.test(r[1]), "vacances : reprise avant le début refusée, avec un message");
+  r = await p.evaluate(() => { const f0 = S.fin, t = document.querySelector('input[data-path="fin"]'); t.value = "2026-09-01"; t.dispatchEvent(new Event("change", { bubbles: true })); return S.fin === f0; });
+  ok(r, "dernier jour avant le premier : refusé");
+  await p.evaluate(() => { location.hash = "#reglages/pastilles"; }); await att(400);
+  r = await p.evaluate(() => { S.seuils = { ...SEUILS_DEFAUT }; render(); const t = document.querySelector('input[data-num="seuils.vert"]'); t.value = "10"; t.dispatchEvent(new Event("change", { bubbles: true })); return [S.seuils.vert, document.querySelector("#toast").textContent]; });
+  ok(r[0] === 80 && /vert clair porté à 80/.test(r[1]), "seuil vert clair tapé sous l’orange : remonté, et le message le dit (" + r[1] + ")");
+  r = await p.evaluate(() => { const t = document.querySelector('input[data-path="codage.1.code"]'); t.value = "tb"; t.dispatchEvent(new Event("change", { bubbles: true })); return S.codage[1].code; });
+  ok(r === "S", "code de niveau en double refusé");
+  // audit 8
+  await p.evaluate(() => { location.hash = "#reglages/classeEntiere"; }); await att(400);
+  r = await p.evaluate(() => { const a = S.classeEleves[0].nom, b = S.classeEleves[1].nom, t = document.querySelector('input[data-path="classeEleves.0.nom"]'); t.value = b; t.dispatchEvent(new Event("change", { bubbles: true })); return S.classeEleves[0].nom === a; });
+  ok(r, "renommer un élève avec le nom d’un autre : refusé");
+  r = await p.evaluate(() => { const sems = semaines(S), d = "2026-11-23"; const n0 = S.absencesProf.length; S.absencesProf.push({ prof: "M. ROUGET", du: d, au: d, remplacant: "" }, { prof: "Mme DORADE", du: d, au: d, remplacant: "" });
+    const cr = creneau(S, sems, d, 3), x = coursPour(cr, null).absent; S.absencesProf.splice(n0); return x; });
+  ok(r, "élève hors de la liste de la classe : créneau partagé annulé quand tous ses cours le sont");
+  r = await p.evaluate(() => { historique.length = 0; etatPrecedent = JSON.stringify(S); commit(false, true); const n = historique.length; S.classe = S.classe + "x"; commit(false, true); S.classe = S.classe.slice(0, -1); fusionnerEtape = true; commit(false, true); return [n, historique.length]; });
+  ok(r[1] === r[0], "saisie revenue à l’état d’avant : pas d’étape vide pour Ctrl+Z " + JSON.stringify(r));
+  // demandes après l'audit 8
+  r = await p.evaluate(() => { const o = S.objectifs.slice(); while (S.objectifs.length < 8) S.objectifs.push({ court: "Obj", desc: "" }); const noms = S.classeEleves.map(e => e.nom).filter(n => !S.eleves.some(x => x.nom === n)); while (S.eleves.length < 8) S.eleves.push({ nom: noms.shift(), debut: "", fin: "" });
+    S = normalizeState(S); const n = pagesFiche("2026-10-13").length; S.objectifs = o; S.eleves = S.eleves.slice(0, 6); S = normalizeState(S); return [n, pagesFiche("2026-10-13").length]; });
+  ok(r[0] === 2 && r[1] === 1, "fiche collective 8 élèves × 8 objectifs : 2 pages ; démo : 1 page " + JSON.stringify(r));
+  r = await p.evaluate(() => { const ind = S.individuels[0], a0 = window.aujourdhui, cy = cyclesIndiv(ind), c = cy[cy.length - 1]; window.aujourdhui = () => c.jours[0]; const x = avisMaintien(ind); window.aujourdhui = a0; return x.titre; });
+  ok(!/Maintien nécessaire/.test(r), "avis d’un suivi : la fiche en cours ne compte qu’à partir de son jour de remise (" + r + ")");
+  await p.evaluate(() => { location.hash = "#edt"; }); await att(400);
+  r = await p.evaluate(() => { const d0 = S.horairesBase.duree; const t = document.querySelector('input[data-num="horairesBase.duree"]'); if (!t) return "pas de champ"; t.value = "120"; t.dispatchEvent(new Event("change", { bubbles: true })); return S.horairesBase.duree; });
+  ok(r === 60, "durée d’une séance 120 min : ramenée à 60 (" + r + ")");
+  r = await p.evaluate(() => { const av = JSON.stringify(S.horaires); S.horaires[0] = { debut: "08:00", fin: "09:50" }; commit(); return JSON.stringify(S.horaires) === av; });
+  ok(r, "créneau de 1 h 50 : refusé (deux séances)");
+  r = await p.evaluate(() => { const n0 = S.groupes.length; const x = normalizeState({ ...S, groupes: [...S.groupes, { nom: "groupe 1" }], classeEleves: S.classeEleves.map((e, i) => i === 0 ? { ...e, groupes: ["Groupe 1", "groupe 1", "Groupe 2", "Latin"] } : e) });
+    return [x.groupes.length === n0, JSON.stringify(x.classeEleves[0].groupes)]; });
+  ok(r[0] && r[1] === '["Groupe 1","Latin"]', "groupes : « groupe 1 » fusionné avec « Groupe 1 », un seul demi-groupe par élève " + r[1]);
+  await p.evaluate(() => { location.hash = "#reglages/classeEntiere"; }); await att(400);
+  r = await p.evaluate(() => { const i = S.classeEleves.findIndex(e => (e.groupes || []).includes("Groupe 1")), c = document.querySelector(`input[data-grel="${i}"][data-g="Groupe 2"]`); if (!c) return "pas de case"; c.checked = true; c.dispatchEvent(new Event("change", { bubbles: true })); return JSON.stringify(S.classeEleves[i].groupes.filter(estDemiGroupe)); });
+  ok(r === '["Groupe 2"]', "cocher Groupe 2 retire Groupe 1 " + r);
+  r = await p.evaluate(() => { annuler(-1); return document.querySelector("#toast").textContent; });
+  ok(/Annulé.*groupe|Annulé.*classe/i.test(r), "Ctrl+Z dit ce qui est annulé (" + r + ")");
+  console.log(errs.length ? "ERREURS JS : " + errs.join(" | ") : "aucune erreur JS");
+  // 3. Entrée dans la liste de « Nouveau suivi individuel » (page sans réponses automatiques)
+  const p2 = await b.newPage(); await p2.setViewport({ width: 1024, height: 768 }); const errs2 = []; p2.on("pageerror", e => errs2.push(e.message));
+  await p2.goto("file://" + D + "/app/Fiche de suivi collective.html"); await att(300);
+  await p2.evaluate(() => { location.hash = "#indiv"; }); await att(400);
+  const n0 = await p2.evaluate(() => S.individuels.length);
+  await p2.click('[data-act="ind-ajout"]'); await att(300);
+  await p2.click('#boite [data-r="oui"]'); await att(200);
+  ok(await p2.evaluate(() => document.querySelector("#boite").open && /Choisissez/.test(document.querySelector("#boite .boite-err")?.textContent || "")), "aucun élève choisi : la boîte reste ouverte avec le message");
+  await p2.focus("#boite-champ"); await p2.keyboard.press("ArrowDown"); await p2.keyboard.press("Enter"); await att(400);
+  ok(await p2.evaluate(n0 => !document.querySelector("#boite").open && S.individuels.length === n0 + 1, n0), "Entrée dans la liste : le suivi est créé");
+  await p2.evaluate(() => { location.hash = "#indiv"; }); await att(300);
+  await p2.click('[data-act="ind-ajout"]'); await att(300);
+  r = await p2.evaluate(() => { const o = [...document.querySelectorAll("#boite-champ option")].find(o => /déjà suivi/.test(o.textContent)); return !!o && o.disabled; });
+  await p2.keyboard.press("Escape"); await att(200);
+  ok(r, "élève déjà suivi : impossible de lui créer un second suivi");
+  await p2.evaluate(() => { location.hash = "#reglages/matieres"; }); await att(400);
+  const k2 = await p2.evaluate(() => { const k = S.matieres.findIndex(m => m.prof); S.absencesProf.push({ prof: S.matieres[k].prof, du: "2026-11-16", au: "2026-11-20", remplacant: "" }); render(); return k; }); await att(300);
+  const av = await p2.evaluate(k => S.matieres[k].prof, k2);
+  await p2.evaluate(k => { const t = document.querySelector(`input[data-path="matieres.${k}.prof"]`); t.value = "M. AUTRE"; t.dispatchEvent(new Event("change", { bubbles: true })); }, k2); await att(300);
+  await p2.keyboard.press("Escape"); await att(300);
+  ok(await p2.evaluate((k, av) => S.matieres[k].prof === av && S.absencesProf.at(-1).prof === av, k2, av), "Échap dans « Corriger le nom partout ? » : rien n’est changé");
+  console.log(errs2.length ? "ERREURS JS : " + errs2.join(" | ") : "aucune erreur JS");
+  await b.close(); fs.rmSync(prof, { recursive: true, force: true });
+})();

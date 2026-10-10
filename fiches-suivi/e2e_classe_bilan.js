@@ -1,0 +1,92 @@
+const puppeteer = require("/usr/local/lib/node_modules/puppeteer"); const fs = require("fs"); const DIR = __dirname;
+const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m);
+const S_ok = l => l.length > 0;
+const wait = ms => new Promise(r => setTimeout(r, ms));
+(async () => { const prof = fs.mkdtempSync(DIR + "/sorties/chrome-tmp-");
+  const b = await puppeteer.launch({ executablePath: "/opt/google/chrome/chrome", headless: true, userDataDir: prof, args: ["--no-sandbox"] });
+  const p = await b.newPage(); await require("./boites")(p, {}); await p.setViewport({ width: 1024, height: 768 }); const errs = []; p.on("pageerror", e => errs.push(e.message));
+  await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
+  await p.evaluate(() => { doDemo(); }); await wait(300);
+  const nav = await p.evaluate(() => [...document.querySelectorAll("#tabs a span")].map(x => x.textContent).join(" | "));
+  ok(nav === "Fiches individuelles | Tous les suivis | Sommaire | Fiches collectives | Totaux de la semaine | Bilan par matière | Fiches de classe | Semaine après semaine | Bilan par matière | Fiche élève | Conseil de classe | Emploi du temps | Réglages", "menu : plusieurs entrées pour les suivis individuels et la classe entière — " + nav);
+  await p.click('#tabs a[data-v="classebilan"]'); await wait(500);
+  const r = await p.evaluate(() => { const x = bilanMatiereClasse(-1); return { mats: x.mats.length, neg: x.mats.reduce((a, m) => a + m.neg, 0), lignes: document.querySelectorAll("table.clb tbody tr").length, on: document.querySelector("#tabs a.on").dataset.v,
+    tot: S.classeEleves.reduce((a, e, s) => a + Object.values(S.jours).reduce((b, j) => b + Object.entries(j.cl || {}).filter(([k]) => Number(k.split(".")[0]) === s).reduce((c, [, v]) => c + [...v].filter(ch => ch !== "A" && !codePositif(ch)).length, 0), 0), 0) }; });
+  console.log(JSON.stringify(r));
+  ok(r.on === "classebilan" && r.lignes === r.mats + 1 && r.mats >= 10, "Classe entière › Bilan par matière : une ligne par matière");
+  ok(r.neg === r.tot, "toutes les matières réunies = tous les incidents des fiches de classe (" + r.neg + ")");
+  ok(await p.evaluate(() => /au-dessus de la moyenne/.test(document.querySelector("#view .card").textContent)), "matières au-dessus de la moyenne signalées (incidents par heure de cours)");
+  // nombre d'incidents / pour 10 cours ; infobule : qui a eu quels incidents
+  const info = await p.evaluate(() => document.querySelector("table.clb tbody tr td span[title]").getAttribute("title"));
+  ok(/\*\*\d+ incidents?\*\* en \d+ cours\n(• ⚠ seulement \d+ cours[^\n]*\n)?• [A-ZÀ-Ü]/.test(info), "infobule d’une case : les élèves et leurs codes — " + info.split("\n").slice(0, 3).join(" / "));
+  const nb = await p.evaluate(() => document.querySelector("table.clb tbody tr td.sep b").textContent);
+  await p.click('[data-clbmode="taux"]'); await wait(400);
+  const tx = await p.evaluate(() => [document.querySelector("table.clb tbody tr td.sep b").textContent, document.querySelector(".clb-explic").textContent, document.querySelector("table.clb thead th").textContent]);
+  ok(tx[0] !== nb && /,|^\d+$/.test(tx[0]) && /ramené à 10 heures de cours/.test(tx[1]) && tx[2] === "Incidents pour 10 cours", "« Pour 10 cours » : valeurs ramenées à 10 heures de cours, explication affichée (" + nb + " → " + tx[0] + ")");
+  const moy = await p.evaluate(() => { const tr = document.querySelector("table.clb tr.moy"); const x = bilanMatiereClasse(-1); return [tr && tr.querySelector("th").textContent, tr && tr.querySelector("td.sep b").textContent, (10 * x.moy).toLocaleString("fr-FR", { maximumFractionDigits: 1 })]; });
+  ok(moy[0] === "Moyenne, toutes matières" && moy[1] === moy[2], "dernière ligne : moyenne de toutes les matières (" + moy[1] + " pour 10 cours)");
+  await p.click('[data-clbmode="nombre"]'); await wait(300);
+  ok(await p.evaluate(n => document.querySelector("table.clb tbody tr td.sep b").textContent === n && /Nombre d’incidents/.test(document.querySelector(".clb-explic").textContent) && document.querySelector("table.clb tr.moy th").textContent === "Total, toutes matières", nb), "retour à « Nombre d’incidents » : dernière ligne = total");
+  await p.select("#clb-eleve", "2"); await wait(400);
+  const e = await p.evaluate(() => ({ titre: (document.querySelector(".avis") || document.querySelector(".card .hint")).textContent, neg: bilanMatiereClasse(2).mats.reduce((a, m) => a + m.neg, 0) }));
+  ok(/BRIDGE Michael/.test(e.titre), "pour un élève (BRIDGE) : " + e.titre);
+  await p.select("#clb-eleve", "-1"); await wait(400);
+  const pa = await p.evaluate(() => ({ rouge: document.querySelectorAll("table.clb td .pn.p3").length, orange: document.querySelectorAll("table.clb td .pn.p2").length, vert: document.querySelectorAll("table.clb td .pn.bon").length }));
+  ok(pa.rouge > 0 && pa.orange > 0 && pa.vert > 0, "pastilles comme dans le bilan du suivi collectif : rouge, orange, et vert pour les codes positifs " + JSON.stringify(pa));
+  // seuil réglable et semaine choisie
+  await p.select("#clb-eleve", "-1"); await wait(300); await p.click('[data-clbmode="taux"]'); await wait(300);
+  const liste = () => p.evaluate(() => [...document.querySelectorAll(".clb-dessus span")].map(x => x.textContent.split(" ")[0]).join(","));
+  const setSeuil = v => p.$eval('input[data-num="seuilBilanClasse"]', (i, v) => { i.value = v; i.dispatchEvent(new Event("change", { bubbles: true })); }, v);
+  await setSeuil(0); await wait(300); const l0 = await liste();
+  await setSeuil(30); await wait(300); const l30 = await liste();
+  await setSeuil(100); await wait(300); const l100 = await liste(), txt100 = await p.evaluate(() => document.querySelector(".avis").textContent);
+  ok(l0.split(",").length > l30.split(",").length && S_ok(l30) && /Aucune matière à 100\s%/.test(txt100), "seuil réglable : 0 % → " + l0 + " ; 30 % → " + l30 + " ; 100 % → aucune (" + txt100.replace(/\s+/g, " ").slice(0, 120) + ")");
+  ok(await p.evaluate(() => S.seuilBilanClasse === 100 && normalizeState(S).seuilBilanClasse === 100), "seuil enregistré avec les données");
+  await setSeuil(30); await wait(300);
+  // choisir une semaine en cliquant dans sa colonne ; liens et infobules conservés
+  const col = await p.evaluate(() => { const td = document.querySelectorAll("table.clb tbody tr")[0].querySelectorAll("td[data-clbsem]")[1]; const sp = td.querySelector("span[title]");
+    return { wi: td.dataset.clbsem, aide: sp ? sp.getAttribute("title").split("\n").pop() : td.getAttribute("title").split("\n").pop() }; });
+  ok(/^Clic : cette semaine seule · cliquer-glisser : plusieurs semaines/.test(col.aide), "infobule d’une case : indique le clic et le cliquer-glisser — « " + col.aide + " »");
+  const defil0 = await p.evaluate(() => { const d = document.querySelector("table.clb").closest(".evol-defil"); d.scrollLeft = 40; return d.scrollLeft; });
+  await p.click(`table.clb tbody tr:nth-child(3) td[data-clbsem="${col.wi}"]`); await wait(400);
+  const sem = await p.evaluate(() => ({ txt: document.querySelector(".avis").textContent.replace(/\s+/g, " "), col: document.querySelectorAll("table.clb .choisie").length, lignes: document.querySelectorAll("table.clb tbody tr").length, num: semaines(S)[clbSel[0]].num, ws: clbSel.join("-"), tete: document.querySelector("table.clb th.th-sel").textContent, defil: document.querySelector("table.clb").closest(".evol-defil").scrollLeft }));
+  ok(sem.ws === col.wi + "-" + col.wi && new RegExp("sur la semaine " + sem.num).test(sem.txt) && sem.tete === "S" + sem.num && sem.col === sem.lignes + 1, "clic dans la colonne S" + sem.num + " : cette semaine seule, colonne encadrée, colonne de synthèse « S" + sem.num + " »");
+  ok(sem.defil === defil0, "le tableau ne saute pas au clic (défilement gardé : " + sem.defil + ")");
+  ok(await p.evaluate(() => document.querySelector("table.clb thead th.choisie a[href^='#classesem/']")), "le lien S.. de l’en-tête ouvre toujours la fiche");
+  await p.screenshot({ path: DIR + "/sorties/classe-bilan-sem.png" });
+  await p.click(`table.clb tr.moy td[data-clbsem="${col.wi}"]`); await wait(300);
+  ok(await p.evaluate(() => clbSel === null && /sur toute la période/.test(document.querySelector(".avis").textContent)), "2e clic dans la même colonne : retour à toute la période");
+  await p.focus(`table.clb tr.moy td[data-clbsem="${col.wi}"]`); await p.keyboard.press("Enter"); await wait(300);
+  ok(await p.evaluate(w => clbSel && String(clbSel[0]) === w, col.wi), "au clavier (Entrée sur la ligne du bas) : même choix");
+  await p.click('[data-clbper=""]'); await wait(300);
+  ok(await p.evaluate(() => clbSel === null), "bouton « Toute la période »");
+  const lien = await p.evaluate(w => document.querySelector(`table.clb thead th[data-clbsem="${w}"] a`).getAttribute("href"), col.wi);
+  await p.evaluate(() => { document.querySelector("table.clb").closest(".evol-defil").scrollLeft = 0; });   // colonne sous la 1re colonne figée sinon
+  await p.click(`table.clb thead th[data-clbsem="${col.wi}"] a`); await wait(400);
+  const h2 = await p.evaluate(() => location.hash + " " + current.view); ok(h2.startsWith(lien + " classesem"), "clic sur S.. dans l’en-tête : ouvre la fiche de la semaine (" + lien + " → " + h2 + ")");
+  await p.evaluate(() => { location.hash = "#classebilan"; }); await wait(400);
+  ok(await p.evaluate(() => document.documentElement.scrollWidth <= 1024), "pas de défilement horizontal de la page à 1024 px");
+  await p.screenshot({ path: DIR + "/sorties/classe-bilan.png" });
+  // codes positifs : réglables
+  await p.evaluate(() => { location.hash = "#reglages/ficheClasse"; }); await wait(400);
+  ok(await p.evaluate(() => { const i = S.codesClasse.findIndex(c => c.code === "+"); return document.querySelector(`input[data-bool="codesClasse.${i}.positif"]`).checked && codePositif("+") && !codePositif("B"); }), "Réglages › Fiche de classe : case « positif » cochée pour « + », pas pour « B »");
+  await p.click('[data-add="codesClasse"]'); await wait(300);
+  const n = await p.evaluate(() => S.codesClasse.length - 1);
+  await p.$eval(`input[data-path="codesClasse.${n}.code"]`, i => { i.value = "f"; i.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(200);
+  await p.$eval(`input[data-path="codesClasse.${n}.sens"]`, i => { i.value = "félicitations"; i.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(200);
+  await p.click(`input[data-bool="codesClasse.${n}.positif"]`); await wait(300);
+  ok(await p.evaluate(() => codePositif("F") && /les codes \+ et F en annulent une/.test(regleRetenue()) ), "nouveau code « F félicitations » coché positif : compte comme positif dans la règle — " + await p.evaluate(() => regleRetenue()));
+  await p.screenshot({ path: DIR + "/sorties/reg-codes-classe.png" });
+  // codes et pastilles : clairement pour les fiches individuelles et collectives
+  await p.evaluate(() => { location.hash = "#reglages/pastilles"; }); await wait(400);
+  ok(await p.evaluate(() => /uniquement les fiches individuelles et les fiches collectives/.test(document.querySelector(".reg-contenu").textContent) && [...document.querySelectorAll(".rub .rub-g")].map(x => x.textContent).includes("Fiches individuelles et collectives")), "Codes et pastilles : rangés sous « Fiches individuelles et collectives », bandeau explicite");
+  await p.screenshot({ path: DIR + "/sorties/reg-codes.png" });
+  // réglages d'un suivi individuel dans un menu
+  await p.evaluate(() => { location.hash = "#indiv/demo-bridge"; }); await wait(400);
+  ok(await p.evaluate(() => { const d = document.querySelector("details.reg-ind"); return d && !d.open && d.querySelector("summary").textContent.includes("Réglages du suivi"); }), "suivi individuel : « Réglages du suivi » replié en haut de la page");
+  await p.screenshot({ path: DIR + "/sorties/indiv-menu.png" });
+  await p.click("details.reg-ind > summary"); await wait(200); await p.evaluate(() => render()); await wait(200);
+  ok(await p.evaluate(() => document.querySelector("details.reg-ind").open), "déplié, il le reste après un nouvel affichage");
+  console.log(errs.length ? "ERREURS JS : " + errs.join(" | ") : "aucune erreur JS");
+  await b.close(); fs.rmSync(prof, { recursive: true, force: true });
+})();

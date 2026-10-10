@@ -11,6 +11,8 @@ Licences : Andika — SIL Open Font License 1.1 ; Latin Modern — GUST Font Lic
 Toutes deux autorisent la redistribution, y compris en sous-ensemble.
 
 Usage : python3 scripts/gen_fonts.py          (tout)
+        python3 scripts/gen_fonts.py --fiches (seulement fiches-suivi/app/polices.css : les MÊMES polices
+                                               pour l'app des fiches de suivi, cf. plus bas)
         python3 scripts/gen_fonts.py --ods    (seulement la police des .ods : la sortie woff2
                                                varie d'une version de fontTools à l'autre)
 Chaque famille remplace ce qui se trouve entre ses deux marqueurs (/* LM-DEBUT */ … /* LM-FIN */,
@@ -35,18 +37,42 @@ FAMILLES = {
                ['Regular', 'Bold', 'Italic', 'BoldItalic']),
 }
 
-def woff2(path):
+def woff2(path, unicodes=None):
     opts = subset.Options()
     opts.flavor = 'woff2'
     opts.layout_features = ['kern', 'liga']
     font = TTFont(str(path))
     sub = subset.Subsetter(opts)
-    sub.populate(unicodes=subset.parse_unicodes(UNICODES))
+    sub.populate(unicodes=subset.parse_unicodes(unicodes or UNICODES))
     sub.subset(font)
     buf = io.BytesIO()
     font.flavor = 'woff2'
     font.save(buf)
     return buf.getvalue()
+
+# Les fiches de suivi (fiches-suivi/, 2026-10-10) : les MÊMES familles que Suivi PP, dans un fichier à part que
+# leur assemblage insère (fiches-suivi/app/assemble.py). Sous-ensemble ÉLARGI : Latin étendu A (noms d'élèves
+# polonais, turcs, lituaniens… — la démo en porte), diacritiques combinants, l'espace fine insécable U+202F (la
+# typographie française de l'app en met partout), ↔ ↗ ↘ ↺ ≈ ✓. JetBrains Mono est reprise TELLE QUELLE de suivi pp.html.
+if '--fiches' in sys.argv:
+    UNI_FICHES = UNICODES + ',U+0100-017F,U+0300-036F,U+202F,U+2194-2198,U+21BA,U+2248,U+2713'
+    src = HTML.read_text(encoding='utf-8')
+    a = src.index("@font-face {\n  font-family: 'JetBrains Mono';")
+    out = ['/* Polices des fiches de suivi — générées par scripts/gen_fonts.py --fiches, NE PAS MODIFIER À LA MAIN.\n'
+           '   Andika : SIL OFL 1.1 ; Latin Modern : GUST Font License ; JetBrains Mono : SIL OFL 1.1. */',
+           src[a:src.index('}', a) + 1]]
+    for cle, (famille, motif, fichiers) in FAMILLES.items():
+        poids_total = 0
+        for (style, poids), f in zip(VARIANTES, fichiers):
+            data = woff2(motif.format(f), UNI_FICHES)
+            poids_total += len(data)
+            out.append(f"@font-face {{\n  font-family: '{famille}';\n  font-style: {style};\n  font-weight: {poids};\n"
+                       f"  font-display: swap;\n  src: url(data:font/woff2;base64,{base64.b64encode(data).decode()}) format('woff2');\n}}")
+        print(f'{famille} (fiches) : 4 variantes, {poids_total // 1024} Ko')
+    dest = HTML.parent / 'fiches-suivi' / 'app' / 'polices.css'
+    dest.write_text('\n'.join(out) + '\n', encoding='utf-8')
+    print(dest, dest.stat().st_size // 1024, 'Ko')
+    sys.exit(0)
 
 txt = HTML.read_text(encoding='utf-8')
 for cle, (famille, motif, fichiers) in ([] if '--ods' in sys.argv else FAMILLES.items()):

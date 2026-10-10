@@ -21,3 +21,7 @@ desktop.ini
 
 # Copies de conflit créées par Nextcloud
 *.sync-conflict-*
+
+# Fiches de suivi : sorties des tests (captures, PDF, profils Chrome)
+fiches-suivi/sorties/
+fiches-suivi/resultats*.txt

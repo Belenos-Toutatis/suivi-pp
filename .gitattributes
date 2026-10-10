@@ -19,3 +19,5 @@
 *.png binary
 *.pdf binary
 *.ods binary
+# fichiers d'essai des fiches de suivi : octets EXACTS (fins de ligne Windows, Windows-1252, comme les vrais exports)
+fiches-suivi/imp/** -text

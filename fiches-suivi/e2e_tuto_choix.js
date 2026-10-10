@@ -1,0 +1,17 @@
+const puppeteer = require("/usr/local/lib/node_modules/puppeteer"); const fs = require("fs"); const DIR = __dirname;
+const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+(async () => { const prof = fs.mkdtempSync(DIR + "/sorties/chrome-tmp-");
+  const b = await puppeteer.launch({ executablePath: "/opt/google/chrome/chrome", headless: true, userDataDir: prof, args: ["--no-sandbox"] });
+  const p = await b.newPage(); await p.setViewport({ width: 1024, height: 768 }); const errs = []; p.on("pageerror", e => errs.push(e.message));
+  await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload(); await wait(300);
+  await p.click('.tuto-accueil [data-act="tuto"]'); await wait(500);
+  const r = await p.evaluate(() => { const d = document.querySelector("#boite .tuto-choix"); return { sw: d.scrollWidth, cw: d.clientWidth, w: document.querySelector("#boite .tc input").getBoundingClientRect().width, txt: [...document.querySelectorAll("#boite .tc b")].map(x => x.textContent).join(" | ") }; });
+  ok(r.w <= 20 && r.sw <= r.cw, "fenêtre du tutoriel : boutons ronds à leur taille, pas de défilement horizontal");
+  ok(r.txt === "1. Vue d’ensemble | 2. Mise en route | 3. Suivis individuels | 4. Suivi collectif | 5. Fiche de classe | 6. Synthèse | 7. Au fil de l’année", "chapitres dans l’ordre : individuel, collectif, classe, synthèse, au fil de l’année — " + r.txt);
+  await p.click("#boite .tc:nth-child(3)"); await p.click('#boite [data-r="oui"]'); await wait(700);
+  ok(await p.evaluate(() => tuto.ch === 2 && location.hash === "#indiv" && S.demo), "choisir « Suivis individuels » : démonstration chargée, première étape ouverte");
+  ok(await p.evaluate(() => [...document.querySelectorAll("#tabs .nav-g")].map(x => x.textContent).join(",")) === "Suivis individuels,Suivi collectif,Classe entière,Synthèse,Commun", "menu : individuels, collectif, classe, synthèse, commun");
+  console.log(errs.length ? "ERREURS JS : " + errs.join(" | ") : "aucune erreur JS");
+  await b.close(); fs.rmSync(prof, { recursive: true, force: true });
+})();

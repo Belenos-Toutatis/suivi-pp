@@ -1,0 +1,4 @@
+{"version":"2.64.0","classes":{"c5e":{"id":"c5e","nom":"5E","année":2026,"eleves":["e1","e2","e3"]},"c4b":{"id":"c4b","nom":"4B","année":2026,"eleves":["e4"]},"v1":{"id":"v1","nom":"Latin 5e","virtual":true,"eleves":["e1","e4"]}},
+"eleves":{"e1":{"id":"e1","nom":"CARPE","prenom":"Léa","classe_id":"c5e","groupe":1,"tags":["t1","t2"]},"e2":{"id":"e2","nom":"TRUITE","prenom":"Jean-Pierre","classe_id":"c5e","groupe":2,"tags":[]},"e3":{"id":"e3","nom":"BROCHET","prenom":"Noé","classe_id":"c5e","tags":["t2"]},"e4":{"id":"e4","nom":"SAUMON","prenom":"Max","classe_id":"c4b","groupe":1,"tags":["t1"]}},
+"tags":{"t1":{"id":"t1","abbr":"LAT","name":"Latin","color":"#aa3300"},"t2":{"id":"t2","abbr":"THE","name":"Théâtre","color":"#3355aa"}},
+"salles":{},"evaluations":{}}

@@ -1,0 +1,45 @@
+const puppeteer = require("/usr/local/lib/node_modules/puppeteer"); const fs = require("fs"); const DIR = __dirname;
+const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+(async () => { const prof = fs.mkdtempSync(DIR + "/sorties/chrome-tmp-");
+  const b = await puppeteer.launch({ executablePath: "/opt/google/chrome/chrome", headless: true, userDataDir: prof, args: ["--no-sandbox"] });
+  const p = await b.newPage(); const msgs = []; let rep = null; await require("./boites")(p, { messages: msgs, reponse: () => rep }); await p.setViewport({ width: 1024, height: 768 });
+  const errs = []; p.on("pageerror", e => errs.push(e.message));
+  await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
+  await p.evaluate(() => doDemo()); await wait(200);
+  const go = async h => { await p.evaluate(h => { location.hash = h; }, h); await wait(300); };
+  await go("#reglages/suivisIndiv");
+  ok(await p.evaluate(() => document.querySelector(".rub a.on b").textContent === "Fiches individuelles" && document.querySelectorAll("[data-pal-ind]").length === 0), "rubrique « Suivis individuels » ouverte");
+  // jour de remise global
+  const avant = await p.evaluate(() => [cyclesIndiv(S.individuels[0])[1].fin, cyclesIndiv(S.individuels[1])[1].fin]);
+  await p.select('select[data-num="remiseIndiv"]', "4"); await wait(300);
+  const apres = await p.evaluate(() => [cyclesIndiv(S.individuels[0])[1].fin, cyclesIndiv(S.individuels[1])[1].fin]);
+  ok(apres[0] !== avant[0] && new Date(apres[0]).getDay() === 4 && apres[1] === avant[1], `remise le jeudi : BRIDGE (comme les réglages) suit ${avant[0]} → ${apres[0]}, MOSTOWSKI garde son jour`);
+  // consignes types
+  const nb = await p.$$eval('select[data-num="consigneIndivChoisie"] option', o => o.length);
+  ok(nb === 5, "5 modèles de consigne proposés");
+  ok(await p.evaluate(() => consigneIndiv(S.individuels[0], cyclesIndiv(S.individuels[0])[0]).includes("en début de cours et à récupérer")), "consigne par défaut : présenter en début de cours, récupérer à la fin");
+  await p.select('select[data-num="consigneIndivChoisie"]', "2"); await wait(300);
+  ok(await p.$eval(".apercu i", e => e.textContent.includes("vie scolaire") && e.textContent.includes("M. ROUGET") && /jeudi/.test(e.textContent)), "modèle « vie scolaire » : aperçu avec le référent et le jour de remise");
+  await p.click("details.modeles summary"); await wait(100);
+  await p.$eval('textarea[data-path="consignesIndiv.2.texte"]', t => { t.value = "Ligne une.\nLigne deux le [jour]."; t.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);
+  await go("#indiv/demo-bridge");
+  ok(await p.$eval(".f-consigne", e => e.innerText.split("\n").length === 2 && e.innerText.startsWith("Ligne une.")), "consigne modifiée : imprimée sur deux lignes");
+  // objectifs types
+  await go("#reglages/suivisIndiv");
+  ok(await p.evaluate(() => document.querySelectorAll('input[data-path^="banqueObjectifs."][data-path$=".texte"]').length === BANQUE_OBJ_DEFAUT.length), "liste des objectifs types modifiable dans les réglages");
+  await go("#indiv/demo-bridge"); await p.evaluate(() => { document.querySelector("details.reg-ind").open = true; }); await wait(200);
+  rep = "Je lève la main pour prendre la parole."; 
+  await p.click('[data-io="banque.0.0"]'); await wait(400);
+  ok(await p.evaluate(() => msgs => msgs.some(m => m.includes("objectif type")), msgs) && msgs.some(m => m.includes("objectif type")), "☰ : choix d’un objectif type");
+  rep = "Je reste assis(e) à ma place pendant le cours.";
+  await p.click('[data-io="banque.0.0"]'); await wait(400);
+  ok(await p.evaluate(() => S.individuels[0].objectifs[0] === "Je reste assis(e) à ma place pendant le cours." && document.activeElement.dataset.path === "individuels.0.objectifs.0"), "objectif 1 remplacé par l’objectif type, champ prêt à être adapté");
+  await p.click('button[data-io="banque.0.3"]'); await wait(400);
+  ok(await p.evaluate(() => S.individuels[0].objectifs.length === 4), "« + Ajouter depuis la liste » ajoute un 4e objectif");
+  await p.screenshot({ path: DIR + "/sorties/indiv-haut.png" });
+  await go("#reglages/suivisIndiv"); await p.click("details.modeles summary"); await wait(100); await p.screenshot({ path: DIR + "/sorties/reg-indiv.png", fullPage: true });
+  ok(await p.evaluate(() => document.documentElement.scrollWidth <= 1024), "pas de défilement horizontal à 1024 px");
+  console.log(errs.length ? "ERREURS JS : " + errs.join(" | ") : "aucune erreur JS");
+  await b.close(); fs.rmSync(prof, { recursive: true, force: true });
+})();

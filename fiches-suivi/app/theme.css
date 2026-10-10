@@ -1,0 +1,65 @@
+/* =====================================================================
+   APPARENCE « carnet du prof » — celle de Suivi PP (2026-10-10, choix de l'utilisateur)
+   Insérée par assemble.py APRÈS head.html : elle ne fait que redonner une valeur aux variables
+   que l'application emploie déjà. Changer d'apparence = toucher CE fichier seulement.
+   ⚠️ Comme dans head.html, les couleurs d'écran sont dans @media screen : l'impression garde
+   la fiche papier classique (noir sur blanc), quel que soit le thème.
+   ===================================================================== */
+
+/* ---------- polices : les mêmes que Suivi PP (polices.css, scripts/gen_fonts.py --fiches) ----------
+   Deux réglages, comme dans Suivi PP : la police d'AFFICHAGE (Andika par défaut) et celle
+   d'IMPRESSION (Latin Modern par défaut), posés sur <html> par appliquerPolices() (ui.js) :
+   data-police="lm", data-police-papier="andika". Les feuilles affichées à l'écran prennent la police
+   d'impression (ce qu'on voit est ce qui sortira) ; le bouton « Aa » d'une feuille les bascule dans
+   la police d'affichage (html.feuilles-ecran). */
+:root {
+  --font-andika: 'Andika', 'Andika New Basic', system-ui, sans-serif;
+  --font-lm: 'Latin Modern Roman', 'LM Roman 10', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --font-ui: var(--font-andika);
+  --font-print: var(--font-lm);
+}
+html[data-police="lm"] { --font-ui: var(--font-lm); }
+html[data-police-papier="andika"] { --font-print: var(--font-andika); }
+/* html:root (0,1,1) passe devant le `html { --sans }` et le `:root { --serif }` de head.html */
+html:root { --sans: var(--font-ui); --serif: var(--font-print); }
+@media screen { html:root.feuilles-ecran { --serif: var(--font-ui); } }
+@media print { html:root { --sans: var(--font-print); --serif: var(--font-print); } }
+
+/* ---------- couleurs d'écran ---------- */
+@media screen {
+html[data-theme="clair"] {
+  --bg: #f4f6fa; --side: #e6ebf2; --paper: #ffffff; --surface2: #e6ebf2; --line: #c8d2e0; --border-strong: #8a9ab0;
+  --ink: #0e1a26; --muted: #4f6176; --accent: #263545; --accent-hover: #0e1a26; --on-accent: #f4f6fa; --accent-weak: #dde4ee; --accent-soft: #eef2f7;
+  --track: #e6ebf2; --track2: #dde4ee; --zebra: #f7f9fc; --grid-strong: #8a9ab0;
+  --weekA: #e6ebf2; --weekB: #f1f5f9;
+  --banner-bg: #fbefc0; --banner-line: #f5d76e; --banner-fg: #4a3600; --info-bg: #e6ebf2; --info-line: #c8d2e0; --info-fg: #1a252f;
+  --graph-1: #1f5f9e; --graph-2: #a9c4e2; --cal-a-bg: #dde4ee; --cal-a-fg: #1a3a5c;
+  --cahier-ligne: #dde4ee; --marge: #b03d2e;
+}
+html[data-theme="sombre"] {
+  --bg: #13181f; --side: #1c2229; --paper: #191f27; --surface2: #242b34; --line: #2a3340; --border-strong: #46566a;
+  --ink: #d4e0ee; --muted: #9aaabe; --accent: #9fc0e6; --accent-hover: #c3d8f0; --on-accent: #0e1a26; --accent-weak: #263545; --accent-soft: #1c2533;
+  --track: #1f262f; --track2: #29313c; --zebra: #171d25; --grid-strong: #5b6b80;
+  --weekA: #1c2533; --weekB: #1a2029;
+  --banner-bg: #3a2f12; --banner-line: #6b5520; --banner-fg: #f0dfae; --info-bg: #1c2533; --info-line: #2f4058; --info-fg: #d4e0ee;
+  --graph-1: #7cb8e0; --graph-2: #3d5a80; --cal-a-bg: #263545; --cal-a-fg: #d4e0ee;
+  --cahier-ligne: #1f2630; --marge: #d65a4d;
+}
+/* le cahier : lignes Seyès et filet rouge de marge, à droite du menu */
+body { background-color: var(--bg);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, var(--cahier-ligne) 31px, var(--cahier-ligne) 32px);
+  background-attachment: fixed; }
+body::after { content: ''; position: fixed; top: 0; bottom: 0; left: calc(var(--side-w) + 10px); width: 2px; background: var(--marge);
+  opacity: .85; pointer-events: none; z-index: 5; }
+html.rail-fixe body::after { left: 74px; }
+/* version intégrée à Suivi PP : la marge est déjà tracée par la page qui l'accueille */
+html.integree body::after { display: none; }
+}
+
+/* ---------- le bouton « Aa » des feuilles affichées à l'écran ---------- */
+.sheet { position: relative; }
+.bascule-police { position: absolute; top: 6px; right: 6px; z-index: 2; min-width: 30px; padding: 1px 7px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: 600 13px/1.4 var(--font-ui); cursor: pointer; opacity: .8; }
+.bascule-police:hover, .bascule-police:focus-visible { opacity: 1; }
+#print-area .bascule-police { display: none; }

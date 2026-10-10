@@ -1,0 +1,28 @@
+const puppeteer = require("/usr/local/lib/node_modules/puppeteer"); const fs = require("fs"); const DIR = __dirname;
+const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+(async () => { const prof = fs.mkdtempSync(DIR + "/sorties/chrome-tmp-");
+  const b = await puppeteer.launch({ executablePath: "/opt/google/chrome/chrome", headless: true, userDataDir: prof, args: ["--no-sandbox"] });
+  const p = await b.newPage(); await require("./boites")(p); await p.setViewport({ width: 1024, height: 768 }); const errs = []; p.on("pageerror", e => errs.push(e.message));
+  await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
+  await p.evaluate(() => { doDemo(); location.hash = "#totaux/5"; }); await wait(400);
+  const oranges = () => p.$$eval("table.tot td.pc.p2", t => t.length);
+  const o80 = await oranges();
+  await p.click("#m-seuils summary"); await wait(200);
+  const vis = await p.evaluate(() => { const r = document.querySelector("#m-seuils .pop").getBoundingClientRect(); return [r.left >= 0, r.right <= innerWidth, Math.round(r.bottom)]; });
+  ok(vis[0] && vis[1], `menu « Seuils » visible en entier à 1024 (bas à ${vis[2]} px)`);
+  await p.screenshot({ path: DIR + "/sorties/menu-seuils.png" });
+  await p.click("#ms-orange", { clickCount: 3 }); await p.keyboard.type("70"); await p.keyboard.press("Tab"); await wait(400);
+  const etat = await p.evaluate(() => ({ seuil: seuils(S).orange, ouvert: document.querySelector("#m-seuils").open, focus: document.activeElement && document.activeElement.id, legende: document.querySelector(".legende-past").textContent }));
+  const o70 = await oranges();
+  ok(etat.seuil === 70 && etat.ouvert && o70 < o80, `orange passé à 70 % : tableau recoloré (${o80} → ${o70} cases orange), menu toujours ouvert`);
+  ok(etat.focus === "ms-vert" && etat.legende.replace(/[\u202F\u00A0]/g, " ").includes("de 60 à 69 %"), `Tab amène au champ suivant (${etat.focus}) ; légende à jour`);
+  await p.keyboard.press("Escape"); await wait(150);
+  ok(!(await p.$eval("#m-seuils", d => d.open)), "Échap referme le menu");
+  // même réglage visible dans Réglages et dans le Bilan
+  await p.evaluate(() => { location.hash = "#reglages/pastilles"; }); await wait(300);
+  ok(await p.$eval("#rs-orange", i => i.value) === "70", "Réglages : la valeur 70 % est reprise");
+  await p.evaluate(() => { location.hash = "#bilan"; }); await wait(300);
+  ok(await p.$("#m-seuils") !== null && (await p.$eval(".sheet .hint", e => e.textContent.replace(/[\u202F\u00A0]/g, " "))).includes("réussite sous 70 %"), "Bilan : menu « Seuils » présent, orange : réussite sous 70 %");
+  console.log(errs.length ? "ERREURS " + errs.join(" | ") : "aucune erreur JS");
+  await b.close(); fs.rmSync(prof, { recursive: true, force: true }); })();
