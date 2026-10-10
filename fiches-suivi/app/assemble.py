@@ -7,7 +7,7 @@ Usage : python3 fiches-suivi/app/assemble.py             (les deux)
         python3 fiches-suivi/app/assemble.py --autonome  (la version autonome seulement : suivi pp.html n'est pas touché)
 ⚠️ Écrire dans suivi pp.html change Suivi PP : APP_VERSION et APP_BUILD_DATE sont à avancer avant de pousser."""
 import base64, hashlib, pathlib, sys, zlib
-d = pathlib.Path(__file__).parent
+d = pathlib.Path(__file__).resolve().parent   # résolu : lancé depuis n'importe où, « ../../suivi pp.html » est le bon
 edt = (d / "edt_demo.min.json").read_text().strip()
 js = "\n".join((d / f).read_text() for f in ("core.js", "demo.js", "ui.js", "sections.js", "tuto.js")).replace("/*EDT_DEMO*/null", edt)
 # les données du suivi sont rangées dans ce bloc (vide au départ) ; la page se recopie elle-même en l'y remplaçant

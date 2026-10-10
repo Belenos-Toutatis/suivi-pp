@@ -129,6 +129,11 @@ dans un cadre par **`srcdoc`**. Tout ce qui lui est propre passe par `HOTE` (ui.
 - **Démonstration** : seulement dans les données de démonstration de Suivi PP (`demo: true` sur la classe) : `demoHote` prend
   la démonstration de l'appli, aux noms de la classe (rang pour rang), déplacée dans son année scolaire de semaines entières
   (les jours de la semaine sont gardés), calendrier de cette année-là.
+- **Pour la fiche élève de Suivi PP** : `window.__ficheResumeEleve(etat, nom, du, au)` rend ce que les fiches disent d'un élève
+  entre deux dates — les calculs de la fiche élève de l'appli (`donneesSynthEleve`, `famillesUtilisees`, `niveauReussite`) sur un
+  suivi passé en argument (l'état courant est échangé le temps du calcul, caches vidés avant et après), en données simples, sans
+  HTML. ⚠️ Toute évolution de ces calculs se voit donc aussi dans Suivi PP : garder la forme du résultat (cf. `_suivisCorpsHTML`).
+  Message `aller` (`#eleve/…`) : « ↗ Ouvrir » depuis la fiche élève de Suivi PP.
 - Tests : `e2e_integre.js` (le vrai `suivi pp.html`, en `file://`) ; côté Suivi PP, `test/fiches-suivi.test.js`.
 
 ## Rétrocompatibilité (obligatoire depuis la version du 10/10/2026)

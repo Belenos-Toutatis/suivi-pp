@@ -5325,6 +5325,7 @@ window.addEventListener("message", e => {
   else if (m.type === "apparence") hoteApparence(m);
   else if (m.type === "pile") { hotePile = m.pile || {}; majBoutonAnnuler(); }
   else if (m.type === "imprimer" && S) imprimerVue();
+  else if (m.type === "aller" && S && /^#[a-z]+(\/[^\s<>"]*)?$/.test(String(m.hash || ""))) location.hash = m.hash;   // « ↗ Ouvrir » depuis la fiche élève de Suivi PP
 });
 /* ⚠️ Chargée par srcdoc, la page a pour adresse de base celle de Suivi PP : un lien « #reglages » s'y résoudrait, et le cadre
    partirait charger Suivi PP. Une balise <base href="about:srcdoc"> est refusée par la politique de sécurité de Suivi PP
@@ -5336,6 +5337,36 @@ if (HOTE) window.addEventListener("click", e => {
   e.preventDefault();
   if (location.hash !== a.getAttribute("href")) location.hash = a.getAttribute("href"); else route();
 });
+/* La fiche élève de Suivi PP montre ce que les fiches de suivi disent d'UN élève sur un moment (carte « 📋 Fiches de suivi », faits,
+   fiche imprimée). Suivi PP appelle cette fonction (cadre de même origine), avec le suivi de la classe de l'élève — pas forcément
+   celle qu'on affiche ici. Les calculs sont CEUX de la fiche élève de l'application (donneesSynthEleve, famillesUtilisees), sur les
+   semaines qui touchent [du, au] ; le résultat est fait de données simples, sans HTML (Suivi PP met en forme et échappe). */
+if (HOTE) window.__ficheResumeEleve = (etat, nom, du, au) => {
+  let st; try { st = normalizeState(JSON.parse(JSON.stringify(etat))); } catch (e) { return null; }
+  const ancien = S; viderCacheCalc(); S = st;
+  try {
+    const k = cleNom(nom);
+    if (!k || ![S.classeEleves, S.eleves, S.individuels].some(l => l.some(e => e && cleNom(e.nom) === k))) return { absent: true };
+    const sems = semaines(S);
+    if (!sems.length) return { horsPeriode: true };
+    let a = sems.findIndex(w => w.jours.at(-1) >= du), b = -1; sems.forEach((w, i) => { if (w.lundi <= au) b = i; });
+    if (a < 0 || b < a) return { horsPeriode: true, debut: sems[0].lundi, fin: sems.at(-1).jours.at(-1) };
+    const d = donneesSynthEleve(nom, sems, a, b), u = famillesUtilisees(sems, a, b), niv = (v, n) => (v === null ? "" : niveauReussite(S, v, n));
+    const out = { du: sems[a].lundi, au: sems[b].jours.at(-1), semaines: d.ws.map(w => w.num), codes: S.codage.map(c => c.code), lien: "#eleve/" + encodeURIComponent(nom), indiv: [], coll: null, classe: null };
+    for (const x of d.indiv.filter(y => y.serie.length || y.bilans.length))
+      out.indiv.push({ id: x.ind.id, lien: "#indiv/" + x.ind.id, objectifs: x.ind.objectifs.slice(), moy: x.moy, niv: niv(x.moy, 0), fiches: x.serie.length,
+        avis: { titre: x.avis.titre, niv: x.avis.niv, sous: x.avis.sous || "" },
+        parObjectif: x.ind.objectifs.map((_, o) => x.serie.map(f => ({ v: f.v[o], niv: niv(f.v[o], f.nI[o]) }))),
+        bilans: x.bilans.map(([c, t]) => ({ debut: c.debut, fin: c.fin, texte: t })) });
+    if (u.coll && d.coll && !(d.coll.vals.every(v => v === null) && !d.coll.coms.length)) { const c = d.coll;
+      out.coll = { moy: c.moy, niv: niv(c.moy, c.nI), nI: c.nI, abs: c.abs, tend: c.tend, vals: c.vals.map((v, i) => ({ v, niv: niv(v, c.nIs[i]) })), coms: c.coms.slice() }; }
+    if (u.classe && d.classe) { const c = d.classe;
+      out.classe = { neg: c.neg, pos: c.pos, ret: c.ret, abs: c.abs, cours: c.cours, taux: c.taux, tend: c.tend, sem: c.sem.map(x => x.total), retenues: !!S.retenueClasse.remarques,
+        par: c.codes.filter(x => c.par[x.code]).map(x => ({ code: x.code, sens: x.sens, n: c.par[x.code], positif: codePositif(x.code) })),
+        mats: c.mats.map(m => ({ mat: m.mat, t: m.t, n: m.n, k: m.k })), rems: c.rems.map(r => ({ d: r.d, cours: r.cours || "", txt: r.txt })) }; }
+    return out;
+  } finally { S = ancien; viderCacheCalc(); }
+};
 function initHote() {
   document.documentElement.classList.add("integree");
   S = null; dirty = false; reinitHistorique();

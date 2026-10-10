@@ -170,3 +170,73 @@ test('polices : le cadre reçoit celles de la page (JetBrains Mono, Andika, Lati
   const gen = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'gen_fonts.py'), 'utf8');
   assert.match(gen, /data = woff2\(motif\.format\(f\), UNI_LARGE\)/, 'les blocs de Suivi PP au sous-ensemble élargi, comme ceux des fiches');
 });
+
+// ── v1.60.0 : les fiches de suivi dans la fiche élève (carte, faits, fiche imprimée) ──
+// Le résumé vient du cadre (`__ficheResumeEleve`, calculé par l'appli des fiches) : ici, un cadre simulé qui rend un résumé
+// fabriqué — avec des textes piégés, pour l'échappement.
+const RESUME = `{ du: '2025-10-13', au: '2025-12-19', semaines: [42, 43], codes: ['TB', 'S', 'A', 'I'], lien: '#eleve/X',
+  indiv: [{ id: 'i1', lien: '#indiv/i1', objectifs: ['<img src=x onerror=alert(1)>'], moy: 0.62, niv: 'o', fiches: 3, avis: { titre: 'Maintien nécessaire', niv: 'alerte', sous: '' },
+    parObjectif: [[{ v: 0.4, niv: 'r' }, { v: 0.8, niv: '' }]], bilans: [{ debut: '2025-10-13', fin: '2025-10-17', texte: 'Bilan <b>piégé</b>' }] }],
+  coll: { moy: 0.74, niv: '', nI: 2, abs: 1, tend: 6, vals: [{ v: 0.7, niv: '' }, { v: null, niv: '' }], coms: ['S42 Lun. : bavarde'] },
+  classe: { neg: 5, pos: 1, ret: 2, abs: 0, cours: 40, taux: 1.25, tend: 1, sem: [3, 2], retenues: true, par: [{ code: 'B', sens: 'bavardage', n: 3, positif: false }],
+    mats: [{ mat: 'Mathématiques', t: 2.5, n: 2, k: 8 }], rems: [{ d: '2025-10-14', cours: 'M2', txt: 'Oubli <script>' }] } }`;
+const CADRE_RESUME = `globalThis.__appels = 0; _suivisFrame = { contentWindow: { postMessage() {}, __ficheResumeEleve: (etat, nom, du, au) => { __appels++; return ${RESUME}; } } };
+  _suivisPret = true; _suivisResumeMemo.clear(); S.fichesSuivi['5C'] = { etat: { app: 'fiche-suivi-collective', format: 1, savedAt: '', S: { referent: 'X' } }, noms: {} };`;
+const MOMENT = `getCls(), S.eleves[getCls().eleves[0]], _ficheMomentCourant(getCls())`;
+
+test('fiche élève : la carte « 📋 Fiches de suivi » montre le résumé, tout échappé, et mène à l’onglet', () => {
+  ev(DEMO); ev(CADRE_RESUME);
+  const h = ev(`_ficheSuivisCarteHTML(${MOMENT})`);
+  assert.match(h, /id="pf-suivis-carte"/);
+  assert.match(h, /Fiches de suivi<span class="pf-k">Maintien nécessaire · collectif 74 % · 5 incidents<\/span>/);
+  assert.match(h, /Suivi individuel <span class="pf-sv-avis alerte">/);
+  assert.match(h, /<span class="pf-mv lo">40 %<\/span> → <span class="pf-mv">80 %<\/span>/, 'les crans de réussite de l’appli');
+  assert.match(h, /Réussite <span class="pf-mv mi">62 %<\/span> sur 3 fiches/);
+  assert.match(h, /tendance \+6 pts/);
+  assert.match(h, /5 incidents<\/strong> · 1 positif · 1,3 pour 10 cours/);
+  assert.match(h, /Surtout : Mathématiques 2,5 pour 10 cours/);
+  assert.ok(!/<img|<script|<b>piégé/.test(h), 'rien n’est injecté tel quel');
+  assert.match(h, /onclick="ficheVersSuivis\(\)"/);
+});
+
+test('fiche élève : pas de carte sans fiches de suivi pour la classe, ni pour un élève absent du suivi ; « lecture… » tant que le cadre n’est pas prêt', () => {
+  ev(DEMO);
+  assert.strictEqual(ev(`(S.fichesSuivi = {}, _ficheSuivisCarteHTML(${MOMENT}))`), '');
+  ev(CADRE_RESUME);
+  ev(`_suivisFrame.contentWindow.__ficheResumeEleve = () => ({ absent: true }); _suivisResumeMemo.clear();`);
+  assert.strictEqual(ev(`_ficheSuivisCarteHTML(${MOMENT})`), '');
+  ev(`_suivisPret = false; _suivisResumeMemo.clear();`);
+  assert.match(ev(`_ficheSuivisCarteHTML(${MOMENT})`), /Lecture des fiches de suivi…/);
+  ev(`_suivisPret = true; _suivisFrame.contentWindow.__ficheResumeEleve = () => ({ horsPeriode: true, debut: '2025-10-13', fin: '2025-12-19' }); _suivisResumeMemo.clear();`);
+  assert.match(ev(`_ficheSuivisCarteHTML(${MOMENT})`), /Le suivi va du 13\/10\/2025 au 19\/12\/2025 : rien sur ce moment/);
+  ev(`_suivisFrame.contentWindow.__ficheResumeEleve = () => { throw new Error('x'); }; _suivisResumeMemo.clear();`);
+  assert.match(ev(`_ficheSuivisCarteHTML(${MOMENT})`), /n’ont pas pu être lues/);
+});
+
+test('fiche élève : le résumé est demandé une fois par suivi — un suivi modifié le redemande', () => {
+  ev(DEMO); ev(CADRE_RESUME);
+  const r = evObj(`(() => { _ficheSuivisCarteHTML(${MOMENT}); _ficheSuivisCarteHTML(${MOMENT}); const a = __appels;
+    S.fichesSuivi['5C'].etat = { ...S.fichesSuivi['5C'].etat }; _ficheSuivisCarteHTML(${MOMENT}); return [a, __appels]; })()`);
+  assert.deepStrictEqual(r, [1, 2]);
+});
+
+test('faits du moment et fiche imprimée : les fiches de suivi y sont', () => {
+  ev(DEMO); ev(CADRE_RESUME);
+  const f = evObj(`_ficheFaits(${MOMENT}).filter(x => x.k === 'suivi').map(x => x.phrase)`);
+  assert.deepStrictEqual(f, ['suivi individuel : réussite de 62 % sur 3 fiches (maintien nécessaire)', 'suivi collectif : réussite de 74 %, en progrès',
+    '5 incidents sur les fiches de classe, surtout en Mathématiques']);
+  const p = ev(`_fichePrintHTML(getCls(), getCls().eleves[0], _ficheMomentCourant(getCls()), { parts: ['suivis'] }, null)`);
+  assert.match(p, /<h3>Fiches de suivi<\/h3>/);
+  assert.match(p, /<strong>40 %<\/strong> → 80 %/, 'sur le papier, une réussite rouge en gras (noir et blanc)');
+  assert.ok(!/<img|<script/.test(p));
+  assert.ok(evObj(`FICHE_PRINT_PARTS.map(x => x.key)`).includes('suivis') && evObj(`_fichePrintOpts.parts`).includes('suivis'), 'partie cochée d’office');
+});
+
+test('« ↗ Ouvrir » : l’onglet 📋 Suivis, sur la synthèse de l’élève dans l’appli', () => {
+  ev(DEMO); ev(CADRE_RESUME);
+  const r = evObj(`(() => { const envois = []; _suivisFrame.contentWindow.postMessage = m => envois.push(m); _ficheSid = getCls().eleves[0];
+    ficheVersSuivis(); return { envois: envois.filter(m => m.type === 'aller'), nom: _suivisNom(S.eleves[_ficheSid]), reste: _suivisAller }; })()`);
+  assert.strictEqual(r.envois.length, 1);
+  assert.strictEqual(r.envois[0].hash, '#eleve/' + encodeURIComponent(r.nom));
+  assert.strictEqual(r.reste, null);
+});

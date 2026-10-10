@@ -99,6 +99,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await h(() => switchClass("5C")); await wait(800);
   ok(await f(() => location.hash === "#sommaire") && (await fiche()).etat.S.demo && await h(() => S.fichesSuivi["4B"].etat.S.referent === "Mme SOLE"), "retour à la 5e C : son suivi ; celui de la 4e B intact");
 
+  // 5 bis. la fiche élève de Suivi PP : la carte « 📋 Fiches de suivi », calculée par l'appli des fiches, et « ↗ Ouvrir »
+  const ind = await h(() => { const e = S.fichesSuivi["5C"]; const nom = e.etat.S.individuels[0].nom; return { nom, sid: Object.keys(e.noms).find(k => e.noms[k] === nom) }; });
+  await h(sid => { switchTab("eleves"); const cls = getCls(); chaleurMomentSet(_chaleurMoments(cls).find(c => c.type === "conseil" && c.pIdx === 0).key); openFiche(sid); }, ind.sid); await wait(800);
+  const carte = await h(() => (document.getElementById("pf-suivis-carte") || {}).textContent || "");
+  ok(/Suivi individuel/.test(carte) && /Réussite \d+.%.sur \d+ fiche/.test(carte) && /Fiches de classe/.test(carte), "fiche élève (conseil du S1) : la carte des fiches de suivi, calculée par l'appli (suivi individuel, fiches de classe)");
+  ok((await h(() => _ficheFaits(getCls(), S.eleves[_ficheSid], _ficheMomentCourant(getCls())).filter(f => f.k === "suivi").length)) >= 2, "… et ses faits, insérables dans le bilan");
+  await h(() => document.querySelector("#pf-suivis-carte button").click()); await wait(900);
+  ok(await h(() => document.querySelector(".tab.on").id === "tab-suivis") && decodeURIComponent(fr.url()).endsWith("#eleve/" + ind.nom) && await f(n => document.querySelector("#el-choix").value === n, ind.nom), "« ↗ Ouvrir » : l'onglet 📋 Suivis, sur la fiche élève de l'appli");
   // 6. Ctrl+P dans Suivi PP sur l'onglet : l'impression de la fiche ; rechargement : tout est là
   await f(() => { window.__imp = 0; addEventListener("message", ev => { if (ev.data && ev.data.type === "imprimer") window.__imp++; }); window.print = () => {}; });
   await h(() => document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true }))); await wait(400);
