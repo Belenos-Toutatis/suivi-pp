@@ -307,3 +307,20 @@ test('réglages communs changés dans la fiche : repris par Suivi PP, dans le cr
     return { mode: S.prefs.periodMode, starts: S.prefs.periodStarts.trimestre }; })()`);
   assert.deepStrictEqual(r4, { mode: 'trimestre', starts: ['11-29', '03-07'] });
 });
+
+test('fiche de suivi autonome téléchargée depuis Suivi PP : identique à celle du dépôt, vierge, refusée si la page n’a pas la forme attendue', () => {
+  const zlib = require('zlib'), fs = require('fs'), path = require('path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const integ = zlib.inflateRawSync(Buffer.from(html.match(/id="fiches-suivi-app"[^>]*>([^<]+)</)[1].trim(), 'base64')).toString('utf8');
+  const dir = path.join(__dirname, '..', 'fiches-suivi', 'app');
+  const polices = fs.readFileSync(path.join(dir, 'polices.css'), 'utf8'), autonome = fs.readFileSync(path.join(dir, 'Fiche de suivi collective.html'), 'utf8');
+  sb.__integ = integ; sb.__pol = polices;
+  const r = sb.__TESTEVAL(`_suivisAutonomeDepuis(globalThis.__integ, globalThis.__pol)`);
+  assert.strictEqual(r, autonome, 'le même fichier que « Fiche de suivi collective.html »');
+  assert.ok(!/data-hote|class="integree"/.test(r.slice(0, 200)));
+  assert.ok(r.includes('<script id="donnees-suivi" type="application/json">null</script>'), 'vierge');
+  sb.__plein = integ.replace('<script id="donnees-suivi" type="application/json">null</script>', '<script id="donnees-suivi" type="application/json">{"app":"fiche-suivi-collective"}</script>');
+  assert.strictEqual(sb.__TESTEVAL(`_suivisAutonomeDepuis(globalThis.__plein, '')`), null, 'une page qui contient des données ne sort pas');
+  assert.strictEqual(sb.__TESTEVAL(`_suivisAutonomeDepuis('<html lang="fr">', '')`), null);
+  assert.match(sb.__TESTEVAL(`(() => { _donRub = 'imports'; const z = document.createElement('div'); _renderStorageGauge = () => {}; _renderDonneesInner(z); return z.innerHTML; })()`), /onclick="suivisTelechargerAutonome\(\)"/);
+});

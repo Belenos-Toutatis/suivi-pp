@@ -2601,6 +2601,8 @@ $("#b-save").onclick = () => { if (S) saveFile(false); };
 $("#b-undo").onclick = () => annuler(-1);
 $("#b-saveas").onclick = () => { fermerMenu(); if (S) saveFile(true); };
 $("#b-json").onclick = () => { fermerMenu(); exporterJson(); };
+/* version intégrée : la fiche autonome, vierge, est fabriquée par Suivi PP (il la garde, compressée) */
+if (HOTE) { $("#b-autonome").hidden = false; $("#b-autonome").onclick = () => { fermerMenu(); hoteEnvoyer({ type: "autonome" }); }; }
 if (MODE_ENREG === "json") $("#b-saveas").hidden = true;      // en mode .json, « Exporter les données » fait la même chose ; en mode .html : copie de la page avec ses données
 $("#b-print").onclick = () => { fermerMenu(); imprimerVue(); };
 $("#b-demo").onclick = () => { fermerMenu(); doDemo(); };

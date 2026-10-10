@@ -292,6 +292,13 @@ Application « Fiches de suivi » (comportement cours par cours : fiches individ
 1. **Autonome**, pour les collègues : un seul fichier HTML **vierge**, qui s'enregistre dans sa propre page ; la classe se saisit, se colle, s'importe d'un tableur ou **d'une sauvegarde de Plan de classe (.json)**.
 2. **Intégrée** à Suivi PP : onglet **📋 Suivis** (après Avis des collègues) qui affiche la fiche dans un cadre ; son état est rangé dans les données de Suivi PP (sync, sauvegardes, Ctrl+Z), les élèves viennent de la classe.
 
+**Télécharger la fiche de suivi autonome** (vierge, pour un collègue) : 💾 Données ▸ Importer · exporter, et menu Fichier de la
+fiche dans 📋 Suivis (message `autonome`) → `suivisTelechargerAutonome`. Pas de second exemplaire embarqué : `_suivisAutonomeDepuis`
+reconstruit la version autonome depuis la page intégrée (`_suivisPageIntegree`) en retirant `data-hote` / `class="integree"` et en
+posant nos polices — identique à `fiches-suivi/app/Fiche de suivi collective.html` (testé). ⚠️ Refusée (rien n'est téléchargé) si
+le bloc de données de la page n'est pas vide, ou si la page n'a pas la forme attendue. ⚠️ Ne jamais écrire en toutes lettres une
+balise de fin de script dans une chaîne du script de l'app : elle le fermerait (tout le fichier tombe) — la couper (`'</' + 'script>'`).
+
 **L'onglet 📋 Suivis** (bloc « 📋 FICHES DE SUIVI » du script) :
 - La fiche est rangée **compressée** dans `suivi pp.html` (`<script type="application/octet-stream" id="fiches-suivi-app">`, entre `<!-- FICHES-SUIVI-DEBUT` et `<!-- FICHES-SUIVI-FIN -->`, ≈ 300 Ko), **écrite par `fiches-suivi/app/assemble.py`**, jamais à la main (`test/fiches-suivi.test.js` vérifie son empreinte).
   - ⚠️ Placée avant le script de l'application : le harnais des tests prend le DERNIER script.
