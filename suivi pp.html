@@ -1519,6 +1519,7 @@ button.el-dl { border: 0; background: none; padding: 0; text-decoration: underli
 .el-spark polyline { fill: none; stroke: var(--obs-5); stroke-width: 1.5; }
 .el-mv { font-family: var(--font-mono); padding: 1px 5px; border-radius: 4px; }
 .el-mv.lo { background: var(--alert-bg); color: var(--alert-fg); font-weight: 700; }
+.el-mold .el-mv { font-style: italic; }   /* moyenne d'une période close (absent des imports en cours) */
 .el-dm { font-family: var(--font-mono); font-size: .82em; margin-left: 3px; color: var(--pencil); }
 .el-dm.neg { color: var(--danger-fg); }
 .el-dm.pos { color: var(--ok-fg); }
@@ -3081,8 +3082,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.58.3';
-const APP_BUILD_DATE = '2026-10-10T15:26:03Z';
+const APP_VERSION    = '1.58.4';
+const APP_BUILD_DATE = '2026-10-10T15:41:54Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4196,25 +4197,31 @@ function _validateImport(d) {
 // d'établissement en mars. C'est pourquoi `candidat` porte `nomTitulaire` /
 // `nomSuppleant` : l'identité minimale figée, pour que le PV reste lisible après
 // suppression de l'élève.
-function _purgeStudentRefs(sid) {
-  for (const c of Object.values(S.classes)) {
-    if (Array.isArray(c.eleves)) c.eleves = c.eleves.filter(x => x !== sid);
-    // ⚠️ Et sa PLACE dans chaque salle. Oublié ici, l'élève supprimé resterait assis :
-    // le tri par place le ferait réapparaître en tête de grille, sous forme d'un id
-    // fantôme que plus rien ne nomme.
-    for (const room of Object.values(_isPlainObj(c.rooms) ? c.rooms : {})) {
-      if (!_isPlainObj(room.seating)) continue;
-      for (const [pos, occ] of Object.entries(room.seating)) if (occ === sid) delete room.seating[pos];
-    }
-    // Délégués désignés sans vote : contrairement aux élections (PV historique), c'est
-    // un état courant, pas un document — l'élève parti n'est plus délégué.
-    for (const key of ['delegues', 'ecoDelegues']) if (_isPlainObj(c[key])) {
-      for (const k of ['titulaires', 'suppleants']) if (Array.isArray(c[key][k])) c[key][k] = c[key][k].filter(x => x !== sid);
-      // Vidée : elle disparaît — SAUF si un PV signé y est joint (audit du 2026-10-10 : sa référence
-      // partait avec elle, et 🧹 Orphelins proposait d'effacer le scan).
-      if (!(c[key].titulaires || []).length && !(c[key].suppleants || []).length && !_isPlainObj(c[key].pv)) delete c[key];
-    }
+// Ce qui attache un élève à UNE classe : le roster, sa place dans chaque salle, la désignation
+// sans vote. Partagé par la suppression et par le déplacement vers une autre classe (audit du
+// 2026-10-10 : déplacé, l'élève restait assis et délégué dans l'ancienne, et l'y redevenait s'il
+// revenait). Les élections, elles, sont un PV historique : on n'y touche pas.
+function _retirerDeClasse(c, sid) {
+  if (!_isPlainObj(c)) return;
+  if (Array.isArray(c.eleves)) c.eleves = c.eleves.filter(x => x !== sid);
+  // ⚠️ Et sa PLACE dans chaque salle. Oublié ici, l'élève supprimé resterait assis :
+  // le tri par place le ferait réapparaître en tête de grille, sous forme d'un id
+  // fantôme que plus rien ne nomme.
+  for (const room of Object.values(_isPlainObj(c.rooms) ? c.rooms : {})) {
+    if (!_isPlainObj(room.seating)) continue;
+    for (const [pos, occ] of Object.entries(room.seating)) if (occ === sid) delete room.seating[pos];
   }
+  // Délégués désignés sans vote : contrairement aux élections (PV historique), c'est
+  // un état courant, pas un document — l'élève parti n'est plus délégué.
+  for (const key of ['delegues', 'ecoDelegues']) if (_isPlainObj(c[key])) {
+    for (const k of ['titulaires', 'suppleants']) if (Array.isArray(c[key][k])) c[key][k] = c[key][k].filter(x => x !== sid);
+    // Vidée : elle disparaît — SAUF si un PV signé y est joint (audit du 2026-10-10 : sa référence
+    // partait avec elle, et 🧹 Orphelins proposait d'effacer le scan).
+    if (!(c[key].titulaires || []).length && !(c[key].suppleants || []).length && !_isPlainObj(c[key].pv)) delete c[key];
+  }
+}
+function _purgeStudentRefs(sid) {
+  for (const c of Object.values(S.classes)) _retirerDeClasse(c, sid);
   for (const byDate of Object.values(S.releves)) {
     for (const rel of Object.values(byDate)) {
       if (rel && rel.counts) delete rel.counts[sid];
@@ -7487,7 +7494,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
   const TITRES = {
     grp: 'Groupe, options et aménagements', carnet: `${avecMbnL ? 'Observations de l\'année : le total carnet + MBN (couleur du palier), le détail des deux' : 'Observations du carnet : le dernier cumul (couleur du palier)'}, « +n » pris ${fenL ? fenL.long : ''}, la courbe de l'année — 📅 : choisir depuis quand`,
     moy: 'Dernière moyenne générale importée, son évolution, le nombre de matières sous 10 — la plus basse d\'abord', docs: 'Papiers à rendre',
-    incidents: 'Incidents et instances : le nombre et la date du dernier — clic : en noter un', contacts: 'Contacts avec la famille : le nombre et la date du dernier — clic : la liste, pour les voir, les corriger, en noter un',
+    incidents: 'Incidents et instances de TOUTE l\'année : le nombre et la date du dernier — clic : les voir, en noter un', contacts: 'Contacts avec la famille de TOUTE l\'année : le nombre et la date du dernier — clic : la liste, pour les voir, les corriger, en noter un',
     avis: campCour ? `Avis des collègues — feuille pour ${_avisObjectif(cls, campCour).long} : un trait par discipline, ⭐ demandé en particulier` : 'Aucune feuille d\'avis pour cette période',
     abs: `Absences et retards de la période${per ? ' ' + per.label : ''}, lus dans le récapitulatif vie scolaire de MBN : le nombre d'absences et leurs heures, les retards — rouge s'il y a du non valable ; clic : la liste`,
     bilans: `Un point par moment de bilan (${bcols.map(c => c.court).join(', ')}) : plein = écrit — clic : écrire celui-là`, rem: 'La remarque libre — clic : la modifier',
@@ -7496,6 +7503,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     _elevesNais ? `<th onclick="sortEleves('nais')" title="Date de naissance — saisissable ici, d'un élève à l'autre par Entrée">Naissance</th>` : ''}${
     _elevesReg ? `<th title="Demi-pensionnaire, externe, interne">Régime</th><th title="Le régime d'entrée de l'établissement — codes réglables dans 💾 Données">Entrée</th><th title="Le régime de sortie de l'établissement — codes réglables dans 💾 Données">Sortie</th>` : ''}${
     cols.map(c => th(c.key, _escName(c.label) + (c.key === 'carnet' ? ` <span class="el-th-sub">· ${avecMbnL ? 'total année' : 'cumul'}</span> ` + _obsFenetrePickHTML(cls) : '')
+      + (c.key === 'incidents' || c.key === 'contacts' ? ' <span class="el-th-sub">· année</span>' : '')
       + (c.key === 'avis' && campCour ? ` <span class="el-th-sub">· ${_escName(_avisObjectif(cls, campCour).court)}</span>` : ''), TITRES[c.key])).join('')}</tr>`;
   const dot = (titre, onclick) => `<button class="el-0" ${onclick ? `onclick="${onclick}"` : ''} title="${_escAttr(titre)}" aria-label="${_escAttr(titre)}">·</button>`;
   const body = rowsData.map(({ s, r }) => {
@@ -7533,8 +7541,9 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     td.moy = () => {
       const m = r.moyenne;
       if (!m || m.generale === null) return '<span class="el-0">·</span>';
-      const tip = `Moyenne générale importée le ${_fmtDateFr(m.date)}${m.delta !== null ? ` — ${_fmtDelta(m.delta)} depuis l'import précédent` : ''}${m.sous10 ? `\n${m.sous10} matière${m.sous10 > 1 ? 's' : ''} sous 10` : ''}`;
-      return `<span title="${_escAttr(tip)}"><span class="el-mv${m.generale < 10 ? ' lo' : ''}">${_escName(_fmtNote(m.generale, 1))}</span>${m.delta !== null ? `<span class="el-dm${m.delta <= -0.3 ? ' neg' : m.delta >= 0.3 ? ' pos' : ''}">${_escName(_fmtDelta(m.delta))}</span>` : ''}${m.sous10 ? ` <span class="el-pill bad">${m.sous10} &lt;10</span>` : ''}</span>`;
+      const tip = (m.ancienne ? `Absent des imports de la période en cours : moyenne d'une période précédente (${m.periode})\n` : '')
+        + `Moyenne générale importée le ${_fmtDateFr(m.date)}${m.delta !== null ? ` — ${_fmtDelta(m.delta)} depuis l'import précédent` : ''}${m.sous10 ? `\n${m.sous10} matière${m.sous10 > 1 ? 's' : ''} sous 10` : ''}`;
+      return `<span title="${_escAttr(tip)}"${m.ancienne ? ' class="el-mold"' : ''}>${m.ancienne ? `<span class="el-th-sub">${_escName(m.perLabel || 'ancienne')}</span> ` : ''}<span class="el-mv${m.generale < 10 ? ' lo' : ''}">${_escName(_fmtNote(m.generale, 1))}</span>${m.delta !== null ? `<span class="el-dm${m.delta <= -0.3 ? ' neg' : m.delta >= 0.3 ? ' pos' : ''}">${_escName(_fmtDelta(m.delta))}</span>` : ''}${m.sous10 ? ` <span class="el-pill bad">${m.sous10} &lt;10</span>` : ''}</span>`;
     };
     // Le compteur montre QUELS papiers et permet de les valider (v1.55.5).
     td.docs = () => r.nonRendus.length ? `<button class="el-pill warn" onclick="event.stopPropagation();elevesPapiersUI('${j}')" title="${_escAttr(r.nonRendus.join('\n') + '\nClic : les voir, valider ceux qui sont rendus')}">${r.nonRendus.length} à rendre</button>` : '<span class="el-ok" title="Tout est rendu">✓</span>';
@@ -9173,8 +9182,7 @@ function esStatusChange(cb) {
 function moveStudentToClass(sid, newCid) {
   const s = S.eleves[sid];
   if (!s || !newCid || newCid === s.classe_id || !S.classes[newCid]) return false;
-  const old = S.classes[s.classe_id];
-  if (old) old.eleves = old.eleves.filter(x => x !== sid);
+  _retirerDeClasse(S.classes[s.classe_id], sid);   // sa place et sa désignation restent là-bas sinon
   if (!S.classes[newCid].eleves.includes(sid)) S.classes[newCid].eleves.push(sid);
   s.classe_id = newCid;
   return true;
@@ -15070,16 +15078,23 @@ function _moyEleve(classId, sid) {
   }));
 }
 // Dernière moyenne générale connue d'un élève (dernier import de la dernière période
-// où il figure) — pour la Synthèse.
+// où il figure) — pour la Synthèse. ⚠️ `ancienne` (audit du 2026-10-10) : l'élève manque aux
+// imports de la DERNIÈRE période du bureau numérique (absent du premier export du S2, par
+// exemple) — sa moyenne est celle d'une période close, et l'écran doit le dire au lieu de la
+// faire passer pour l'actuelle. `perLabel` : la période de l'app où cette période a commencé.
 function _moyDerniere(classId, sid) {
   const list = _moyReleves(classId);
+  const derniere = list.length ? list[list.length - 1].periode : null;
   for (let i = list.length - 1; i >= 0; i--) {
     const rel = list[i];
     if (!rel.notes?.[sid] && _moyGen(rel, sid) === null) continue;
     const g = _moyGen(rel, sid);
     const d = _moyDelta(classId, rel.id, sid, null);
+    const ancienne = rel.periode !== derniere;
+    const cls = S.classes[classId], prem = ancienne ? _moyReleves(classId, rel.periode)[0] : null;
     return { rid: rel.id, date: rel.date, periode: rel.periode, generale: g,
-             delta: d ? d.delta : null, sous10: _moySous10(rel, sid), nbMatieres: (rel.matieres || []).length };
+             delta: d ? d.delta : null, sous10: _moySous10(rel, sid), nbMatieres: (rel.matieres || []).length,
+             ancienne, perLabel: ancienne && cls && prem ? (_periodOf(cls, prem.date)?.label || '') : '' };
   }
   return null;
 }
@@ -15697,7 +15712,7 @@ function _syntheseRow(cls, stu) {
     // Dernière moyenne générale importée (onglet 📈 Moyennes), son évolution depuis
     // l'import précédent de la période, et le nombre de matières sous 10.
     moyenne: (() => { const m = _moyDerniere(cid, stu.id); return m ? { generale: typeof m.generale === 'number' ? m.generale : null,
-      delta: m.delta, sous10: m.sous10, date: m.date } : null; })(),
+      delta: m.delta, sous10: m.sous10, date: m.date, ancienne: m.ancienne, perLabel: m.perLabel, periode: m.periode } : null; })(),
     nonRendus, reponses, remarque: String(stu.remarque || ''),
     // ⚠️ La Synthèse est l'écran de préparation des conseils et des APPELS aux familles :
     // savoir quand on a joint celle-ci pour la dernière fois y vaut autant qu'un cumul.
@@ -15825,7 +15840,7 @@ function _elevesPrintHTML(cls) {
   // Moyenne en deux lignes courtes au plus (« 11,1 +0,2 » puis « 1 < 10 ») : la version
   // longue de la liste à l'écran (« 1 matière < 10 ») s'étalait sur trois lignes dans
   // une colonne de chiffres et doublait la hauteur de la rangée.
-  const moy = m => !m || m.generale === null ? '' : `<span class="pp-big">${_escName(_fmtNote(m.generale))}</span>${
+  const moy = m => !m || m.generale === null ? '' : `${m.ancienne ? `<small><em>${_escName(m.perLabel || 'ancienne')}</em></small> ` : ''}<span class="pp-big">${_escName(_fmtNote(m.generale))}</span>${
     m.delta !== null ? ` <small>${_escName(_fmtDelta(m.delta))}</small>` : ''}${m.sous10 ? `<small class="pp-l">${m.sous10} &lt; 10</small>` : ''}`;
   const role = r => [r.delegue ? (r.delegue === 'titulaire' ? _delMot(_civOf(r.sid)) : _delMot(_civOf(r.sid)) + ' ' + _supMot(_civOf(r.sid))) : '', r.eco ? (r.eco === 'suppleant' ? _delMot(_civOf(r.sid), true) + ' ' + _supMot(_civOf(r.sid)) : _delMot(_civOf(r.sid), true)) : ''].filter(Boolean).join(' · ');
   // Le texte libre (remarque, bilans) a la place ; les colonnes de chiffres le minimum.
@@ -15845,7 +15860,7 @@ function _elevesPrintHTML(cls) {
     { key: 'periode', th: _escName(per), w: 4, c: 1, td: r => `${r.periodeTotal ?? ''}` },
     { key: 'moy', th: 'Moy.', w: 6.5, c: 1, td: r => moy(r.moyenne) },
     { key: 'docs', th: 'Non rendus', w: 9, td: r => `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` },
-    { key: 'incidents', th: 'Incidents', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
+    { key: 'incidents', th: 'Incidents <small>(année)</small>', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
     { key: 'avis', th: 'Avis coll.', w: 4.5, c: 1, td: (r, sid) => { const a = campP ? _avisResume(campP, sid) : null; return a && (a.n || a.cible) ? `${a.n}/${a.total}${a.cible ? ' ★' : ''}` : ''; } },
     { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(r.remarque)}</small>` },
     ..._bilanColsVues(cls, pIdx).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
