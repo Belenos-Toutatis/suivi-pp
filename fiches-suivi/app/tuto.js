@@ -280,11 +280,11 @@ async function lancerTuto() {
   const html = `<div class="tuto-choix">
     ${enCours ? `<label class="tc"><input type="radio" name="tuto-ch" value="reprendre" checked><span><b>Reprendre où j’en étais</b><small>${esc(TUTO[enCours.ch].titre)}, étape ${enCours.i + 1} sur ${TUTO[enCours.ch].etapes.length}</small></span></label>` : ""}
     ${TUTO.map((c, k) => `<label class="tc"><input type="radio" name="tuto-ch" value="${k}" ${!enCours && k === 0 ? "checked" : ""}><span><b>${k + 1}. ${esc(c.titre)}</b><small>${esc(c.sous)} · ${c.etapes.length} étapes</small></span></label>`).join("")}
-    ${S ? "" : `<div class="tc-base"><b>Sur quelles données ?</b><label><input type="radio" name="tuto-base" value="demo" checked> La démonstration (conseillé pour découvrir)</label><label><input type="radio" name="tuto-base" value="new"> Un nouveau suivi vierge (pour le préparer en suivant les étapes)</label></div>`}</div>`;
+    ${S || HOTE ? "" : `<div class="tc-base"><b>Sur quelles données ?</b><label><input type="radio" name="tuto-base" value="demo" checked> La démonstration (conseillé pour découvrir)</label><label><input type="radio" name="tuto-base" value="new"> Un nouveau suivi vierge (pour le préparer en suivant les étapes)</label></div>`}</div>`;
   const choix = await saisir("Tutoriel de prise en main", "Le tutoriel vous guide pas à pas : l’endroit concerné est éclairé, une bulle explique à quoi il sert et quoi faire. Les chapitres suivent l’ordre de prise en main.", {
     html, lire: d => ({ ch: (d.querySelector('input[name="tuto-ch"]:checked') || {}).value, base: (d.querySelector('input[name="tuto-base"]:checked') || {}).value }) }, { ok: "Commencer" });
   if (!choix || choix.ch === undefined) return;
-  if (!S) { if (choix.base === "new") await doNew(); else await doDemo(); if (!S) return; }
+  if (!S) { if (HOTE || choix.base === "new") await doNew(); else await doDemo(); if (!S) return; }   /* version intégrée : jamais la démonstration sur une vraie classe */
   if (choix.ch === "reprendre" && enCours) allerEtape(enCours.ch, enCours.i); else allerEtape(Number(choix.ch), 0);
 }
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest('[data-act="tuto"], #b-tuto'); if (!b) return; const m = document.querySelector("#m-file"); if (m) m.open = false; lancerTuto(); });

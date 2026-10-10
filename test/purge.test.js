@@ -84,6 +84,10 @@ const MAXIMAL = `S = {
                     disciplines: [{ id: 'maths', nom: 'Mathématiques', onglet: 'Maths', profs: 'M. Y' }], cibles: ['s1', 's2'],
                     avis: { s1: { maths: { investissement: 'Sérieuse.' } }, s2: { maths: { comportement: 'Bavard.' } } } } },
   },
+  // Fiches de suivi (📋 Suivis) : le nom envoyé à la fiche, indexé par sid ; dans le suivi lui-même, l'élève n'est
+  // désigné que par son NOM (comme sur le papier) — aucun sid.
+  fichesSuivi: { '5C': { etat: { app: 'fiche-suivi-collective', format: 1, savedAt: '', S: { classe: '5C', classeEleves: [{ nom: 'DURAND Léa' }] } },
+                         noms: { s1: 'DURAND Léa', s2: 'MARTIN Noé' } } },
   prefs: { periodMode: 'semestre', codeAbsent: 'A' },
   instances: { fiche_incident: { id: 'fiche_incident', label: 'Fiche incident', description: '', actif: true, ord: 0, builtin: true } },
   cur: '5C',

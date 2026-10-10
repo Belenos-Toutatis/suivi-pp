@@ -50,6 +50,12 @@ sauvegarde dans un dossier Nextcloud (onglet 💾 Données et réglages).
    feuille (élèves, professeurs repris des moyennes) et relit les réponses dans la copie que
    le client Nextcloud garde sur l'ordinateur ; on les retrouve en rédigeant le bilan, sur la
    fiche et sur la synthèse de période.
+3 bis. **📋 Suivis** — les fiches de suivi du comportement, cours par cours : **individuelles**
+   (objectifs de l'élève, bilan pour la famille), **collectives** (quelques élèves suivis
+   ensemble) et **de classe**. La classe vient de Suivi PP (élèves, groupes, options,
+   arrivées et départs) ; tout s'enregistre avec le reste des données, Ctrl+Z compris. La
+   même application existe en version **autonome**, un seul fichier à donner à un collègue :
+   [`fiches-suivi/app/Fiche de suivi collective.html`](fiches-suivi/app/Fiche%20de%20suivi%20collective.html).
 4. **📄 Documents administratifs** — qui a rendu quoi, et quand. La feuille imprimée d'un
    document — comme la grille élèves × documents — se termine par un **bilan** : combien ont
    rendu, et combien ont coché chaque choix.

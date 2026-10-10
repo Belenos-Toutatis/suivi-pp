@@ -13,6 +13,8 @@ Toutes deux autorisent la redistribution, y compris en sous-ensemble.
 Usage : python3 scripts/gen_fonts.py          (tout)
         python3 scripts/gen_fonts.py --fiches (seulement fiches-suivi/app/polices.css : les MÊMES polices
                                                pour l'app des fiches de suivi, cf. plus bas)
+        python3 scripts/gen_fonts.py --html   (seulement les blocs @font-face de suivi pp.html, sans
+                                               la police des .ods)
         python3 scripts/gen_fonts.py --ods    (seulement la police des .ods : la sortie woff2
                                                varie d'une version de fontTools à l'autre)
 Chaque famille remplace ce qui se trouve entre ses deux marqueurs (/* LM-DEBUT */ … /* LM-FIN */,
@@ -29,6 +31,11 @@ from fontTools.ttLib import TTFont
 
 HTML = pathlib.Path(__file__).resolve().parent.parent / 'suivi pp.html'
 UNICODES = 'U+0020-007E,U+00A0-00FF,U+0152-0153,U+0178,U+2010-2027,U+2030-203A,U+20AC,U+2190-2193,U+2212,U+2260,U+2264-2265,U+00D7,U+2026'
+# Sous-ensemble ÉLARGI (2026-10-10), celui de l'écran et du papier de Suivi PP ET des fiches de suivi — qui, dans
+# l'onglet 📋 Suivis, reçoivent les polices de Suivi PP : Latin étendu A (noms d'élèves polonais, turcs, lituaniens…),
+# diacritiques combinants, l'espace fine insécable U+202F (la typographie française des fiches en met partout),
+# ↔ ↗ ↘ ↺ ≈ ✓. La police des .ods garde UNICODES (ses largeurs y sont calculées).
+UNI_LARGE = UNICODES + ',U+0100-017F,U+0300-036F,U+202F,U+2194-2198,U+21BA,U+2248,U+2713'
 VARIANTES = [('normal', 400), ('normal', 700), ('italic', 400), ('italic', 700)]
 FAMILLES = {
     'LM': ('Latin Modern Roman', '/usr/share/texmf/fonts/opentype/public/lm/lmroman10-{}.otf',
@@ -55,7 +62,7 @@ def woff2(path, unicodes=None):
 # polonais, turcs, lituaniens… — la démo en porte), diacritiques combinants, l'espace fine insécable U+202F (la
 # typographie française de l'app en met partout), ↔ ↗ ↘ ↺ ≈ ✓. JetBrains Mono est reprise TELLE QUELLE de suivi pp.html.
 if '--fiches' in sys.argv:
-    UNI_FICHES = UNICODES + ',U+0100-017F,U+0300-036F,U+202F,U+2194-2198,U+21BA,U+2248,U+2713'
+    UNI_FICHES = UNI_LARGE
     src = HTML.read_text(encoding='utf-8')
     a = src.index("@font-face {\n  font-family: 'JetBrains Mono';")
     out = ['/* Polices des fiches de suivi — générées par scripts/gen_fonts.py --fiches, NE PAS MODIFIER À LA MAIN.\n'
@@ -78,13 +85,16 @@ txt = HTML.read_text(encoding='utf-8')
 for cle, (famille, motif, fichiers) in ([] if '--ods' in sys.argv else FAMILLES.items()):
     blocs, poids_total = [], 0
     for (style, poids), f in zip(VARIANTES, fichiers):
-        data = woff2(motif.format(f))
+        data = woff2(motif.format(f), UNI_LARGE)
         poids_total += len(data)
         blocs.append(f"@font-face {{\n  font-family: '{famille}';\n  font-style: {style};\n  font-weight: {poids};\n"
                      f"  font-display: swap;\n  src: url(data:font/woff2;base64,{base64.b64encode(data).decode()}) format('woff2');\n}}")
     a, b = txt.index(f'/* {cle}-DEBUT */'), txt.index(f'/* {cle}-FIN */')
     txt = txt[:a] + f'/* {cle}-DEBUT */\n' + '\n'.join(blocs) + '\n' + txt[b:]
     print(f'{famille} : 4 variantes, {poids_total // 1024} Ko')
+if '--html' in sys.argv:
+    HTML.write_text(txt, encoding='utf-8')
+    sys.exit(0)
 
 FAMILLE_ODS = 'Andika SuiviPP'
 

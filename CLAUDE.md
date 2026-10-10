@@ -98,7 +98,7 @@ Plans de salle, placement, glisser-déposer, AESH, tablettes, QCMCam/ArUco, sono
 - `.gitignore` — `suivi-pp-*.json`, `*.bak`, `*.tmp`
 - `scripts/audit_static.js`, `scripts/audit_browser.js` — les deux auditeurs (cf. *Scores de référence*, v1.28.2) ; `scripts/audit_parcours.js` — le parcours des états et des feuilles imprimées, à charger après `audit_browser.js` (v1.55.9) ; `scripts/gen_icons.py` ; `scripts/gen_recap_fixture.py` (le faux récapitulatif MBN des tests, v1.58.0)
 - `fiches-suivi/` — **l'application des fiches de suivi** (individuelles · collectives · classe), reprise le 2026-10-10 (cf.
-  *Fiches de suivi*), avec ses sources, ses 54 tests de bout en bout et son propre `fiches-suivi/CLAUDE.md` — à lire avant d'y toucher
+  *Fiches de suivi*), avec ses sources, ses 55 tests de bout en bout et son propre `fiches-suivi/CLAUDE.md` — à lire avant d'y toucher
 - `test/harness.js`, `test/*.test.js`, `test/fixtures/` (dont `trombi/fake-trombi.pdf`, un faux trombinoscope), `package.json` (`npm test` → `node --test "test/*.test.js"`)
   ⚠️ Le glob, pas `node --test test/` : sous Node 22, l'argument-répertoire `test` échoue en `MODULE_NOT_FOUND`. Le glob a en prime l'avantage de n'exécuter que les `*.test.js`, donc `harness.js` n'est plus compté comme un test.
 
@@ -122,6 +122,7 @@ S = {
   moyennes:   { [classId]: { [importId]: releveMoy } },   // un import = une photographie
   matieres:   { [mid]: { id, nom, norm, ord, disc? } },   // catalogue qui réaligne les colonnes ; disc = discipline (avis)
   avis:       { [classId]: { [campId]: campagne } },     // avis des collègues : une feuille du Nuage par période
+  fichesSuivi:{ [classId]: { etat, noms, demo? } },     // 📋 Suivis : l'état (opaque) de l'app des fiches de suivi
   disciplines:{ [did]: { id, nom, onglet, actif, ord, builtin } },   // les onglets de cette feuille
   prefs:      { periodMode: 'semestre'|'trimestre', … },
   instances:  { [instanceId]: instance },          // catalogue des instances (incidents)
@@ -428,9 +429,41 @@ du collège a été remplacé par « Collège Les Tilleuls »). Elle n'évolue p
 **Une seule source, deux livraisons** (arbitré, maquettes validées) :
 1. **Autonome**, pour les collègues : un seul fichier HTML, **vierge**, qui s'enregistre dans sa propre page (comme
    bento.page) ; la classe se saisit, se colle, s'importe d'un tableur ou **d'une sauvegarde de Plan de classe (.json)**.
-2. **Intégrée** à Suivi PP : un onglet **📋 Suivis** (après Avis des collègues) qui affiche la fiche dans un cadre ; son
-   état est rangé dans les données de Suivi PP (sync, sauvegardes, Ctrl+Z), les élèves viennent de la classe.
-   ⚠️ *À construire* (mode d'enregistrement « hôte » de la fiche, puis l'onglet).
+2. **Intégrée** à Suivi PP (v1.59.0) : un onglet **📋 Suivis** (après Avis des collègues) qui affiche la fiche dans un cadre ;
+   son état est rangé dans les données de Suivi PP (sync, sauvegardes, Ctrl+Z), les élèves viennent de la classe.
+
+**L'onglet 📋 Suivis** (bloc « 📋 FICHES DE SUIVI » du script) :
+- La fiche est rangée **compressée** dans `suivi pp.html` (`<script type="application/octet-stream" id="fiches-suivi-app">`,
+  entre `<!-- FICHES-SUIVI-DEBUT` et `<!-- FICHES-SUIVI-FIN -->`, ≈ 300 Ko), **écrite par `fiches-suivi/app/assemble.py`** —
+  jamais à la main (`test/fiches-suivi.test.js` vérifie son empreinte). ⚠️ Avant le script de l'application : le harnais des
+  tests prend le DERNIER script. Toute évolution de la fiche change donc `suivi pp.html` : version et date à avancer.
+- `renderSuivis` la décompresse une fois (`DecompressionStream('deflate-raw')`), y pose **nos polices** (`_suivisPolicesCSS` :
+  JetBrains Mono, puis ce qui est entre `/* ANDIKA-DEBUT */` et `/* LM-FIN */` — d'où le sous-ensemble élargi des polices de
+  Suivi PP depuis cette version, `UNI_LARGE` de `scripts/gen_fonts.py`, lancé avec `--html`) et la charge dans un cadre par
+  **`srcdoc`**, gardé vivant d'un onglet à l'autre. ⚠️ Pas une URL de blob : en `file://`, son origine « null » refuse les
+  changements d'ancre, toute la navigation de la fiche (cf. `fiches-suivi/CLAUDE.md`, *Version intégrée*).
+- **`S.fichesSuivi[classId] = { etat: { app, format, savedAt, S }, noms: { sid: 'NOM Prénom' }, demo? }`** — l'état de la
+  fiche est OPAQUE ici (elle le normalise à la lecture) ; `noms` = les noms envoyés la dernière fois (un renommage d'ici suit
+  là-bas) ; `demo: true` = la fiche y fabrique sa démonstration (posé par `createDemo`). Section dans `_emptyState`,
+  `_sanitizeCoreSections`, `_validateImport` ; `_purgeClassRefs` l'emporte, `_purgeStudentRefs` retire `noms[sid]` (dans la
+  fiche, l'élève n'est qu'un NOM, comme sur le papier : sa ligne y reste, signalée « pas dans Suivi PP »).
+- **Messages** (`_suivisEnvoyer`, `_suivisRecevoir`, écouteur `message` vérifié par sa source) : `charger` n'est envoyé que si
+  le suivi, la liste de la classe ou la classe affichée a changé (Ctrl+Z, sync, changement de classe, élève renommé…) — sinon
+  la pile seule. La classe envoyée (`_suivisClasse`) : « NOM Prénom » par ordre alphabétique, « Groupe N », les options par
+  leur CODE (court : il s'affiche dans l'emploi du temps de la fiche), arrivée, départ ramené au dernier jour présent.
+- ⚠️ **Le suivi renvoyé se range sous la classe QUE LA FICHE AVAIT** (`m.cle`), pas sous `S.cur` : une frappe en attente part
+  au moment où l'on change de classe.
+- ⚠️ **Ctrl+Z est le nôtre** : `etape` → `pushUndo()` avant de ranger ; `retirer` → `_undoAnnulerRefus` si le cran est encore
+  le dernier et contient ce suivi ; ⚠️ comparer le SUIVI, pas l'enveloppe (la fiche date chaque envoi) — sinon un cran vide.
+  Une frappe groupée ne pose pas de cran mais avance l'horloge (`_clockBumpSelf`). Ctrl+Z demandé par la fiche :
+  `undoLast(true)` (silencieux : la fiche dit ce qui a été annulé).
+- ⚠️ **Page qui se ferme** : la fiche n'envoie la frappe d'un commentaire qu'après 0,4 s ; un message posté pendant la
+  fermeture n'arriverait pas. `beforeunload` appelle `_suivisRecupererFrappe`, qui la reprend de façon SYNCHRONE
+  (`__ficheEnAttente` du cadre — même origine, grâce au srcdoc) avant `save()`. Testé non vacant (sans elle, `e2e_integre`
+  perd le commentaire).
+- Thème et polices de Données suivent (`_suivisApparenceMaj`, appelée par `toggleAppTheme` et `_applyPolices`) ; Ctrl+P sur
+  l'onglet → l'impression de la fiche. État en `var` : `_applyPolices` peut tourner avant que le bloc soit évalué.
+- RGPD : le bandeau cite les fiches de suivi. Démo : la fiche de la 5e C se fabrique à la première ouverture de l'onglet.
 
 **Apparence de Suivi PP pour les deux** (`fiches-suivi/app/theme.css`), et **ses polices**, embarquées
 (`python3 scripts/gen_fonts.py --fiches` → `fiches-suivi/app/polices.css`, mêmes familles, sous-ensemble élargi) : Andika à
@@ -1658,7 +1691,7 @@ officielles, l'utilisateur les règle ou les décoche, et il note la décision p
 ## Écrans
 
 **7 onglets depuis la v1.45.0** : 🗣 **Avis des collègues** s'ajoute après Vie de classe (cf.
-*Avis des collègues*, « Où on l'ouvre »).
+*Avis des collègues*, « Où on l'ouvre »). **8 depuis la v1.59.0** : **📋 Suivis** après lui (cf. *Fiches de suivi*).
 
 ⚠️ **Pas de grand titre d'onglet** (v1.44.1, l'utilisateur : *« ça prend trop de place »*) :
 le `.sh` de chaque onglet est retiré de l'écran (gardé pour les lecteurs d'écran) — l'onglet
@@ -2439,6 +2472,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 156 | **Onglet 📋 Suivis : les fiches de suivi intégrées** — la version intégrée de `fiches-suivi/` (compressée dans le fichier par `assemble.py`, chargée par `srcdoc`, nos polices), son état dans `S.fichesSuivi` (sync, sauvegardes, purge, import), Ctrl+Z commun (un geste de la fiche = un cran, Ctrl+Z / Ctrl+Y depuis la fiche), liste de la classe envoyée à la fiche (chaque élève garde sa ligne, renommages, arrivées, départs), thème et polices de Données, Ctrl+P, démo fabriquée par la fiche aux noms de la classe ; polices de Suivi PP au sous-ensemble élargi (latin étendu A…) ; RGPD ; 13 tests (`test/fiches-suivi.test.js`) et `fiches-suivi/e2e_integre.js` (34 vérifications, en `file://`). Défauts trouvés en route : cran vide (la fiche date chaque envoi), cadre en blob inutilisable en `file://`, `<base>` refusée par la politique de sécurité | ✅ **fait** (2026-10-10, v1.59.0) |
 | 155 | **Fiches de suivi reprises dans le dépôt** (`fiches-suivi/`) : sources de l'autre session, tests réparés (chemins avec espaces, sorties, test interrompu enfin signalé « INTERROMPU »), **apparence de Suivi PP** (`theme.css`), **mêmes polices** embarquées et réglables (`gen_fonts.py --fiches`), bouton **Aa** des feuilles, **import d'une classe depuis Plan de classe** (accueil et listes) ; `e2e_polices` et `e2e_contraste` (auditeur de Suivi PP : 176 états, 0 défaut, contre 35 dans la version d'origine — contrastes corrigés : emploi du temps, touches de code, initiales des suivis, jours fériés). **Auditeur** (`scripts/audit_browser.js`) : deux fonds translucides empilés ne font plus un fond opaque, un dégradé est mesuré par sa pire couleur, un texte « sr-only » n'est plus « tronqué ». `suivi pp.html` inchangé | ✅ **fait** (2026-10-10) |
 | 154 | **Les trois remarques de l'audit du 2026-10-10** : **déplacer un élève vers une autre classe** retire aussi sa place dans chaque salle et sa désignation de délégué dans l'ancienne (`_retirerDeClasse`, partagée avec `_purgeStudentRefs` ; les élections, PV historiques, n'y sont pas touchées) · **colonne Moy. des Indicateurs** : un élève absent des imports de la DERNIÈRE période du bureau numérique garde sa dernière moyenne, mais elle est dite ancienne (`_moyDerniere` → `ancienne`, `perLabel` = la période de l'app où cette période a commencé ; « S1 » devant, en italique, l'infobulle l'explique ; « S1 » aussi sur la liste imprimée) · **compteurs ⚖ et ☎** : « · année » dans l'en-tête, infobulle « de TOUTE l'année », « Incidents (année) » sur le papier ; 3 tests (`test/audit-v1584.test.js`, vérifiés en échec sur la v1.58.3). Audit Indicateurs 2 thèmes, 1 570 et 320 px, liste imprimée depuis le thème sombre, 0 défaut | ✅ **fait** (2026-10-10, v1.58.4) |
 | 153 | **Audit complet du 2026-10-10** : parcours (69 états × 2 thèmes à 1 570 px avec les 12 feuilles, 1 009 et 320 px — ≈ 224 000 nœuds, 0 défaut) + trois relectures de TOUT le fichier (cohérence entre écrans, intégrité, échappement). Corrigé : **trimestres — mars coupé en deux** (deux moments `bil:mois:AAAA-MM:pIdx`, `_moisCle` ; `_bilanCible` / `_decisionCible` bornés à la période — écrire le point de mars du T2 remplaçait celui du T3) · **fiche : papiers à rendre = ceux des autres écrans** (pas d'archivé, pas rendu aujourd'hui) et compteur de la chronologie qui ne lit plus le titre · synthèse d'un moment sans relevé : cumul reporté · **carte de chaleur : août a sa colonne s'il porte un événement** · plus de « +-2 » · **PV signé** : sa référence reste quand la désignation se vide · **Ctrl+Z** : `_undoAnnulerRefus` (un refus ne laisse ni cran vide, ni Ctrl+Y fantôme, ni niveau perdu), `_undoSiRien` dans `_withStudent` / `_docMut` / `_elMut`, verrous de salve désarmés aussi par Ctrl+Z / Ctrl+Y (`_salvesDesarmer`), relevé refusé sans cran · **horloge** qui ne recule plus à l'import JSON ni à « Charger la démo / Tout effacer » · **sauvegarde locale illisible** gardée sous `suiviPP_v1_illisible` et signalée · **fichier altéré** : `_sanitizeImbrique` (nombres convertis ou retirés — ils s'injectaient dans le HTML et des gestionnaires —, élections, documents, contacts, ids = clés) ; ne change RIEN à des données saines (vérifié sur la démo) · nom de fichier échappé (🩹 Récupérer) · surlignage des mots avant échappement · **arbitré par l'utilisateur** : la période « en cours » est partout celle du DERNIER RELEVÉ du carnet (le « +n » des Observations aussi, `_obsFenetre`) ; la fiche lit la feuille d'avis DU MOMENT, même vide (`_avisFeuilleDuMoment`, partagée avec la carte de chaleur) ; la synthèse d'un moment autre que le conseil prend les moyennes d'avant la fin du moment (le conseil garde le dernier import de la période) ; 10 tests (`test/audit-v1583.test.js`, vérifiés en échec sur la v1.58.2) | ✅ **fait** (2026-10-10, v1.58.3) |

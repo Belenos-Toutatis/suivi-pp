@@ -6,7 +6,7 @@ depuis la session Suivi PP** (décision de l'utilisateur). L'ancien dossier `~/t
 - la version **autonome** (ce dossier, `app/`), qui s'enregistre dans sa propre page — celle qu'on donne aux collègues,
   **vierge** (avec la démonstration à essayer, et l'import d'une classe depuis la sauvegarde de Plan de classe) ;
 - la version **intégrée** à Suivi PP (onglet 📋 Suivis), qui ne s'enregistre pas elle-même : elle transmet son état à
-  Suivi PP, qui le range avec ses données (sync Nextcloud, sauvegardes, Ctrl+Z). *À construire.*
+  Suivi PP, qui le range avec ses données (sync Nextcloud, sauvegardes, Ctrl+Z). Faite le 2026-10-10 (cf. *Version intégrée*).
 **Apparence** : celle de Suivi PP pour les deux (papier, Seyès, filet rouge, Andika à l'écran, Latin Modern au papier,
 réglables comme dans Suivi PP ; les feuilles affichées à l'écran prennent la police d'impression, avec un bouton pour
 basculer vers celle d'affichage). Une seule apparence : deux finiraient par diverger. Fait (cf. *Apparence et polices*).
@@ -34,7 +34,11 @@ Utilisateur : enseignant, professeur principal. **Toujours répondre en françai
 python3 fiches-suivi/app/assemble.py
 ```
 
-- L'assemblage produit `app/Fiche de suivi collective.html`. Il concatène head.html, puis le bloc de données vide, puis core, demo, ui, sections et tuto.
+- L'assemblage produit `app/Fiche de suivi collective.html` (version autonome) ET écrit la version intégrée, compressée, dans
+  `../suivi pp.html` (entre `<!-- FICHES-SUIVI-DEBUT` et `<!-- FICHES-SUIVI-FIN -->`). `--autonome` : la première seulement.
+  Il concatène head.html, puis le bloc de données vide, puis core, demo, ui, sections et tuto.
+  ⚠️ Écrire dans `suivi pp.html` change Suivi PP : avancer `APP_VERSION` et `APP_BUILD_DATE` (et sa ligne du tableau de
+  construction) avant de pousser. `test/fiches-suivi.test.js` (côté Suivi PP) refuse un bloc retouché à la main (empreinte).
 - Vérification de syntaxe :
   ```bash
   cd fiches-suivi/app && cat core.js demo.js ui.js sections.js tuto.js > /tmp/tout.js && node --check /tmp/tout.js
@@ -88,6 +92,45 @@ y en a plusieurs, groupe (« Groupe 1 »), options (le nom des étiquettes). Lis
 fichier… » des listes d'élèves, et dans l'accueil par **« Classe depuis Plan de classe (.json)… »** (nouveau suivi, puis
 import ; la classe choisie nomme le suivi s'il n'a pas encore de nom).
 
+## Version intégrée à Suivi PP (2026-10-10, onglet 📋 Suivis)
+
+La même page, assemblée avec `<html data-hote="suivi-pp" class="integree">` et sans polices (`/*POLICES-HOTE*/` : Suivi PP y
+pose les siennes, au même sous-ensemble élargi). Suivi PP la décompresse (`DecompressionStream('deflate-raw')`) et la charge
+dans un cadre par **`srcdoc`**. Tout ce qui lui est propre passe par `HOTE` (ui.js, bloc « hôte » avant le démarrage).
+- ⚠️ **`srcdoc`, pas une URL de blob** : en `file://`, un blob a l'origine « null » et refuse tout changement d'ancre — or toute
+  la navigation passe par l'ancre (`#sommaire`, `#reglages`…) ; au premier lien, le cadre partait en page d'erreur. Mais en
+  `srcdoc`, l'adresse de base est celle de Suivi PP : un lien `href="#edt"` y ferait charger Suivi PP dans le cadre, et
+  `<base href="about:srcdoc">` est refusé par la politique de Suivi PP (`base-uri 'self'`). La fiche intercepte donc ses liens
+  `#…` (écouteur `click` sur `window`, en dernier) et pose l'ancre elle-même.
+- **Messages** (postMessage, `app: "suivi-pp"` → fiche, `app: "fiche-suivi"` → Suivi PP, vérifiés par leur source) :
+  Suivi PP envoie `charger` (`cle` = la classe, `etat` = l'enveloppe ou rien, `classe` = la liste, `demo`, `theme`, `polices`,
+  `pile`, `raison` : `annuler` / `retablir`), `apparence`, `pile`, `imprimer` (Ctrl+P sur l'onglet). La fiche envoie `pret`,
+  `etat` (`cle`, l'enveloppe, `etape`, `retirer`) et `annuler` (`sens`).
+- **Rien ne s'enregistre dans la fiche** : `persist()` envoie l'état (seulement s'il a changé), aucune clé `localStorage` propre
+  à la page (son adresse change à chaque ouverture : elles s'accumuleraient chez Suivi PP), pas de `dirty`, pas d'Enregistrer,
+  ni nouveau suivi, ni démonstration, ni nouvelle année, ni thème, ni polices dans le menu (ceux de Suivi PP).
+- **Page fermée pendant une frappe** : un commentaire part après 0,4 s (`persistBientot`) ; `window.__ficheEnAttente()` rend,
+  de façon synchrone, le message pas encore envoyé — Suivi PP l'appelle en se fermant (`_suivisRecupererFrappe`).
+- **La pile d'annulation est celle de Suivi PP.** `memoriser()` décide toujours où commence une étape (une frappe continue = une
+  étape) : `hoteEtape` → Suivi PP pose un cran (`pushUndo`) avec cet envoi ; une saisie refusée qui referme l'étape après
+  l'envoi → `retirer`. Ctrl+Z / Ctrl+Y / le bouton ↶ de la fiche → `annuler` ; le suivi revient par `charger` avec la raison,
+  et la fiche dit ce qui a été annulé (`decrireChangement`). Suivi PP compare le SUIVI (pas l'enveloppe, datée à chaque envoi)
+  avant de poser un cran : pas de Ctrl+Z vide.
+- **La liste de la classe vient de Suivi PP** (`appliquerClasseHote`) : « NOM Prénom », « Groupe N », les options par leur code,
+  arrivée, départ (Suivi PP note le premier jour d'absence ; ici, le dernier jour présent). ⚠️ **Chaque élève garde SA ligne** —
+  les codes de la fiche de classe sont rangés par POSITION (`j.cl["s.p"]`) : reconnu par son nom (ou par ses mots dans un autre
+  ordre : « Léa CARPE » devient « CARPE Léa » partout), il est mis à jour ; nouveau, il s'ajoute à la FIN ; parti, il a une date
+  de départ ; supprimé dans Suivi PP, sa ligne RESTE, signalée « pas dans Suivi PP », à retirer à la main dans Réglages. Les
+  renommages faits dans Suivi PP (ancien → nouveau, d'après les noms envoyés la dernière fois) suivent dans la classe, le
+  suivi collectif et les suivis individuels. Les groupes venus de Suivi PP ne se renomment pas ici ; ceux créés ici (pour
+  l'emploi du temps) se cochent dans la liste en lecture. Le nom de classe n'est posé que s'il est vide.
+- **Accueil** d'une classe sans suivi : commencer (la liste vient de Suivi PP), ou reprendre un suivi de la version autonome
+  (`.html` ou `.json` — un cran d'annulation). Jamais la démonstration sur une vraie classe.
+- **Démonstration** : seulement dans les données de démonstration de Suivi PP (`demo: true` sur la classe) : `demoHote` prend
+  la démonstration de l'appli, aux noms de la classe (rang pour rang), déplacée dans son année scolaire de semaines entières
+  (les jours de la semaine sont gardés), calendrier de cette année-là.
+- Tests : `e2e_integre.js` (le vrai `suivi pp.html`, en `file://`) ; côté Suivi PP, `test/fiches-suivi.test.js`.
+
 ## Rétrocompatibilité (obligatoire depuis la version du 10/10/2026)
 
 Les versions antérieures au 10/10/2026 n'ont **pas** à être reprises, à la demande de l'utilisateur. Depuis cette date :
@@ -101,7 +144,8 @@ Les versions antérieures au 10/10/2026 n'ont **pas** à être reprises, à la d
 
 ## Enregistrement
 
-- `MODE_ENREG = "html"` : Ctrl+S réécrit la page elle-même, via `PAGE_SOURCE` dont on remplace le bloc de données.
+- `MODE_ENREG = "html"` : Ctrl+S réécrit la page elle-même, via `PAGE_SOURCE` dont on remplace le bloc de données
+  (`"hote"` dans la version intégrée : rien ne s'enregistre ici, cf. *Version intégrée*).
 - Chrome ou Edge écrivent directement (File System Access). Le premier enregistrement demande de choisir ce fichier-ci. Les autres navigateurs téléchargent une copie.
 - Une copie de secours est gardée dans le navigateur (localStorage, clé propre au chemin du fichier).
 - « Reprendre un suivi » accepte un autre `.html` de l'appli (par exemple une version précédente) ou un `.json`. « Exporter les données (.json) » fait une sauvegarde à part.

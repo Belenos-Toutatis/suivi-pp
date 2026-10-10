@@ -104,6 +104,8 @@
     ['avis · nouvelle feuille', () => { onglet('avis'); avisChoisirFeuille(null); }],
     ['fenêtre · lire une discipline', () => { onglet('avis'); const c = camps()[0]; avisChoisirFeuille(c.id); const d = c.disciplines.find(x => Object.values(c.avis || {}).some(a => a && a[x.id])); if (d) openAvisLire({ did: d.id }, c.id); }],
     ['fenêtre · lire un élève', () => { onglet('avis'); const c = camps()[0]; avisChoisirFeuille(c.id); const s = Object.keys(c.avis || {})[0]; if (s) openAvisLire({ sid: s }, c.id); }],
+    // 📋 Suivis : ici, l'onglet et son cadre ; le CONTENU du cadre (la fiche) a son propre audit, fiches-suivi/e2e_contraste.js.
+    ['suivis · fiches de suivi', () => onglet('suivis')],
     // 💾 Données
     ['données', () => { onglet('donnees'); }],
     ['fenêtre · stratégie de sauvegarde', () => { onglet('donnees'); openBackupSettings(); }],

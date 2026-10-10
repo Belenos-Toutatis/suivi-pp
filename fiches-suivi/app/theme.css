@@ -63,3 +63,17 @@ html.integree body::after { display: none; }
   border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: 600 13px/1.4 var(--font-ui); cursor: pointer; opacity: .8; }
 .bascule-police:hover, .bascule-police:focus-visible { opacity: 1; }
 #print-area .bascule-police { display: none; }
+
+/* ---------- version intégrée à Suivi PP (html.integree, posée par initHote) ----------
+   Rien ne s'enregistre ici (Suivi PP range le suivi à chaque modification) ; le thème et les polices sont ceux de Suivi PP ;
+   la démonstration et la nouvelle année n'ont pas de sens pour une classe de Suivi PP. */
+.hote-seul { display: none; }
+html.integree .hote-seul { display: block; margin: 4px 0 8px; font-size: 13px; color: var(--muted); }
+html.integree #b-save, html.integree #b-new, html.integree #b-annee, html.integree #b-saveas, html.integree #b-demo, html.integree #b-close,
+html.integree .theme-choix { display: none; }
+.hote-attente { margin: 40px; color: var(--muted); }
+.lcl-hote .lrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.lcl-hote .num { min-width: 2em; text-align: right; color: var(--muted); }
+.lcl-hote .nom { min-width: 14em; font-weight: 600; }
+.grc-hote { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.lgr .nom-fixe { font-weight: 600; padding: 4px 6px; }

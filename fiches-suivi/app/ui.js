@@ -2,6 +2,19 @@
    Interface
    ===================================================================== */
 const LS_KEY = "fiche-suivi-collective";
+/* Version INTÉGRÉE à Suivi PP (2026-10-10, onglet 📋 Suivis) : la page est chargée dans un cadre de Suivi PP et marquée
+   <html data-hote="suivi-pp"> par assemble.py. Le suivi est alors rangé dans les données de Suivi PP (synchronisation, sauvegardes,
+   Ctrl+Z) : ni enregistrement dans la page, ni copie dans ce navigateur. Tout passe par « hôte », plus bas. */
+const HOTE = document.documentElement.dataset.hote === "suivi-pp";
+let hotePret = false;        // Suivi PP a envoyé le suivi : avant, rien ne part (on écraserait ses données par un suivi vide)
+let hoteEtape = false;       // memoriser() a ouvert un cran d'annulation, pas encore transmis
+let hoteRetirer = false;     // … puis l'a refermé (saisie refusée) après l'avoir transmis : Suivi PP retire le sien
+let hoteDernier = null;      // le suivi tel que Suivi PP l'a (JSON) : on n'envoie que ce qui a changé
+let hoteClasse = null;       // la classe dans Suivi PP : { nom, annee, eleves: [{ nom, groupes, debut, fin }], groupes, renommer }
+let hoteCle = null;          // la classe affichée (id de Suivi PP) : en changer ramène au sommaire
+let hoteDemo = false;        // données de démonstration de Suivi PP : la démonstration des fiches y est permise
+let hotePile = {};           // { annuler, retablir } : la pile de Suivi PP
+let hotePolices = null;      // { ecran, papier } : les polices réglées dans Suivi PP (💾 Données)
 let S = null;                 // état courant
 let dirty = false;            // modifications non enregistrées dans un fichier
 let fileHandle = null;        // ce fichier .html, choisi pour l'enregistrement (Chrome/Edge : réenregistrement direct)
@@ -12,6 +25,7 @@ const pctTxt = v => (v == null ? "" : Math.round(v * 100) + "\u202f%");     // e
 /* ---------- persistance ---------- */
 let stockageEnErreur = false;
 function persist() {
+  if (HOTE) { hoteEnvoyerEtat(); return; }      // version intégrée : l'état part vers Suivi PP, qui l'enregistre
   try {
     localStorage.setItem(CLE_PAGE, JSON.stringify({ S, dirty, base: enregistreLe, id: idEnregistre, nom: nomFichier }));
     stockageEnErreur = false;
@@ -31,14 +45,16 @@ function memoriser(texte) {
     // la frappe dans un commentaire ne crée qu'une étape par pause d'écriture
     if (!((fusion || (texte && Date.now() - dernierTexte < 2000)) && historique.length)) {
       historique.push(etatPrecedent); if (historique.length > MAX_ANNULER) historique.shift();
+      hoteEtape = true;                // version intégrée : Suivi PP posera un cran d'annulation avec cet envoi
     }
     refaire = [];
   }
-  if (fusion && historique.length && now === historique[historique.length - 1]) historique.pop();   /* saisie refusée à la sortie du champ : l'état est revenu, pas d'étape vide pour Ctrl+Z */
+  if (fusion && historique.length && now === historique[historique.length - 1]) { historique.pop(); if (hoteEtape) hoteEtape = false; else hoteRetirer = true; }   /* saisie refusée à la sortie du champ : l'état est revenu, pas d'étape vide pour Ctrl+Z */
   if (texte) dernierTexte = Date.now(); else dernierTexte = 0;
   etatPrecedent = now; majBoutonAnnuler();
 }
 function annuler(sens = -1) {
+  if (HOTE) { persistMaintenant(); hoteEnvoyer({ type: "annuler", sens }); return; }   // la pile d'annulation est celle de Suivi PP
   const pile = sens < 0 ? historique : refaire, autre = sens < 0 ? refaire : historique;
   if (!pile.length) return;
   autre.push(JSON.stringify(S));
@@ -74,8 +90,9 @@ function decrireChangement(a, b) {
 }
 function majBoutonAnnuler() {
   const b = $("#b-undo"); if (!b) return;
-  b.disabled = !historique.length;
-  b.title = historique.length ? "Annuler la dernière modification (Ctrl+Z)" : "Rien à annuler";
+  const peut = HOTE ? !!hotePile.annuler : historique.length > 0;
+  b.disabled = !peut;
+  b.title = peut ? "Annuler la dernière modification (Ctrl+Z)" + (HOTE ? "\nLa même annulation que dans Suivi PP." : "") : "Rien à annuler";
 }
 let dansChange = false;              // vrai pendant le traitement d'un « change » (voir renderDiffere)
 let revision = 0;                    // compteur de modifications
@@ -256,12 +273,14 @@ function toast(msg, ms = 3500) {
 }
 let telecharge = false;              // dernier enregistrement fait par téléchargement (pas de mise à jour du fichier d'origine)
 function updateStatus() {
+  if (HOTE) dirty = false;                 // version intégrée : tout est enregistré par Suivi PP, à chaque modification
   const el = $("#status");
   if (!S) el.textContent = "";
   else el.textContent = dirty ? (idEnregistre ? "Modifié · non enregistré" : "Pas encore enregistré")
                          : idEnregistre ? (telecharge ? "Copie téléchargée" : MODE_ENREG === "json" ? "Enregistré" + (nomFichier ? " · " + nomFichier : "") : "Enregistré dans ce fichier") : S.demo ? "Démonstration" : "Pas encore enregistré";
   el.title = (MODE_ENREG === "json" ? "Fichier de données : " + (nomFichier || "pas encore choisi") : "Fichier : " + NOM_PAGE) + "\n" + (dirty ? (stockageEnErreur ? "ATTENTION : la copie de secours de ce navigateur ne fonctionne pas. Enregistrez (Ctrl+S)." : "Les modifications sont gardées en secours dans ce navigateur, mais pas encore dans le fichier : cliquez sur Enregistrer (Ctrl+S).")
     : telecharge ? "Une copie à jour a été téléchargée : remplacez l’ancien fichier par celle-ci." : idEnregistre ? "Tout est enregistré dans ce fichier." : "Rien n’est encore enregistré dans ce fichier.");
+  if (HOTE && S) { el.textContent = S.demo ? "Démonstration · dans Suivi PP" : "Enregistré dans Suivi PP"; el.title = "Le suivi est rangé dans les données de Suivi PP : il suit leur synchronisation et leurs sauvegardes, et Ctrl+Z l’annule comme le reste."; }
   el.classList.toggle("dirty", dirty);
   $("#brand-classe").textContent = S && S.classe ? S.classe : "FS";
   const sems = S ? semaines(S) : [], nbEl = S ? S.eleves.filter(e => e.nom.trim()).length : 0;
@@ -289,7 +308,7 @@ const CLE_PAGE = LS_KEY + ":" + (() => { try { return decodeURIComponent(locatio
 const RE_BLOC = /(<script id="donnees-suivi" type="application\/json">)([\s\S]*?)(<\/script>)/;
 /* Où enregistrer (« html » depuis le 10/10/2026, comme un logiciel tout-en-un) : "json" = un fichier de données .json à côté de la page (pendant la mise au point : la page pouvait être remplacée
    par une nouvelle version sans toucher aux données) ; "html" = dans la page elle-même (un seul fichier à copier). */
-const MODE_ENREG = "html";
+const MODE_ENREG = HOTE ? "hote" : "html";   // "hote" : version intégrée à Suivi PP, rien ne s'enregistre ici
 const NOM_JSON = NOM_PAGE.replace(/\.html?$/i, "") + ".json";
 const TYPE_JSON = [{ description: "Données du suivi (.json)", accept: { "application/json": [".json"] } }];
 let nomFichier = "";          // mode json : nom du fichier de données choisi
@@ -417,7 +436,7 @@ async function exporterJson() {
   if (!S) return;
   const blob = new Blob([JSON.stringify({ app: "fiche-suivi-collective", format: FORMAT_DONNEES, savedAt: new Date().toISOString(), S }, null, 1)], { type: "application/json" });
   const nom = `Suivi ${(S.classe || "collectif").trim()} - Données - export du ${dateNom(aujourdhui())}.json`.replace(/[\\/:*?"<>|]/g, "-");
-  if (window.showSaveFilePicker) {
+  if (window.showSaveFilePicker && !HOTE) {   /* dans le cadre de Suivi PP : un téléchargement, toujours permis */
     try {
       const h = await window.showSaveFilePicker({ id: "fiche-suivi-export", suggestedName: nom, types: TYPE_JSON });
       const w = await h.createWritable(); await w.write(blob); await w.close();
@@ -429,7 +448,7 @@ async function exporterJson() {
 /** Reprend le suivi d'un autre fichier : fichier de données .json, ou une autre copie de cette page (.html). */
 async function openFile() {
   if (S && !(await demander("Reprendre un autre suivi ?", `Le suivi affiché sera remplacé par celui du fichier choisi${dirty ? ".\n\n" + PERDU : "."}`, { ok: "Choisir le fichier", danger: dirty }))) return;
-  if (window.showOpenFilePicker) {
+  if (window.showOpenFilePicker && !HOTE) {
     try {
       const [h] = await window.showOpenFilePicker({ id: "fiche-suivi", types: [{ description: "Suivi enregistré (.json ou .html)", accept: { "application/json": [".json"], "text/html": [".html", ".htm"] } }] });
       await loadFile(await h.getFile());
@@ -461,8 +480,9 @@ async function loadFile(f, enregistre = false) {
   } catch (e) { informer("Ouverture impossible", "Impossible de reprendre le suivi de « " + f.name + " ».\n\n" + e.message); return false; }
   S = nouvel; dirty = !enregistre; telecharge = false;
   if (enregistre) { idEnregistre = S.id; enregistreLe = savedAt; nomFichier = f.name; }
+  if (HOTE) { delete S.demo; appliquerClasseHote(S, hoteClasse); hoteEtape = true; }   // un geste : Ctrl+Z dans Suivi PP le défait
   reinitHistorique(); reinitVues(); persist(); updateStatus();
-  toast(enregistre ? `« ${f.name} » rouvert.` : `Suivi de « ${f.name} » repris. Enregistrez (Ctrl+S) pour le garder${MODE_ENREG === "html" ? " dans ce fichier" : ""}.`, 6000);
+  toast(HOTE ? `Suivi de « ${f.name} » repris dans Suivi PP. Ctrl+Z pour revenir en arrière.` : enregistre ? `« ${f.name} » rouvert.` : `Suivi de « ${f.name} » repris. Enregistrez (Ctrl+S) pour le garder${MODE_ENREG === "html" ? " dans ce fichier" : ""}.`, 6000);
   location.hash = "#sommaire"; render();
   return true;
 }
@@ -494,7 +514,7 @@ function route() {
   const autreVue = !current || current.view !== (v || "sommaire") || (v === "reglages" && (current.arg || "") !== (arg || ""));   /* autre rubrique des réglages : en haut aussi */
   current = { view: v || "sommaire", arg: arg ?? null };
   if (autreVue && (current.view === "indiv" || current.view === "classesem")) { codeIndiv = null; codeCl = null; }   // à l'ouverture d'une fiche : aucun code choisi
-  if (S) try { localStorage.setItem(CLE_PAGE + "-page", JSON.stringify({ id: S.id, hash: location.hash })); } catch (e) { /* sans stockage */ }   // rouvrir sur la dernière page vue
+  if (S && !HOTE) try { localStorage.setItem(CLE_PAGE + "-page", JSON.stringify({ id: S.id, hash: location.hash })); } catch (e) { /* sans stockage */ }   // rouvrir sur la dernière page vue
   render();
   // changement de page : le focus perdu va au titre de la page (lecteurs d'écran, clavier) ; on remonte en haut si la vue change
   if (!document.activeElement || document.activeElement === document.body) {
@@ -561,6 +581,7 @@ function renderDiffere() {
 
 /* ---------- accueil ---------- */
 function viewAccueil() {
+  if (HOTE) return viewAccueilHote();
   return `<div class="accueil"><h1 class="titre-accueil">Fiches de suivi</h1>
   <p class="intro">Suivi du comportement, cours par cours : <b>fiches individuelles</b> avec bilan pour la famille, <b>fiches collectives</b> pour quelques élèves suivis ensemble (totaux, bilan par matière) et <b>fiches de classe</b> pour toute la classe.
   Ce fichier ne contient pas encore de suivi. Que voulez-vous faire ?</p>
@@ -586,6 +607,35 @@ function viewAccueil() {
   : `Le suivi s’enregistre <b>dans ce fichier lui-même</b> (bouton Enregistrer ou Ctrl+S ; Chrome ou Edge conseillés) :
   pour le transmettre ou changer d’ordinateur, il suffit de copier ce fichier .html. Rien n’est envoyé sur Internet.`}<br>
   Sur un ordinateur partagé, pensez à « Fichier › Effacer de ce navigateur » en partant.</p></div>`;
+}
+/** Accueil de la version intégrée : la classe de Suivi PP n'a pas encore de suivi. */
+function viewAccueilHote() {
+  const n = hoteClasse && Array.isArray(hoteClasse.eleves) ? hoteClasse.eleves.length : 0;
+  return `<div class="accueil"><h1 class="titre-accueil">Fiches de suivi${hoteClasse && hoteClasse.nom ? " — " + esc(hoteClasse.nom) : ""}</h1>
+  <p class="intro">Suivi du comportement, cours par cours : <b>fiches individuelles</b> avec bilan pour la famille, <b>fiches collectives</b> pour quelques élèves suivis ensemble et <b>fiches de classe</b> pour toute la classe.
+  Cette classe n’a pas encore de suivi. Que voulez-vous faire ?</p>
+  <div class="tuto-accueil"><div><b>Première utilisation ?</b> Le tutoriel vous guide pas à pas et explique à quoi sert chaque étape.</div><button class="primary" data-act="tuto">Suivre le tutoriel</button></div>
+  <div class="choix">
+    <div class="opt"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h5M15.5 14.5v5M13 17h5"/></svg><h2>Commencer le suivi de la classe</h2>
+      <p>La liste de la classe vient de Suivi PP${n ? ` (${nbMot(n, "élève")}, avec leurs groupes et options)` : ""} ; les réglages vous guident pour le reste : période, emploi du temps, matières.</p>
+      <button class="primary" data-act="new">Commencer le suivi</button></div>
+    <div class="opt drop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2l2 2.2h8.8A1.5 1.5 0 0 1 21 8.7V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z"/><path d="M12 10.5v6m-2.6-2.6L12 16.5l2.6-2.6"/></svg><h2>Reprendre un suivi existant</h2>
+      <p>Un suivi tenu avec l’application autonome (fichier <b>.html</b>) ou exporté (<b>.json</b>) : il est rangé dans Suivi PP, et ses élèves sont rapprochés de ceux de la classe.</p>
+      <button data-act="open">Choisir le fichier…</button><small>ou glissez le fichier sur cette page</small></div>
+    ${hoteDemo ? `<div class="opt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><h2>Découvrir avec la démonstration</h2>
+      <p>Des fiches fictives déjà remplies, aux noms des élèves de cette classe de démonstration.</p><button data-act="demo">Voir la démonstration</button></div>` : ""}
+  </div>
+  <p class="note">Le suivi est rangé <b>dans les données de Suivi PP</b> : il suit leur synchronisation et leurs sauvegardes, et Ctrl+Z l’annule comme le reste. Rien n’est envoyé sur Internet.</p></div>`;
+}
+/** Version intégrée : la liste de la classe, en lecture — elle vient de Suivi PP. Une ligne qui n'y est plus (élève supprimé là-bas,
+    nom repris d'un ancien suivi) peut être retirée ici. */
+function classeHoteHTML(horsListe) {
+  const dansHote = new Set(((hoteClasse && hoteClasse.eleves) || []).map(e => cleNom(e.nom)));
+  const kHote = new Set(((hoteClasse && hoteClasse.groupes) || []).map(cleNom)), propres = S.groupes.filter(g => g.nom && !kHote.has(cleNom(g.nom)));   /* groupes créés ici : cochés ici */
+  return `<div class="card"><div class="row"><h2 style="margin:0">Élèves de la classe</h2><span class="chip">${S.classeEleves.length}</span></div>
+    <p class="hint">La liste vient de <b>Suivi PP</b> (onglet 👥 Élèves) : noms, groupes et options, arrivées et départs se modifient là-bas et arrivent ici tout seuls. Un élève qui quitte la classe garde sa ligne et ses codes ; sa colonne est hachurée après son départ.</p>
+    <div class="liste lcl-hote">${S.classeEleves.map((e, i) => `<div class="lrow"><span class="num">${i + 1}</span><span class="nom">${e.nom.trim() ? esc(e.nom) : "<i>(ligne vide)</i>"}</span><span class="small muted">${[...(e.groupes || []).map(esc), e.debut ? "arrivé(e) le " + fmtDM(e.debut) : "", e.fin ? "parti(e) le " + fmtDM(e.fin) : ""].filter(Boolean).join(" · ")}</span>${propres.map(g => `<label class="grc-hote" title="${esc(e.nom)} : ${esc(g.nom)}"><input type="checkbox" data-grel="${i}" data-g="${esc(g.nom)}" ${(e.groupes || []).includes(g.nom) ? "checked" : ""} aria-label="${esc(e.nom)} : ${esc(g.nom)}"> ${esc(g.nom)}</label>`).join("")}${dansHote.has(cleNom(e.nom)) ? "" : `<span class="chip warn" title="Pas dans la classe de Suivi PP\nÉlève supprimé dans Suivi PP, ou nom repris d’un ancien suivi.\n• retirez la ligne si elle ne sert plus (ses codes sur la fiche de classe sont effacés)">pas dans Suivi PP</span><button class="ghost danger" data-del="classeEleves.${i}" title="Retirer de la liste\nSes codes sur la fiche de classe sont effacés." aria-label="Retirer la ligne ${i + 1}">✕</button>`}</div>`).join("")}</div>
+    ${horsListe.length ? `<p class="hint" style="color:var(--warn)">Pas dans cette liste (ils suivent tous les cours) : ${horsListe.map(esc).join(", ")}.</p>` : ""}</div>`;
 }
 /** Bandeau rappelant qu'on regarde les données fictives de la démonstration. */
 function bandeauDemo() {
@@ -1411,8 +1461,9 @@ function rubriqueHTML(cle) {
     <div class="row"><button data-add="banqueObjectifs" ${S.banqueObjectifs.length < 80 ? "" : "disabled"} title="Ajouter un objectif type">+ Ajouter un objectif type</button><span class="spacer"></span><button class="ghost" data-act="banque-defaut" title="Revenir à la liste proposée\nRemplace la liste actuelle par les ${BANQUE_OBJ_DEFAUT.length} objectifs proposés (Ctrl+Z pour annuler).">Revenir à la liste proposée</button></div></div>`;
   }
   if (cle === "classeEntiere") {
+    const grHoteK = new Set(((hoteClasse && hoteClasse.groupes) || []).map(cleNom));
     const gr = S.groupes.filter(g => g.nom), horsListe = [...S.eleves.filter(e => e.nom.trim()).map(e => e.nom), ...S.individuels.map(i => i.nom).filter(Boolean)].filter((n, i, l) => l.indexOf(n) === i && groupesDe(S, n) === null);
-    return `<div class="card"><div class="row"><h2 style="margin:0">Élèves de la classe</h2><span class="chip">${S.classeEleves.length} sur ${MAX_CLASSE} possibles</span><span class="spacer"></span>
+    return `${HOTE ? classeHoteHTML(horsListe) : `<div class="card"><div class="row"><h2 style="margin:0">Élèves de la classe</h2><span class="chip">${S.classeEleves.length} sur ${MAX_CLASSE} possibles</span><span class="spacer"></span>
       ${boutonsImport("cl", S.classeEleves.length < MAX_CLASSE)}</div>
     <p class="hint">Toute la classe, une ligne par élève, avec ses groupes et options : les élèves des fiches individuelles et collectives y sont retrouvés par leur nom, et elle sert à la fiche de classe.${gr.length ? " Cochez les groupes et options de chaque élève ; un clic sur le nom d’un groupe le coche ou le décoche pour toute la classe." : " Pour des demi-groupes ou des options, créez-les plus bas : une colonne à cocher s’ajoutera ici."}</p>
     ${gr.length ? `<div class="lhead lcl${gr.length ? " avec-gr" : ""}${gr.length > 6 ? " beaucoup" : ""}" style="--ng:${gr.length}"><span></span><span>NOM Prénom</span>${gr.map(g => `<button type="button" class="ghost grcol" data-grcol="${esc(g.nom)}" title="${esc(g.nom)}\nCocher ou décocher pour toute la classe.">${esc(g.nom)}</button>`).join("")}<span title="Arrivée, départ\nPour un élève qui arrive ou quitte la classe en cours d’année.">Dates</span><span></span></div>` : ""}
@@ -1420,9 +1471,10 @@ function rubriqueHTML(cle) {
       <div class="pop"><b>${esc(e.nom) || "Élève " + (i + 1)}</b><div class="champs"><label class="champ" title="Arrivée dans la classe\nAvant : sa colonne est hachurée sur la fiche de classe.">Arrivé(e) le ${dateInp(`classeEleves.${i}.debut`, `Arrivée de l’élève ${i + 1}`)}</label><label class="champ" title="Départ de la classe\nAprès : sa colonne est hachurée ; ses codes déjà saisis sont gardés.">Parti(e) le ${dateInp(`classeEleves.${i}.fin`, `Départ de l’élève ${i + 1}`)}</label></div>
       ${e.debut && e.fin && e.fin < e.debut ? `<p class="avis-inline">⚠ Le départ est avant l’arrivée : vérifiez les dates.</p>` : ""}<p class="hint">Un élève qui part garde ses codes : préférez une date de départ au bouton ✕.</p></div></details><button class="ghost danger" data-del="classeEleves.${i}" title="Retirer de la classe\nSes codes sur la fiche de classe sont effacés.\n• s’il quitte la classe en cours d’année, indiquez plutôt sa date de départ (« dates »)" aria-label="Retirer l’élève ${i + 1}">✕</button></div>`).join("")}</div>
     <button class="ajout" data-add="classeEleves" ${S.classeEleves.length < MAX_CLASSE ? "" : "disabled"} title="Ajouter un élève à la classe">+ Ajouter un élève</button>
-    ${horsListe.length ? `<p class="hint" style="color:var(--warn)">Pas dans cette liste (ils suivent tous les cours) : ${horsListe.map(esc).join(", ")}.</p>` : ""}</div>
+    ${horsListe.length ? `<p class="hint" style="color:var(--warn)">Pas dans cette liste (ils suivent tous les cours) : ${horsListe.map(esc).join(", ")}.</p>` : ""}</div>`}
   <div class="card"><h2>Groupes et options</h2><p class="hint">Toute la classe n’a pas toujours le même emploi du temps : demi-groupes (groupe 1, groupe 2, parfois groupe 3), langues, options (latin…). Créez-les ici, cochez les élèves ci-dessus, puis dans l’<a href="#edt">emploi du temps</a> choisissez « Pour : <i>groupe</i> » sous la palette pour partager un créneau. Sur toutes les fiches, un élève qui n’a pas le cours a sa case hachurée.</p>
-    <div class="liste lgr">${S.groupes.map((g, i) => `<div class="lrow">${inp(`groupes.${i}.nom`, 'placeholder="ex. Groupe 1, Latin" title="Nom du groupe ou de l’option\nCourt : il s’affiche dans l’emploi du temps.\n• le renommer met à jour l’emploi du temps et les élèves"', `Groupe ou option ${i + 1}`)}<span class="small muted">${nbMot(S.classeEleves.filter(e => (e.groupes || []).includes(g.nom)).length, "élève")}</span><button class="ghost danger" data-del="groupes.${i}" title="Supprimer le groupe\nSes cours partagés et ses élèves sont retirés." aria-label="Supprimer le groupe ${i + 1}">✕</button></div>`).join("")}</div>
+    ${HOTE ? `<p class="hint">Les groupes et options <b>venus de Suivi PP</b> s’y règlent (groupe de l’élève, options) ; ceux que vous créez ici servent à l’emploi du temps, et (pour partager un créneau de l’emploi du temps, par exemple) se cochent dans la liste ci-dessus.</p>` : ""}
+    <div class="liste lgr">${S.groupes.map((g, i) => HOTE && grHoteK.has(cleNom(g.nom)) ? `<div class="lrow"><span class="nom-fixe" title="${esc(g.nom)}\nVenu de Suivi PP : il s’y règle.">${esc(g.nom)}</span><span class="small muted">${nbMot(S.classeEleves.filter(e => (e.groupes || []).includes(g.nom)).length, "élève")} · Suivi PP</span><span></span></div>` : `<div class="lrow">${inp(`groupes.${i}.nom`, 'placeholder="ex. Groupe 1, Latin" title="Nom du groupe ou de l’option\nCourt : il s’affiche dans l’emploi du temps.\n• le renommer met à jour l’emploi du temps et les élèves"', `Groupe ou option ${i + 1}`)}<span class="small muted">${nbMot(S.classeEleves.filter(e => (e.groupes || []).includes(g.nom)).length, "élève")}</span><button class="ghost danger" data-del="groupes.${i}" title="Supprimer le groupe\nSes cours partagés et ses élèves sont retirés." aria-label="Supprimer le groupe ${i + 1}">✕</button></div>`).join("")}</div>
     <button data-add="groupes" ${S.groupes.length < 12 ? "" : "disabled"}>+ Ajouter un groupe ou une option</button></div>`;
   }
   if (cle === "ficheClasse") return `  <div class="card"><h2>Règle de la semaine (fiche de classe hebdomadaire)</h2><p class="hint">Imprimée en bandeau « ATTENTION » sur la fiche de la semaine ; la ligne « Retenue (h) » est calculée pour chaque élève.</p>
@@ -2478,10 +2530,19 @@ async function setAbsEleve(s, list) {
   return true;
 }
 async function doNew() {
+  if (HOTE) {
+    if (S && !(await demander("Recommencer le suivi de la classe ?", "Le suivi affiché sera remplacé par un suivi vierge (Ctrl+Z dans Suivi PP pour revenir en arrière).", { ok: "Commencer un suivi vierge", danger: true }))) return;
+    S = newState(); appliquerClasseHote(S, hoteClasse); hoteEtape = true; reinitHistorique(); reinitVues(); persist(); location.hash = "#reglages"; render(); return;
+  }
   if (S && dirty && !(await demander("Commencer un nouveau suivi ?", PERDU, { ok: "Commencer un suivi vierge", danger: true }))) return;
   S = newState(); dirty = true; telecharge = false; reinitHistorique(); reinitVues(); persist(); location.hash = "#reglages"; render();
 }
 async function doDemo() {
+  if (HOTE) {   /* jamais sur une vraie classe : des fiches fictives au nom de vrais élèves */
+    if (!hoteDemo) { informer("Démonstration", "La démonstration des fiches de suivi se trouve dans les données de démonstration de Suivi PP (💾 Données ▸ Charger la démo) : une classe fictive, déjà remplie.\n\nIci, c’est le suivi de votre classe."); return; }
+    if (S && !(await demander("Recharger la démonstration ?", "Le suivi affiché sera remplacé par la démonstration (Ctrl+Z dans Suivi PP pour revenir en arrière).", { ok: "Recharger la démonstration", danger: true }))) return;
+    S = demoHote(hoteClasse); hoteEtape = true; reinitHistorique(); reinitVues(); persist(); location.hash = "#sommaire"; render(); return;
+  }
   if (S && dirty && !(await demander("Charger la démonstration ?", PERDU, { ok: "Charger la démonstration", danger: true }))) return;
   S = demoState(); S.demo = true; dirty = false; telecharge = false; reinitHistorique(); reinitVues(); persist(); location.hash = "#sommaire"; render();
 }
@@ -2563,17 +2624,17 @@ function appliquerTheme(choix) {
   choixTheme = choix === "clair" || choix === "sombre" ? choix : "";
   document.documentElement.dataset.theme = choixTheme || (sombreSysteme && sombreSysteme.matches ? "sombre" : "clair");
   $("#theme").value = choixTheme;
-  try { localStorage.setItem(LS_KEY + "-theme", choixTheme); } catch (e) { /* sans stockage */ }
+  if (!HOTE) try { localStorage.setItem(LS_KEY + "-theme", choixTheme); } catch (e) { /* sans stockage */ }   /* intégrée : le thème de Suivi PP */
 }
 $("#theme").onchange = e => appliquerTheme(e.target.value);
-if (sombreSysteme) sombreSysteme.addEventListener("change", () => appliquerTheme(choixTheme));
-try { appliquerTheme(localStorage.getItem(LS_KEY + "-theme") || ""); } catch (e) { appliquerTheme(""); }
+if (sombreSysteme && !HOTE) sombreSysteme.addEventListener("change", () => appliquerTheme(choixTheme));
+if (!HOTE) try { appliquerTheme(localStorage.getItem(LS_KEY + "-theme") || ""); } catch (e) { appliquerTheme(""); }
 
 /* ---------- polices : celles de Suivi PP (2026-10-10), au choix comme dans Suivi PP — Andika à l'écran, Latin Modern à l'impression par défaut.
    Enregistrées avec le suivi (S.policeEcran, S.policePapier ; absentes = les défauts). Les feuilles affichées à l'écran prennent la police
    d'impression (on voit ce qui sortira) ; leur bouton « Aa » les bascule dans la police d'affichage (réglage de ce navigateur). ---------- */
 const NOMS_POLICES = { andika: "Andika", lm: "Latin Modern" };
-const policesDe = st => ({ ecran: st && st.policeEcran === "lm" ? "lm" : "andika", papier: st && st.policePapier === "andika" ? "andika" : "lm" });
+const policesDe = st => HOTE && hotePolices ? hotePolices : ({ ecran: st && st.policeEcran === "lm" ? "lm" : "andika", papier: st && st.policePapier === "andika" ? "andika" : "lm" });
 let feuillesEcran = false;
 try { feuillesEcran = localStorage.getItem(LS_KEY + "-feuilles-ecran") === "1"; } catch (e) { /* sans stockage */ }
 function appliquerPolices() {
@@ -2682,7 +2743,7 @@ function majHauteurBarre() { document.documentElement.style.setProperty("--topba
 
 /* ---------- même application ouverte dans un autre onglet : la sauvegarde automatique est partagée ---------- */
 window.addEventListener("storage", e => {
-  if (e.key !== CLE_PAGE) return;
+  if (HOTE || e.key !== CLE_PAGE) return;
   let autre = null; try { autre = JSON.parse(e.newValue || "null"); } catch (err) { /* illisible */ }
   if (autre && autre.S && S && autre.S.id === S.id) {
     // même suivi modifié dans un autre onglet : on reprend ses données, pour ne pas les écraser à la prochaine saisie
@@ -2787,6 +2848,7 @@ document.addEventListener("keydown", e => {
   const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
   const champTexte = e.target.closest && e.target.closest("input[type=text],input:not([type]),textarea,[contenteditable]");
   if (mod && !champTexte && (k === "z" || k === "y")) { e.preventDefault(); annuler(k === "y" || e.shiftKey ? 1 : -1); return; }
+  if (mod && k === "s" && HOTE) { e.preventDefault(); if (e.shiftKey) exporterJson(); else toast("Rien à faire : les fiches s’enregistrent toutes seules dans Suivi PP, à chaque modification."); return; }
   if (mod && k === "s") { e.preventDefault(); const f = document.activeElement, champ = f && f.matches && f.matches("input, textarea, select"); if (champ) f.blur();   /* un champ en cours est validé avant l’enregistrement */
     if (S) setTimeout(async () => { await (e.shiftKey && MODE_ENREG === "json" ? exporterJson() : saveFile(e.shiftKey)); const r = f && document.contains(f) ? f : null; if (r && document.activeElement === document.body) r.focus({ preventScroll: true }); }, 0); return; }
   if (mod && k === "o") { e.preventDefault(); openFile(); return; }
@@ -2826,12 +2888,149 @@ document.addEventListener("pointerover", e => {
 });
 $("#file-in").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) loadFile(f); };
 window.addEventListener("hashchange", route);
-window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", e => { if (dirty && !HOTE) { e.preventDefault(); e.returnValue = ""; } });
 window.addEventListener("afterprint", () => { $("#print-area").innerHTML = ""; if (S) updateStatus(); });
+
+/* ---------- version intégrée à Suivi PP : « hôte » ----------
+   Suivi PP charge cette page dans un cadre (onglet 📋 Suivis) et échange avec elle par messages (postMessage, dans les deux sens :
+   le cadre peut être d'une autre origine quand Suivi PP est ouvert en file://).
+   • Suivi PP → fiche : « charger » (le suivi de la classe, ou rien ; la liste de la classe ; thème, polices ; état de la pile
+     d'annulation), « apparence », « pile ».
+   • fiche → Suivi PP : « pret », « etat » (le suivi à ranger, à chaque persist ; `etape` : poser un cran d'annulation), « annuler ».
+   La pile d'annulation est celle de Suivi PP : Ctrl+Z ici lui est transmis, et le suivi revient par « charger ». */
+const hoteCible = (() => { try { return location.origin && location.origin !== "null" ? location.origin : "*"; } catch (e) { return "*"; } })();
+function hoteEnvoyer(msg) { try { parent.postMessage(Object.assign({ app: "fiche-suivi" }, msg), hoteCible); } catch (e) { /* cadre détaché */ } }
+/** Le message « etat » à envoyer, ou null si Suivi PP a déjà ce suivi. */
+function hoteMessageEtat() {
+  if (!hotePret) return null;
+  const j = S ? JSON.stringify(S) : null;
+  if (j === hoteDernier && !hoteRetirer) { hoteEtape = false; return null; }
+  hoteDernier = j;
+  const m = { app: "fiche-suivi", type: "etat", cle: hoteCle, etat: S ? { app: "fiche-suivi-collective", format: FORMAT_DONNEES, savedAt: new Date().toISOString(), S: JSON.parse(j) } : null, etape: hoteEtape, retirer: hoteRetirer };
+  hoteEtape = false; hoteRetirer = false;
+  return m;
+}
+function hoteEnvoyerEtat() { const m = hoteMessageEtat(); if (m) hoteEnvoyer(m); }
+/* Suivi PP qui se ferme reprend ici, de façon SYNCHRONE, une frappe pas encore envoyée (persistBientot attend 0,4 s) : un
+   message posté pendant la fermeture n'arriverait pas. Le cadre est de même origine (srcdoc) : Suivi PP peut l'appeler. */
+if (HOTE) window.__ficheEnAttente = () => { if (!persistMinuterie) return null; clearTimeout(persistMinuterie); persistMinuterie = null; return hoteMessageEtat(); };
+function hoteApparence(m) {
+  if (m.theme === "clair" || m.theme === "sombre") appliquerTheme(m.theme);
+  if (m.polices) { hotePolices = { ecran: m.polices.ecran === "lm" ? "lm" : "andika", papier: m.polices.papier === "andika" ? "andika" : "lm" }; appliquerPolices(); }
+}
+function hoteCharger(m) {
+  persistMaintenant();                     // une frappe en attente part d'abord, avec SA classe (hoteCle)
+  hoteApparence(m);
+  hotePile = m.pile || {}; hoteClasse = m.classe || null; hoteDemo = !!m.demo;
+  const avant = S, autreClasse = m.cle !== hoteCle, premier = !hotePret;
+  hoteCle = m.cle;
+  let st = null;
+  try { st = m.etat && m.etat.S ? normalizeState(m.etat.S) : null; if (st && (premier || autreClasse)) essaiRendu(st); }   /* à l'ouverture seulement : ensuite, c'est le suivi que cette page a envoyé */
+  catch (e) { st = null; setTimeout(() => informer("Suivi illisible", "Le suivi rangé dans Suivi PP pour cette classe n’a pas pu être relu.\n\n" + e.message + "\n\nIl n’est pas effacé : Ctrl+Z ou une sauvegarde de Suivi PP permettent de revenir en arrière."), 100); hotePret = false; }
+  S = st; dirty = false; telecharge = false;
+  if (st || !(m.etat && m.etat.S)) hotePret = true;     // un suivi illisible n'est jamais remplacé par ce qu'on ferait ensuite
+  hoteDernier = S ? JSON.stringify(S) : null;
+  let change = false;
+  if (!S && hoteDemo && hotePret && hoteClasse) { S = demoHote(hoteClasse); change = true; }
+  if (S && hoteClasse) change = appliquerClasseHote(S, hoteClasse) || change;
+  reinitHistorique(); majBoutonAnnuler();
+  if (autreClasse) reinitVues();
+  if (m.raison === "annuler" || m.raison === "retablir") {
+    const quoi = avant && S ? decrireChangement(avant, S) : avant && !S ? "le suivi de la classe" : !avant && S ? "le suivi de la classe" : "";
+    toast(`${m.raison === "annuler" ? "Annulé" : "Rétabli"}${quoi ? " : " + quoi : " (une modification faite dans Suivi PP)"}. ${m.raison === "annuler" ? "Ctrl+Y pour rétablir." : "Ctrl+Z pour annuler."}`, 5000);
+  }
+  const voulu = S ? (autreClasse || premier || !location.hash ? "#sommaire" : location.hash) : "";
+  if ((location.hash || "") !== voulu && (autreClasse || premier || !S)) location.hash = voulu; else { if (premier || autreClasse) route(); else render(); }
+  updateStatus();
+  if (change) hoteEnvoyerEtat();          // liste de la classe mise à jour, démonstration : rangées sans cran d'annulation
+}
+window.addEventListener("message", e => {
+  if (!HOTE || e.source !== parent || !e.data || e.data.app !== "suivi-pp") return;
+  const m = e.data;
+  if (m.type === "charger") hoteCharger(m);
+  else if (m.type === "apparence") hoteApparence(m);
+  else if (m.type === "pile") { hotePile = m.pile || {}; majBoutonAnnuler(); }
+  else if (m.type === "imprimer" && S) imprimerVue();
+});
+/* ⚠️ Chargée par srcdoc, la page a pour adresse de base celle de Suivi PP : un lien « #reglages » s'y résoudrait, et le cadre
+   partirait charger Suivi PP. Une balise <base href="about:srcdoc"> est refusée par la politique de sécurité de Suivi PP
+   (base-uri 'self') : on fait donc nous-mêmes ce que ferait le lien — en dernier, si personne d'autre ne s'en est chargé. */
+if (HOTE) window.addEventListener("click", e => {
+  if (e.defaultPrevented || e.button !== 0) return;
+  const a = e.target.closest && e.target.closest('a[href^="#"]');
+  if (!a || a.target) return;
+  e.preventDefault();
+  if (location.hash !== a.getAttribute("href")) location.hash = a.getAttribute("href"); else route();
+});
+function initHote() {
+  document.documentElement.classList.add("integree");
+  S = null; dirty = false; reinitHistorique();
+  $("#view").innerHTML = `<p class="hote-attente">Chargement du suivi…</p>`;
+  appliquerZoom();
+  hoteEnvoyer({ type: "pret" });
+}
+/** Version intégrée : la liste de la classe vient de Suivi PP. ⚠️ Chaque élève garde SA ligne — les codes de la fiche de classe sont
+    rangés par position : un élève reconnu est mis à jour (nom, groupes, arrivée, départ), un nouveau s'ajoute à la fin, aucun n'est
+    retiré (un élève parti a une date de départ). Les renommages faits dans Suivi PP suivent partout (classe, suivi collectif, suivis
+    individuels) ; un nom écrit dans l'autre ordre (« Léa CARPE ») prend celui de Suivi PP. Les groupes propres à la fiche (créés ici pour
+    l'emploi du temps) restent cochés. → true si le suivi a changé. */
+function appliquerClasseHote(st, cl) {
+  if (!st || !cl || !Array.isArray(cl.eleves)) return false;
+  const avant = JSON.stringify(st), cleTriee = n => cleNom(n).split(" ").sort().join(" ");
+  const renommer = (a, b) => { const k = cleNom(a); if (!k || k === cleNom(b)) return; for (const l of [st.classeEleves, st.eleves, st.individuels]) for (const e of l) if (e && cleNom(e.nom) === k) e.nom = b; };
+  for (const r of Array.isArray(cl.renommer) ? cl.renommer : []) { const [a, b] = Array.isArray(r) ? r.map(x => String(x || "").trim()) : [];
+    if (a && b && !st.classeEleves.some(e => cleNom(e.nom) === cleNom(b))) renommer(a, b); }
+  const grHote = (Array.isArray(cl.groupes) ? cl.groupes : []).map(g => String(g || "").trim()).filter(Boolean), kHote = new Set(grHote.map(cleNom));
+  for (const g of grHote) if (!st.groupes.some(x => cleNom(x.nom) === cleNom(g)) && st.groupes.length < 12) st.groupes.push({ nom: g });
+  const nomGr = g => (st.groupes.find(x => x.nom && cleNom(x.nom) === cleNom(g)) || {}).nom;
+  const pris = new Set();
+  for (const h of cl.eleves) {
+    const nom = String((h && h.nom) || "").replace(/\s+/g, " ").trim(); if (!nom) continue;
+    let i = st.classeEleves.findIndex((e, k) => !pris.has(k) && cleNom(e.nom) === cleNom(nom));
+    if (i < 0) { i = st.classeEleves.findIndex((e, k) => !pris.has(k) && e.nom.trim() && cleTriee(e.nom) === cleTriee(nom)); if (i >= 0) renommer(st.classeEleves[i].nom, nom); }
+    if (i < 0) { if (st.classeEleves.length >= MAX_CLASSE) continue; st.classeEleves.push({ nom }); i = st.classeEleves.length - 1; }
+    pris.add(i);
+    const e = st.classeEleves[i];
+    const gs = [...new Set([...(Array.isArray(h.groupes) ? h.groupes : []).map(nomGr).filter(Boolean), ...(e.groupes || []).filter(g => !kHote.has(cleNom(g)))])];
+    if (gs.length) e.groupes = unSeulDemiGroupe(gs); else delete e.groupes;
+    if (e.groupes && !e.groupes.length) delete e.groupes;
+    const d = v => (/^\d{4}-\d\d-\d\d$/.test(String(v || "")) ? v : "");
+    if (d(h.debut)) e.debut = d(h.debut); else delete e.debut;
+    if (d(h.fin)) e.fin = d(h.fin); else delete e.fin;
+  }
+  if (!String(st.classe || "").trim() && cl.nom) st.classe = String(cl.nom).trim().slice(0, 40);
+  return JSON.stringify(st) !== avant;
+}
+/** La démonstration dans les données de démonstration de Suivi PP : celle de l'application, aux noms des élèves de la classe de
+    Suivi PP (rang pour rang dans la liste de la classe) et déplacée dans son année scolaire (de semaines entières : les jours de la
+    semaine sont gardés), avec le calendrier de cette année-là. */
+function demoHote(cl) {
+  let st = demoState(); st.demo = true;
+  const an = Number(String((cl && cl.annee) || "").slice(0, 4));
+  if (an && an !== st.anneeScolaire) {
+    const jours = 7 * Math.round((an - st.anneeScolaire) * 365.25 / 7), re = /^\d{4}-\d\d-\d\d/;
+    const dec = v => typeof v === "string" && re.test(v) ? addDays(v.slice(0, 10), jours) + v.slice(10) : v;
+    const marche = x => Array.isArray(x) ? x.map(marche) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [dec(k), marche(v)])) : dec(x);
+    st = marche(st); st.anneeScolaire = an; st.vacances = vacancesAnnee(an, st.zone) || st.vacances; st.joursSansCours = feriesAnnee(an, true);
+  }
+  const noms = ((cl && cl.eleves) || []).map(e => String((e && e.nom) || "").trim()).filter(Boolean), carte = new Map();
+  st.classeEleves.forEach((e, i) => { if (noms[i]) carte.set(cleNom(e.nom), noms[i]); });
+  const libres = noms.filter(n => ![...carte.values()].includes(n));
+  for (const e of [...st.eleves, ...st.individuels]) if (e && e.nom && e.nom.trim() && !carte.has(cleNom(e.nom)) && libres.length) carte.set(cleNom(e.nom), libres.shift());
+  for (const l of [st.classeEleves, st.eleves, st.individuels]) for (const e of l) if (e && carte.has(cleNom(e.nom))) e.nom = carte.get(cleNom(e.nom));
+  if (noms.length < st.classeEleves.length) {      /* classe plus petite : les lignes de trop et leurs codes partent (ce sont les dernières) */
+    const n = noms.length; st.classeEleves = st.classeEleves.slice(0, n);
+    for (const j of Object.values(st.jours)) { if (j.cl) for (const k of Object.keys(j.cl)) if (Number(k.split(".")[0]) >= n) delete j.cl[k];
+      if (j.clr) for (const k of Object.keys(j.clr)) if (Number(k.split(".")[0]) >= n) delete j.clr[k]; }
+  }
+  if (cl && cl.nom) st.classe = String(cl.nom).trim().slice(0, 40);
+  return normalizeState(st);
+}
 
 /* ---------- démarrage ---------- */
 /** Démarrage : appelé à la toute fin du script assemblé, une fois toutes les parties chargées (sections.js comprise). */
 function init() {
+  if (HOTE) { initHote(); return; }
   // 1. ce qui est enregistré dans le fichier lui-même
   let emb = null;
   try { emb = lireBloc(PAGE_SOURCE); } catch (e) {
