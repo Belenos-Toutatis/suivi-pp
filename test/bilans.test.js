@@ -247,7 +247,7 @@ test('Carte de chaleur : une case par relevé, matière, discipline, papier, moi
   ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); _elevesFiltres = new Set(); _eleveFilter = '';`);
   const g = evObj(`(() => { const cls = getCls(); const bc = _bilanColonnesListe(cls, _carnetCurrentPeriodIdx(cls), new Set());
     return _chaleurGroupes(cls, bc).map(x => ({ key: x.key, n: x.sub.length })); })()`);
-  assert.deepStrictEqual(g.map(x => x.key), ['carnet', 'mbn', 'obstot', 'moy', 'avis', 'docs', 'inc', 'ct', 'abs', 'bil']);   // abs : absences et retards de la démo (v1.58.1)
+  assert.deepStrictEqual(g.map(x => x.key), ['carnet', 'mbn', 'obstot', 'moy', 'avis', 'docs', 'inc', 'ct', 'abs', 'suivi', 'bil']);   // abs : absences et retards de la démo (v1.58.1) ; suivi : ses fiches de suivi (v1.61.0)
   assert.ok(g.every(x => x.n > 0));
   // Un nom piégé ne passe pas en clair.
   ev(`const s = S.eleves[getCls().eleves[0]]; s.nom = '<img src=x onerror=alert(1)>'`);

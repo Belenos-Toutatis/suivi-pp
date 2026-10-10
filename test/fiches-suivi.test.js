@@ -180,7 +180,7 @@ const RESUME = `{ du: '2025-10-13', au: '2025-12-19', semaines: [42, 43], codes:
   coll: { moy: 0.74, niv: '', nI: 2, abs: 1, tend: 6, vals: [{ v: 0.7, niv: '' }, { v: null, niv: '' }], coms: ['S42 Lun. : bavarde'] },
   classe: { neg: 5, pos: 1, ret: 2, abs: 0, cours: 40, taux: 1.25, tend: 1, sem: [3, 2], retenues: true, par: [{ code: 'B', sens: 'bavardage', n: 3, positif: false }],
     mats: [{ mat: 'Mathématiques', t: 2.5, n: 2, k: 8 }], rems: [{ d: '2025-10-14', cours: 'M2', txt: 'Oubli <script>' }] } }`;
-const CADRE_RESUME = `globalThis.__appels = 0; _suivisFrame = { contentWindow: { postMessage() {}, __ficheResumeEleve: (etat, nom, du, au) => { __appels++; return ${RESUME}; } } };
+const CADRE_RESUME = `globalThis.__appels = 0; _suivisFrame = { contentWindow: { postMessage() {}, __ficheResumeEleves: (etat, noms, du, au) => { __appels++; return Object.fromEntries(noms.map(n => [n, ${RESUME}])); } } };
   _suivisPret = true; _suivisResumeMemo.clear(); S.fichesSuivi['5C'] = { etat: { app: 'fiche-suivi-collective', format: 1, savedAt: '', S: { referent: 'X' } }, noms: {} };`;
 const MOMENT = `getCls(), S.eleves[getCls().eleves[0]], _ficheMomentCourant(getCls())`;
 
@@ -203,19 +203,19 @@ test('fiche élève : pas de carte sans fiches de suivi pour la classe, ni pour 
   ev(DEMO);
   assert.strictEqual(ev(`(S.fichesSuivi = {}, _ficheSuivisCarteHTML(${MOMENT}))`), '');
   ev(CADRE_RESUME);
-  ev(`_suivisFrame.contentWindow.__ficheResumeEleve = () => ({ absent: true }); _suivisResumeMemo.clear();`);
+  ev(`_suivisFrame.contentWindow.__ficheResumeEleves = (e, noms) => Object.fromEntries(noms.map(n => [n, { absent: true }])); _suivisResumeMemo.clear();`);
   assert.strictEqual(ev(`_ficheSuivisCarteHTML(${MOMENT})`), '');
   ev(`_suivisPret = false; _suivisResumeMemo.clear();`);
   assert.match(ev(`_ficheSuivisCarteHTML(${MOMENT})`), /Lecture des fiches de suivi…/);
-  ev(`_suivisPret = true; _suivisFrame.contentWindow.__ficheResumeEleve = () => ({ horsPeriode: true, debut: '2025-10-13', fin: '2025-12-19' }); _suivisResumeMemo.clear();`);
+  ev(`_suivisPret = true; _suivisFrame.contentWindow.__ficheResumeEleves = (e, noms) => Object.fromEntries(noms.map(n => [n, { horsPeriode: true, debut: '2025-10-13', fin: '2025-12-19' }])); _suivisResumeMemo.clear();`);
   assert.match(ev(`_ficheSuivisCarteHTML(${MOMENT})`), /Le suivi va du 13\/10\/2025 au 19\/12\/2025 : rien sur ce moment/);
-  ev(`_suivisFrame.contentWindow.__ficheResumeEleve = () => { throw new Error('x'); }; _suivisResumeMemo.clear();`);
+  ev(`_suivisFrame.contentWindow.__ficheResumeEleves = () => { throw new Error('x'); }; _suivisResumeMemo.clear();`);
   assert.match(ev(`_ficheSuivisCarteHTML(${MOMENT})`), /n’ont pas pu être lues/);
 });
 
-test('fiche élève : le résumé est demandé une fois par suivi — un suivi modifié le redemande', () => {
+test('fiche élève : le résumé est demandé une fois par suivi, pour toute la classe — un suivi modifié le redemande', () => {
   ev(DEMO); ev(CADRE_RESUME);
-  const r = evObj(`(() => { _ficheSuivisCarteHTML(${MOMENT}); _ficheSuivisCarteHTML(${MOMENT}); const a = __appels;
+  const r = evObj(`(() => { _ficheSuivisCarteHTML(${MOMENT}); _ficheSuivisCarteHTML(getCls(), S.eleves[getCls().eleves[5]], _ficheMomentCourant(getCls())); const a = __appels;
     S.fichesSuivi['5C'].etat = { ...S.fichesSuivi['5C'].etat }; _ficheSuivisCarteHTML(${MOMENT}); return [a, __appels]; })()`);
   assert.deepStrictEqual(r, [1, 2]);
 });
@@ -239,4 +239,71 @@ test('« ↗ Ouvrir » : l’onglet 📋 Suivis, sur la synthèse de l’élève
   assert.strictEqual(r.envois.length, 1);
   assert.strictEqual(r.envois[0].hash, '#eleve/' + encodeURIComponent(r.nom));
   assert.strictEqual(r.reste, null);
+});
+
+// ── v1.61.0 : la carte de chaleur, et les réglages communs aux deux applications ──
+test('carte de chaleur : un groupe « 📋 Fiches de suivi » (suivi individuel, collectif, fiches de classe) sur le moment, cliquable', () => {
+  ev(DEMO); ev(CADRE_RESUME);
+  const r = evObj(`(() => { const cls = getCls(), g = _chaleurGroupes(cls, [], _ficheMomentCourant(cls)).find(x => x.key === 'suivi'), sid = cls.eleves[0];
+    return { label: g.label, sub: g.sub.map(x => x.id), ind: g.cell(sid, 'ind'), coll: g.cell(sid, 'coll'), cl: g.cell(sid, 'cl'), sum: g.sum(sid) }; })()`);
+  assert.strictEqual(r.label, '📋 Fiches de suivi');
+  assert.deepStrictEqual(r.sub, ['ind', 'coll', 'cl']);
+  assert.deepStrictEqual(r.ind.slice(0, 2), ['ch-mi', '62 %']);
+  assert.match(r.ind[2], /Maintien nécessaire/);
+  assert.match(r.ind[3], /^suivisAllerUI\('demo_e01','#indiv\/i1'\)$/);
+  assert.deepStrictEqual(r.coll.slice(0, 2), ['', '74 %']);
+  assert.deepStrictEqual(r.cl.slice(0, 2), ['ch-inc', '5']);
+  assert.deepStrictEqual(r.sum.slice(0, 2), ['ch-inc', '5'], 'replié : la case la plus préoccupante');
+  // sans suivi : pas de groupe ; cadre pas prêt : une colonne d'attente
+  assert.ok(!ev(`(S.fichesSuivi = {}, _chaleurGroupes(getCls(), [], _ficheMomentCourant(getCls())).some(x => x.key === 'suivi'))`));
+  ev(CADRE_RESUME); ev('_suivisPret = false;');
+  assert.deepStrictEqual(evObj(`_chaleurGroupes(getCls(), [], _ficheMomentCourant(getCls())).find(x => x.key === 'suivi').sub.map(x => x.id)`), ['att']);
+});
+
+const ETAT_FICHE = (o = {}) => `{ app: 'fiche-suivi-collective', format: 1, savedAt: '', S: Object.assign({ classe: '5e C', referent: 'M. CHÊNE', etablissement: { nom: 'Collège des Ormeaux (démo)', logo: '' },
+  decoupage: { mode: 'semestres', fins: [] }, matieres: [{ nom: 'Mathématiques', prof: 'M. TILLEUL, Mme FRÊNE' }, { nom: 'Hist.-Géo.', prof: 'M. SAULE' }, { nom: 'Allemand', prof: '' }, { nom: 'Vie de classe', prof: 'M. X' }] }, ${JSON.stringify(o)}) }`;
+
+test('réglages communs envoyés à la fiche : classe, établissement, référent, découpage, enseignant des matières reconnues', () => {
+  ev(DEMO); ev(CADRE);
+  const c = evObj(`(() => { S.fichesSuivi['5C'] = { etat: ${ETAT_FICHE()} }; return _suivisCommun('5C'); })()`);
+  assert.strictEqual(c.classe, '5e C');
+  assert.strictEqual(c.etablissement, 'Collège des Ormeaux (démo)');
+  assert.strictEqual(c.referent, 'M. CHÊNE');
+  assert.deepStrictEqual(c.decoupage, { mode: 'semestres', fins: [] }, 'dates d’office : pas imposées à la fiche');
+  assert.deepStrictEqual(Object.keys(c.profs).sort(), ['Allemand', 'Hist.-Géo.', 'Mathématiques'], '« Vie de classe » reste à la fiche ; « Hist.-Géo. » reconnue par l’onglet');
+  assert.strictEqual(c.profs['Mathématiques'].prof, 'M. TILLEUL, Mme FRÊNE');
+  assert.strictEqual(c.profs['Hist.-Géo.'].did, 'histoire_geo');
+  const d = evObj(`(() => { S.prefs.periodMode = 'trimestre'; S.prefs.periodStarts = { trimestre: ['12-06', '03-14'] }; return _suivisCommun('5C').decoupage; })()`);
+  assert.strictEqual(d.mode, 'trimestres');
+  assert.match(d.fins[0], /^\d{4}-12-05$/);
+  assert.match(d.fins[1], /^\d{4}-03-13$/);
+  // un changement ici part par « commun »
+  const m = evObj(`(() => { __envois.length = 0; _suivisEnvoyer(true); __envois.length = 0; S.prefs.avisNom = 'Mme PIN'; _suivisEnvoyer(); return __envois.filter(x => x.type === 'commun').map(x => x.commun.referent); })()`);
+  assert.deepStrictEqual(m, ['Mme PIN']);
+});
+
+test('réglages communs changés dans la fiche : repris par Suivi PP, dans le cran du geste — sauf sans suivi d’avant, où la fiche ne fait que combler', () => {
+  ev(DEMO); ev(CADRE); ev('_suivisEnvoyer(true);');
+  // premier envoi (pas de suivi d'avant) : nos valeurs restent, la fiche ne remplit que ce qui manquait ici (allemand)
+  const r1 = evObj(`(() => { const auto = _discProfsAuto('5C', 'maths');
+    _suivisRecevoir({ type: 'etat', cle: '5C', etat: ${ETAT_FICHE({ referent: 'M. ROUGET', matieres: [{ nom: 'Mathématiques', prof: 'M. BROCHET' }, { nom: 'Allemand', prof: 'M. HECHT' }] })}, etape: false });
+    return { maths: _discProfs('5C', 'maths') === auto, all: S.disciplines.allemand.profs || null, ref: S.prefs.avisNom }; })()`);
+  assert.deepStrictEqual(r1, { maths: true, all: 'M. HECHT', ref: 'M. CHÊNE' });
+  // geste dans la fiche : l'enseignant de maths et le référent changent → repris ici ; Ctrl+Z défait les deux côtés
+  const r2 = evObj(`(() => { const u = undoStack.length;
+    _suivisRecevoir({ type: 'etat', cle: '5C', etat: ${ETAT_FICHE({ referent: 'Mme PIN', matieres: [{ nom: 'Mathématiques', prof: 'M. NOYER' }, { nom: 'Allemand', prof: 'M. HECHT' }] })}, etape: true });
+    const apres = { maths: _discProfs('5C', 'maths'), ref: S.prefs.avisNom, crans: undoStack.length - u };
+    undoLast(true); return { apres, annule: { maths: S.disciplines.maths.profs || null, ref: S.prefs.avisNom } }; })()`);
+  assert.deepStrictEqual(r2, { apres: { maths: 'M. NOYER', ref: 'Mme PIN', crans: 1 }, annule: { maths: null, ref: 'M. CHÊNE' } });
+  // revenir à l'enseignant des moyennes : la saisie à la main est retirée (il redevient automatique)
+  const r3 = evObj(`(() => { const auto = _discProfsAuto('5C', 'maths');
+    _suivisRecevoir({ type: 'etat', cle: '5C', etat: ${ETAT_FICHE({ matieres: [{ nom: 'Mathématiques', prof: 'M. NOYER' }] })}, etape: true });
+    _suivisRecevoir({ type: 'etat', cle: '5C', etat: { app: 'fiche-suivi-collective', format: 1, savedAt: '', S: { ...S.fichesSuivi['5C'].etat.S, matieres: [{ nom: 'Mathématiques', prof: auto }] } }, etape: true });
+    return 'profs' in S.disciplines.maths; })()`);
+  assert.strictEqual(r3, false);
+  // découpage changé dans la fiche : mode et dates ici
+  const r4 = evObj(`(() => { const a = S.fichesSuivi['5C'].etat.S, y = getCls().annee.slice(0, 4);
+    _suivisRecevoir({ type: 'etat', cle: '5C', etat: { app: 'fiche-suivi-collective', format: 1, savedAt: '', S: { ...a, decoupage: { mode: 'trimestres', fins: [y + '-11-28', (+y + 1) + '-03-06'] } } }, etape: true });
+    return { mode: S.prefs.periodMode, starts: S.prefs.periodStarts.trimestre }; })()`);
+  assert.deepStrictEqual(r4, { mode: 'trimestre', starts: ['11-29', '03-07'] });
 });

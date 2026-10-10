@@ -77,3 +77,5 @@ html.integree .theme-choix { display: none; }
 .lcl-hote .nom { min-width: 14em; font-weight: 600; }
 .grc-hote { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
 .lgr .nom-fixe { font-weight: 600; padding: 4px 6px; }
+/* réglages communs avec Suivi PP (classe, établissement, référent, découpage, enseignants des matières reconnues) */
+html.integree .commun-hote { box-shadow: inset 3px 0 0 var(--accent); }

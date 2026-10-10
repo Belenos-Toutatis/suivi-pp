@@ -134,6 +134,10 @@ dans un cadre par **`srcdoc`**. Tout ce qui lui est propre passe par `HOTE` (ui.
   suivi passé en argument (l'état courant est échangé le temps du calcul, caches vidés avant et après), en données simples, sans
   HTML. ⚠️ Toute évolution de ces calculs se voit donc aussi dans Suivi PP : garder la forme du résultat (cf. `_suivisCorpsHTML`).
   Message `aller` (`#eleve/…`) : « ↗ Ouvrir » depuis la fiche élève de Suivi PP.
+- **Réglages communs** (`appliquerCommunHote`, message `commun`) : classe, établissement, référent, découpage, enseignant des matières
+  que Suivi PP reconnaît — reçus de Suivi PP (une valeur vide ne remplace rien) ; modifiés ici, ils repartent avec le suivi et
+  Suivi PP les reprend. Les champs portent un trait bleu (`marquerCommunsHote`). Détail : CLAUDE.md de Suivi PP, *Fiches de suivi*.
+  `__ficheResumeEleves(etat, noms, du, au)` : le résumé de plusieurs élèves d'un coup (carte de chaleur).
 - Tests : `e2e_integre.js` (le vrai `suivi pp.html`, en `file://`) ; côté Suivi PP, `test/fiches-suivi.test.js`.
 
 ## Rétrocompatibilité (obligatoire depuis la version du 10/10/2026)

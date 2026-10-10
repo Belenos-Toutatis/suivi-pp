@@ -15,6 +15,7 @@ let hoteCle = null;          // la classe affichée (id de Suivi PP) : en change
 let hoteDemo = false;        // données de démonstration de Suivi PP : la démonstration des fiches y est permise
 let hotePile = {};           // { annuler, retablir } : la pile de Suivi PP
 let hotePolices = null;      // { ecran, papier } : les polices réglées dans Suivi PP (💾 Données)
+let hoteCommun = null;       // les réglages COMMUNS aux deux applications (cf. appliquerCommunHote)
 let S = null;                 // état courant
 let dirty = false;            // modifications non enregistrées dans un fichier
 let fileHandle = null;        // ce fichier .html, choisi pour l'enregistrement (Chrome/Edge : réenregistrement direct)
@@ -480,7 +481,7 @@ async function loadFile(f, enregistre = false) {
   } catch (e) { informer("Ouverture impossible", "Impossible de reprendre le suivi de « " + f.name + " ».\n\n" + e.message); return false; }
   S = nouvel; dirty = !enregistre; telecharge = false;
   if (enregistre) { idEnregistre = S.id; enregistreLe = savedAt; nomFichier = f.name; }
-  if (HOTE) { delete S.demo; appliquerClasseHote(S, hoteClasse); hoteEtape = true; }   // un geste : Ctrl+Z dans Suivi PP le défait
+  if (HOTE) { delete S.demo; hoteAccorder(S); hoteEtape = true; }   // un geste : Ctrl+Z dans Suivi PP le défait
   reinitHistorique(); reinitVues(); persist(); updateStatus();
   toast(HOTE ? `Suivi de « ${f.name} » repris dans Suivi PP. Ctrl+Z pour revenir en arrière.` : enregistre ? `« ${f.name} » rouvert.` : `Suivi de « ${f.name} » repris. Enregistrez (Ctrl+S) pour le garder${MODE_ENREG === "html" ? " dans ce fichier" : ""}.`, 6000);
   location.hash = "#sommaire"; render();
@@ -2532,7 +2533,7 @@ async function setAbsEleve(s, list) {
 async function doNew() {
   if (HOTE) {
     if (S && !(await demander("Recommencer le suivi de la classe ?", "Le suivi affiché sera remplacé par un suivi vierge (Ctrl+Z dans Suivi PP pour revenir en arrière).", { ok: "Commencer un suivi vierge", danger: true }))) return;
-    S = newState(); appliquerClasseHote(S, hoteClasse); hoteEtape = true; reinitHistorique(); reinitVues(); persist(); location.hash = "#reglages"; render(); return;
+    S = newState(); hoteAccorder(S); hoteEtape = true; reinitHistorique(); reinitVues(); persist(); location.hash = "#reglages"; render(); return;
   }
   if (S && dirty && !(await demander("Commencer un nouveau suivi ?", PERDU, { ok: "Commencer un suivi vierge", danger: true }))) return;
   S = newState(); dirty = true; telecharge = false; reinitHistorique(); reinitVues(); persist(); location.hash = "#reglages"; render();
@@ -2932,7 +2933,8 @@ function hoteCharger(m) {
   hoteDernier = S ? JSON.stringify(S) : null;
   let change = false;
   if (!S && hoteDemo && hotePret && hoteClasse) { S = demoHote(hoteClasse); change = true; }
-  if (S && hoteClasse) change = appliquerClasseHote(S, hoteClasse) || change;
+  hoteCommun = m.commun || null;
+  if (S) change = hoteAccorder(S) || change;
   reinitHistorique(); majBoutonAnnuler();
   if (autreClasse) reinitVues();
   if (m.raison === "annuler" || m.raison === "retablir") {
@@ -2950,6 +2952,7 @@ window.addEventListener("message", e => {
   if (m.type === "charger") hoteCharger(m);
   else if (m.type === "apparence") hoteApparence(m);
   else if (m.type === "pile") { hotePile = m.pile || {}; majBoutonAnnuler(); }
+  else if (m.type === "commun") { hoteCommun = m.commun || null; if (S && appliquerCommunHote(S, hoteCommun)) { reinitHistorique(); updateStatus(); render(); hoteEnvoyerEtat(); } else if (S) render(); }
   else if (m.type === "imprimer" && S) imprimerVue();
   else if (m.type === "aller" && S && /^#[a-z]+(\/[^\s<>"]*)?$/.test(String(m.hash || ""))) location.hash = m.hash;   // « ↗ Ouvrir » depuis la fiche élève de Suivi PP
 });
@@ -2967,10 +2970,16 @@ if (HOTE) window.addEventListener("click", e => {
    fiche imprimée). Suivi PP appelle cette fonction (cadre de même origine), avec le suivi de la classe de l'élève — pas forcément
    celle qu'on affiche ici. Les calculs sont CEUX de la fiche élève de l'application (donneesSynthEleve, famillesUtilisees), sur les
    semaines qui touchent [du, au] ; le résultat est fait de données simples, sans HTML (Suivi PP met en forme et échappe). */
-if (HOTE) window.__ficheResumeEleve = (etat, nom, du, au) => {
+if (HOTE) window.__ficheResumeEleve = (etat, nom, du, au) => { const r = window.__ficheResumeEleves(etat, [nom], du, au); return r ? r[nom] : null; };
+/* La même chose pour plusieurs élèves d'un coup (carte de chaleur, toute la classe) : le suivi n'est relu qu'une fois. → { nom: résumé }. */
+if (HOTE) window.__ficheResumeEleves = (etat, noms, du, au) => {
   let st; try { st = normalizeState(JSON.parse(JSON.stringify(etat))); } catch (e) { return null; }
   const ancien = S; viderCacheCalc(); S = st;
-  try {
+  try { const res = {}; for (const nom of noms) res[nom] = resumeEleveHote(String(nom || ""), du, au); return JSON.parse(JSON.stringify(res)); }
+  finally { S = ancien; viderCacheCalc(); }
+};
+function resumeEleveHote(nom, du, au) {
+  {
     const k = cleNom(nom);
     if (!k || ![S.classeEleves, S.eleves, S.individuels].some(l => l.some(e => e && cleNom(e.nom) === k))) return { absent: true };
     const sems = semaines(S);
@@ -2991,8 +3000,8 @@ if (HOTE) window.__ficheResumeEleve = (etat, nom, du, au) => {
         par: c.codes.filter(x => c.par[x.code]).map(x => ({ code: x.code, sens: x.sens, n: c.par[x.code], positif: codePositif(x.code) })),
         mats: c.mats.map(m => ({ mat: m.mat, t: m.t, n: m.n, k: m.k })), rems: c.rems.map(r => ({ d: r.d, cours: r.cours || "", txt: r.txt })) }; }
     return out;
-  } finally { S = ancien; viderCacheCalc(); }
-};
+  }
+}
 function initHote() {
   document.documentElement.classList.add("integree");
   S = null; dirty = false; reinitHistorique();
@@ -3032,6 +3041,43 @@ function appliquerClasseHote(st, cl) {
   if (!String(st.classe || "").trim() && cl.nom) st.classe = String(cl.nom).trim().slice(0, 40);
   return JSON.stringify(st) !== avant;
 }
+/** Ce que Suivi PP sait de la classe, posé dans le suivi : sa liste (appliquerClasseHote) et les réglages communs. */
+function hoteAccorder(st) { const a = hoteClasse ? appliquerClasseHote(st, hoteClasse) : false; return appliquerCommunHote(st, hoteCommun) || a; }
+/** Les réglages COMMUNS aux deux applications (2026-10-10, l'utilisateur : « il faut que les parties communes communiquent ») :
+    le nom de la classe, l'établissement, le professeur principal (référent), le découpage de l'année (trimestres ou semestres,
+    et ses dates quand Suivi PP en a de réglées) et l'enseignant de chaque matière que Suivi PP reconnaît (Français, Maths… ;
+    « Vie de classe », « Devoirs faits » restent à la fiche). Suivi PP les envoie (une valeur vide ne remplace rien) ; une
+    modification faite ICI repart vers Suivi PP avec le suivi (c'est lui qui la range) : les deux disent toujours la même chose.
+    → true si le suivi a changé. */
+function appliquerCommunHote(st, c) {
+  if (!st || !c) return false;
+  const avant = JSON.stringify(st), t = v => String(v || "").replace(/\s+/g, " ").trim();
+  if (t(c.classe)) st.classe = t(c.classe).slice(0, 40);
+  if (t(c.etablissement)) st.etablissement.nom = t(c.etablissement).slice(0, 150);
+  if (t(c.referent)) st.referent = t(c.referent).slice(0, 120);
+  if (c.decoupage) { const mode = c.decoupage.mode === "trimestres" ? "trimestres" : "semestres", fins = (Array.isArray(c.decoupage.fins) ? c.decoupage.fins : []).filter(x => /^\d{4}-\d\d-\d\d$/.test(x));
+    if (st.decoupage.mode !== mode) st.decoupage = { mode, fins: [] };
+    if (fins.length === (mode === "trimestres" ? 2 : 1)) st.decoupage.fins = fins; }
+  for (const m of st.matieres) { const p = c.profs && Object.prototype.hasOwnProperty.call(c.profs, m.nom) ? c.profs[m.nom] : null; if (p && t(p.prof)) m.prof = t(p.prof).slice(0, 120); }
+  return JSON.stringify(st) !== avant;
+}
+/* Réglages : les champs communs portent un repère (bord bleu, infobulle) et leur carte le dit. */
+function marquerCommunsHote() {
+  if (!HOTE || !S || !hoteCommun || current.view !== "reglages") return;
+  const sel = ['[data-path="classe"]', '[data-path="referent"]', '[data-path="etablissement.nom"]', '[data-path="decoupage.mode"]', '[data-path^="decoupage.fins."]'];
+  S.matieres.forEach((m, i) => { if (hoteCommun.profs && Object.prototype.hasOwnProperty.call(hoteCommun.profs, m.nom)) sel.push(`[data-path="matieres.${i}.prof"]`); });
+  for (const el of document.querySelectorAll("#view " + sel.join(", #view "))) {
+    if (el.classList.contains("commun-hote")) continue;
+    el.classList.add("commun-hote");
+    const lien = el.dataset.path.startsWith("matieres.") ? hoteCommun.profs[S.matieres[Number(el.dataset.path.split(".")[1])].nom] : null;
+    el.title = (el.title ? el.title + "\n" : "") + "↔ Commun avec Suivi PP" + (lien ? ` (discipline « ${lien.discipline} »)` : "") + " : le modifier ici le modifie aussi là-bas, et inversement.";
+    const carte = el.closest(".card");
+    if (carte && !carte.querySelector(".commun-hote-hint")) { const p = document.createElement("p"); p.className = "hint commun-hote-hint";
+      p.textContent = "↔ Les champs marqués d’un trait bleu sont communs avec Suivi PP : ce qui est réglé d’un côté l’est aussi de l’autre.";
+      const h = carte.querySelector("h2"); if (h) h.after(p); else carte.prepend(p); }
+  }
+}
+if (HOTE) apresRendu.push(marquerCommunsHote);
 /** La démonstration dans les données de démonstration de Suivi PP : celle de l'application, aux noms des élèves de la classe de
     Suivi PP (rang pour rang dans la liste de la classe) et déplacée dans son année scolaire (de semaines entières : les jours de la
     semaine sont gardés), avec le calendrier de cette année-là. */

@@ -43,20 +43,22 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(fr.url() === "about:srcdoc#edt" && await f(() => !!document.querySelector("#view .card, #view table")), "un lien du menu de la fiche reste dans le cadre (#edt), sans recharger Suivi PP dedans");
   // 2. un geste dans la fiche : rangé dans Suivi PP, UN cran d'annulation ; Ctrl+Z et Ctrl+Y depuis la fiche
   await f(() => { location.hash = "#reglages"; }); await wait(500);
-  await fr.click("[data-path=referent]", { clickCount: 3 }); await fr.type("[data-path=referent]", "M. CHÊNE"); await f(() => document.activeElement.blur()); await wait(700);
+  const ref0 = await f(() => document.querySelector("[data-path=referent]").value);   // celui de Suivi PP (réglage commun)
+  ok(ref0 === await h(() => S.prefs.avisNom), "référent de la fiche : le professeur principal réglé dans Suivi PP");
+  await fr.click("[data-path=referent]", { clickCount: 3 }); await fr.type("[data-path=referent]", "M. GARDON"); await f(() => document.activeElement.blur()); await wait(700);
   e = await fiche();
-  ok(e.etat.S.referent === "M. CHÊNE" && await h(() => undoStack.length) === 1, "frappe dans un champ : rangée dans Suivi PP, un seul cran d'annulation");
+  ok(e.etat.S.referent === "M. GARDON" && await h(() => undoStack.length) === 1, "frappe dans un champ : rangée dans Suivi PP, un seul cran d'annulation");
   ok(await f(() => !document.getElementById("b-undo").disabled), "le bouton Annuler de la fiche suit la pile de Suivi PP");
   await h(() => { document.getElementById("toast").textContent = ""; });
   await f(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true }))); await wait(700);
   e = await fiche();
-  ok(e.etat.S.referent === "M. ROUGET" && await f(() => document.querySelector("[data-path=referent]").value === "M. ROUGET"), "Ctrl+Z dans la fiche : annulé dans Suivi PP, la fiche revient");
+  ok(e.etat.S.referent === ref0 && await f(r => document.querySelector("[data-path=referent]").value === r, ref0), "Ctrl+Z dans la fiche : annulé dans Suivi PP, la fiche revient");
   const toasts = [await f(() => document.getElementById("toast").textContent), await h(() => document.getElementById("toast").textContent)];
   ok(/Annulé.{1,3}professeur principal/.test(toasts[0]) && !/Annulation effectuée/.test(toasts[1]), "la fiche dit ce qui a été annulé (et Suivi PP ne le redit pas) " + JSON.stringify(toasts));
   await f(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "y", ctrlKey: true, bubbles: true }))); await wait(700);
-  ok((await fiche()).etat.S.referent === "M. CHÊNE", "Ctrl+Y dans la fiche : rétabli");
+  ok((await fiche()).etat.S.referent === "M. GARDON", "Ctrl+Y dans la fiche : rétabli");
   await h(() => undoLast()); await wait(600);
-  ok(await f(() => document.querySelector("[data-path=referent]").value === "M. ROUGET"), "Ctrl+Z dans Suivi PP : la fiche suit");
+  ok(await f(r => document.querySelector("[data-path=referent]").value === r, ref0), "Ctrl+Z dans Suivi PP : la fiche suit");
 
   // 3. la classe change dans Suivi PP : renommage, départ, arrivée, suppression — chaque élève garde SA ligne
   const avant = (await fiche()).etat.S;
@@ -94,10 +96,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const [fc] = await Promise.all([fr.waitForFileChooser ? fr.waitForFileChooser() : p.waitForFileChooser(), fr.click('[data-act="open"]')]);
   await fc.accept([json]); await wait(1200);
   e = await fiche();
-  ok(e.etat && e.etat.S.referent === "Mme SOLE" && e.etat.S.classeEleves[0].nom === "TRUITE Jean-Pierre" && e.etat.S.eleves[0].nom === "TRUITE Jean-Pierre", "suivi repris d'un fichier : rangé dans la classe, « Jean-Pierre TRUITE » devient « TRUITE Jean-Pierre » partout");
+  ok(e.etat && e.etat.S.consignes && e.etat.S.classeEleves[0].nom === "TRUITE Jean-Pierre" && e.etat.S.eleves[0].nom === "TRUITE Jean-Pierre" && e.etat.S.referent === await h(() => S.prefs.avisNom) && e.etat.S.classe === "4e B", "suivi repris d'un fichier : rangé dans la classe, « Jean-Pierre TRUITE » devient « TRUITE Jean-Pierre » partout ; classe et référent, ceux de Suivi PP");
   ok(e.etat.S.classeEleves[0].groupes && e.etat.S.classeEleves[0].groupes.includes("Groupe 2") && await h(u => undoStack.length === u + 1, u0), "… avec son groupe de Suivi PP, en un cran d'annulation");
   await h(() => switchClass("5C")); await wait(800);
-  ok(await f(() => location.hash === "#sommaire") && (await fiche()).etat.S.demo && await h(() => S.fichesSuivi["4B"].etat.S.referent === "Mme SOLE"), "retour à la 5e C : son suivi ; celui de la 4e B intact");
+  ok(await f(() => location.hash === "#sommaire") && (await fiche()).etat.S.demo && await h(() => S.fichesSuivi["4B"].etat.S.eleves[0].nom === "TRUITE Jean-Pierre"), "retour à la 5e C : son suivi ; celui de la 4e B intact");
 
   // 5 bis. la fiche élève de Suivi PP : la carte « 📋 Fiches de suivi », calculée par l'appli des fiches, et « ↗ Ouvrir »
   const ind = await h(() => { const e = S.fichesSuivi["5C"]; const nom = e.etat.S.individuels[0].nom; return { nom, sid: Object.keys(e.noms).find(k => e.noms[k] === nom) }; });
@@ -107,6 +109,20 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok((await h(() => _ficheFaits(getCls(), S.eleves[_ficheSid], _ficheMomentCourant(getCls())).filter(f => f.k === "suivi").length)) >= 2, "… et ses faits, insérables dans le bilan");
   await h(() => document.querySelector("#pf-suivis-carte button").click()); await wait(900);
   ok(await h(() => document.querySelector(".tab.on").id === "tab-suivis") && decodeURIComponent(fr.url()).endsWith("#eleve/" + ind.nom) && await f(n => document.querySelector("#el-choix").value === n, ind.nom), "« ↗ Ouvrir » : l'onglet 📋 Suivis, sur la fiche élève de l'appli");
+  // 5 ter. carte de chaleur : le groupe des fiches de suivi ; réglages communs : enseignants de Suivi PP, référent de la fiche
+  await h(() => { switchTab("eleves"); elevesAffichageSet("chaleur"); }); await wait(800);
+  const tetes = await h(() => [...document.querySelectorAll(".el-chaleur thead th")].map(t => t.textContent.trim()));
+  ok(tetes.some(t => /Fiches de suivi/.test(t)) && ["Indiv.", "Classe"].every(x => tetes.includes(x)) && await h(() => document.querySelectorAll('.el-chaleur td[onclick*="suivisAllerUI"]').length > 10), "carte de chaleur : le groupe « 📋 Fiches de suivi » (suivi individuel, fiches de classe), ses cases mènent à l'onglet");
+  await h(() => elevesAffichageSet("indic"));
+  const profs = await h(() => { const m = S.fichesSuivi["5C"].etat.S.matieres; const r = {}; for (const x of m) { const did = _matiereDiscAuto(_moyNorm(x.nom)); if (did && _discProfsAuto("5C", did)) r[x.nom] = [x.prof, _discProfs("5C", did)]; } return r; });
+  ok(Object.keys(profs).length >= 8 && Object.values(profs).every(([a, b]) => a === b), "enseignants des matières : ceux de Suivi PP (moyennes), pas ceux de la démonstration des fiches (" + Object.keys(profs).length + " matières)");
+  await h(() => switchTab("suivis")); await wait(600);
+  await f(() => { location.hash = "#reglages"; }); await wait(500);
+  ok(await f(() => document.querySelector('[data-path="referent"]').classList.contains("commun-hote") && !!document.querySelector(".commun-hote-hint")), "réglages de la fiche : les champs communs avec Suivi PP sont signalés");
+  await fr.click("[data-path=referent]", { clickCount: 3 }); await fr.type("[data-path=referent]", "Mme PERCHE"); await f(() => document.activeElement.blur()); await wait(700);
+  ok(await h(() => S.prefs.avisNom === "Mme PERCHE"), "référent modifié dans la fiche : c'est aussi le professeur principal de Suivi PP");
+  await h(() => undoLast()); await wait(600);
+  ok(await h(() => S.prefs.avisNom !== "Mme PERCHE") && await f(() => document.querySelector("[data-path=referent]").value !== "Mme PERCHE"), "Ctrl+Z : annulé des deux côtés");
   // 6. Ctrl+P dans Suivi PP sur l'onglet : l'impression de la fiche ; rechargement : tout est là
   await f(() => { window.__imp = 0; addEventListener("message", ev => { if (ev.data && ev.data.type === "imprimer") window.__imp++; }); window.print = () => {}; });
   await h(() => document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true }))); await wait(400);

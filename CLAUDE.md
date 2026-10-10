@@ -482,6 +482,37 @@ moment** choisi (`_ficheBornes`).
 - Pas de carte sans suivi pour la classe ni pour un élève absent du suivi ; « rien sur ce moment » hors de la période du suivi.
 - **↗ Ouvrir** (`ficheVersSuivis`) : l'onglet 📋 Suivis, sur la fiche élève de l'appli (`aller` → `#eleve/NOM Prénom`).
 - Tokens `--i-suivi` (la carte) et `--suivi-o-bg/-fg` (réussite « orange »), aux trois endroits.
+- **Calcul groupé** (v1.61.0) : `_suivisResumes(cls, b)` demande toute la classe d'un coup (`__ficheResumeEleves`) et le mémorise
+  par classe et bornes ; `_suivisResume` y prend un élève. Pas encore de suivi (démonstration à fabriquer) : la classe est
+  renvoyée à la fiche (`_suivisEnvoyer`), même si les données ont été remplacées depuis (démo rechargée, import, sync).
+
+**Dans la carte de chaleur** (v1.61.0, *« ajoute aussi les fiches de suivi dans la carte de chaleur »*) : groupe
+**📋 Fiches de suivi**, sur le moment — *Indiv.* (réussite du suivi individuel), *Collectif* (réussite), *Classe* (incidents des
+fiches de classe) ; une colonne n'existe que si un élève de la classe y a quelque chose ; crans de l'appli des fiches (rouge
+`ch-lo`, orange `ch-mi`), le détail en infobulle ; clic → `suivisAllerUI(sid, hash)` (le suivi individuel, sinon la fiche élève de
+l'appli). Replié : la case la plus préoccupante. « … » tant que le cadre lit le suivi ; la carte se redessine quand il est prêt.
+
+**Les réglages COMMUNS aux deux applications** (v1.61.0, l'utilisateur : *« la correspondance enseignant – matière des fiches de
+suivi devrait venir de ce qui a été réglé dans Suivi PP. Il faut que les parties communes communiquent »*) — `_suivisCommun`
+(→ fiche, dans `charger` puis par le message `commun` dès qu'ils changent) et `_suivisCommunRetour` (← fiche, à chaque suivi reçu) :
+| Fiche | Suivi PP |
+|---|---|
+| `classe` | `cls.nom` |
+| `etablissement.nom` | `prefs.etablissement` (celui du PV) |
+| `referent` | `prefs.avisNom` (« Votre nom », signature des avis) |
+| `decoupage` (mode, fins) | `prefs.periodMode`, `prefs.periodStarts` (fin d'une période = veille du début de la suivante) |
+| `matieres[i].prof` | l'enseignant de la discipline : `_discProfs` (tapé dans Données, sinon le dernier import de moyennes) |
+- Une matière de la fiche est rattachée à une discipline par **`_matiereDiscAuto`** — les mêmes motifs que pour les moyennes
+  (« Hist.-Géo. » par l'onglet de la discipline). « Vie de classe », « Devoirs faits », une langue non reconnue restent à la fiche.
+- **Suivi PP → fiche** : une valeur vide ne remplace rien ; les dates du découpage ne sont envoyées que si elles ne sont plus celles
+  d'office (sinon la fiche garde les siennes, calées sur les vacances).
+- **Fiche → Suivi PP** : une valeur reprise si Suivi PP n'en avait pas, ou si elle vient d'être MODIFIÉE dans la fiche (elle diffère
+  de celle du suivi d'avant, qui l'avait déjà) — dans le cran d'annulation du geste. Un enseignant ramené à celui des moyennes
+  redevient automatique (la saisie est retirée). ⚠️ **Sans suivi d'avant, rien n'est « modifié »** : trouvé à l'essai, la
+  démonstration des fiches (fabriquée avant d'avoir reçu les enseignants) écrasait ceux des moyennes par ses noms fictifs.
+- ⚠️ Changer l'enseignant d'une matière change celui de TOUTES les fiches, passées comprises ; un remplaçant pour un temps se dit
+  dans la fiche (« changements d'enseignant », « absences longues »), qui ne sont pas communs.
+- Dans la fiche, les champs communs portent un trait bleu et l'infobulle le dit (`marquerCommunsHote`).
 
 **Apparence de Suivi PP pour les deux** (`fiches-suivi/app/theme.css`), et **ses polices**, embarquées
 (`python3 scripts/gen_fonts.py --fiches` → `fiches-suivi/app/polices.css`, mêmes familles, sous-ensemble élargi) : Andika à
@@ -2490,6 +2521,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 158 | **Fiches de suivi dans la carte de chaleur** (groupe *Indiv.* · *Collectif* · *Classe*, sur le moment, cliquable) et **réglages communs aux deux applications** (classe, établissement, professeur principal, découpage de l'année, enseignant de chaque matière reconnue — dans les deux sens, Ctrl+Z commun) ; calcul groupé pour toute la classe ; 3 tests de plus, `e2e_integre` étendu (43). Défauts trouvés en route : la démonstration des fiches écrasait les enseignants de Suivi PP ; la carte de chaleur restait en attente après un rechargement des données | ✅ **fait** (2026-10-10, v1.61.0) |
 | 157 | **Les fiches de suivi dans la fiche élève** : carte « 📋 Fiches de suivi » bornée au moment (suivi individuel, collectif, fiches de classe), faits insérables dans le bilan, partie de la fiche imprimée, « ↗ Ouvrir » vers la fiche élève de l'appli ; chiffres calculés par l'appli des fiches dans son cadre (`__ficheResumeEleve`), jamais ici ; 5 tests de plus (`test/fiches-suivi.test.js`), `e2e_integre` étendu (37). Audit de la fiche (tableau de bord, faits, papier) 2 thèmes, 1 570 et 375 px, 0 défaut | ✅ **fait** (2026-10-10, v1.60.0) |
 | 156 | **Onglet 📋 Suivis : les fiches de suivi intégrées** — la version intégrée de `fiches-suivi/` (compressée dans le fichier par `assemble.py`, chargée par `srcdoc`, nos polices), son état dans `S.fichesSuivi` (sync, sauvegardes, purge, import), Ctrl+Z commun (un geste de la fiche = un cran, Ctrl+Z / Ctrl+Y depuis la fiche), liste de la classe envoyée à la fiche (chaque élève garde sa ligne, renommages, arrivées, départs), thème et polices de Données, Ctrl+P, démo fabriquée par la fiche aux noms de la classe ; polices de Suivi PP au sous-ensemble élargi (latin étendu A…) ; RGPD ; 13 tests (`test/fiches-suivi.test.js`) et `fiches-suivi/e2e_integre.js` (34 vérifications, en `file://`). Défauts trouvés en route : cran vide (la fiche date chaque envoi), cadre en blob inutilisable en `file://`, `<base>` refusée par la politique de sécurité | ✅ **fait** (2026-10-10, v1.59.0) |
 | 155 | **Fiches de suivi reprises dans le dépôt** (`fiches-suivi/`) : sources de l'autre session, tests réparés (chemins avec espaces, sorties, test interrompu enfin signalé « INTERROMPU »), **apparence de Suivi PP** (`theme.css`), **mêmes polices** embarquées et réglables (`gen_fonts.py --fiches`), bouton **Aa** des feuilles, **import d'une classe depuis Plan de classe** (accueil et listes) ; `e2e_polices` et `e2e_contraste` (auditeur de Suivi PP : 176 états, 0 défaut, contre 35 dans la version d'origine — contrastes corrigés : emploi du temps, touches de code, initiales des suivis, jours fériés). **Auditeur** (`scripts/audit_browser.js`) : deux fonds translucides empilés ne font plus un fond opaque, un dégradé est mesuré par sa pire couleur, un texte « sr-only » n'est plus « tronqué ». `suivi pp.html` inchangé | ✅ **fait** (2026-10-10) |
