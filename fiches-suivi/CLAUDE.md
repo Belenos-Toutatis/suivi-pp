@@ -135,7 +135,7 @@ dans un cadre par **`srcdoc`**. Tout ce qui lui est propre passe par `HOTE` (ui.
   HTML. ⚠️ Toute évolution de ces calculs se voit donc aussi dans Suivi PP : garder la forme du résultat (cf. `_suivisCorpsHTML`).
   Message `aller` (`#eleve/…`) : « ↗ Ouvrir » depuis la fiche élève de Suivi PP.
 - **Réglages communs** (`appliquerCommunHote`, message `commun`) : classe, établissement, référent, découpage, enseignant des matières
-  que Suivi PP reconnaît — reçus de Suivi PP (une valeur vide ne remplace rien) ; modifiés ici, ils repartent avec le suivi et
+  que Suivi PP rattache à une discipline (automatiquement, ou à la main dans 💾 Données depuis la v1.63.0) — reçus de Suivi PP (une valeur vide ne remplace rien) ; modifiés ici, ils repartent avec le suivi et
   Suivi PP les reprend. Les champs portent un trait bleu (`marquerCommunsHote`). Détail : CLAUDE.md de Suivi PP, *Fiches de suivi*.
   `__ficheResumeEleves(etat, noms, du, au)` : le résumé de plusieurs élèves d'un coup (carte de chaleur).
   **Pinceau de l'emploi du temps** (v1.62.0) : une matière dont la discipline est une OPTION dans Suivi PP (`profs[mat].codes`)

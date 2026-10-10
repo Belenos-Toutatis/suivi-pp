@@ -3106,8 +3106,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.62.0';
-const APP_BUILD_DATE = '2026-10-10T21:01:26Z';
+const APP_VERSION    = '1.63.0';
+const APP_BUILD_DATE = '2026-10-10T21:35:22Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -16814,6 +16814,41 @@ function _matiereDisc(mid) {
   if (typeof m.disc === 'string') return m.disc === '' ? '' : (S.disciplines[m.disc] ? m.disc : _matiereDiscAuto(m.norm || _moyNorm(m.nom)));
   return _matiereDiscAuto(m.norm || _moyNorm(m.nom));
 }
+// Les matières de l'emploi du temps des FICHES DE SUIVI (v1.63.0, l'utilisateur : « ajoute le rattachement manuel dans
+// Données ») : reconnues par `_matiereDiscAuto`, sauf choix fait dans 💾 Données — `S.prefs.matieresFiche = { [nom
+// normalisé]: did | '' }` ('' = aucune : pas de lien avec Suivi PP). Par NOM, pour toutes les classes : c'est le nom que la
+// fiche donne à sa matière ; renommée dans la fiche, elle redevient automatique. Rend un id, '' (ignorée) ou null.
+function _ficheMatDisc(nom) {
+  const norm = _moyNorm(nom);
+  if (!norm) return null;
+  const pr = _isPlainObj(_prefs().matieresFiche) ? _prefs().matieresFiche : {};
+  const v = Object.prototype.hasOwnProperty.call(pr, norm) ? pr[norm] : undefined;
+  if (v === '') return '';
+  if (typeof v === 'string' && S.disciplines[v]) return v;
+  return _matiereDiscAuto(norm);
+}
+// val = 'auto' (revenir à la reconnaissance), '' (aucune) ou l'id d'une discipline. ⚠️ Le réglage est REMPLACÉ, jamais
+// modifié en place (DEFAULT_PREFS ne doit pas être touché). Rend true si quelque chose change.
+function ficheMatSetDisc(nom, val) {
+  const norm = _moyNorm(nom);
+  if (!norm || !(val === 'auto' || val === '' || S.disciplines[val])) return false;
+  const pr = _isPlainObj(_prefs().matieresFiche) ? _prefs().matieresFiche : {};
+  const avant = Object.prototype.hasOwnProperty.call(pr, norm) ? pr[norm] : 'auto';
+  if (avant === val) return false;
+  const n = { ...pr };
+  if (val === 'auto') delete n[norm]; else n[norm] = val;
+  S.prefs.matieresFiche = n;
+  return true;
+}
+// Les matières de la fiche de suivi d'une classe (son emploi du temps), dans l'ordre de la fiche, sans doublon.
+function _ficheMatieresClasse(classId) {
+  const m = S.fichesSuivi?.[classId]?.etat?.S?.matieres, vus = new Set(), r = [];
+  for (const x of Array.isArray(m) ? m : []) {
+    const nom = String(x?.nom || '').replace(/\s+/g, ' ').trim(), k = _moyNorm(nom);
+    if (k && !vus.has(k)) { vus.add(k); r.push(nom); }
+  }
+  return r;
+}
 // did = 'auto' (revenir à la reconnaissance), '' (ignorer) ou l'id d'une discipline.
 function matiereSetDisc(mid, did) {
   const m = S.matieres[mid];
@@ -18330,13 +18365,27 @@ function _disciplinesTableHTML() {
         ${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}"${val === d.id ? ' selected' : ''}>${_escName(d.nom)}</option>`).join('')}
         <option value=""${val === '' ? ' selected' : ''}>aucune — pas d'avis à demander</option></select></td></tr>`;
   }).join('');
+  const fmats = cls ? _ficheMatieresClasse(cls.id) : [];
+  const fRows = fmats.map(nom => {
+    const k = _moyNorm(nom), auto = _matiereDiscAuto(k), pr = _isPlainObj(_prefs().matieresFiche) ? _prefs().matieresFiche : {};
+    const v = Object.prototype.hasOwnProperty.call(pr, k) ? pr[k] : 'auto', val = v === '' || S.disciplines[v] ? v : 'auto', did = _ficheMatDisc(nom);
+    const prof = did && cls ? _discProfs(cls.id, did) : '';
+    return `<tr><td>${_escName(nom)}</td><td><select onchange="ficheMatDiscUI('${_escJsAttr(nom)}',this.value)" style="max-width:100%">
+        <option value="auto"${val === 'auto' ? ' selected' : ''}>automatique${auto ? ' → ' + _escName(S.disciplines[auto]?.nom || '') : ' — non reconnue'}</option>
+        ${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}"${val === d.id ? ' selected' : ''}>${_escName(d.nom)}</option>`).join('')}
+        <option value=""${val === '' ? ' selected' : ''}>aucune — propre à la fiche</option></select></td>
+      <td class="tb-hint">${did ? (prof ? _escName(prof) : 'à saisir dans la discipline') : '—'}</td></tr>`;
+  }).join('');
   const listeCodes = `<datalist id="disc-codes">${[...new Set(Object.values(S.tags || {}).filter(_isPlainObj).map(t => String(t.abbr || '').trim()).filter(Boolean))].map(a => `<option value="${_escAttr(a)}">`).join('')}</datalist>`;
   return `${listeCodes}<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th>Domaine</th><th>Onglet</th><th title="Le code de l'option que portent les élèves qui suivent cette discipline (LAT pour le latin) — vide : toute la classe">Option (code)</th><th>Professeur(s)</th><th>Matières des moyennes rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="tb" style="max-width:900px;margin-bottom:12px"><input type="text" id="disc-new" placeholder="Nouvelle discipline (ex. : Latin, Espagnol…)" maxlength="60" style="flex:1;min-width:200px"
          onkeydown="if(event.key==='Enter'){event.preventDefault();disciplineAddUI()}"> <button class="btn btn-s btn-sm" onclick="disciplineAddUI()">+ Ajouter</button></div>
     ${mats.length ? `<div class="pref-help" style="margin-bottom:6px">Chaque matière des imports de moyennes se range dans une discipline — c'est ce qui donne le professeur de l'onglet, et regroupe par exemple « ANGLAIS » et « ANGLAIS LV2 ».</div>
     <div class="rel-wrap" style="max-width:640px;margin-bottom:18px"><table class="dt inst-table"><thead><tr><th>Matière (bureau numérique)</th><th>Discipline</th></tr></thead><tbody>${matRows}</tbody></table></div>`
-    : '<div class="pref-help" style="margin-bottom:18px">Les matières des moyennes apparaîtront ici après un import (📈 Moyennes).</div>'}`;
+    : '<div class="pref-help" style="margin-bottom:18px">Les matières des moyennes apparaîtront ici après un import (📈 Moyennes).</div>'}
+    ${fmats.length ? `<div class="pref-help" style="margin-bottom:6px">Chaque matière de l'emploi du temps des fiches de suivi${cls ? ' de la ' + _escName(cls.nom) : ''} se range dans une discipline — c'est ce qui lui donne son enseignant (celui de la discipline, ci-dessus) et, pour une option, le groupe du pinceau. « Aucune » : elle reste propre à la fiche (Vie de classe, Devoirs faits…). Le choix vaut pour ce nom de matière, dans toutes les classes.</div>
+    <div class="rel-wrap" style="max-width:760px;margin-bottom:18px"><table class="dt inst-table"><thead><tr><th>Matière (fiches de suivi)</th><th>Discipline</th><th>Enseignant envoyé à la fiche</th></tr></thead><tbody>${fRows}</tbody></table></div>`
+    : `<div class="pref-help" style="margin-bottom:18px">Les matières des fiches de suivi apparaîtront ici dès que la classe aura un suivi (onglet 📋 Suivis), avec son emploi du temps.</div>`}`;
 }
 // La case du code d'option, dans 💾 Données : le champ (les codes des options connues proposés) et, dessous, qui le porte.
 function _discCodeCelluleHTML(cls, d) {
@@ -18360,6 +18409,12 @@ function disciplineAddUI() {
   save(); renderDonnees(); toast('✓ Discipline ajoutée.');
 }
 function disciplineRemoveUI(id) { if (!S.disciplines[id] || S.disciplines[id].builtin) return; pushUndo(); disciplineRemove(id); save(); renderDonnees(); }
+function ficheMatDiscUI(nom, val) {
+  if (!(val === 'auto' || val === '' || S.disciplines[val])) return;
+  pushUndo();
+  if (!ficheMatSetDisc(nom, val)) { _undoAnnulerRefus(); return; }
+  save(); renderDonnees(); _suivisCommunMaj();
+}
 function matiereDiscUI(mid, val) {
   if (!S.matieres[mid] || !(val === 'auto' || val === '' || S.disciplines[val])) return;
   pushUndo(); matiereSetDisc(mid, val); save(); renderDonnees();
@@ -21734,7 +21789,7 @@ function suivisAllerUI(sid, hash) {
 // fiches de suivi devrait venir de ce qui a été réglé dans Suivi PP ; il faut que les parties communes communiquent ») ──
 // Le nom de la classe, l'établissement (prefs.etablissement), le professeur principal (prefs.avisNom, « Votre nom » des avis),
 // le découpage de l'année (prefs.periodMode, et ses dates quand elles ne sont plus celles d'office) et l'enseignant de chaque
-// matière de la fiche que Suivi PP rattache à une discipline (`_matiereDiscAuto` : les mêmes motifs que pour les moyennes ;
+// matière de la fiche que Suivi PP rattache à une discipline (`_ficheMatDisc` : le choix fait dans Données, sinon les motifs des moyennes ;
 // l'enseignant est `_discProfs` — tapé dans Données, sinon celui du dernier import de moyennes).
 // Dans les deux sens : ici → fiche à chaque échange (une valeur vide ne remplace rien) ; fiche → ici dans `_suivisCommunRetour`.
 function _suivisCommun(cid) {
@@ -21744,7 +21799,7 @@ function _suivisCommun(cid) {
   const dates = JSON.stringify(_periodStarts(mode)) !== JSON.stringify(_PERIOD_START_DEFAULTS[mode]);
   const etat = S.fichesSuivi?.[cid]?.etat?.S, profs = {};
   for (const m of Array.isArray(etat?.matieres) ? etat.matieres : []) {
-    const nom = String(m?.nom || '').trim(), did = nom ? _matiereDiscAuto(_moyNorm(nom)) : null;
+    const nom = String(m?.nom || '').trim(), did = nom ? _ficheMatDisc(nom) : null;
     if (did && S.disciplines[did]) profs[nom] = { did, discipline: S.disciplines[did].nom, prof: _discProfs(cid, did), codes: S.disciplines[did].code ? String(S.disciplines[did].code).split(',').map(x => x.trim()).filter(Boolean) : [] };
   }
   return { classe: String(cls.nom || ''), etablissement: String(p.etablissement || ''), referent: String(p.avisNom || ''),
@@ -21772,7 +21827,7 @@ function _suivisCommunRetour(cid, avant, apres) {
   }
   const avantMat = nom => (A && Array.isArray(A.matieres) ? A.matieres : []).find(m => m?.nom === nom);
   for (const m of Array.isArray(apres.matieres) ? apres.matieres : []) {
-    const nom = t(m?.nom), did = nom ? _matiereDiscAuto(_moyNorm(nom)) : null;
+    const nom = t(m?.nom), did = nom ? _ficheMatDisc(nom) : null;
     if (!did || !S.disciplines[did]) continue;
     const v = t(m.prof);
     const am = avantMat(m.nom);
@@ -22450,6 +22505,8 @@ function createDemo(opts) {
     _disciplinesSeed();
     // Le latin (v1.62.0) : une discipline AJOUTÉE, à option — son code LATIN est celui que portent les latinistes de la démo.
     // Son onglet ne liste qu'eux ; les autres élèves y sont « non concernés » (—).
+    // rattachement manuel des matières des fiches de suivi (v1.63.0) : deux matières propres à la fiche
+    S.prefs.matieresFiche = { [_moyNorm('Vie de classe')]: '', [_moyNorm('Devoirs faits')]: '' };
     const lat = disciplineAdd('Latin');
     if (lat) disciplineSet(lat.id, { code: 'LATIN', domaine: 'lettres' });
     const camp = avisCampagneCreer(cls, { pIdx: 0, disciplines: _disciplinesActives().map(d => d.id), lien: '' });

@@ -503,8 +503,16 @@ suivi devrait venir de ce qui a été réglé dans Suivi PP. Il faut que les par
 | `decoupage` (mode, fins) | `prefs.periodMode`, `prefs.periodStarts` (fin d'une période = veille du début de la suivante) |
 | `matieres[i].prof` | l'enseignant de la discipline : `_discProfs` (tapé dans Données, sinon le dernier import de moyennes) |
 | (pinceau de l'emploi du temps) | le code d'option de la discipline (v1.62.0) : la matière se peint d'office pour le groupe de l'option |
-- Une matière de la fiche est rattachée à une discipline par **`_matiereDiscAuto`** — les mêmes motifs que pour les moyennes
-  (« Hist.-Géo. » par l'onglet de la discipline). « Vie de classe », « Devoirs faits », une langue non reconnue restent à la fiche.
+- Une matière de la fiche est rattachée à une discipline par **`_ficheMatDisc`** : le choix fait dans 💾 Données, sinon
+  `_matiereDiscAuto` — les mêmes motifs que pour les moyennes (« Hist.-Géo. » par l'onglet de la discipline). « Vie de classe »,
+  « Devoirs faits », une langue non reconnue restent à la fiche.
+- **Rattachement manuel** (v1.63.0, l'utilisateur : *« ajoute le rattachement manuel dans Données »*) : sous celui des matières des
+  moyennes, le tableau *Matière (fiches de suivi) · Discipline · Enseignant envoyé à la fiche* (`_ficheMatieresClasse` : les
+  matières de l'emploi du temps du suivi de la classe, une ligne par nom) — automatique, une discipline, ou **aucune** (propre à
+  la fiche). `S.prefs.matieresFiche = { [nom normalisé]: did | '' }`, **par NOM, pour toutes les classes** (renommée dans la fiche,
+  la matière redevient automatique) ; remplacé, jamais modifié en place ; une discipline supprimée → automatique.
+  `ficheMatSetDisc` (pur), `ficheMatDiscUI` (un cran d'undo, rien si rien ne change, puis `_suivisCommunMaj`). Sans suivi pour la
+  classe, le tableau le dit. Démo : « Vie de classe » et « Devoirs faits » en « aucune ».
 - **Suivi PP → fiche** : une valeur vide ne remplace rien ; les dates du découpage ne sont envoyées que si elles ne sont plus celles
   d'office (sinon la fiche garde les siennes, calées sur les vacances).
 - **Fiche → Suivi PP** : une valeur reprise si Suivi PP n'en avait pas, ou si elle vient d'être MODIFIÉE dans la fiche (elle diffère
@@ -2533,6 +2541,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 160 | **Rattachement manuel des matières des fiches de suivi** (💾 Données : automatique, une discipline, ou aucune ; l'enseignant envoyé à la fiche affiché ; `S.prefs.matieresFiche`, `_ficheMatDisc`) ; démo ; 6 tests (`test/fiches-matieres.test.js`), `e2e_integre` 44 ; Données audité 2 thèmes, 1 400 et 320 px, 0 défaut | ✅ **fait** (2026-10-10, v1.63.0) |
 | 159 | **Code d'option d'une discipline** (Données, colonne *Option (code)*, `_discSuit`) : l'onglet de la feuille d'avis ne liste que les élèves de l'option, une discipline non suivie n'est ni attendue ni comptée (grille, lecture, fiche, carte de chaleur : « — ») ; dans 📋 Suivis, le pinceau de l'emploi du temps prend d'office le groupe de l'option ; démo : Latin ; 7 tests (`test/disciplines-code.test.js`), `e2e_integre` étendu (44) ; parcours 140 états, 0 défaut | ✅ **fait** (2026-10-10, v1.62.0) |
 | 158 | **Fiches de suivi dans la carte de chaleur** (groupe *Indiv.* · *Collectif* · *Classe*, sur le moment, cliquable) et **réglages communs aux deux applications** (classe, établissement, professeur principal, découpage de l'année, enseignant de chaque matière reconnue — dans les deux sens, Ctrl+Z commun) ; calcul groupé pour toute la classe ; 3 tests de plus, `e2e_integre` étendu (43). Défauts trouvés en route : la démonstration des fiches écrasait les enseignants de Suivi PP ; la carte de chaleur restait en attente après un rechargement des données | ✅ **fait** (2026-10-10, v1.61.0) |
 | 157 | **Les fiches de suivi dans la fiche élève** : carte « 📋 Fiches de suivi » bornée au moment (suivi individuel, collectif, fiches de classe), faits insérables dans le bilan, partie de la fiche imprimée, « ↗ Ouvrir » vers la fiche élève de l'appli ; chiffres calculés par l'appli des fiches dans son cadre (`__ficheResumeEleve`), jamais ici ; 5 tests de plus (`test/fiches-suivi.test.js`), `e2e_integre` étendu (37). Audit de la fiche (tableau de bord, faits, papier) 2 thèmes, 1 570 et 375 px, 0 défaut | ✅ **fait** (2026-10-10, v1.60.0) |
