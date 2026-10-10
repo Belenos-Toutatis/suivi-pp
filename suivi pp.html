@@ -3081,8 +3081,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.58.2';
-const APP_BUILD_DATE = '2026-10-09T06:50:41Z';
+const APP_VERSION    = '1.58.3';
+const APP_BUILD_DATE = '2026-10-10T15:26:03Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3339,11 +3339,18 @@ function _hideSaveErrorBanner() {
   if (el) el.remove();
 }
 
+// ⚠️ Une sauvegarde locale ILLISIBLE (JSON tronqué, autre chose qu'un objet) n'est plus perdue (audit du
+// 2026-10-10) : elle était remplacée au premier geste par un état vide, sans copie. Elle est gardée
+// telle quelle sous `suiviPP_v1_illisible`, et l'écran le dit (`_loadIllisible`, après init).
+let _loadIllisible = false;
 function load() {
+  let brut = null;
   try {
-    const d = localStorage.getItem(LS_KEY);
-    if (d) S = JSON.parse(d);
-  } catch (e) {}
+    brut = localStorage.getItem(LS_KEY);
+    if (brut) { const d = JSON.parse(brut); if (_isPlainObj(d)) S = d; else throw new Error('pas un objet'); }
+  } catch (e) {
+    if (brut) { try { localStorage.setItem(LS_KEY + '_illisible', brut); _loadIllisible = true; } catch (_) { _loadIllisible = true; } }
+  }
   postLoadHook();
 }
 
@@ -3383,12 +3390,35 @@ function updateUndoRedoUI() {
   if (r) r.disabled = !redoStack.length;
 }
 
+// Ce qu'un pushUndo() vient de déplacer — pour pouvoir le remettre si l'action est refusée.
+let _undoRetire = null, _redoAvant = null;
 function pushUndo() {
+  _redoAvant = redoStack;
   undoStack.push(JSON.stringify(S));
-  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  _undoRetire = undoStack.length > MAX_UNDO ? undoStack.shift() : null;
   redoStack = []; // toute nouvelle action invalide la pile redo
   _clockBumpSelf();  // nouvelle version locale (horloge multi-postes)
   updateUndoRedoUI();
+}
+const _sansHorloge = j => String(j || '').replace(/"clock":\{[^{}]*\}/, '');
+// Une action REFUSÉE (ou qui n'a rien changé) après son pushUndo() (audit du 2026-10-10) : on retire
+// le cran qu'elle a posé, sans toast ni Ctrl+Y fantôme, et le plus ancien niveau poussé hors de la
+// pile revient. Si la mutation avait commencé, l'état est d'abord rétabli. Avant : undoLast(), qui
+// affichait « Annulation effectuée », rendait Ctrl+Y actif et perdait un niveau pile pleine.
+function _undoAnnulerRefus() {
+  const top = undoStack.pop();
+  if (top === undefined) return;
+  if (_sansHorloge(top) !== _sansHorloge(JSON.stringify(S))) _restoreSnapshot(top);
+  if (_undoRetire !== null) undoStack.unshift(_undoRetire);
+  _undoRetire = null;
+  if (_redoAvant) redoStack = _redoAvant;
+  _redoAvant = null;
+  updateUndoRedoUI();
+}
+// Après pushUndo() puis la mutation : refusée (`res === false`) ou sans effet → le cran est retiré. → true si retiré.
+function _undoSiRien(res) {
+  if (res === false || _sansHorloge(undoStack[undoStack.length - 1]) === _sansHorloge(JSON.stringify(S))) { _undoAnnulerRefus(); return true; }
+  return false;
 }
 
 // true si la cible du clavier est un champ de SAISIE — là où les raccourcis globaux
@@ -3432,6 +3462,7 @@ function _refreshOpenConsultModals() {
 }
 
 function _restoreSnapshot(json) {
+  _salvesDesarmer();   // une saisie juste après Ctrl+Z doit poser son propre cran (audit du 2026-10-10)
   const _preMy = (S.clock && S.clock[_DEVICE_ID]) || 0;
   const _preClock = { ...(S.clock || {}) };
   S = JSON.parse(json);
@@ -3880,6 +3911,80 @@ function _isPlainObj(o) { return !!o && typeof o === 'object' && !Array.isArray(
 // moitié migré, SANS message. Toute migration doit donc supposer que sa section peut
 // manquer — c'est le rôle de cette fonction, appelée EN TÊTE de postLoadHook.
 // ⚠️ Toute section ajoutée à S s'ajoute ici.
+// Le CONTENU des sections (audit du 2026-10-10) : un fichier .json altéré — ou abîmé — passait la
+// liste blanche des sections avec des champs du mauvais type. Deux effets mesurés : des NOMBRES
+// injectés tels quels dans le HTML et dans des gestionnaires (groupe, numéro de bulletin, rangs d'une
+// salle… → du script exécuté à l'affichage), et des tableaux ou entrées nulles qui faisaient tomber
+// tous les onglets à grilles (`_delegueOf` → `_elEffectifs`). Chaque champ est ramené à son type ;
+// les identifiants suivent leur clé. Rien n'est inventé : une valeur illisible est retirée ou remise
+// à sa valeur neutre.
+function _sanitizeImbrique() {
+  const ent = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
+  // Un nombre écrit en texte (« 2 ») est CONVERTI, pas effacé : seul l'illisible est retiré.
+  const nb = (o, k) => { if (typeof o[k] === 'string' && /^\d{1,4}$/.test(o[k].trim())) o[k] = +o[k].trim(); };
+  const tab = (o, k) => { if (!Array.isArray(o[k])) o[k] = []; o[k] = o[k].filter(_isPlainObj); return o[k]; };
+  const chaine = (o, k) => { if (o[k] !== undefined && o[k] !== null && typeof o[k] !== 'string') o[k] = String(o[k]); };
+  const date = (o, k) => { if (o[k] !== undefined && o[k] !== null && typeof o[k] !== 'string') o[k] = ''; };
+  for (const [k, e] of Object.entries(S.eleves)) {
+    e.id = k;
+    nb(e, 'groupe');
+    if (e.groupe !== undefined && e.groupe !== null && !ent(e.groupe, 1, 3)) e.groupe = null;
+    for (const f of ['nom', 'prenom', 'remarque']) chaine(e, f);
+    for (const f of ['journal', 'incidents', 'bilans', 'decisions', 'obsMbn']) if (Array.isArray(e[f])) {
+      e[f] = e[f].filter(_isPlainObj);
+      for (const x of e[f]) { date(x, 'date'); for (const t of ['texte', 'objet', 'motif', 'type', 'par', 'info']) if (typeof x[t] === 'number') x[t] = String(x[t]); }
+    }
+  }
+  for (const [k, d] of Object.entries(S.documents)) {
+    d.id = k;
+    chaine(d, 'titre');
+    if (typeof d.titre !== 'string') d.titre = '';
+    for (const c of tab(d, 'champs')) { chaine(c, 'label'); for (const o of tab(c, 'options')) chaine(o, 'label'); }
+    for (const [sid, r] of Object.entries(_isPlainObj(d.retours) ? d.retours : {})) {
+      if (!_isPlainObj(r)) { delete d.retours[sid]; continue; }
+      date(r, 'dateRetour');
+      if (!_isPlainObj(r.reponses)) r.reponses = {};
+    }
+  }
+  for (const sa of Object.values(S.salles)) {
+    nb(sa, 'rows'); nb(sa, 'cols');
+    if (!ent(sa.rows, 1, 40)) sa.rows = 6;
+    if (!ent(sa.cols, 1, 40)) sa.cols = 8;
+    chaine(sa, 'nom');
+  }
+  for (const m of Object.values(S.elections)) for (const [k, el] of Object.entries(m)) {
+    el.id = k;
+    chaine(el, 'titre');
+    for (const f of ['nbTitulaires', 'nbSupplants', 'nomsParBulletin', 'inscrits']) nb(el, f);
+    if (!ent(el.nbTitulaires, 1, 9)) el.nbTitulaires = 2;
+    if (el.nbSupplants !== undefined && !ent(el.nbSupplants, 0, 9)) delete el.nbSupplants;
+    if (el.nomsParBulletin !== undefined && !ent(el.nomsParBulletin, 1, 9)) el.nomsParBulletin = 1;
+    if (el.inscrits !== undefined && el.inscrits !== null && !ent(el.inscrits, 0, 999)) el.inscrits = null;
+    for (const c of tab(el, 'candidats')) for (const f of ['nomTitulaire', 'nomSuppleant']) chaine(c, f);
+    if (!Array.isArray(el.assesseurs)) el.assesseurs = [];
+    if (!Array.isArray(el.assesseursNoms)) el.assesseursNoms = [];
+    el.assesseursNoms = el.assesseursNoms.map(x => String(x ?? ''));
+    if (!_isPlainObj(el.elus)) el.elus = {};
+    for (const f of ['titulaires', 'suppleants']) el.elus[f] = Array.isArray(el.elus[f]) ? el.elus[f].filter(x => typeof x === 'string') : [];
+    if (!Array.isArray(el.remplacements)) el.remplacements = [];
+    el.remplacements = el.remplacements.filter(_isPlainObj);
+    tab(el, 'tours');
+    if (!el.tours.length) el.tours.push({ n: 1, candidats: [], bulletins: [], votantsAnnonces: null, siegesAPourvoir: el.nbTitulaires, clos: false });
+    el.tours.forEach((t, i) => {
+      for (const f of ['n', 'siege', 'siegesAPourvoir', 'votantsAnnonces']) nb(t, f);
+      if (!ent(t.n, 1, 9)) t.n = i + 1;
+      if (t.siege !== undefined && !ent(t.siege, 1, 9)) delete t.siege;
+      if (!ent(t.siegesAPourvoir, 0, 9)) t.siegesAPourvoir = el.nbTitulaires;
+      if (t.votantsAnnonces !== null && t.votantsAnnonces !== undefined && !ent(t.votantsAnnonces, 0, 999)) t.votantsAnnonces = null;
+      t.candidats = Array.isArray(t.candidats) ? t.candidats.filter(x => typeof x === 'string') : [];   // des ids, pas des objets
+      tab(t, 'bulletins').forEach((b, j) => {
+        nb(b, 'n');
+        if (!ent(b.n, 1, 9999)) b.n = j + 1;
+        b.voix = Array.isArray(b.voix) ? b.voix.filter(x => typeof x === 'string') : [];
+      });
+    });
+  }
+}
 function _sanitizeCoreSections() {
   for (const k of ['classes', 'eleves', 'releves', 'documents', 'elections', 'moyennes', 'matieres', 'tags', 'salles', 'prefs', 'instances', 'avis', 'disciplines']) {
     if (!_isPlainObj(S[k])) { console.warn(`Section ${k} absente ou invalide — recréée vide`); S[k] = {}; }
@@ -3995,6 +4100,7 @@ function _sanitizeCoreSections() {
 // À appeler après TOUT chargement (init, import de fichier, rechargement de sync).
 function postLoadHook() {
   _sanitizeCoreSections();
+  _sanitizeImbrique();
   // Réglages : on complète les manquants sans écraser les choix de l'utilisateur.
   for (const [k, v] of Object.entries(DEFAULT_PREFS)) {
     if (S.prefs[k] === undefined) S.prefs[k] = v;
@@ -4104,7 +4210,9 @@ function _purgeStudentRefs(sid) {
     // un état courant, pas un document — l'élève parti n'est plus délégué.
     for (const key of ['delegues', 'ecoDelegues']) if (_isPlainObj(c[key])) {
       for (const k of ['titulaires', 'suppleants']) if (Array.isArray(c[key][k])) c[key][k] = c[key][k].filter(x => x !== sid);
-      if (!(c[key].titulaires || []).length && !(c[key].suppleants || []).length) delete c[key];
+      // Vidée : elle disparaît — SAUF si un PV signé y est joint (audit du 2026-10-10 : sa référence
+      // partait avec elle, et 🧹 Orphelins proposait d'effacer le scan).
+      if (!(c[key].titulaires || []).length && !(c[key].suppleants || []).length && !_isPlainObj(c[key].pv)) delete c[key];
     }
   }
   for (const byDate of Object.values(S.releves)) {
@@ -4435,8 +4543,13 @@ function importJSON(ev) {
       okLabel: '⬆ Importer', okClass: 'btn-w',
       onOk: () => {
         pushUndo();
+        const prevClock = { ...((S && S.clock) || {}) };
         S = Object.assign(_emptyState(), d);
         postLoadHook();
+        // L'horloge ne recule pas (audit du 2026-10-10) : sans cela, la sync voyait le fichier du
+        // dossier « plus récent » et proposait de le recharger — ce qui défaisait l'import.
+        if (!_isPlainObj(S.clock)) S.clock = {};
+        _clockMergeMax(S.clock, prevClock); _clockBumpSelf();
         save();
         refreshSelector();
         const at = document.querySelector('.tab.on');
@@ -4594,7 +4707,7 @@ function _studentTags(stu) {
 // DATES & PRÉSENCE
 // ═══════════════════════════════════════════════════════════
 function _fmtDateFr(ymd) {
-  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd ? String(ymd) : '';
   const [y, m, d] = ymd.split('-');
   return `${d}/${m}/${y}`;
 }
@@ -5253,9 +5366,11 @@ function _bilanLabel(e) {
 function _bilanCible(cls, sid, mode) {
   if (!mode) return null;
   const p = _periodOf(cls, mode.date);
-  return _bilansOf(sid).find(e => e.type === mode.type && (mode.type === 'mois'
-    ? String(e.date).slice(0, 7) === String(mode.date).slice(0, 7)
-    : !!p && e.date >= p.start && e.date <= p.end)) || null;
+  // Un point du mois est AUSSI borné à la période (audit du 2026-10-10) : en trimestres, mars est coupé
+  // en deux (T2 jusqu'au 14, T3 ensuite) — sans cette borne, les deux points de mars étaient le même
+  // bilan, et écrire celui du T2 remplaçait celui du T3.
+  return _bilansOf(sid).find(e => e.type === mode.type && !!p && e.date >= p.start && e.date <= p.end
+    && (mode.type !== 'mois' || String(e.date).slice(0, 7) === String(mode.date).slice(0, 7))) || null;
 }
 // Du plus récent au plus ancien ; à date égale, le dernier saisi devant.
 function _bilansOf(sid) {
@@ -5305,9 +5420,11 @@ function _decisionsOf(sid) {
 function _decisionCible(cls, sid, mode) {
   if (!mode) return null;
   const p = _periodOf(cls, mode.date);
-  return _decisionsOf(sid).find(e => e.type === mode.type && (mode.type === 'mois'
-    ? String(e.date).slice(0, 7) === String(mode.date).slice(0, 7)
-    : !!p && e.date >= p.start && e.date <= p.end)) || null;
+  // Un point du mois est AUSSI borné à la période (audit du 2026-10-10) : en trimestres, mars est coupé
+  // en deux (T2 jusqu'au 14, T3 ensuite) — sans cette borne, les deux points de mars étaient le même
+  // bilan, et écrire celui du T2 remplaçait celui du T3.
+  return _decisionsOf(sid).find(e => e.type === mode.type && !!p && e.date >= p.start && e.date <= p.end
+    && (mode.type !== 'mois' || String(e.date).slice(0, 7) === String(mode.date).slice(0, 7))) || null;
 }
 // Écrit (ou crée) la décision du moment ; un texte vide la RETIRE. → 'ajout' | 'modif' |
 // 'suppr' | null (rien ne change). Sans pushUndo ni save : l'appelant s'en charge.
@@ -6044,7 +6161,7 @@ function obsMbnRemove(sid, id) {
 }
 function obsMbnRemoveUI(sid, id) {
   pushUndo();
-  if (!obsMbnRemove(sid, id)) return;
+  if (!obsMbnRemove(sid, id)) return _undoAnnulerRefus();
   save();
   if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
   if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
@@ -6599,13 +6716,20 @@ function _elevesSpark(cls, sid) {
 // ramené dans la période — dans le mois pour un point du mois).
 let _bilanColsAjout = new Set();
 const _BILAN_MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+// La clé d'un point du mois : `bil:mois:AAAA-MM`, et `…:pIdx` pour un mois COUPÉ par un début de
+// période (mars en trimestres) — chacune de ses deux parties est un moment à part (audit du 2026-10-10).
+function _moisCle(p, pIdx, ym) {
+  const fin = new Date(+ym.slice(0, 4), +ym.slice(5, 7), 0);
+  const entier = `${ym}-01` >= p.start && `${ym}-${String(fin.getDate()).padStart(2, '0')}` <= p.end;
+  return entier ? `bil:mois:${ym}` : `bil:mois:${ym}:${pIdx}`;
+}
 function _bilanColonnes(cls, pIdx, ajout) {
   const p = _periods(cls)[pIdx];
   if (!p) return [];
   const borne = (d, a, b) => d < a ? a : d > b ? b : d;
   const m = new Map();
   const add = (type, ym, date) => {
-    const key = type === 'mois' ? `bil:mois:${ym}` : `bil:${type}:${pIdx}`;
+    const key = type === 'mois' ? _moisCle(p, pIdx, ym) : `bil:${type}:${pIdx}`;
     const c = m.get(key);
     if (c) { if (date && (!c.premiere || date < c.premiere)) c.premiere = date; return; }
     m.set(key, { key, type, ym: type === 'mois' ? ym : null, premiere: date || null });
@@ -6615,10 +6739,10 @@ function _bilanColonnes(cls, pIdx, ajout) {
     if (e.date >= p.start && e.date <= p.end) add(_bilanType(e.type).key, String(e.date).slice(0, 7), e.date);
   }));
   for (const k of ajout || []) {
-    const x = /^bil:(miperiode):(\d+)$/.exec(k) || /^bil:(mois):(\d{4}-\d{2})$/.exec(k);
+    const x = /^bil:(miperiode):(\d+)$/.exec(k) || /^bil:(mois):(\d{4}-\d{2})(?::(\d+))?$/.exec(k);
     if (!x) continue;
     if (x[1] === 'miperiode' && +x[2] === pIdx) add('miperiode', null, null);
-    if (x[1] === 'mois' && x[2] >= p.start.slice(0, 7) && x[2] <= p.end.slice(0, 7)) add('mois', x[2], null);
+    if (x[1] === 'mois' && (x[3] === undefined || +x[3] === pIdx) && x[2] >= p.start.slice(0, 7) && x[2] <= p.end.slice(0, 7)) add('mois', x[2], null);
   }
   const auj = _todayYmd();
   const milieu = (() => { const a = new Date(p.start + 'T12:00:00'), b = new Date(p.end + 'T12:00:00'); return _todayYmd(new Date((a.getTime() + b.getTime()) / 2)); })();
@@ -6630,10 +6754,11 @@ function _bilanColonnes(cls, pIdx, ajout) {
       date = borne(date, p.start, p.end);
     }
     const mo = c.ym ? +c.ym.slice(5, 7) - 1 : 0;
+    const coupe = c.type === 'mois' && /:\d+$/.test(c.key) ? ` ${p.label}` : '';   // « Point mars T2 », « Point mars T3 »
     const ordre = c.type === 'mois' ? c.ym + '-01' : c.type === 'miperiode' ? (c.premiere || milieu) : '9999';
     return { key: c.key, type: c.type, ym: c.ym, date, ordre,
-      court: c.type === 'mois' ? `Point ${_BILAN_MOIS_COURT[mo]}` : c.type === 'miperiode' ? `Mi-${p.label}` : `Conseil ${p.label}`,
-      long: c.type === 'mois' ? `Point ${_deMois(_BILAN_MOIS[mo])}` : c.type === 'miperiode' ? `Bilan de mi-période ${p.label}` : `Conseil de classe ${p.label}` };
+      court: c.type === 'mois' ? `Point ${_BILAN_MOIS_COURT[mo]}${coupe}` : c.type === 'miperiode' ? `Mi-${p.label}` : `Conseil ${p.label}`,
+      long: c.type === 'mois' ? `Point ${_deMois(_BILAN_MOIS[mo])}${coupe}` : c.type === 'miperiode' ? `Bilan de mi-période ${p.label}` : `Conseil de classe ${p.label}` };
   }).sort((a, b) => a.ordre.localeCompare(b.ordre));
 }
 // Les colonnes de la LISTE (v1.41.1, demande de l'utilisateur : « affiche aussi les bilans
@@ -6659,7 +6784,8 @@ function _bilanColsProposables(cls, pIdx, cols) {
   const d = new Date(p.start.slice(0, 7) + '-01T12:00:00');
   while (_todayYmd(d).slice(0, 7) <= p.end.slice(0, 7)) {
     const ym = _todayYmd(d).slice(0, 7), mo = d.getMonth();
-    if (mo !== 6 && mo !== 7 && !cols.some(c => c.key === `bil:mois:${ym}`)) out.push({ key: `bil:mois:${ym}`, label: `Point ${_deMois(_BILAN_MOIS[mo])} ${ym.slice(0, 4)}` });
+    const k = _moisCle(p, pIdx, ym);
+    if (mo !== 6 && mo !== 7 && !cols.some(c => c.key === k)) out.push({ key: k, label: `Point ${_deMois(_BILAN_MOIS[mo])} ${ym.slice(0, 4)}${k !== `bil:mois:${ym}` ? ' (' + p.label + ')' : ''}` });
     d.setMonth(d.getMonth() + 1);
   }
   return out;
@@ -6703,7 +6829,7 @@ function _elevesMoments(cls, pCour) {
   const out = liste.map(c => ({ key: c.key, label: c.long, pIdx: c.pIdx, ordre: c.ordre === '9999' ? '9999' : c.ordre, vu: !masques.has(c.key),
     n: cls.eleves.filter(sid => _bilanDeColonne(cls, sid, c)).length }));
   for (const o of _bilanColsProposables(cls, pCour, liste.filter(c => c.pIdx === pCour))) {
-    const m = /^bil:mois:(\d{4})-(\d{2})$/.exec(o.key);
+    const m = /^bil:mois:(\d{4})-(\d{2})(?::\d+)?$/.exec(o.key);
     out.push({ key: o.key, label: m ? `Point ${_deMois(_BILAN_MOIS[+m[2] - 1])}` : o.label, pIdx: pCour, ordre: m ? `${m[1]}-${m[2]}-01` : milieu, vu: false, n: 0 });
   }
   return out.sort((a, b) => a.pIdx - b.pIdx || String(a.ordre).localeCompare(String(b.ordre)));
@@ -6863,7 +6989,11 @@ function _obsFenetre(cls, cle, auj) {
   let end = auj || _todayYmd();
   if (end > ps[ps.length - 1].end) end = ps[ps.length - 1].end;
   if (end < ps[0].start) end = ps[0].start;
-  const per = _periodOf(cls, end) || ps[ps.length - 1];
+  // « Début de la période » = la période EN COURS de toute l'app : celle du dernier relevé du carnet
+  // (`_carnetCurrentPeriodIdx`), bornée à sa fin (audit du 2026-10-10, arbitré par l'utilisateur : le
+  // « +n » disait S2 dès le 1er février quand tout le reste disait encore S1).
+  const per = f.key === 'per' ? (ps[_carnetCurrentPeriodIdx(cls)] || ps[ps.length - 1]) : (_periodOf(cls, end) || ps[ps.length - 1]);
+  if (f.key === 'per' && end > per.end) end = per.end;
   let start;
   if (f.key === 'per') start = per.start;
   else if (f.jours) start = _ymdAdd(end, -(f.jours - 1));
@@ -7034,8 +7164,14 @@ function _chaleurGroupes(cls, bcols, colM) {
     },
     sum: sid => {
       const t = _obsEntre(cid, sid, p.start, p.end), n = _cumulAu(cid, sid, p.end), b = n !== null ? _obsBande(n) : 0;
-      return [b ? 'chob-' + b : '', n !== null ? `${n}${t ? ' +' + t : ''}` : '—', `${t ?? 0} observation(s) sur le moment${n !== null ? ` — cumul ${n} au ${_fmtDateFr(p.end)}` : ''}`]; } });
-  const mois = _moisDe({ start: _debutUtile(p.start) < p.end ? _debutUtile(p.start) : p.start, end: p.end });
+      return [b ? 'chob-' + b : '', n !== null ? `${n}${t > 0 ? ' +' + t : t < 0 ? ' ▼' : ''}` : '—', `${t ?? 0} observation(s) sur le moment${n !== null ? ` — cumul ${n} au ${_fmtDateFr(p.end)}` : ''}`]; } });
+  // Août n'a pas de colonne (rien ne s'y passe) — SAUF s'il porte un événement : sans elle, un contact
+  // ou un incident du 28 août comptait dans le Total sans figurer dans aucun mois (audit du 2026-10-10).
+  const aout = _debutUtile(p.start) !== p.start && cls.eleves.some(sid => { const st = S.eleves[sid];
+    const dedans = d => d && d >= p.start && d < _debutUtile(p.start);
+    return st && ((st.incidents || []).some(e => dedans(e?.date)) || (st.journal || []).some(e => dedans(e?.date))
+      || _obsMbnOf(sid).some(e => dedans(e.date)) || _absMbnOf(sid).some(e => dedans(e.debut))); });
+  const mois = _moisDe({ start: !aout && _debutUtile(p.start) < p.end ? _debutUtile(p.start) : p.start, end: p.end });
   const dansM = e => e.date >= p.start && e.date <= p.end;
   if (_obsMbnClasseAny(cls)) G.push({ key: 'mbn', label: `Observations MBN ${nomM}`, sub: mois.map(([id, l]) => ({ id, l, long: l })),
     cell: (sid, ym) => { const x = _obsMbnOf(sid).filter(e => dansM(e) && String(e.date).startsWith(ym));
@@ -7064,8 +7200,7 @@ function _chaleurGroupes(cls, bcols, colM) {
         return [typeof g === 'number' && g < 10 ? 'ch-lo' : '', typeof g === 'number' ? fmt(g) + (n ? ` · ${n}<10` : '') : '—', `Moyenne générale ${typeof g === 'number' ? fmt(g) : '—'}, ${n} matière(s) sous 10`]; } });
   }
   // Avis : la feuille de la période dont l'objectif est ce moment, sinon la première de la période.
-  const campsP = _avisCampagnes(cid).filter(c => c.cible >= p0.start && c.cible <= p0.end);
-  const camp = (col && campsP.find(c => _avisMsgReglages(c).moment === col.type)) || _avisDeLaPeriode(cls, pIdx);
+  const camp = col ? _avisFeuilleDuMoment(cls, col) : _avisDeLaPeriode(cls, pIdx);
   if (camp) {
     const cols = _avisCols(camp);
     // Une feuille d'un AUTRE moment, faute de mieux : le dire (v1.47.1, audit C10).
@@ -7392,7 +7527,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
       // v1.46.5 : sur la durée choisie par 📅 (`_obsFenetre`), le début de la période par défaut.
       const gN = _obsGagnees(cls, sid, fenL), nP = gN.n;
       const plTip = nP ? `${nP} observation${nP > 1 ? 's' : ''} ${fenL.long}` + (avecMbnL ? ` : ${gN.carnet} au carnet + ${gN.mbn} dans MBN` : '') : '';
-      const pl = nP ? `<span class="el-dl${nP >= 3 ? ' up' : ''}" title="${_escAttr(plTip)}">+${nP} <small>${_escName(fenL.court)}</small></span>` : '';
+      const pl = nP > 0 ? `<span class="el-dl${nP >= 3 ? ' up' : ''}" title="${_escAttr(plTip)}">+${nP} <small>${_escName(fenL.court)}</small></span>` : '';
       return `<span title="${_escAttr(tip)}"><span class="ob-chip${_obsBandeCls(r.obsTotal)} el-ob">${r.obsTotal}</span>${det}${r.deltaDecroissant ? '<span class="el-dl up" title="Le cumul du carnet a baissé : faute de frappe ?">▼</span>' : ''}${pl}${_elevesSpark(cls, sid)}</span>`;
     };
     td.moy = () => {
@@ -7444,7 +7579,7 @@ function _withStudent(sid, fn, msg) {
   const s = S.eleves[sid];
   if (!s) return;
   pushUndo();
-  fn(s);
+  if (_undoSiRien(fn(s))) { renderStudents(); return; }   // refusé ou sans effet : pas de cran vide
   save();
   renderStudents();
   if (msg) toast(msg);
@@ -7581,7 +7716,7 @@ function ficheSetCumul(ymd, inp) {
   const montre = avant === null ? '' : (avant === REL_ABSENT ? _codeA() : String(avant));
   if (inp.value.trim() === montre) return;
   pushUndo();
-  if (!releveSetCount(cid, ymd, _ficheSid, inp.value)) { undoLast(); toast(`⚠️ Saisie refusée : un nombre entier, « ${_codeA()} » pour absent, ou rien.`, 'warn'); inp.value = montre; return; }
+  if (!releveSetCount(cid, ymd, _ficheSid, inp.value)) { _undoAnnulerRefus(); toast(`⚠️ Saisie refusée : un nombre entier, « ${_codeA()} » pour absent, ou rien.`, 'warn'); inp.value = montre; return; }
   save();
   renderCarnets();
   _ficheRender();
@@ -8063,9 +8198,21 @@ function _ficheMoy(cls, sid, col, bornes) {
   return { list, last, g: typeof g === 'number' ? g : null, delta: typeof g === 'number' && dep && dep !== last ? _round2(g - _moyGen(dep, sid)) : null, depuis: dep ? dep.date : null, mats };
 }
 // Les avis d'un moment : la feuille de la période, du même objectif d'abord.
+// La feuille d'avis d'un MOMENT : celle de la période dont l'objectif est ce moment, sinon la plus
+// récente de la période. Partagée par la carte de chaleur et la fiche (audit du 2026-10-10, arbitré
+// par l'utilisateur : « la feuille du moment, même vide » — la fiche reprenait en silence la feuille
+// du conseil quand l'élève n'avait rien dans celle de mi-semestre).
+function _avisFeuilleDuMoment(cls, col) {
+  const p0 = _periods(cls)[col.pIdx];
+  if (!p0) return null;
+  const campsP = _avisCampagnes(cls.id).filter(c => c.cible >= p0.start && c.cible <= p0.end);
+  return campsP.find(c => _avisMsgReglages(c).moment === col.type) || _avisDeLaPeriode(cls, col.pIdx);
+}
 function _ficheAvis(cls, sid, col) {
-  const a = _avisEleve(cls, sid, col.pIdx, col.type);
-  return a ? { camp: a.camp, items: a.items, cols: _avisCols(a.camp) } : null;
+  const camp = _avisFeuilleDuMoment(cls, col);
+  if (!camp) return null;
+  const parDisc = camp.avis?.[sid] || {};
+  return { camp, items: camp.disciplines.filter(d => parDisc[d.id]).map(d => ({ disc: d, ...parDisc[d.id] })), cols: _avisCols(camp) };
 }
 // Les mots qui reviennent dans les avis : comptés par DISCIPLINE qui les emploie (un
 // collègue qui répète « bavardages » dans deux colonnes ne compte qu'une fois). PUR.
@@ -8118,7 +8265,8 @@ function _ficheFaits(cls, stu, col) {
     if (hi.length) F.push({ k: 'moy', html: `Points forts : ${hi.map(x => `${e(x.ab)} ${e(_fmtNote(x.v, 1))}`).join(', ')}.`, phrase: `de bons résultats en ${hi.map(x => x.ab.toLowerCase()).join(', ')}` });
   }
   const av = _ficheAvis(cls, sid, col);
-  if (av) {
+  if (av && !av.items.length) F.push({ k: 'avis', html: `Aucun avis sur ${e(_avisObjectif(cls, av.camp).court === col.court ? 'ce moment' : 'la feuille ' + _avisObjectif(cls, av.camp).long)} (${av.camp.disciplines.length} discipline${av.camp.disciplines.length > 1 ? 's' : ''} sollicitée${av.camp.disciplines.length > 1 ? 's' : ''}).`, phrase: '' });
+  else if (av) {
     const mots = _avisMotsFrequents(av.items, av.cols);
     const cible = (av.camp.cibles || []).includes(sid);
     F.push({ k: 'avis', html: `<strong>${pl(av.items.length, 'discipline')} sur ${av.camp.disciplines.length}</strong> ${av.items.length > 1 ? 'ont' : 'a'} donné un avis${cible ? ' (demandé ⭐)' : ''}.${mots.length ? ` Revient : ${mots.slice(0, 4).map(x => `« ${e(x.mot)} » ×${x.n}`).join(', ')}.` : ''}`,
@@ -8130,9 +8278,11 @@ function _ficheFaits(cls, stu, col) {
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && x.date >= b.start && x.date <= b.end).sort((x, y) => x.date.localeCompare(y.date));
   if (ct.length) F.push({ k: 'contact', html: `<strong>${pl(ct.length, 'contact')}</strong> avec la famille : ${ct.map(x => `${e(_journalType(x.type).label.toLowerCase())} le ${e(_fmtDateFr(x.date).slice(0, 5))}`).join(', ')}.`,
     phrase: `famille contactée (${ct.map(x => `${_journalType(x.type).label.toLowerCase()} le ${_fmtDateFr(x.date).slice(0, 5)}`).join(', ')})` });
-  const nr = _docsOfCurrent().filter(d => (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid))
-    .filter(d => { const r = _retour(d, sid); return !r.rendu || (r.dateRetour && r.dateRetour > b.end); });
-  if (nr.length) F.push({ k: 'papier', html: `Papier${nr.length > 1 ? 's' : ''} à rendre : ${nr.map(d => e(d.titre)).join(', ')}.`, phrase: '' });
+  // Les MÊMES papiers que la liste, la carte de chaleur et la synthèse (audit du 2026-10-10) : non
+  // archivés, distribués avant la fin du moment, et pas rendus aujourd'hui.
+  const nr = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid))
+    .filter(d => !_retour(d, sid).rendu);
+  if (nr.length) F.push({ k: 'papier', n: nr.length, html: `Papier${nr.length > 1 ? 's' : ''} à rendre : ${nr.map(d => e(d.titre)).join(', ')}.`, phrase: '' });
   const prec = _bilansOf(sid).filter(x => x.date < col.date && !(x.type === col.type && _bilanCible(cls, sid, { type: col.type, date: col.date }) === x))[0];
   if (prec) F.push({ k: 'bilan', html: `${e(_bilanLabel(prec))} (${e(_fmtDateFr(prec.date).slice(0, 5))}) : « ${e(prec.texte)} »`, phrase: '' });
   return F;
@@ -8244,7 +8394,9 @@ function _ficheAvisTableHTML(av) {
   if (!av) return '<p class="pf-empty">Pas de feuille d\'avis pour ce moment.</p>';
   const mots = _avisMotsFrequents(av.items, av.cols);
   const re = _ficheMot ? new RegExp(`(${_ficheMot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[sx]?)`, 'gi') : null;
-  const cell = t => { const x = _escName(t); return re ? x.replace(re, '<mark>$1</mark>') : x; };
+  // Surligner AVANT d'échapper (audit du 2026-10-10) : appliqué au texte déjà échappé, un mot comme
+  // « lt » ou « amp » coupait les entités (« &<mark>lt</mark>; »).
+  const cell = t => re ? String(t ?? '').split(re).map((x, i) => i % 2 ? `<mark>${_escName(x)}</mark>` : _escName(x)).join('') : _escName(t);
   const sans = av.camp.disciplines.filter(d => !av.items.some(it => it.disc.id === d.id));
   return `${mots.length ? `<div class="pf-words"><span class="pf-mu">Mots qui reviennent :</span>${mots.map(x => `<button class="${_ficheMot === x.mot ? 'on' : ''}" aria-pressed="${_ficheMot === x.mot}" onclick="ficheMotUI('${_escJsAttr(x.mot)}')">${_escName(x.mot)} ×${x.n}</button>`).join('')}</div>` : ''}
     ${av.items.length ? `<div class="rel-wrap"><table class="pf-mx"><thead><tr><th class="pf-dn">Discipline</th>${av.cols.map(c => `<th>${_escName(c.label)}</th>`).join('')}</tr></thead><tbody>${
@@ -8341,7 +8493,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const absR = _absMbnClasseAny(cls) ? _absMbnResume(sid, b.start, b.end) : null;
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
-  const manq = docs.filter(d => d.suiviRetour !== false && (r => !r.rendu || (r.dateRetour && r.dateRetour > b.end))(_retour(d, sid)));
+  const manq = docs.filter(d => !d.archive && d.suiviRetour !== false && !_retour(d, sid).rendu);   // comme la liste et la synthèse
   // Moyennes : matières en lignes, imports en colonnes, Δ du premier au dernier.
   const m = _ficheMoy(cls, sid, col, b);
   let moyT = '<p class="pf-empty">Aucun import de moyennes pour ce moment.</p>';
@@ -8440,7 +8592,7 @@ function _ficheChronoHTML(cls, stu, col) {
   const nr = _ficheFaits(cls, stu, col).find(f => f.k === 'papier');
   const kpi = (l, v, sub) => `<div class="pf-kpi"><small>${l}</small><b>${v}</b><span>${sub || ''}</span></div>`;
   const kpis = `<div class="pf-kpis">${kpi('Carnet', o ?? '–', (n => n ? `+ ${n} dans MBN` : 'observations sur la période')(_obsMbnEntre(stu.id, b.start, b.end).length))}${kpi('Moyenne', m && m.g !== null ? _escName(_fmtNote(m.g, 1)) : '–', m ? `${m.delta !== null ? _escName(_fmtDelta(m.delta)) + ' · ' : ''}${m.mats.filter(x => typeof x.v === 'number' && x.v < 10).length} sous 10` : 'pas encore d\'import')}${
-    kpi('Incidents', nb('incid'), '')}${kpi('Contacts', nb('contact'), 'avec la famille')}${kpi('Avis', av ? `${av.items.length}/${av.camp.disciplines.length}` : '–', av && (av.camp.cibles || []).includes(stu.id) ? '★ demandé' : 'disciplines')}${kpi('Papiers', nr ? nr.html.split(':')[1].split(',').length : 0, 'à rendre')}</div>`;
+    kpi('Incidents', nb('incid'), '')}${kpi('Contacts', nb('contact'), 'avec la famille')}${kpi('Avis', av ? `${av.items.length}/${av.camp.disciplines.length}` : '–', av && (av.camp.cibles || []).includes(stu.id) ? '★ demandé' : 'disciplines')}${kpi('Papiers', nr ? nr.n : 0, 'à rendre')}</div>`;
   const LANES = [['obs', 'Carnet'], ['moy', 'Moyennes'], ['avis', 'Avis'], ['incid', 'Incidents'], ['contact', 'Contacts'], ['bilan', 'Bilans'], ['papier', 'Papiers']];
   const W = 1000, L = 100, R = 14, LH = 26, H = 22 + LANES.length * LH;
   // Comme la courbe : à partir du 1er septembre (un événement d'août se pose au bord gauche).
@@ -10602,7 +10754,7 @@ function ordrePaintEnd(e) {
   renderDonnees();
 }
 
-function _salleMut(fn, msg) { pushUndo(); const ok = fn(); if (ok === false) { undoLast(); return false; } save(); renderDonnees(); if (msg) toast(msg); return true; }
+function _salleMut(fn, msg) { pushUndo(); const ok = fn(); if (ok === false) { _undoAnnulerRefus(); return false; } save(); renderDonnees(); if (msg) toast(msg); return true; }
 function salleAddUI() {
   _uiPrompt({ title: '+ Nouvelle salle', label: 'Nom de la salle', value: '', maxlength: 40,
     onOk: v => { if (!_salleMut(() => { const sa = salleAdd(v, 5, 6); if (sa) _salleEd.id = sa.id; return !!sa; })) toast('⚠️ Il faut un nom.', 'warn'); } });
@@ -10667,7 +10819,7 @@ function instanceRemoveUI(id) {
   const i = S.instances[id];
   if (!i) return;
   pushUndo();
-  if (!instanceRemove(id)) { toast('⚠️ Cette instance ne peut pas être supprimée (d\'office, ou utilisée).', 'warn'); undoLast(); return; }
+  if (!instanceRemove(id)) { toast('⚠️ Cette instance ne peut pas être supprimée (d\'office, ou utilisée).', 'warn'); _undoAnnulerRefus(); return; }
   save();
   renderDonnees();
 }
@@ -10931,6 +11083,15 @@ let _carnetShowGone = false;
 // dernière mutation (motif _evalArmUndo de la référence). Sinon la pile sature en dix
 // cellules et Ctrl+Z ne remonte plus qu'une frappe.
 let _relUndoArmed = false, _relUndoTimer = null;
+// Tout verrou de salve se désarme ICI : rechargement de sync ET Ctrl+Z / Ctrl+Y.
+function _salvesDesarmer() {
+  if (_relUndoTimer) { clearTimeout(_relUndoTimer); _relUndoTimer = null; }
+  _relUndoArmed = false;
+  if (_ramUndoTimer) { clearTimeout(_ramUndoTimer); _ramUndoTimer = null; }
+  _ramUndoArmed = false;
+  if (_elUndoTimer) { clearTimeout(_elUndoTimer); _elUndoTimer = null; }
+  _elUndoArmed = false;
+}
 function _relArmUndo() {
   if (!_relUndoArmed) { pushUndo(); _relUndoArmed = true; }
   clearTimeout(_relUndoTimer);
@@ -11095,8 +11256,11 @@ function relCellChange(inp) {
   if (!cls) return;
   const { ymd, sid } = inp.dataset;
   const before = S.releves[cls.id]?.[ymd]?.counts?.[sid];
+  const deja = _relUndoArmed;
   _relArmUndo();
   const ok = releveSetCount(cls.id, ymd, sid, inp.value);
+  // Un cran posé pour une saisie refusée est retiré (audit du 2026-10-10 : « abc » laissait un Ctrl+Z vide).
+  if (!ok && !deja) { _undoAnnulerRefus(); clearTimeout(_relUndoTimer); _relUndoArmed = false; }
   if (!ok) {
     toast(`⚠️ Saisie refusée : un nombre entier, « ${_codeA()} » pour absent, ou rien.`, 'warn');
     const v = _relValue({ counts: { [sid]: before } }, sid);
@@ -12230,7 +12394,7 @@ function _docMut(docId, fn, rerender = true) {
   const doc = S.documents[docId];
   if (!doc) return;
   pushUndo();
-  fn(doc);
+  if (_undoSiRien(fn(doc))) { if (rerender) renderDocuments(); return; }
   save();
   if (rerender) renderDocuments();
 }
@@ -13713,7 +13877,7 @@ function _elMut(fn, rerender = true) {
   const el = _elCurrent();
   if (!el) return;
   pushUndo();
-  fn(el);
+  if (_undoSiRien(fn(el))) { renderDelegues(); return; }   // un refus redessine (le menu revient à sa valeur)
   save();
   if (rerender) renderDelegues();
 }
@@ -13751,7 +13915,7 @@ function hvcSaveUI() {
   if (!titre.trim()) { toast('⚠️ Un thème, au moins.', 'warn'); document.getElementById('hvc-titre')?.focus(); return; }
   pushUndo();
   const ok = _hvcEdit === 'new' ? !!hvcAdd(cls, { date: d, titre, texte }) : hvcSet(cls, _hvcEdit, { date: d, titre, texte });
-  if (!ok) { undoLast(); return toast('⚠️ Entrée refusée.', 'warn'); }
+  if (!ok) { _undoAnnulerRefus(); return toast('⚠️ Entrée refusée.', 'warn'); }
   save();
   _hvcEdit = null;
   renderDelegues();
@@ -13892,7 +14056,7 @@ function deleguesSetUI(kind) {
   const titulaires = [v('t1'), v('t2')].filter(Boolean), suppleants = [v('s1'), v('s2')].filter(Boolean);
   if (new Set([...titulaires, ...suppleants]).size !== titulaires.length + suppleants.length) return toast('⚠️ Un même élève ne peut pas tenir deux rôles.', 'warn');
   pushUndo();
-  if (!deleguesSet(cls, { date, titulaires, suppleants, note: v('note') }, ty.key)) { undoLast(); return toast('⚠️ Désignez au moins un élève.', 'warn'); }
+  if (!deleguesSet(cls, { date, titulaires, suppleants, note: v('note') }, ty.key)) { _undoAnnulerRefus(); return toast('⚠️ Désignez au moins un élève.', 'warn'); }
   save();
   _delDirectOpen[ty.key] = false;
   renderDelegues(); renderStudents();
@@ -14088,12 +14252,12 @@ function _elRenderDepouillement(el, tourIdx, live) {
   const rows = t.bulletins.map(b => {
     const st = _elStatut(b, el);
     return `<tr class="bul ${st}">
-      <td class="bul-n">${b.n}</td>
-      ${cands.map(c => `<td class="bul-c"><input type="checkbox" data-n="${b.n}" data-c="${_escAttr(c.id)}"${b.voix.includes(c.id) ? ' checked' : ''} onchange="electionToggleVoix(${b.n},'${_escJsAttr(c.id)}',this.checked)" onkeydown="electionBulKey(event)" title="${_escAttr(_elCandNom(c))}"></td>`).join('')}
-      <td class="bul-st"><span class="bul-badge ${st}">${st === 'alire' ? 'à lire' : st}</span>${st === 'alire' ? `<button class="btn btn-g btn-sm" onclick="_elMut(e=>electionSetBulletin(e,${tourIdx},${b.n},{lu:true}))" title="Bulletin vierge : le compter blanc (Entrée fait pareil)">Blanc</button>` : ''}
-        <label class="tb-hint" title="Inscription inappropriée, marque distinctive… un bulletin qui porte des noms valides mais doit être annulé"><input type="checkbox"${b.nul ? ' checked' : ''} onchange="_elMut(e=>electionSetBulletin(e,${tourIdx},${b.n},{nul:this.checked}))"> nul</label>
-        ${b.nul ? `<input type="text" value="${_escAttr(b.motifNul)}" placeholder="motif" maxlength="60" style="width:110px;font-size:.8em;padding:2px 5px" onchange="_elMut(e=>electionSetBulletin(e,${tourIdx},${b.n},{motifNul:this.value}),false)">` : ''}</td>
-      <td><button class="btn btn-g btn-sm" onclick="_elMut(e=>electionRemoveBulletin(e,${tourIdx},${b.n}))" title="Supprimer ce bulletin (mal lu)">✕</button></td>
+      <td class="bul-n">${+b.n}</td>
+      ${cands.map(c => `<td class="bul-c"><input type="checkbox" data-n="${+b.n}" data-c="${_escAttr(c.id)}"${b.voix.includes(c.id) ? ' checked' : ''} onchange="electionToggleVoix(${+b.n},'${_escJsAttr(c.id)}',this.checked)" onkeydown="electionBulKey(event)" title="${_escAttr(_elCandNom(c))}"></td>`).join('')}
+      <td class="bul-st"><span class="bul-badge ${st}">${st === 'alire' ? 'à lire' : st}</span>${st === 'alire' ? `<button class="btn btn-g btn-sm" onclick="_elMut(e=>electionSetBulletin(e,${tourIdx},${+b.n},{lu:true}))" title="Bulletin vierge : le compter blanc (Entrée fait pareil)">Blanc</button>` : ''}
+        <label class="tb-hint" title="Inscription inappropriée, marque distinctive… un bulletin qui porte des noms valides mais doit être annulé"><input type="checkbox"${b.nul ? ' checked' : ''} onchange="_elMut(e=>electionSetBulletin(e,${tourIdx},${+b.n},{nul:this.checked}))"> nul</label>
+        ${b.nul ? `<input type="text" value="${_escAttr(b.motifNul)}" placeholder="motif" maxlength="60" style="width:110px;font-size:.8em;padding:2px 5px" onchange="_elMut(e=>electionSetBulletin(e,${tourIdx},${+b.n},{motifNul:this.value}),false)">` : ''}</td>
+      <td><button class="btn btn-g btn-sm" onclick="_elMut(e=>electionRemoveBulletin(e,${tourIdx},${+b.n}))" title="Supprimer ce bulletin (mal lu)">✕</button></td>
     </tr>`;
   }).join('');
   return `<div class="el-block">
@@ -14384,7 +14548,7 @@ function electionRemplacerUI() {
   const remplacantCandId = document.getElementById('rp-succ')?.value || null;
   pushUndo();
   const r = electionRemplacer(el, { candId, qui, date, motif, texte, remplacantCandId });
-  if (!r) { undoLast(); return toast('⚠️ Remplacement refusé (mandat inconnu, ou déjà remplacé).', 'warn'); }
+  if (!r) { _undoAnnulerRefus(); return toast('⚠️ Remplacement refusé (mandat inconnu, ou déjà remplacé).', 'warn'); }
   save();
   _elRemplOpen = false;
   renderDelegues(); renderStudents();
@@ -17824,9 +17988,9 @@ async function avisPreparerUI(telecharger, creer) {
   const mois = +(document.getElementById('mavis-mois')?.value || _todayYmd().slice(5, 7));
   const cd = _avisColsDraftPour(null);
   const essai = avisColonnesSet({ avis: {} }, cd.cols);
-  if (!essai.ok) { undoLast(); return toast('⚠️ Colonnes : ' + essai.err, 'warn'); }
+  if (!essai.ok) { _undoAnnulerRefus(); return toast('⚠️ Colonnes : ' + essai.err, 'warn'); }
   const camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, lien, cibles: [..._avisCiblesDraft], objectif, mois, colonnes: cd.cols });
-  if (!camp) { undoLast(); return toast('⚠️ Période ou disciplines invalides.', 'warn'); }
+  if (!camp) { _undoAnnulerRefus(); return toast('⚠️ Période ou disciplines invalides.', 'warn'); }
   _avisCiblesDraft = new Set();
   _avisColsDraft = null;
   _avisNomDraft = null;
@@ -18138,7 +18302,13 @@ function _periodeSynthese(cls, periodIdx, opts) {
   // Les élèves présents PENDANT la période : arrivé avant sa fin, pas parti avant son début.
   const presents = cls.eleves.map(id => S.eleves[id]).filter(Boolean)
     .filter(s => !(s.arrivalDate && s.arrivalDate > p.end) && !(s.departureDate && s.departureDate <= p.start));
-  const mp = _moyPourPeriode(cid, p0);
+  // Moyennes : au CONSEIL, le dernier import de la période, même daté après sa fin (les définitives) ;
+  // pour un autre moment (mi-période, point du mois), le dernier import d'avant la fin du moment, comme
+  // la fiche et la carte de chaleur (audit du 2026-10-10, arbitré par l'utilisateur).
+  const mp = (() => { const x = _moyPourPeriode(cid, p0);
+    if (!x || !o.col || o.col.type === 'conseil') return x;
+    const list = x.list.filter(r => r.date <= p.end);
+    return list.length ? { ...x, list, premier: list[0], dernier: list[list.length - 1] } : null; })();
   const rows = presents.map(stu => {
     let cumulFin = null, cumulFinDate = null, absents = 0;
     for (const d of dates) {
@@ -18146,6 +18316,9 @@ function _periodeSynthese(cls, periodIdx, opts) {
       if (typeof v === 'number') { cumulFin = v; cumulFinDate = d; }
       else if (v === REL_ABSENT) absents++;
     }
+    // Aucun relevé chiffré dans le moment (un point du mois sans relevé) : le cumul REPORTÉ du dernier
+    // relevé d'avant, comme la carte de chaleur et la fiche (audit du 2026-10-10) — pas une case vide.
+    if (cumulFin === null) for (const d of _relDates(cid)) { if (d > p.end) break; const v = _relValue(m[d], stu.id); if (typeof v === 'number') { cumulFin = v; cumulFinDate = d; } }
     const nonRendus = docs.filter(d => _docExpected(d).some(x => x.id === stu.id) && !_retour(d, stu.id).rendu).map(d => d.titre);
     const incidents = _incidentsOf(stu.id).filter(e => e.date >= p.start && e.date <= p.end)
       .map(e => ({ date: e.date, type: e.type, objet: e.objet, texte: e.texte || '' })).reverse();
@@ -20414,14 +20587,10 @@ function _applyReloadedData(data, f) {
     // après un rechargement fait SAUTER le pushUndo() de la mutation suivante — laquelle
     // porte sur l'état fraîchement rechargé, jamais capturé. Tout nouveau motif de salve
     // se désarme ICI, sous peine d'un Ctrl+Z qui ne remonte pas.
-    if (_relUndoTimer) { clearTimeout(_relUndoTimer); _relUndoTimer = null; }
-    _relUndoArmed = false;
-    if (_ramUndoTimer) { clearTimeout(_ramUndoTimer); _ramUndoTimer = null; }
-    _ramUndoArmed = false;
     // Et celui des naissances saisies en série (v1.7.0) — oublié ici jusqu'à l'audit du
-    // 2026-09-11 : la leçon du verrou du ramassage, une troisième fois.
-    if (_elUndoTimer) { clearTimeout(_elUndoTimer); _elUndoTimer = null; }
-    _elUndoArmed = false;
+    // 2026-09-11 : la leçon du verrou du ramassage, une troisième fois. Tous dans `_salvesDesarmer`
+    // (v1.58.3), appelée aussi par Ctrl+Z / Ctrl+Y.
+    _salvesDesarmer();
     _hvcEdit = null; _bilanOrdreFige = null; _bilanMode = null; _elRemplOpen = false;
     document.body.classList.remove('el-projecting');
   } catch (_) {}
@@ -21947,10 +22116,13 @@ async function _demoReplaceState(cpLabel, build, msg) {
     if (!ok) { toast('Rien n\'a été remplacé : le point de sauvegarde n\'a pas pu être écrit.', 'error'); return; }
   }
   pushUndo();
+  const prevClock = { ...((S && S.clock) || {}) };
   S = _emptyState();
   postLoadHook();
   _docView = null; _ramSel = null; _docEdit = null; _elView = null; _elProject = false; _relEditYmd = null;
   build();
+  if (!_isPlainObj(S.clock)) S.clock = {};
+  _clockMergeMax(S.clock, prevClock); _clockBumpSelf();   // comme à l'import : l'horloge ne recule pas
   save();
   refreshSelector();
   switchTab('eleves');
@@ -22018,7 +22190,7 @@ function recupChampsFichier(ev) {
     let ancien;
     try { ancien = JSON.parse(String(rd.result || '')); } catch (_) { return toast('⚠️ Ce fichier n\'est pas une sauvegarde lisible (JSON).', 'warn'); }
     const items = _recupChamps(ancien);
-    if (!items.length) return appAlert('Rien à récupérer', `Dans « ${f.name} », aucun élève actuel n'a de date de naissance, d'arrivée, de départ ou de civilité qui manque aujourd'hui.`);
+    if (!items.length) return appAlert('Rien à récupérer', `Dans « ${_escName(f.name)} », aucun élève actuel n'a de date de naissance, d'arrivée, de départ ou de civilité qui manque aujourd'hui.`);
     const parChamp = _RECUP_CHAMPS.map(c => [c.label, items.filter(x => x.champ === c.key).length]).filter(x => x[1]);
     const liste = items.slice(0, 12).map(x => `• ${x.nom} — ${x.label} : ${x.champ === 'civilite' ? x.valeur : _fmtDateFr(x.valeur)}`).join('\n');
     _uiConfirm({
@@ -22049,6 +22221,7 @@ function init() {
   try { vierge = !localStorage.getItem(LS_KEY); } catch (_) {}
   load();
   if (vierge) createDemo();
+  if (_loadIllisible) setTimeout(() => appAlert('Sauvegarde locale illisible', 'Les données enregistrées dans ce navigateur n\'ont pas pu être relues : l\'app démarre vide. Rien n\'est perdu : le texte d\'origine est gardé à part dans ce navigateur (« suiviPP_v1_illisible »). Rechargez plutôt votre dernier fichier : 💾 Données → ↩ Dernier fichier chargé, ou le dossier de sync.', 'warn'), 400);
   refreshSelector();
   updateUndoRedoUI();
   _updateDirtyIndicator();
