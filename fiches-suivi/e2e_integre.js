@@ -123,6 +123,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(await h(() => S.prefs.avisNom === "Mme PERCHE"), "référent modifié dans la fiche : c'est aussi le professeur principal de Suivi PP");
   await h(() => undoLast()); await wait(600);
   ok(await h(() => S.prefs.avisNom !== "Mme PERCHE") && await f(() => document.querySelector("[data-path=referent]").value !== "Mme PERCHE"), "Ctrl+Z : annulé des deux côtés");
+  // la discipline Latin a un code d'option dans Suivi PP (démo : LATIN) : le pinceau de l'emploi du temps prend le groupe de l'option
+  await f(() => { location.hash = "#edt"; }); await wait(600);
+  await f(() => { pinGroupe = ""; document.querySelector('[data-pin="Latin"]').click(); }); await wait(300);
+  ok(await f(() => pinceau && pinceau.mat === "Latin" && pinGroupe === "Latin"), "emploi du temps : la matière d'une discipline à option (code LATIN dans Suivi PP) se peint d'office pour le groupe de l'option");
+  await f(() => { pinceau = null; pinGroupe = ""; });
   // 6. Ctrl+P dans Suivi PP sur l'onglet : l'impression de la fiche ; rechargement : tout est là
   await f(() => { window.__imp = 0; addEventListener("message", ev => { if (ev.data && ev.data.type === "imprimer") window.__imp++; }); window.print = () => {}; });
   await h(() => document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true }))); await wait(400);

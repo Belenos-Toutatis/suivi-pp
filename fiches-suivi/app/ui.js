@@ -1293,6 +1293,12 @@ document.addEventListener("click", e => {
   if (b.dataset.pinGr !== undefined) { pinGroupe = b.dataset.pinGr; render(); return; }
   const mat = b.dataset.pin;
   pinceau = pinceau && pinceau.mat === mat ? null : { mat, salle: pinceau && pinceau.mat === mat ? pinceau.salle : "" };
+  /* version intégrée : une matière dont la discipline, dans Suivi PP, est une OPTION (code LAT…) se peint d'office pour le groupe
+     de cette option — on peut toujours repasser à « Toute la classe » (2026-10-10). */
+  if (HOTE && pinceau && mat && hoteCommun && hoteCommun.profs && Object.prototype.hasOwnProperty.call(hoteCommun.profs, mat)) {
+    const codes = (hoteCommun.profs[mat].codes || []).map(cleNom), g = S.groupes.find(x => x.nom && codes.includes(cleNom(x.nom)));
+    if (g && pinGroupe !== g.nom) { pinGroupe = g.nom; toast(`« ${mat} » est une option dans Suivi PP : le pinceau peint pour le groupe « ${g.nom} ». « Toute la classe » sous la palette pour changer.`, 6000); }
+  }
   render();
   const s = $("#pin-salle"); if (s && pinceau && pinceau.mat) s.focus();
 });
@@ -3070,7 +3076,7 @@ function marquerCommunsHote() {
     if (el.classList.contains("commun-hote")) continue;
     el.classList.add("commun-hote");
     const lien = el.dataset.path.startsWith("matieres.") ? hoteCommun.profs[S.matieres[Number(el.dataset.path.split(".")[1])].nom] : null;
-    el.title = (el.title ? el.title + "\n" : "") + "↔ Commun avec Suivi PP" + (lien ? ` (discipline « ${lien.discipline} »)` : "") + " : le modifier ici le modifie aussi là-bas, et inversement.";
+    el.title = (el.title ? el.title + "\n" : "") + "↔ Commun avec Suivi PP" + (lien ? ` (discipline « ${lien.discipline} »${lien.codes && lien.codes.length ? `, option ${lien.codes.join(", ")}` : ""})` : "") + " : le modifier ici le modifie aussi là-bas, et inversement.";
     const carte = el.closest(".card");
     if (carte && !carte.querySelector(".commun-hote-hint")) { const p = document.createElement("p"); p.className = "hint commun-hote-hint";
       p.textContent = "↔ Les champs marqués d’un trait bleu sont communs avec Suivi PP : ce qui est réglé d’un côté l’est aussi de l’autre.";

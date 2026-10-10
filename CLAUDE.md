@@ -123,7 +123,7 @@ S = {
   matieres:   { [mid]: { id, nom, norm, ord, disc? } },   // catalogue qui réaligne les colonnes ; disc = discipline (avis)
   avis:       { [classId]: { [campId]: campagne } },     // avis des collègues : une feuille du Nuage par période
   fichesSuivi:{ [classId]: { etat, noms, demo? } },     // 📋 Suivis : l'état (opaque) de l'app des fiches de suivi
-  disciplines:{ [did]: { id, nom, onglet, actif, ord, builtin } },   // les onglets de cette feuille
+  disciplines:{ [did]: { id, nom, onglet, actif, ord, builtin, code? } },   // les onglets de cette feuille ; code = l'option (v1.62.0)
   prefs:      { periodMode: 'semestre'|'trimestre', … },
   instances:  { [instanceId]: instance },          // catalogue des instances (incidents)
   cur:        classId,
@@ -502,6 +502,7 @@ suivi devrait venir de ce qui a été réglé dans Suivi PP. Il faut que les par
 | `referent` | `prefs.avisNom` (« Votre nom », signature des avis) |
 | `decoupage` (mode, fins) | `prefs.periodMode`, `prefs.periodStarts` (fin d'une période = veille du début de la suivante) |
 | `matieres[i].prof` | l'enseignant de la discipline : `_discProfs` (tapé dans Données, sinon le dernier import de moyennes) |
+| (pinceau de l'emploi du temps) | le code d'option de la discipline (v1.62.0) : la matière se peint d'office pour le groupe de l'option |
 - Une matière de la fiche est rattachée à une discipline par **`_matiereDiscAuto`** — les mêmes motifs que pour les moyennes
   (« Hist.-Géo. » par l'onglet de la discipline). « Vie de classe », « Devoirs faits », une langue non reconnue restent à la fiche.
 - **Suivi PP → fiche** : une valeur vide ne remplace rien ; les dates du découpage ne sont envoyées que si elles ne sont plus celles
@@ -1400,6 +1401,17 @@ campagne, IndexedDB `avis_<id>` — propre au poste, comme le dossier des PDF).
   éducation musicale, EPS, enseignement des religions, français, histoire-géographie,
   mathématiques, physique-chimie, SVT, technologie. Réglables dans 💾 Données (nom, nom
   d'onglet ≤ 31 caractères sans `[]*?:/\`, actif), complétables (Allemand, Latin…).
+- **Code d'option d'une discipline** (v1.62.0, l'utilisateur : *« dans la liste des disciplines, le code court qui la
+  représente, celui qui est associé aux élèves — pour le latin, les élèves auront le tag LAT »*) : `S.disciplines[did].code`
+  (absent = toute la classe suit la discipline ; plusieurs codes séparés par des virgules, rangés par `_discCodesTexte` :
+  majuscules, sans doublon, au plus six), colonne *Option (code)* de 💾 Données (proposée depuis les options de la classe,
+  `datalist#disc-codes` ; dessous, « n élèves en 5e C » ou « ⚠ aucun élève »). `_discSuit(did, sid)` : l'élève porte une option
+  dont le CODE ou le NOM (normalisés) est l'un des codes. Effets : l'onglet de la feuille d'avis ne liste que ces élèves
+  (`_avisFeuilles`) ; une discipline non suivie n'est ni « sans réponse » ni comptée (résumé, lecture des avis, fiche) ; sa case
+  est « — » dans la grille « Qui a écrit sur qui » (légende *non concerné (option)*) et dans la carte de chaleur ; dans 📋 Suivis,
+  la matière rattachée part avec ses `codes` (`_suivisCommun`) et le pinceau de l'emploi du temps prend d'office le groupe de
+  l'option (cf. `fiches-suivi/CLAUDE.md`). ⚠️ Un avis déjà écrit sur un élève qui ne suit pas la discipline reste compté et
+  affiché : on ne cache pas ce qui a été écrit. Démo : discipline *Latin*, code LATIN, deux avis.
 - **Domaines et couleurs d'onglets** (v1.39.3, demande de l'utilisateur : *« une couleur par
   domaine disciplinaire, des nuances pour chaque discipline »*) : `DOMAINES` (langues bleu ·
   lettres et humanités brique · sciences vert · arts violet · EPS orange · autre gris),
@@ -2521,6 +2533,7 @@ Familles à couvrir dès le début :
 | 7 | Onglet Synthèse (`_syntheseRow` pur, testé) + impressions par pages nommées (synthèse paysage, manquants et PV portrait), Ctrl+P contextuel | ✅ **fait** (2026-09-09, v0.7.0) |
 | 8 | Sync auto (debounce 5 s, mutex, reprise), horloge vectorielle en service, conflits non destructifs + snooze archivé, backups à rotation par paliers, checkpoints nommés, IndexedDB (handle + copie du dernier fichier), jauge de capacité mesurée | ✅ **fait** (2026-09-09, v0.8.0) |
 | 9 | Données de démo : `createDemo()` posée au 1er lancement (25 élèves, 8 relevés, 6 documents, 2 élections), `_demoBulletins` pur et testé, boutons « charger la démo » / « tout effacer » avec point nommé + undo | ✅ **fait** (2026-09-09, v0.9.0) |
+| 159 | **Code d'option d'une discipline** (Données, colonne *Option (code)*, `_discSuit`) : l'onglet de la feuille d'avis ne liste que les élèves de l'option, une discipline non suivie n'est ni attendue ni comptée (grille, lecture, fiche, carte de chaleur : « — ») ; dans 📋 Suivis, le pinceau de l'emploi du temps prend d'office le groupe de l'option ; démo : Latin ; 7 tests (`test/disciplines-code.test.js`), `e2e_integre` étendu (44) ; parcours 140 états, 0 défaut | ✅ **fait** (2026-10-10, v1.62.0) |
 | 158 | **Fiches de suivi dans la carte de chaleur** (groupe *Indiv.* · *Collectif* · *Classe*, sur le moment, cliquable) et **réglages communs aux deux applications** (classe, établissement, professeur principal, découpage de l'année, enseignant de chaque matière reconnue — dans les deux sens, Ctrl+Z commun) ; calcul groupé pour toute la classe ; 3 tests de plus, `e2e_integre` étendu (43). Défauts trouvés en route : la démonstration des fiches écrasait les enseignants de Suivi PP ; la carte de chaleur restait en attente après un rechargement des données | ✅ **fait** (2026-10-10, v1.61.0) |
 | 157 | **Les fiches de suivi dans la fiche élève** : carte « 📋 Fiches de suivi » bornée au moment (suivi individuel, collectif, fiches de classe), faits insérables dans le bilan, partie de la fiche imprimée, « ↗ Ouvrir » vers la fiche élève de l'appli ; chiffres calculés par l'appli des fiches dans son cadre (`__ficheResumeEleve`), jamais ici ; 5 tests de plus (`test/fiches-suivi.test.js`), `e2e_integre` étendu (37). Audit de la fiche (tableau de bord, faits, papier) 2 thèmes, 1 570 et 375 px, 0 défaut | ✅ **fait** (2026-10-10, v1.60.0) |
 | 156 | **Onglet 📋 Suivis : les fiches de suivi intégrées** — la version intégrée de `fiches-suivi/` (compressée dans le fichier par `assemble.py`, chargée par `srcdoc`, nos polices), son état dans `S.fichesSuivi` (sync, sauvegardes, purge, import), Ctrl+Z commun (un geste de la fiche = un cran, Ctrl+Z / Ctrl+Y depuis la fiche), liste de la classe envoyée à la fiche (chaque élève garde sa ligne, renommages, arrivées, départs), thème et polices de Données, Ctrl+P, démo fabriquée par la fiche aux noms de la classe ; polices de Suivi PP au sous-ensemble élargi (latin étendu A…) ; RGPD ; 13 tests (`test/fiches-suivi.test.js`) et `fiches-suivi/e2e_integre.js` (34 vérifications, en `file://`). Défauts trouvés en route : cran vide (la fiche date chaque envoi), cadre en blob inutilisable en `file://`, `<base>` refusée par la politique de sécurité | ✅ **fait** (2026-10-10, v1.59.0) |

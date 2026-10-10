@@ -138,6 +138,8 @@ dans un cadre par **`srcdoc`**. Tout ce qui lui est propre passe par `HOTE` (ui.
   que Suivi PP reconnaît — reçus de Suivi PP (une valeur vide ne remplace rien) ; modifiés ici, ils repartent avec le suivi et
   Suivi PP les reprend. Les champs portent un trait bleu (`marquerCommunsHote`). Détail : CLAUDE.md de Suivi PP, *Fiches de suivi*.
   `__ficheResumeEleves(etat, noms, du, au)` : le résumé de plusieurs élèves d'un coup (carte de chaleur).
+  **Pinceau de l'emploi du temps** (v1.62.0) : une matière dont la discipline est une OPTION dans Suivi PP (`profs[mat].codes`)
+  se peint d'office pour le groupe de même nom (`cleNom`), un toast le dit ; « Toute la classe » sous la palette pour changer.
 - Tests : `e2e_integre.js` (le vrai `suivi pp.html`, en `file://`) ; côté Suivi PP, `test/fiches-suivi.test.js`.
 
 ## Rétrocompatibilité (obligatoire depuis la version du 10/10/2026)
