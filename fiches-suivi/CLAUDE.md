@@ -142,6 +142,19 @@ dans un cadre par **`srcdoc`**. Tout ce qui lui est propre passe par `HOTE` (ui.
   se peint d'office pour le groupe de même nom (`cleNom`), un toast le dit ; « Toute la classe » sous la palette pour changer.
 - Tests : `e2e_integre.js` (le vrai `suivi pp.html`, en `file://`) ; côté Suivi PP, `test/fiches-suivi.test.js`.
 
+## Champs disciplinaires (2026-10-11)
+
+L'utilisateur : *« organise les matières par champ disciplinaire, tu peux reprendre ceux de Suivi PP »*. `CHAMPS` (core.js) = les
+domaines de Suivi PP (`langues`, `lettres`, `sciences`, `arts`, `eps`, `autre`, mêmes libellés). `S.matieres[i].champ` n'est écrit
+que s'il est CHOISI (réglages › Matières, menu « Champ » ; ou reçu de Suivi PP) : sinon `champDefaut(nom)` le déduit du nom
+(motifs ; l'EPS avant les sciences, « Éd. physique » contient PHYSIQUE). Un ancien suivi ne reçoit donc aucun champ (`e2e_compat`).
+`matieresParChamp(st)` range (ordre des champs, puis ordre de la liste) ; `ordreMatieres(st)` en donne les noms. Suivent ce rangement :
+la palette de l'emploi du temps (un paquet par champ), les réglages (un intertitre par champ — les `data-path` gardent l'index du
+tableau, qui ne change pas), les menus de matière (`optgroupsMatieres`), le menu du créneau, et les trois bilans par matière (dans
+l'ordre des champs, `tr.nv-champ` : un trait entre deux champs, sans ligne de plus — les tests comptent les lignes). ⚠️ Les COULEURS
+des matières ne changent pas (toujours le rang dans la liste). Version intégrée : le champ d'une matière rattachée est le domaine de
+sa discipline (`profs[mat].champ`), échangé dans les deux sens comme l'enseignant. Test : `e2e_champs.js`.
+
 ## Rétrocompatibilité (obligatoire depuis la version du 10/10/2026)
 
 Les versions antérieures au 10/10/2026 n'ont **pas** à être reprises, à la demande de l'utilisateur. Depuis cette date :

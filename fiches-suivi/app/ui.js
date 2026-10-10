@@ -704,9 +704,16 @@ apresRendu.push(() => { if (current.view !== "sommaire") return; const c = docum
 /** Options de matière ; une matière absente de la liste (supprimée) reste affichée pour ne pas disparaître en silence. */
 function optionsMatieres(sel) {
   const noms = S.matieres.map(m => m.nom).filter(Boolean);
-  return (sel && !noms.includes(sel) ? `<option value="${esc(sel)}" selected>${esc(sel)} (hors liste)</option>` : "") +
-    noms.map(n => `<option ${n === sel ? "selected" : ""}>${esc(n)}</option>`).join("");
+  return (sel && !noms.includes(sel) ? `<option value="${esc(sel)}" selected>${esc(sel)} (hors liste)</option>` : "") + optgroupsMatieres(sel);
 }
+/** Les <option> des matières, rangées par champ disciplinaire (<optgroup>). */
+function optgroupsMatieres(sel) {
+  return matieresParChamp(S, m => m.nom.trim()).map(g => `<optgroup label="${esc(g.label)}">${g.items.map(({ m }) => `<option${m.nom === sel ? " selected" : ""}>${esc(m.nom)}</option>`).join("")}</optgroup>`).join("");
+}
+/** Le champ disciplinaire d'une matière par son nom (une matière hors liste : déduit de son nom). */
+const champNom = nom => champDe(S.matieres.find(m => m.nom === nom) || { nom });
+/** Les noms qui ouvrent un nouveau champ dans une liste déjà rangée (le premier excepté) : un trait les sépare dans les bilans. */
+function debutsChamp(noms) { const r = new Set(); noms.forEach((n, k) => { if (k && champNom(n) !== champNom(noms[k - 1])) r.add(n); }); return r; }
 
 /* ---------- fiche du jour ---------- */
 let aideOuverte = true;            // mode d'emploi déplié la première fois, puis comme l'utilisateur l'a laissé
@@ -1135,10 +1142,11 @@ function bilanHTML() {
     const tPc = `${qui}\n${Periode}\n• Réussite : **${r} %** — ${nbX(ok)} ${codes[0]} ou ${codes[1]} sur ${nbX(obs)}${cl ? `\n• ${cl === "alert" ? "Rouge" : "Orange"} : sous ${cl === "alert" ? seuils(S).rouge : seuils(S).orange} %` : ""}${nI ? `\n• ${nbX(nI)} « ${codes[3]} » (${sens[3]}) : pas de vert` : ""}${peuDe(obs, "croix")}`;
     return `<td class="g" title="${qui}\n${Periode}\n• **${nbX(obs)}** en tout (une par objectif et par cours)${peuDe(obs, "croix")}">${obs}</td><td title="${qui}\n${Periode}\n• **${nbX(ok)}** « ${sens[0]} » ou « ${sens[1]} » (${codes[0]}, ${codes[1]})\n• les autres : ${neg} (${codes[2]} : ${neg - nI}, ${codes[3]} : ${nI})">${ok}</td><td class="pcb ${cl || vert}${coinI(nI)}" title="${tPc}">${cl || vert ? `<span class="pa">${cl === "alert" ? "▼ " : ""}${r}\u202f%</span>` : r + "\u202f%"}</td>`; };
   const tot = idx.map(() => ({ obs: 0, neg: 0, i: 0 })); let gO = 0, gN = 0, gI = 0;
+  const debuts = debutsChamp(rows.map(r => r.mat));
   const body = rows.map(r => { let o = 0, n = 0, ni = 0;
     const cells = idx.map((s, k) => { const c = r.el[s]; o += c.obs; n += c.neg; ni += c.i; tot[k].obs += c.obs; tot[k].neg += c.neg; tot[k].i += c.i; return cell(c.obs, c.neg, c.i, `${esc(r.mat)} — ${esc(S.eleves[s].nom)}`); }).join("");
     gO += o; gN += n; gI += ni;
-    return `<tr data-pin="${esc(r.mat)}" class="${bilanPin.has(r.mat) ? "pin" : ""}"><td class="l" title="${esc(r.mat)}${r.prof ? " — " + esc(r.prof) : ""}\n• Cliquez pour garder cette ligne surlignée et la suivre sur toute la largeur du tableau\n• Cliquez à nouveau pour l’enlever"><button type="button" class="pin-b" aria-pressed="${bilanPin.has(r.mat)}">${esc(r.mat)}</button>${r.prof ? `<small class="prof">${esc(r.prof)}</small>` : ""}</td>${cell(o, n, ni, `${esc(r.mat)} — tous les élèves`)}${cells}</tr>`; }).join("");
+    return `<tr data-pin="${esc(r.mat)}" class="${bilanPin.has(r.mat) ? "pin" : ""}${debuts.has(r.mat) ? " nv-champ" : ""}"><td class="l" title="${esc(r.mat)}${r.prof ? " — " + esc(r.prof) : ""}\n• Cliquez pour garder cette ligne surlignée et la suivre sur toute la largeur du tableau\n• Cliquez à nouveau pour l’enlever"><button type="button" class="pin-b" aria-pressed="${bilanPin.has(r.mat)}">${esc(r.mat)}</button>${r.prof ? `<small class="prof">${esc(r.prof)}</small>` : ""}</td>${cell(o, n, ni, `${esc(r.mat)} — tous les élèves`)}${cells}</tr>`; }).join("");
   return `<div class="f-head"><div class="f-title" role="heading" aria-level="2" data-titre style="text-align:left"><b>Suivi collectif – Bilan par matière – ${sems.length === 1 ? `semaine ${sems[0].num} (du ${fmtDM(sems[0].lundi)} au ${fmtDM(sems[0].jours.at(-1))})` : `semaines ${sems[0].num} à ${sems[sems.length - 1].num} (du ${fmtDM(sems[0].lundi)} au ${fmtDM(sems[sems.length - 1].jours.at(-1))}, ${sems.length} semaines de cours)`}${S.classe ? " – Classe " + esc(S.classe) : ""}</b></div></div>
   <p class="hint" style="font-family:var(--serif)">Nombre de croix, dont « ${esc(S.codage[0].sens)} » + « ${esc(S.codage[1].sens)} » (${codes[0]} + ${codes[1]}), et la <b>réussite</b> : leur part, comme dans les totaux. Orange (cadre pointillé) : réussite sous ${seuils(S).orange} %, rouge (cadre plein) et ▼ : sous ${seuils(S).rouge} %${S.pastillesVertes ? `. Vert clair : ${seuils(S).vert} % et plus, vert : ${seuils(S).vertFonce} % et plus, sans aucune croix ${codes[3]}` : ""} (voir « Seuils »). <i class="coin-leg" aria-hidden="true"></i> Coin rouge : au moins une croix ${codes[3]} (jamais de vert dans ce cas ; nombre dans l’infobulle).<span class="no-print"> Survolez un titre ou une case pour savoir ce qu’elle contient. Cliquez sur une matière pour garder sa ligne surlignée et la suivre sur toute la largeur du tableau.</span></p>
   <table class="bil${S.pastillesVertes ? " verts" : ""}"><thead><tr><th rowspan="2" title="Matière et enseignant\nSelon l’emploi du temps et les fiches collectives.\n• Cliquez sur une matière pour garder sa ligne surlignée">Matière<br><small>enseignant</small></th><th colspan="3" class="g" title="Tous les élèves\nLeurs croix additionnées, matière par matière (${periode}).">Tous les élèves</th>${idx.map(s => `<th colspan="3" class="g" title="${esc(S.eleves[s].nom)}\nSes croix, matière par matière (${periode}).">${esc(S.eleves[s].nom)}</th>`).join("")}</tr>
@@ -1186,7 +1194,9 @@ function grilleEdt(t, compact) {
 function viewEdt() {
   const sems = semaines(S), listeSem = t => { const l = sems.filter(w => w.type === t).map(w => "S" + w.num); return l.length ? l.slice(0, 5).join(", ") + (l.length > 5 ? "…" : "") : "aucune semaine"; };
   const mats = S.matieres.filter(m => m.nom.trim());
-  const palette = mats.map(m => `<button type="button" class="pin${pinceau && pinceau.mat === m.nom ? " on" : ""}" data-pin="${esc(m.nom)}" style="${styleMat(m.nom)}" aria-pressed="${!!(pinceau && pinceau.mat === m.nom)}" title="${esc(m.nom)}${m.prof ? "\n" + esc(m.prof) : ""}\n• puis cliquez ou glissez sur les créneaux">${esc(m.nom)}</button>`).join("")
+  const bouton = m => `<button type="button" class="pin${pinceau && pinceau.mat === m.nom ? " on" : ""}" data-pin="${esc(m.nom)}" style="${styleMat(m.nom)}" aria-pressed="${!!(pinceau && pinceau.mat === m.nom)}" title="${esc(m.nom)}${m.prof ? "\n" + esc(m.prof) : ""}\n• puis cliquez ou glissez sur les créneaux">${esc(m.nom)}</button>`;
+  /* rangée par champ disciplinaire (2026-10-10), comme les disciplines de Suivi PP */
+  const palette = matieresParChamp(S, m => m.nom.trim()).map(g => `<div class="pal-champ" role="group" aria-label="${esc(g.label)}"><span class="pal-t">${esc(g.label)}</span><div class="pal-b">${g.items.map(({ m }) => bouton(m)).join("")}</div></div>`).join("")
     + `<button type="button" class="pin gomme${pinceau && !pinceau.mat ? " on" : ""}" data-pin="" aria-pressed="${!!(pinceau && !pinceau.mat)}" title="Gomme\nCliquez ou glissez sur les créneaux pour les vider">⌫ Gomme</button>`;
   const onglets = [["A", "Semaine A"], ["B", "Semaine B"], ["AB", "A et B côte à côte"]];
   const bloc = (t, compact) => `<div class="card edt-bloc"><div class="row"><h2 style="margin:0">Semaine ${t}</h2><span class="chip${t === "A" ? " acc" : ""}" title="Semaines de type ${t}\n${sems.filter(w => w.type === t).map(w => "S" + w.num).join(", ") || "aucune"}">${listeSem(t)}</span>${compact && t === "B" ? '<span class="spacer"></span><span class="small dif-leg">cadre orange : différent de A</span>' : ""}</div>${grilleEdt(t, compact)}</div>`;
@@ -1499,16 +1509,17 @@ function rubriqueHTML(cle) {
   if (cle === "matieres") {
     const h = (t, m) => S.edt[t].reduce((a, d) => a + d.filter(c => c.mat === m || (c.grp || []).some(x => x.mat === m)).length, 0);   // créneaux partagés par groupe compris
     return `<div class="card"><h2>Matières et enseignants</h2><p class="hint">L’enseignant s’affiche automatiquement sur les fiches selon la matière. La couleur sert dans l’emploi du temps.</p>
-    <div class="lhead lm"><span></span><span>Matière</span><span>Enseignant</span><span title="Cours par semaine
+    <div class="lhead lm"><span></span><span>Matière</span><span>Enseignant</span><span title="Champ disciplinaire\nLes matières sont rangées par champ (comme les disciplines de Suivi PP) : palette, listes, bilans.">Champ</span><span title="Cours par semaine
 Semaine A · semaine B">Cours A · B</span></div>
-    <div class="liste lm">${S.matieres.map((m, i) => { const a = h("A", m.nom), b = h("B", m.nom), manque = m.nom.trim() && !m.prof.trim() && a + b;
+    <div class="liste lm">${matieresParChamp(S).map(g => `<div class="lgroupe" role="presentation">${esc(g.label)}</div>` + g.items.map(({ m, i }) => { const a = h("A", m.nom), b = h("B", m.nom), manque = m.nom.trim() && !m.prof.trim() && a + b;
       return `<div class="lrow"><span class="pt-mat" style="${styleMat(m.nom)}" aria-hidden="true" title="Couleur de la matière\nDans l’emploi du temps."></span>${inp(`matieres.${i}.nom`, 'aria-label="Matière" title="Matière\nLa renommer ici met à jour l’emploi du temps et les fiches."')}${inp(`matieres.${i}.prof`, `aria-label="Enseignant" placeholder="${manque ? "à indiquer" : "ex. Mme DUPRÉ"}"${manque ? ' class="manque" title="Enseignant à indiquer\nCette matière est dans l’emploi du temps : son enseignant s’affiche sur les fiches."' : ' title="Enseignant\nAffiché automatiquement sur les fiches, selon la matière."'}`)}
-        <span class="small muted" title="Créneaux par semaine dans l’emploi du temps\n• semaine A : ${a}\n• semaine B : ${b}">${a + b ? `${a} · ${b}` : "—"}</span><button class="ghost danger" data-del="matieres.${i}" title="Supprimer la matière\n• si elle est utilisée, une confirmation est demandée" aria-label="Supprimer la matière ${esc(m.nom)}">✕</button></div>`; }).join("")}</div>
+        <select data-path="matieres.${i}.champ" aria-label="Champ disciplinaire de ${esc(m.nom) || "la matière"}" title="Champ disciplinaire\n${m.champ ? "Choisi" : "Déduit du nom de la matière"} : ${esc(libChamp(champDe(m)))}">${CHAMPS.map(([k, l]) => `<option value="${k}"${champDe(m) === k ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>
+        <span class="small muted" title="Créneaux par semaine dans l’emploi du temps\n• semaine A : ${a}\n• semaine B : ${b}">${a + b ? `${a} · ${b}` : "—"}</span><button class="ghost danger" data-del="matieres.${i}" title="Supprimer la matière\n• si elle est utilisée, une confirmation est demandée" aria-label="Supprimer la matière ${esc(m.nom)}">✕</button></div>`; }).join("")).join("")}</div>
     <button data-add="matieres" title="Ajouter une matière\nElle apparaît ensuite dans la palette de l’emploi du temps.">+ Ajouter une matière</button></div>
   <datalist id="liste-profs">${[...new Set([...S.matieres.map(m => m.prof.trim()), ...S.changementsProf.map(c => c.prof.trim())].filter(Boolean))].map(n => `<option value="${esc(n)}">`).join("")}</datalist>
   <div class="card"><h2>Changement d’enseignant à partir d’une date</h2><p class="hint">Un enseignant remplacé durablement (mutation, congé long, nouveau collègue) : son nom change sur les fiches à partir de cette date ; les fiches d’avant gardent l’ancien. Pour un emploi du temps refait, voir la page <a href="#edt">Emploi du temps</a> (« Nouveau à partir du… »).</p>
     ${S.changementsProf.length ? `<div class="lhead lchg"><span>Matière</span><span>À partir du</span><span>Nouvel enseignant</span></div>` : ""}
-    <div class="liste lchg">${S.changementsProf.map((c, i) => `<div class="lrow"><select data-path="changementsProf.${i}.mat" aria-label="Matière, ligne ${i + 1}"><option value="">— matière —</option>${S.matieres.filter(m => m.nom.trim()).map(m => `<option${m.nom === c.mat ? " selected" : ""}>${esc(m.nom)}</option>`).join("")}</select>${dateInp(`changementsProf.${i}.depuis`, `À partir du, ligne ${i + 1}`)}${inp(`changementsProf.${i}.prof`, 'list="liste-profs" placeholder="M. …"', `Nouvel enseignant, ligne ${i + 1}`)}
+    <div class="liste lchg">${S.changementsProf.map((c, i) => `<div class="lrow"><select data-path="changementsProf.${i}.mat" aria-label="Matière, ligne ${i + 1}"><option value="">— matière —</option>${optgroupsMatieres(c.mat)}</select>${dateInp(`changementsProf.${i}.depuis`, `À partir du, ligne ${i + 1}`)}${inp(`changementsProf.${i}.prof`, 'list="liste-profs" placeholder="M. …"', `Nouvel enseignant, ligne ${i + 1}`)}
       <button class="ghost danger" data-del="changementsProf.${i}" title="Supprimer ce changement" aria-label="Supprimer le changement ${i + 1}">✕</button></div>${c.mat && c.prof ? `<p class="hint" style="margin:0 0 6px">${esc(c.mat)} : ${esc(profDe(S, c.mat, c.depuis ? addDays(c.depuis, -1) : S.debut)) || "?"} → <b>${esc(c.prof)}</b>${c.depuis ? ` à partir du ${fmtDM(c.depuis)}` : " (date à indiquer)"}</p>` : ""}`).join("")}</div>
     <button data-add="changementsProf" title="Ajouter un changement d’enseignant\nMatière, date, nouvel enseignant.">+ Ajouter un changement</button></div>
   <div class="card"><h2>Absences longues d’un enseignant</h2><p class="hint">Un enseignant absent plusieurs jours : ses cours sont annulés (rien à noter, sur toutes les fiches), ou assurés par un remplaçant dont le nom s’affiche. Pour un seul cours, cliquez plutôt la matière sur la fiche du jour.</p>
@@ -2044,7 +2055,7 @@ async function editerCreneau(d, p) {
   const edtMat = base.grp && base.grp.length ? [...base.grp.map(x => x.mat), ...(base.mat ? [base.mat] : [])].join(" / ") : base.mat, edtProf = base.mat ? profDe(S, base.mat) : "";
   const etat = cr.absent ? "absent" : (j0.prof && j0.prof[p]) || (j0.mat && p in j0.mat) ? "rempl" : "normal";
   const profs = [...new Set([...S.matieres.map(m => m.prof), ...Object.values(S.jours).flatMap(j => Object.values(j.prof || {}))].map(x => (x || "").trim()).filter(Boolean))].sort();
-  const mats = [...new Set([...S.matieres.map(m => m.nom), "Permanence", "Étude", "Sortie scolaire", ...Object.values(S.jours).flatMap(j => Object.values(j.mat || {}))].filter(Boolean))];
+  const mats = [...new Set([...ordreMatieres(S), "Permanence", "Étude", "Sortie scolaire", ...Object.values(S.jours).flatMap(j => Object.values(j.mat || {}))].filter(Boolean))];
   const html = `<div class="crn">
     <label class="crn-o"><input type="radio" name="crn" value="normal"${etat === "normal" ? " checked" : ""}><span><b>Cours normal</b><small>${edtMat ? `${esc(edtMat)}${edtProf ? " – " + esc(edtProf) : ""} (emploi du temps)` : "pas de cours à l’emploi du temps"}</small></span></label>
     <label class="crn-o"><input type="radio" name="crn" value="absent"${etat === "absent" ? " checked" : ""}><span><b>Enseignant absent</b><small>pas de cours : rien à noter sur ce créneau, sur toutes les fiches</small></span></label>
@@ -3064,14 +3075,15 @@ function appliquerCommunHote(st, c) {
   if (c.decoupage) { const mode = c.decoupage.mode === "trimestres" ? "trimestres" : "semestres", fins = (Array.isArray(c.decoupage.fins) ? c.decoupage.fins : []).filter(x => /^\d{4}-\d\d-\d\d$/.test(x));
     if (st.decoupage.mode !== mode) st.decoupage = { mode, fins: [] };
     if (fins.length === (mode === "trimestres" ? 2 : 1)) st.decoupage.fins = fins; }
-  for (const m of st.matieres) { const p = c.profs && Object.prototype.hasOwnProperty.call(c.profs, m.nom) ? c.profs[m.nom] : null; if (p && t(p.prof)) m.prof = t(p.prof).slice(0, 120); }
+  for (const m of st.matieres) { const p = c.profs && Object.prototype.hasOwnProperty.call(c.profs, m.nom) ? c.profs[m.nom] : null; if (p && t(p.prof)) m.prof = t(p.prof).slice(0, 120);
+    if (p && CHAMPS_CLES.includes(p.champ) && champDe(m) !== p.champ) m.champ = p.champ; }   /* le champ = le domaine de la discipline dans Suivi PP */
   return JSON.stringify(st) !== avant;
 }
 /* Réglages : les champs communs portent un repère (bord bleu, infobulle) et leur carte le dit. */
 function marquerCommunsHote() {
   if (!HOTE || !S || !hoteCommun || current.view !== "reglages") return;
   const sel = ['[data-path="classe"]', '[data-path="referent"]', '[data-path="etablissement.nom"]', '[data-path="decoupage.mode"]', '[data-path^="decoupage.fins."]'];
-  S.matieres.forEach((m, i) => { if (hoteCommun.profs && Object.prototype.hasOwnProperty.call(hoteCommun.profs, m.nom)) sel.push(`[data-path="matieres.${i}.prof"]`); });
+  S.matieres.forEach((m, i) => { if (hoteCommun.profs && Object.prototype.hasOwnProperty.call(hoteCommun.profs, m.nom)) sel.push(`[data-path="matieres.${i}.prof"]`, `[data-path="matieres.${i}.champ"]`); });
   for (const el of document.querySelectorAll("#view " + sel.join(", #view "))) {
     if (el.classList.contains("commun-hote")) continue;
     el.classList.add("commun-hote");

@@ -9,7 +9,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const r = await p.evaluate(() => ({ mats: [...document.querySelectorAll(".bmi-carte table.bmi tbody th.l")].map(t => t.childNodes[0].textContent.trim()), faibles: [...document.querySelectorAll(".bmi-carte tr.faible th.l")].map(t => t.childNodes[0].textContent.trim()), alerte: (document.querySelector(".bmi-carte .avis") || {}).textContent, cols: document.querySelectorAll(".bmi-carte table.bmi thead th").length, n: serieIndiv(S.individuels[0]).length }));
   console.log(JSON.stringify(r));
   ok(r.mats.length >= 8 && r.mats.includes("Mathématiques") && r.mats.includes("Latin") && r.cols === r.n + 4, "bilan par matière de BRIDGE : une ligne par matière (Latin compris, son option), une colonne par fiche + période, écart, tendance");
-  ok(r.faibles[0] === "Mathématiques" && /Nettement moins bien en Mathématiques/.test(r.alerte), "tous objectifs : « Nettement moins bien en Mathématiques » signalé en premier");
+  /* les lignes du tableau suivent l'ordre des champs disciplinaires (2026-10-11) : c'est l'ALERTE qui classe par écart */
+  ok(r.faibles.includes("Mathématiques") && /^Nettement moins bien en Mathématiques/.test(r.alerte), "tous objectifs : « Nettement moins bien en Mathématiques » signalé en premier");
   await p.select('select[data-bmo="demo-bridge"]', "0"); await wait(400);
   const r1 = await p.evaluate(() => ({ faibles: [...document.querySelectorAll(".bmi-carte tr.faible th.l")].map(t => t.childNodes[0].textContent.trim()), alerte: (document.querySelector(".bmi-carte .avis") || {}).textContent }));
   console.log(JSON.stringify(r1));

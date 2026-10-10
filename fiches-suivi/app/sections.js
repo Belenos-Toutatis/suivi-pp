@@ -556,7 +556,7 @@ function bilanMatiereIndiv(ind, o = -1) {
     s.c.forEach((x, k) => { if (x === null || x === undefined || (o >= 0 && k !== o)) return;
       for (const t of [cel, m.tot, tous]) { t[1]++; if (x < 2) t[0]++; if (x === 3) t[2]++; } });
   }
-  const ordre = S.matieres.map(m => m.nom);
+  const ordre = ordreMatieres(S);   // par champ disciplinaire
   const mats = [...res.values()].filter(m => m.tot[1]).sort((a, b) => ((ordre.indexOf(a.mat) + 1) || 99) - ((ordre.indexOf(b.mat) + 1) || 99));
   return { serie, mats, moy: tous[1] ? tous[0] / tous[1] : null, nI: tous[2] };
 }
@@ -566,8 +566,9 @@ function bilanMatiereIndivHTML(ind, cour, imprime) {
   const pc = t => (t[1] ? t[0] / t[1] : null), ecart = m => { const v = pc(m.tot); return v === null || moy === null ? null : Math.round(v * 100) - Math.round(moy * 100); };
   const faibles = mats.filter(m => m.tot[1] >= 6 && ecart(m) !== null && ecart(m) <= -10).sort((a, b) => ecart(a) - ecart(b));
   const cel = t => (!t || !t[1] ? `<td class="vide">—</td>` : `<td><span class="pn${NIV_CLASSE[niveauReussite(S, t[0] / t[1], t[2])] || ""}" title="Réussite : ${pctTxt(t[0] / t[1])}\n• ${t[0]} code${t[0] > 1 ? "s" : ""} ${esc(S.codage[0].code)} ou ${esc(S.codage[1].code)} sur ${t[1]}${t[2] ? `\n• ${t[2]} « ${esc(S.codage[3].code)} »` : ""}${peuDe(t[1], "codes")}">${pctTxt(t[0] / t[1])}</span></td>`);
+  const debuts = debutsChamp(mats.map(m => m.mat));
   const lignes = mats.map(m => { const e = ecart(m), td = tendanceIndiv(serie.map(f => pc(m.par.get(f.c.fin) || [0, 0, 0])));
-    return `<tr class="${faibles.includes(m) ? "faible" : ""}"><th class="l" scope="row">${esc(m.mat)}${m.prof ? ` <small class="muted">${esc(m.prof)}</small>` : ""}</th>${serie.map(f => cel(m.par.get(f.c.fin))).join("")}
+    return `<tr class="${faibles.includes(m) ? "faible" : ""}${debuts.has(m.mat) ? " nv-champ" : ""}"><th class="l" scope="row">${esc(m.mat)}${m.prof ? ` <small class="muted">${esc(m.prof)}</small>` : ""}</th>${serie.map(f => cel(m.par.get(f.c.fin))).join("")}
       <td class="sep">${cel(m.tot).replace(/^<td>|<\/td>$/g, "").replace(/^<td class="vide">/, "")}<small class="muted"> · ${m.tot[1]}</small></td>
       <td class="${e !== null && e <= -10 ? "dn" : e !== null && e >= 10 ? "up" : ""}" title="Écart à la moyenne de l’élève (${moy === null ? "—" : pctTxt(moy)}), en points">${e === null ? "" : `${ptsTxt(e)}`}</td>
       <td class="tend">${td === null ? "" : `${flecheTendance(td)} ${motTendance(td)}`}</td></tr>`; }).join("");
@@ -742,7 +743,7 @@ function bilanMatiereClasse(s0) {
           for (const x of cl[`${s}.${p}`] || "") { if (x === CODE_ABSENT) continue; if (x in m.par) m.par[x]++;
             if (!m.qui.has(s)) m.qui.set(s, new Map()); const q = m.qui.get(s); if (!q.has(wi)) q.set(wi, ""); q.set(wi, q.get(wi) + x);
             if (codePositif(x)) m.pos++; else { m.neg++; m.parSem.set(wi, (m.parSem.get(wi) || 0) + 1); } } }); } } });
-  const ordre = S.matieres.map(m => m.nom), mats = [...res.values()].sort((a, b) => ((ordre.indexOf(a.mat) + 1) || 99) - ((ordre.indexOf(b.mat) + 1) || 99));
+  const ordre = ordreMatieres(S), mats = [...res.values()].sort((a, b) => ((ordre.indexOf(a.mat) + 1) || 99) - ((ordre.indexOf(b.mat) + 1) || 99));
   const tc = mats.reduce((a, m) => a + m.cours.size, 0), tn = mats.reduce((a, m) => a + m.neg, 0);
   return { cols, mats, codes, moy: tc ? tn / tc : 0 };
 }
@@ -783,7 +784,8 @@ function viewClasseBilan(arg) {
   const caseInc = (m, wi, ref) => { const n = nb(m, wi), k = nc(m, wi); return n ? `<span class="pn${niv(n, k, ref)}" title="${esc(m.mat)} · ${quand(wi).replace(/^(la|les) /, "")}\n**${n} incident${n > 1 ? "s" : ""}** en ${k} cours${taux ? ` : ${f1(t10(n, k))} pour 10 cours` : ""}${peuDe(k, "cours", 4)}\n${clbEleve < 0 ? (wi < 0 ? quiSel(m) : quiIncidents(m, wi, x => !codePositif(x))) : ""}${wi >= 0 ? "\n" + aide : ""}">${val(n, k)}</span>` : ""; };
   const ch = wi => { if (!clbSel || !dans(wi)) return ""; return " choisie" + (wi === sel[0] ? " sel-g" : "") + (wi === sel[sel.length - 1] ? " sel-d" : ""); };
   const colAttr = (wi, vide) => ` data-clbsem="${wi}"${vide && wi >= 0 ? ` title="Semaine ${sems[wi].num}\n${aide}"` : ""}`;
-  const lignes = mats.map(m => `<tr class="${forts.includes(m) ? "fort" : ""}"><th class="l" scope="row">${esc(m.mat)}${m.prof ? ` <small>${esc(m.prof)}</small>` : ""}</th>
+  const debuts = debutsChamp(mats.map(m => m.mat));
+  const lignes = mats.map(m => `<tr class="${forts.includes(m) ? "fort" : ""}${debuts.has(m.mat) ? " nv-champ" : ""}"><th class="l" scope="row">${esc(m.mat)}${m.prof ? ` <small>${esc(m.prof)}</small>` : ""}</th>
     ${cols.map(c => `<td class="${ch(c.wi)}"${colAttr(c.wi, !nb(m, c.wi))}>${caseInc(m, c.wi, moyDe(c.wi))}</td>`).join("")}
     <td class="sep"${colAttr(-1, true)}><b>${caseInc(m, -1, moySel)}</b></td><td>${nc(m, -1)}</td>
     ${codes.map((x, k) => { const n = parCode(m, x.code), kk = nc(m, -1), pos = codePositif(x.code), t = `${esc(m.mat)} · « ${esc(x.code)} » ${esc(x.sens)}\n**${n}** sur ${libSel}${taux ? ` : ${f1(t10(n, kk))} pour 10 cours` : ""}\n${clbEleve < 0 ? quiIncidents(m, null, y => y === x.code) : ""}`;

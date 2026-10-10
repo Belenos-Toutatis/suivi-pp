@@ -77,3 +77,16 @@ test('démo : « Vie de classe » et « Devoirs faits » rangées « aucune » (
   ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook();`);
   assert.deepStrictEqual(evObj(`[_ficheMatDisc('Vie de classe'), _ficheMatDisc('Devoirs faits'), _ficheMatDisc('Français')]`), ['', '', 'francais']);
 });
+
+test('champ disciplinaire : envoyé avec la matière (le domaine de sa discipline) ; changé dans la fiche, il revient à la discipline', () => {
+  ev(ETAT);
+  const r = evObj(`(() => { const c = _suivisCommun('5C').profs;
+    const av = { matieres: [{ nom: 'Français', prof: '' }, { nom: 'Mathématiques', prof: '' }] };
+    const ap1 = { matieres: [{ nom: 'Français', prof: '', champ: 'lettres' }, { nom: 'Mathématiques', prof: '' }] };
+    _suivisCommunRetour('5C', av, ap1); const inchange = _discDomaine('francais');
+    const ap2 = { matieres: [{ nom: 'Français', prof: '', champ: 'langues' }, { nom: 'Mathématiques', prof: '', champ: 'constructor' }] };
+    _suivisCommunRetour('5C', ap1, ap2);
+    const sansAvant = (() => { const d0 = _discDomaine('maths'); _suivisCommunRetour('5C', null, { matieres: [{ nom: 'Mathématiques', prof: '', champ: 'arts' }] }); return _discDomaine('maths') === d0; })();
+    return { fr: c['Français'].champ, inchange, apres: _discDomaine('francais'), maths: _discDomaine('maths'), sansAvant }; })()`);
+  assert.deepStrictEqual(r, { fr: 'lettres', inchange: 'lettres', apres: 'langues', maths: 'sciences', sansAvant: true });
+});

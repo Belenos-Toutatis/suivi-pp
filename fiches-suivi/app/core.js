@@ -68,6 +68,35 @@ const NB_ELEVES_DEFAUT = 4, MAX_ELEVES = 12, NB_OBJ = 4, MAX_OBJ = 8, NB_NIV = 4
 /** Nombre d'objectifs observables du suivi (de 1 à MAX_OBJ, 4 par défaut). */
 function nbObj(st) { return st.objectifs.length; }
 
+/** Champs disciplinaires — les mêmes que Suivi PP (ses « domaines » : mêmes clés, mêmes libellés), pour que les deux applications
+    rangent les matières de la même façon (2026-10-10, demande de l'utilisateur). Une matière porte `champ` seulement s'il a été
+    CHOISI (réglages, ou reçu de Suivi PP) ; sinon il se déduit de son nom (`champDefaut`). */
+const CHAMPS = [["langues", "Langues"], ["lettres", "Lettres et humanités"], ["sciences", "Sciences"], ["arts", "Arts"], ["eps", "EPS"], ["autre", "Autre"]];
+const CHAMPS_CLES = CHAMPS.map(c => c[0]);
+/* l'EPS avant les sciences : « Éd. physique » contient PHYSIQUE */
+const CHAMPS_MOTIFS = [[/\bEPS\b|SPORT|\bED(UCATION)? PHYSIQUE\b/, "eps"],
+  [/ALLEMAND|ANGLAIS|ESPAGNOL|ITALIEN|PORTUGAIS|ARABE|CHINOIS|RUSSE|HEBREU|BRETON|OCCITAN|ALSACIEN|\bLV ?\d|\bLCE\b|LANGUE|\bDNL\b|BILINGUE/, "langues"],
+  [/FRANCAIS|\bHIST|\bGEO|\bEMC\b|RELIGI|CATECH|PASTORAL|CULTURE CHRETIENNE|LATIN|\bGREC|\bLCA\b|PHILO/, "lettres"],
+  [/\bMATH|CHIMIE|PHYSIQUE|\bSVT\b|SCIENCE|TECHNO|BIOLOGIE|INFORMATIQUE|\bSNT\b/, "sciences"],
+  [/\bARTS?\b|PLASTIQUE|MUSI|CHANT|CHORALE|THEATRE|CINEMA|DANSE/, "arts"]];
+function champDefaut(nom) {
+  const n = String(nom || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+  for (const [re, c] of CHAMPS_MOTIFS) if (re.test(n)) return c;
+  return "autre";
+}
+/** Le champ d'une matière (objet de S.matieres) : choisi, sinon déduit du nom. */
+function champDe(m) { return m && CHAMPS_CLES.includes(m.champ) ? m.champ : champDefaut(m && m.nom); }
+function libChamp(c) { return (CHAMPS.find(x => x[0] === c) || CHAMPS[CHAMPS.length - 1])[1]; }
+/** Les matières rangées par champ (dans l'ordre de CHAMPS), et dans l'ordre de la liste à l'intérieur d'un champ :
+    [{ champ, label, items: [{ m, i }] }], champs vides omis. `i` = l'index dans st.matieres (les data-path s'y réfèrent). */
+function matieresParChamp(st, filtre) {
+  const g = CHAMPS.map(([champ, label]) => ({ champ, label, items: [] }));
+  st.matieres.forEach((m, i) => { if (!filtre || filtre(m)) g[CHAMPS_CLES.indexOf(champDe(m))].items.push({ m, i }); });
+  return g.filter(x => x.items.length);
+}
+/** Les noms des matières dans l'ordre d'affichage (par champ). */
+function ordreMatieres(st) { return matieresParChamp(st).flatMap(g => g.items.map(x => x.m.nom)); }
+
 const DEFAULTS = {
   matieres: ["Français", "Mathématiques", "Hist.-Géo.", "Anglais", "Allemand", "Espagnol", "SVT", "Physique-Chimie",
     "Technologie", "Arts Plastiques", "Éd. Musicale", "Éd. Religieuse", "EPS", "Latin", "Vie de classe", "Devoirs faits"],
@@ -286,7 +315,7 @@ function normalizeState(st) {
   const srcObj = arr(st.objectifs).slice(0, MAX_OBJ);
   out.objectifs = (srcObj.length ? srcObj : def.objectifs).map((c0, i) => { const c = obj(c0), d = def.objectifs[i] || { court: "", desc: "" };
     return { court: "court" in c ? str(c.court) : d.court, desc: "desc" in c ? str(c.desc) : d.desc }; });
-  if (Array.isArray(st.matieres)) out.matieres = st.matieres.map(m => ({ nom: str(obj(m).nom), prof: str(obj(m).prof).trim().replace(/\s+/g, " ") }));
+  if (Array.isArray(st.matieres)) out.matieres = st.matieres.map(m => ({ nom: str(obj(m).nom), prof: str(obj(m).prof).trim().replace(/\s+/g, " "), ...(CHAMPS_CLES.includes(obj(m).champ) ? { champ: obj(m).champ } : {}) }));
   let el = arr(st.eleves).map(e => ({ nom: str(obj(e).nom), debut: date(obj(e).debut), fin: date(obj(e).fin) }));
   out.eleves = el.length ? el.slice(0, MAX_ELEVES) : def.eleves;
   const normEdt = src => { const edt = emptyEdt();
@@ -687,7 +716,7 @@ function bilan(st, sems) {
       const mt = coursPour(cr, groupesDe(st, st.eleves[s].nom)).mat; pr.note(mt, date); const c = get(mt)[s]; c.obs++; if (l >= 2) c.neg++; if (l === 3) c.i++;
     }
   }
-  const ordre = st.matieres.map(m => m.nom).filter(n => res.has(n));
+  const ordre = ordreMatieres(st).filter(n => res.has(n));   // rangées par champ disciplinaire
   for (const m of res.keys()) if (!ordre.includes(m)) ordre.push(m);
   return ordre.map(m => ({ mat: m, prof: pr.de(m), el: res.get(m) }));
 }

@@ -795,7 +795,7 @@ table.edt th, table.edt td { border-color: var(--line); }
 .seg button.on { background: var(--paper); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
 .palette-edt { margin-bottom: 14px; }
 .palette-edt .row { margin-bottom: 8px; gap: 10px; }
-.palette { display: flex; flex-wrap: wrap; gap: 6px; }
+.palette { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
 .pin { border: 2px solid transparent; background: var(--c, #eef0f6); color: var(--t, #333); border-radius: 999px; padding: 4px 12px; font-weight: 600; font-size: 13px; cursor: pointer; }
 .pin:hover { filter: brightness(.97); border-color: var(--t, #999); }
 .pin.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
@@ -854,7 +854,15 @@ label.champ input, label.champ select { font-weight: 400; color: var(--ink); min
 .lhead.lchg, .liste.lchg .lrow { grid-template-columns: minmax(0, 1fr) 140px minmax(0, 1fr) 30px; }
 .lhead.labs, .liste.labs .lrow { grid-template-columns: minmax(0, 1fr) 140px 140px minmax(0, 1fr) 30px; }
 .lhead.l2, .liste.l2 .lrow { grid-template-columns: 1fr 140px 30px; } .lhead.l2.l3m, .liste.l2.l3m .lrow { grid-template-columns: 1fr 140px 110px 30px; }
-.lhead.lm, .liste.lm .lrow { grid-template-columns: 14px 1fr 1fr 90px 30px; }
+.lhead.lm, .liste.lm .lrow { grid-template-columns: 14px 1fr 1fr 200px 90px 30px; }
+.liste.lm .lgroupe { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 10px 0 2px; border-bottom: 1px solid var(--line); }
+.liste.lm .lgroupe:first-child { padding-top: 2px; }
+/* palette de l'emploi du temps : un paquet par champ disciplinaire */
+.palette .pal-champ { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.palette .pal-t { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.palette .pal-b { display: contents; }
+/* bilans par matière : un trait entre deux champs disciplinaires */
+tr.nv-champ > th, tr.nv-champ > td { border-top: 2px solid var(--border-strong) !important; }
 .lrow.lc { grid-template-columns: 200px 1fr 30px; margin-bottom: 6px; } .lrow textarea { width: 100%; }
 .lrow input { width: 100%; min-width: 0; }
 .pt-mat { width: 14px; height: 14px; border-radius: 4px; background: var(--c); border: 1px solid rgba(0,0,0,.08); }

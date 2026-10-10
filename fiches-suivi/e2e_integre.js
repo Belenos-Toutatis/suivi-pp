@@ -128,6 +128,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await f(() => { pinGroupe = ""; document.querySelector('[data-pin="Latin"]').click(); }); await wait(300);
   ok(await f(() => pinceau && pinceau.mat === "Latin" && pinGroupe === "Latin"), "emploi du temps : la matière d'une discipline à option (code LATIN dans Suivi PP) se peint d'office pour le groupe de l'option");
   await f(() => { pinceau = null; pinGroupe = ""; });
+  // le champ disciplinaire d'une matière = le domaine de sa discipline dans Suivi PP, dans les deux sens
+  await h(() => { disciplineSet("histoire_geo", { domaine: "autre" }); save(); _suivisCommunMaj(); }); await wait(500);
+  ok(await f(() => champDe(S.matieres.find(m => m.nom === "Hist.-Géo.")) === "autre"), "domaine changé dans Suivi PP : la matière de la fiche change de champ");
+  await f(() => { location.hash = "#reglages/matieres"; }); await wait(500);
+  const kHg = await f(() => S.matieres.findIndex(m => m.nom === "Hist.-Géo."));
+  ok(await f(k => document.querySelector(`select[data-path="matieres.${k}.champ"]`).classList.contains("commun-hote"), kHg), "le menu du champ est signalé commun avec Suivi PP");
+  await fr.select(`select[data-path="matieres.${kHg}.champ"]`, "lettres"); await wait(700);
+  ok(await h(() => _discDomaine("histoire_geo") === "lettres"), "champ changé dans la fiche : le domaine de la discipline suit dans Suivi PP");
   // 6. Ctrl+P dans Suivi PP sur l'onglet : l'impression de la fiche ; rechargement : tout est là
   await f(() => { window.__imp = 0; addEventListener("message", ev => { if (ev.data && ev.data.type === "imprimer") window.__imp++; }); window.print = () => {}; });
   await h(() => document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true }))); await wait(400);
