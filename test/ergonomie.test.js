@@ -124,9 +124,10 @@ test('Points moyens (C6–C12) : moments dits indépendants, MBN corrigeable, im
   assert.strictEqual(ev(`obsMbnRemove(${J}, 'inconnu')`), false);
   // C8 : la section Imports
   // La jauge de mémoire est asynchrone et vise l'écran réel : neutralisée ici (comme dans polices.test.js).
-  const don = ev(`(() => { _renderStorageGauge = () => {}; const z = document.createElement('div'); _renderDonneesInner(z); return z.innerHTML; })()`);
+  // v1.65.0 : les imports sont dans la rubrique « 📥 Importer · exporter » du sommaire de Données
+  const don = ev(`(() => { _renderStorageGauge = () => {}; _donRub = 'imports'; const z = document.createElement('div'); _renderDonneesInner(z); return z.innerHTML; })()`);
   for (const f of ['openImportStudents()', 'openMbnImport()', 'openObsMbnImport()', 'openMoyImport()', "imp-file-pdc", "imp-file-recup", "imp-file'"]) assert.ok(don.includes(f), f);
-  assert.match(don, /📥 Imports/);
+  assert.match(don, /📥 Importer · exporter/);
   // C9 : incidents et bilans cliquables dans la carte de chaleur
   const G = `_chaleurGroupes(getCls(), _bilanColsVues(getCls(), _carnetCurrentPeriodIdx(getCls())))`;
   assert.match(ev(`${G}.find(g => g.key === 'inc').cell(${J}, '__tot')[3]`), /^chaleurIncidentsUI\(/);

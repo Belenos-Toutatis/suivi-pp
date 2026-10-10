@@ -57,20 +57,23 @@ test('fiche → Suivi PP : l’enseignant modifié dans la fiche revient à la d
   assert.ok(r.fr);
 });
 
-test('💾 Données : le tableau des matières des fiches (une ligne par nom, le choix, l’enseignant), un cran d’undo par choix, tout échappé', () => {
+test('💾 Données ▸ Disciplines et matières : « À rattacher » (une ligne par nom), les autres sur demande, un cran d’undo par choix, tout échappé', () => {
   ev(ETAT);
-  const h = ev(`_disciplinesTableHTML()`);
-  assert.match(h, /<th>Matière \(fiches de suivi\)<\/th>/);
+  const h = ev(`(_donMatTout = false, _disciplinesTableHTML())`);
+  assert.match(h, /<h3>À rattacher<\/h3>/);
   assert.strictEqual((h.match(/ficheMatDiscUI\('Espagnol'/g) || []).length, 1, 'une ligne par nom');
-  assert.match(h, /automatique — non reconnue/);
-  assert.match(h, /automatique → Français/);
-  const r = evObj(`(() => { renderDonnees = () => {}; ficheMatDiscUI('Espagnol', __lv2); const n1 = undoStack.length; ficheMatDiscUI('Espagnol', __lv2); const n2 = undoStack.length;
-    const h2 = _disciplinesTableHTML(); undoLast(true); return { n1, n2, h2: /M\\. BROCHET<\\/td><\\/tr>/.test(h2), apres: _ficheMatDisc('Espagnol') }; })()`);
-  assert.deepStrictEqual(r, { n1: 1, n2: 1, h2: true, apres: null });
+  assert.match(h, /📋 fiches de suivi/);
+  assert.match(h, /— à choisir —/);
+  assert.ok(!/ficheMatDiscUI\('Français'/.test(h), 'une matière rangée n’est pas « à rattacher »');
+  const tout = ev(`(_donMatTout = true, _disciplinesTableHTML())`);
+  assert.match(tout, /ficheMatDiscUI\('Français'[^]*?automatique → Français/);
+  const r = evObj(`(() => { renderDonnees = () => {}; _donMatTout = false; ficheMatDiscUI('Espagnol', __lv2); const n1 = undoStack.length; ficheMatDiscUI('Espagnol', __lv2); const n2 = undoStack.length;
+    const h2 = _disciplinesTableHTML(); undoLast(true); return { n1, n2, rangee: !h2.includes("ficheMatDiscUI('Espagnol'") && new RegExp('Espagnol LV2[^]*?[> ]Espagnol</td>').test(h2), apres: _ficheMatDisc('Espagnol') }; })()`);
+  assert.deepStrictEqual(r, { n1: 1, n2: 1, rangee: true, apres: null });
   const x = ev(`(S.fichesSuivi['5C'].etat.S.matieres.push({ nom: '"><img src=x onerror=alert(1)>', prof: '' }), _disciplinesTableHTML())`);
   assert.ok(!x.includes('<img src=x'));
-  const vide = ev(`(delete S.fichesSuivi['5C'].etat, _disciplinesTableHTML())`);
-  assert.match(vide, /apparaîtront ici dès que la classe aura un suivi/);
+  const vide = ev(`(delete S.fichesSuivi['5C'].etat, _donMatTout = true, _disciplinesTableHTML())`);
+  assert.ok(!/ficheMatDiscUI\(/.test(vide), 'sans suivi : aucune matière des fiches');
 });
 
 test('démo : « Vie de classe » et « Devoirs faits » rangées « aucune » (le choix se rencontre sans le créer)', () => {

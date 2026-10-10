@@ -219,6 +219,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
      encres foncées associées (#991b1b, #7d3c00, #880e4f) y tombaient entre 1,1 et 2,1:1
      (mesuré le 2026-09-07 sur les 11 onglets). */
   --alert-bg:   #fee2e2;  --alert-bd:   #f0b4b4;  --alert-fg:   #7f1d1d;
+  --don-warn-bg: #fdf0dc;  --don-warn-bd: #f0cf9c;  --don-warn-fg: #7a3f0a;  --don-ok-bg: #e1f2e6;  --don-ok-fg: #16613a;   /* pastilles du sommaire de Données */
   --caution-bg: #ffeeba;  --caution-bd: #f0c040;  --caution-fg: #4a3400;
   --notice-bg:  #fef9e7;  --notice-bd:  #f4d03f;  --notice-fg:  #6b3400;
   --aesh-bg:    #fde2f3;  --aesh-bd:    #c2185b;  --aesh-fg:    #7d0c47;
@@ -352,6 +353,7 @@ html[data-theme="dark"] {
   --com-neg:     #e8908a;  --com-neg-bg: #2c1a1a;  --com-neg-fg: #f0dad6;
   --com-del:     #e8908a;
   --alert-bg:   #3b1d1d;  --alert-bd:   #7a3333;  --alert-fg:   #f2c4c4;
+  --don-warn-bg: #3a2a12;  --don-warn-bd: #6b4a1c;  --don-warn-fg: #f3c98b;  --don-ok-bg: #15301f;  --don-ok-fg: #9bd8ae;
   --caution-bg: #3a3117;  --caution-bd: #7d6524;  --caution-fg: #f1e0ad;
   --notice-bg:  #2b2413;  --notice-bd:  #7d6524;  --notice-fg:  #f0d7a4;
   --aesh-bg:    #46243a;  --aesh-bd:    #d4477f;  --aesh-fg:    #f8c8dd;
@@ -415,6 +417,7 @@ html[data-theme="dark"] {
     --com-neg:  #dc2626;  --com-neg-bg: #fee2e2;  --com-neg-fg: #451414;
     --com-del:  #b03d2e;
     --alert-bg:   #fee2e2;  --alert-bd:   #f0b4b4;  --alert-fg:   #7f1d1d;
+    --don-warn-bg: #fdf0dc;  --don-warn-bd: #f0cf9c;  --don-warn-fg: #7a3f0a;  --don-ok-bg: #e1f2e6;  --don-ok-fg: #16613a;
     --caution-bg: #ffeeba;  --caution-bd: #f0c040;  --caution-fg: #4a3400;
     --notice-bg:  #fef9e7;  --notice-bd:  #f4d03f;  --notice-fg:  #6b3400;
     --aesh-bg:    #fde2f3;  --aesh-bd:    #c2185b;  --aesh-fg:    #7d0c47;
@@ -919,6 +922,40 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
 .pdc-row:hover { background: var(--paper-warm); }
 .pdc-row input { width: 16px; height: 16px; }
 /* Réglages (onglet Données) */
+/* 💾 Données et réglages : sommaire à gauche, une rubrique à la fois (v1.65.0, maquette A) */
+.don-cadre { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.don-nav { flex: 0 1 270px; min-width: 220px; display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 700px) { .don-nav { position: sticky; top: calc(var(--topbar-h, 100px) + 12px); } }
+.don-cherche { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--pencil); }
+.don-cherche input { width: 100%; box-sizing: border-box; }
+.don-liste { background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; overflow: hidden; }
+.don-it { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--paper-warm); border-radius: 0; background: none; color: var(--ink-deep); font: inherit; text-align: left; cursor: pointer; }
+.don-it:last-child { border-bottom: 0; }
+.don-it:hover { background: var(--paper-warm); }
+.don-it.on { background: var(--chip-on-bg); color: var(--chip-on-fg); font-weight: 700; }
+.don-grp { padding: 8px 12px 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--pencil); border-bottom: 1px solid var(--paper-warm); background: var(--paper); }
+.don-chip { display: inline-block; flex: none; font-family: var(--font-mono); font-size: 11px; font-weight: 400; padding: 1px 7px; border-radius: 10px; background: var(--paper-warm); color: var(--ink-blue-soft); white-space: nowrap; }
+.don-chip.warn { background: var(--don-warn-bg); color: var(--don-warn-fg); border: 1px solid var(--don-warn-bd); }
+.don-chip.ok { background: var(--don-ok-bg); color: var(--don-ok-fg); }
+.don-aide { margin: 0; font-size: 13px; color: var(--pencil); }
+.don-rien { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--pencil); }
+.don-main { flex: 999 1 640px; min-width: 0; max-width: 1000px; display: flex; flex-direction: column; gap: 18px; }
+.don-tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.don-tete h2 { margin: 0; font-size: 24px; outline: none; }
+.don-sec { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.don-sec-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.don-sec-t h3 { margin: 0; font-size: 17px; }
+.don-sp { flex: 1; }
+.don-ligne { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.don-deb { white-space: nowrap; }
+.don-main .prefs, .don-main .don-imps { margin-bottom: 0; }
+.disc-table tr.fam td { background: var(--paper-warm); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-blue-soft); padding: 5px 10px; }
+.disc-nom { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.disc-nom:hover { text-decoration: underline; }
+.disc-table tr[data-ouvert] td, .disc-det td { background: var(--paper-warm); }
+.disc-det-b { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; padding: 4px 0 6px; }
+.disc-det-b label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--pencil); font-weight: 700; }
+.btn-lien { align-self: flex-start; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--ink-blue); text-decoration: underline; cursor: pointer; }
 .don-imps { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 8px 14px; margin-bottom: 22px; max-width: 1000px; }
 .don-imp { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 8px 10px; background: var(--paper); min-width: 0; }
 .don-imp > div { min-width: 0; }
@@ -2176,7 +2213,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <button class="nb"    onclick="showTab('delegues',this)"  title="Heures de vie de classe (ce qu'on y a traité, les décisions, les thèmes à venir) et élections des délégués et des éco-délégués">🏫 Vie de classe</button>
   <button class="nb"    onclick="showTab('avis',this)"      title="Avis des collègues : préparer les feuilles du Nuage, les relire, voir qui a répondu sur qui">🗣 Avis des collègues</button>
   <button class="nb"    onclick="showTab('suivis',this)"    title="Fiches de suivi : individuelles (avec bilan pour la famille), collectives, de classe — le comportement cours par cours">📋 Suivis</button>
-  <button class="nb"    onclick="showTab('donnees',this)"   title="Réglages, options, salles et placements, sauvegarde, export/import, vie privée">💾 Données et réglages</button>
+  <button class="nb"    onclick="showTab('donnees',this)"   title="Réglages (classe, périodes, disciplines, salles, incidents, apparence) et données (import, export, sauvegarde, fichiers, mémoire)">💾 Données et réglages</button>
 </nav>
 </div>
 
@@ -2203,15 +2240,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <div id="tab-suivis"    class="tab fige"><div class="sh"><h2>📋 Fiches de suivi</h2></div><div id="suivis-body"></div></div>
   <div id="tab-donnees"   class="tab">
     <div class="sh"><h2>💾 Données et réglages</h2></div>
-    <div class="tb">
-      <button class="btn btn-p" onclick="exportJSON()" title="Télécharger un fichier JSON contenant TOUTES vos données. Sauvegarde manuelle ou transfert vers une autre machine.">⬇ Exporter (.json)</button>
-      <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importJSON(event)">
-      <input type="file" id="imp-file-pdc" accept=".json" style="display:none" onchange="importPlanDeClasse(event)">
-      <input type="file" id="imp-file-recup" accept=".json" style="display:none" onchange="recupChampsFichier(event)">
-      <span class="tb-hint">Les imports sont rassemblés juste en dessous.</span>
-      <button class="btn btn-g" style="margin-left:auto" onclick="loadDemoOnDemand()" title="Remplacer les données par une classe fictive complète, pour essayer l'application sans risque. Récupérable par Ctrl+Z.">🧪 Données de démo</button>
-      <button class="btn btn-d" onclick="resetEverything()" title="Effacer classes, élèves, relevés, documents et élections. Récupérable par Ctrl+Z.">🗑 Tout effacer</button>
-    </div>
+    <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importJSON(event)">
+    <input type="file" id="imp-file-pdc" accept=".json" style="display:none" onchange="importPlanDeClasse(event)">
+    <input type="file" id="imp-file-recup" accept=".json" style="display:none" onchange="recupChampsFichier(event)">
     <div id="donnees-body"></div>
   </div>
 </div>
@@ -3106,8 +3137,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.64.0';
-const APP_BUILD_DATE = '2026-10-10T22:21:45Z';
+const APP_VERSION    = '1.65.0';
+const APP_BUILD_DATE = '2026-10-10T22:42:23Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4437,19 +4468,187 @@ function renderDonnees() {
   const f = el.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: true }); } catch (_) { f.focus(); } }
 }
+// ── 💾 Données et réglages : un SOMMAIRE à gauche, une rubrique à la fois (v1.65.0 — maquette A choisie par l'utilisateur
+// le 2026-10-11 parmi trois). Chaque entrée du sommaire porte une pastille qui dit l'état de la rubrique sans l'ouvrir ;
+// orange = une action attendue. La rubrique ouverte est retenue sur le POSTE (`suiviPP_donRub`), le filtre de recherche
+// pour la séance. Les blocs eux-mêmes sont ceux d'avant (mêmes ids, mêmes fonctions) : seul leur rangement change.
+const DON_RUBS = [
+  { k: 'classe', ic: '🏫', t: 'Classe et élèves', sous: 'les classes, leurs options et les codes de régime de l\'établissement',
+    mots: 'classe classes annee renommer options tags codes groupes pronote regimes entree sortie demi pension' },
+  { k: 'periodes', ic: '🗓', t: 'Année et périodes', sous: 'le découpage de l\'année et le relevé des carnets',
+    mots: 'periodes periode semestre trimestre dates debut conseil code absent couleurs paliers carnet observations' },
+  { k: 'disciplines', ic: '📚', t: 'Disciplines et matières', sous: 'les onglets des feuilles d\'avis, les enseignants, les options — et ce que chaque matière importée devient',
+    mots: 'disciplines discipline matieres matiere professeurs enseignants onglets avis collegues domaine champ option code latin moyennes fiches suivi rattacher' },
+  { k: 'salles', ic: '🪑', t: 'Salles et placements', sous: 'une grille par salle, vue du bureau : qui est assis où, et dans quel ordre on ramasse',
+    mots: 'salles salle placement places rangs colonnes ordre ramassage plan de classe bureau' },
+  { k: 'instances', ic: '⚖️', t: 'Incidents et instances', sous: 'ce qu\'on propose à la saisie d\'un incident',
+    mots: 'incidents incident instances punitions sanctions retenue exclusion commission conseil discipline rapport' },
+  { k: 'apparence', ic: '🎨', t: 'Apparence', sous: 'les polices de l\'écran et du papier, le thème',
+    mots: 'apparence police polices andika latin modern theme sombre clair nuit impression ecran' },
+  { k: 'imports', ic: '📥', t: 'Importer · exporter', grp: 'Données', sous: 'faire entrer des données d\'ailleurs, les sortir, ou tout recommencer',
+    mots: 'import importer exporter export json sauvegarde complete pronote siecle mbn bureau numerique plan de classe moyennes photos trombinoscope recapitulatif observations regimes demo demonstration effacer decrire fichier recuperer dates' },
+  { k: 'sauvegarde', ic: '🔄', t: 'Sauvegarde et synchronisation', grp: 'Données', sous: 'le dossier synchronisé, ses versions et ses copies',
+    mots: 'sauvegarde synchronisation sync dossier nextcloud versions historique backups copies dernier fichier' },
+  { k: 'fichiers', ic: '📎', t: 'Fichiers joints et photos', grp: 'Données', sous: 'le dossier des PDF joints et des photos des élèves',
+    mots: 'pdf pieces jointes fichiers photos dossier orphelins scan' },
+  { k: 'memoire', ic: '💾', t: 'Mémoire et contenu', grp: 'Données', sous: 'ce que l\'app occupe dans ce navigateur',
+    mots: 'memoire stockage occupation contenu taille ko navigateur' },
+];
+const DON_RUB_LS = 'suiviPP_donRub';
+var _donRub = null, _donFiltre = '', _donDiscOuvert = null, _donMatTout = false;
+function _donRubCourante() {
+  if (_donRub && DON_RUBS.some(r => r.k === _donRub)) return _donRub;
+  let k = null; try { k = localStorage.getItem(DON_RUB_LS); } catch (_) {}
+  return (_donRub = DON_RUBS.some(r => r.k === k) ? k : DON_RUBS[0].k);
+}
+function donRubUI(k) {
+  if (!DON_RUBS.some(r => r.k === k)) return;
+  _donRub = k; try { localStorage.setItem(DON_RUB_LS, k); } catch (_) {}
+  renderDonnees();
+  const h = document.getElementById('don-titre');
+  if (h) { try { h.focus({ preventScroll: true }); } catch (_) {} if (window.innerWidth < 700) h.scrollIntoView({ block: 'start' }); }   // le sommaire est au-dessus
+}
+// Ouvrir l'onglet sur une rubrique (depuis un autre écran).
+function openDonnees(k) { if (k) { _donRub = k; try { localStorage.setItem(DON_RUB_LS, k); } catch (_) {} } switchTab('donnees'); }
+const _donNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function _donRubsFiltrees() {
+  const mots = _donNorm(_donFiltre).split(/[^a-z0-9]+/).filter(Boolean);
+  if (!mots.length) return DON_RUBS;
+  return DON_RUBS.filter(r => { const h = _donNorm(r.t + ' ' + r.sous + ' ' + r.mots); return mots.every(m => h.includes(m)); });
+}
+function donFiltreUI(v) {
+  _donFiltre = String(v || '').slice(0, 60);
+  const l = document.getElementById('don-liste');
+  if (l) l.innerHTML = _donListeHTML();
+}
+function donFiltreKey(e) {
+  if (e.key === 'Enter') { e.preventDefault(); const r = _donRubsFiltrees()[0]; if (r) donRubUI(r.k); }
+  else if (e.key === 'Escape' && _donFiltre) { e.preventDefault(); e.stopPropagation(); e.target.value = ''; donFiltreUI(''); }
+}
+// Les matières à rattacher à une discipline : celles des moyennes de la classe que rien ne range, et celles des fiches de suivi
+// que rien ne range (un choix « aucune » range : ce n'est plus à faire).
+function _donARattacher(cls) {
+  if (!cls) return [];
+  const r = _avisMatieresClasse(cls.id).filter(m => _matiereDisc(m.id) === null).map(m => ({ src: 'moy', nom: m.nom, id: m.id }));
+  for (const nom of _ficheMatieresClasse(cls.id)) if (_ficheMatDisc(nom) === null) r.push({ src: 'fiche', nom });
+  return r;
+}
+// La pastille d'une rubrique : { txt, cl: '' | 'warn' | 'ok', titre }.
+function _donChip(k) {
+  const cls = getCls(), nb = o => Object.keys(o || {}).length;
+  switch (k) {
+    case 'classe': return cls ? { txt: `${cls.nom} · ${(cls.eleves || []).length}`, titre: `${_pl(nb(S.classes), 'classe')} ; la classe affichée et son nombre d'élèves` } : { txt: 'aucune classe', cl: 'warn' };
+    case 'periodes': { const m = _periodMode(), d = JSON.stringify(_periodStarts(m)) === JSON.stringify(_PERIOD_START_DEFAULTS[m]);
+      return { txt: m === 'trimestre' ? 'trimestres' : 'semestres', titre: d ? 'Débuts de période : ceux d\'office' : 'Débuts de période réglés' }; }
+    case 'disciplines': { const n = _donARattacher(cls).length;
+      return n ? { txt: `${n} à rattacher`, cl: 'warn', titre: 'Des matières importées ne sont rangées dans aucune discipline' } : { txt: `${_disciplinesAll().filter(d => d.actif).length} actives` }; }
+    case 'salles': { const n = nb(S.salles); return { txt: n ? _pl(n, 'salle') : 'aucune' }; }
+    case 'instances': return { txt: `${_instancesActives().length}`, titre: 'Instances proposées à la saisie d\'un incident' };
+    case 'apparence': return { txt: `${_POLICES[_applyPolices().ecran]?.label || 'Andika'} · ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'sombre' : 'clair'}` };
+    case 'imports': return { txt: '11 imports' };
+    case 'sauvegarde': {
+      if (!dirHandle) return { txt: 'aucun dossier', cl: 'warn', titre: 'Sans dossier, pas de sauvegarde automatique' };
+      if (!autoSyncEnabled) return { txt: 'désactivée', cl: 'warn', titre: 'La sauvegarde automatique est coupée' };
+      const t = _lastDiskWriteTs ? Math.max(0, Math.round((Date.now() - _lastDiskWriteTs) / 60000)) : null;
+      return { txt: t === null ? 'activée' : t < 1 ? 'à l\'instant' : t < 60 ? `il y a ${t} min` : `il y a ${Math.round(t / 60)} h`, cl: 'ok', titre: 'Dernière écriture dans le dossier synchronisé' }; }
+    case 'fichiers': return pjDirHandle ? { txt: String(pjDirHandle.name).slice(0, 16), titre: pjDirHandle.name } : { txt: 'dossier ?', cl: 'warn', titre: 'Aucun dossier pour les PDF joints et les photos' };
+    case 'memoire': { let o = 0; try { o = (localStorage.getItem(LS_KEY) || '').length; } catch (_) {} return { txt: `${Math.max(1, Math.round(o / 1024))} Ko`, titre: 'Vos données dans ce navigateur' }; }
+  }
+  return { txt: '' };
+}
+function _donListeHTML() {
+  const cur = _donRubCourante(), vus = _donRubsFiltrees();
+  if (!vus.length) return '<p class="don-rien">Aucune rubrique ne parle de cela.</p>';
+  let grp = null, h = '';
+  for (const r of vus) {
+    if ((r.grp || null) !== grp) { grp = r.grp || null; if (grp) h += `<div class="don-grp">${_escName(grp)}</div>`; }
+    const c = _donChip(r.k);
+    h += `<button type="button" class="don-it${r.k === cur ? ' on' : ''}" onclick="donRubUI('${r.k}')"${r.k === cur ? ' aria-current="true"' : ''}><span>${r.ic} ${_escName(r.t)}</span>${c.txt ? `<span class="don-chip${c.cl ? ' ' + c.cl : ''}"${c.titre ? ` title="${_escAttr(c.titre)}"` : ''}>${_escName(c.txt)}</span>` : ''}</button>`;
+  }
+  return h;
+}
 function _renderDonneesInner(el) {
-  const nb = o => Object.keys(o || {}).length;
-  const nbRel = Object.values(S.releves).reduce((n, m) => n + nb(m), 0);
-  const nbEle = Object.values(S.elections).reduce((n, m) => n + nb(m), 0);
-  const octets = (() => { try { return (localStorage.getItem(LS_KEY) || '').length; } catch (_) { return 0; } })();
-  const pm = _prefs().periodMode === 'trimestre' ? 'trimestre' : 'semestre';
-  // Tous les IMPORTS au même endroit (v1.47.1, audit C8) — chacun reste aussi près de ses
-  // données (Élèves, Moyennes, Observations, Régimes) ; ici on les trouve tous.
-  const imp = (ic, quoi, format, ou, btn) => `<div class="don-imp"><div><strong>${ic} ${quoi}</strong><div class="tb-hint">${format}${ou ? ` · aussi ${ou}` : ''}</div></div>${btn}</div>`;
-  const b = (onclick, label) => `<button class="btn btn-g btn-sm" onclick="${onclick}">${label}</button>`;
-  el.innerHTML = `
-    <h3 style="margin-bottom:10px">📥 Imports</h3>
-    <div class="don-imps">
+  const k = _donRubCourante(), r = DON_RUBS.find(x => x.k === k);
+  el.innerHTML = `<div class="don-cadre">
+    <aside class="don-nav" aria-label="Rubriques des données et réglages">
+      <label class="don-cherche">Chercher un réglage<input type="search" id="don-filtre" value="${_escAttr(_donFiltre)}" placeholder="ex. police, période, dossier…" oninput="donFiltreUI(this.value)" onkeydown="donFiltreKey(event)" autocomplete="off"></label>
+      <nav class="don-liste" id="don-liste">${_donListeHTML()}</nav>
+      <p class="don-aide">La pastille dit l'état de chaque rubrique sans l'ouvrir ; une pastille orange demande une action.</p>
+    </aside>
+    <main class="don-main">
+      <div class="don-tete"><h2 id="don-titre" tabindex="-1">${r.ic} ${_escName(r.t)}</h2><span class="tb-hint">${_escName(r.sous)}</span></div>
+      ${_donRubHTML(k)}
+    </main></div>`;
+  if (k === 'memoire') _renderStorageGauge();
+}
+function _donRubHTML(k) {
+  const cls = getCls();
+  const sec = (titre, corps, extra) => `<section class="don-sec"><div class="don-sec-t"><h3>${titre}</h3>${extra || ''}</div>${corps}</section>`;
+  switch (k) {
+    case 'classe': {
+      const regimes = `<div class="prefs">
+        <label for="pref-entrees">Régimes d'entrée</label>
+        <textarea id="pref-entrees" rows="3" style="max-width:420px;font-family:var(--font-mono)" onchange="regimesCodesUI('regimesEntree', this.value)">${_escName(_entreeCodes().map(c => c.code + (c.label ? ' = ' + c.label : '')).join('\n'))}</textarea>
+        <div class="pref-help">Les codes d'entrée de l'établissement, un par ligne, avec leur signification après « = » (par exemple <code>A1 = arrivée à la première heure de cours</code>).</div>
+        <label for="pref-sorties">Régimes de sortie</label>
+        <textarea id="pref-sorties" rows="4" style="max-width:420px;font-family:var(--font-mono)" onchange="regimesCodesUI('regimesSortie', this.value)">${_escName(_sortieCodes().map(c => c.code + (c.label ? ' = ' + c.label : '')).join('\n'))}</textarea>
+        <div class="pref-help">Les codes de sortie, de même. Ils se choisissent sur chaque élève (✏️, ou la puce 🍽 Régimes de la liste des élèves), s'affichent dans la colonne Groupe · options, et se reprennent de l'export de Mon Bureau Numérique (rubrique 📥 Importer · exporter).</div>
+      </div>`;
+      return sec('Classes', `<div class="don-ligne">${cls ? `Classe affichée : <strong>${_escName(cls.nom)}</strong> · ${_escName(cls.annee || '')} · ${_pl((cls.eleves || []).length, 'élève')}` : '<span class="tb-hint">Aucune classe : importez des élèves, ou créez-en une.</span>'}
+          <button class="btn btn-g btn-sm" onclick="openClassesModal()">🏫 Gérer les classes…</button></div>`, `<span class="tb-hint">${_pl(Object.keys(S.classes || {}).length, 'classe')} · une par année, choisie en tête de page</span>`)
+        + sec('🏷 Options suivies', `<div class="pref-help" style="margin-bottom:8px">Les codes de groupes de Pronote (<code>LATIN</code>, <code>BIL</code>, <code>DNL</code>…), matière des choix d'orientation. ${_pdcOrigine(cls) ? '🪑 <strong>Un import depuis <em>Plan de classe</em> réécrit les options de chaque élève</strong> (le catalogue, lui, n\'est que complété) : une option cochée ici à la main est à cocher aussi là-bas.' : 'Un import (Pronote ou Plan de classe) peut en ajouter, il ne renomme ni ne supprime les vôtres.'}</div>
+          <div style="max-width:760px">${_tagsTableHTML()}${_tagsFormHTML('dtags')}</div>`)
+        + sec('🍽 Régimes', regimes);
+    }
+    case 'periodes': {
+      const pm = _periodMode(), starts = _periodStarts(pm), defs = _PERIOD_START_DEFAULTS[pm], y0 = _classStartYear(cls);
+      const ymd = md => `${+md.slice(0, 2) >= 8 ? y0 : y0 + 1}-${md}`, lib = pm === 'trimestre' ? 'T' : 'S';
+      const debuts = starts.map((md, i) => `<span class="don-deb">${lib}${i + 2} à partir du <input type="date" id="pref-debut-${i}" value="${ymd(md)}" onchange="periodeDebutUI(${i}, this.value)" aria-label="Début de la période ${lib}${i + 2}"></span>`).join('');
+      const office = JSON.stringify(starts) === JSON.stringify(defs);
+      return `<div class="prefs">
+        <label for="pref-period">Découpage</label>
+        <select id="pref-period" onchange="setPref('periodMode', this.value)" style="max-width:220px">
+          <option value="semestre"${pm === 'semestre' ? ' selected' : ''}>Semestres (2)</option>
+          <option value="trimestre"${pm === 'trimestre' ? ' selected' : ''}>Trimestres (3)</option>
+        </select>
+        <div class="pref-help">Sert aux totaux de période des relevés, aux bilans, aux moments de la carte de chaleur et de la fiche. Se change à tout moment : rien n'est stocké par période, tout est recalculé.</div>
+        <label>Débuts de période</label>
+        <div class="prefs-row"><span>${lib}1 : rentrée</span>${debuts}${office ? '<span class="don-chip warn" title="Les dates d\'office : à vérifier sur le calendrier de l\'établissement">valeur d\'office</span>' : `<button class="btn btn-g btn-sm" onclick="periodeDebutUI(-1)" title="Revenir aux dates d'office">↺ Dates d'office</button>`}</div>
+        <div class="pref-help">Mettez les dates du calendrier de l'établissement : elles bornent les totaux, les bilans et la carte de chaleur. ${cls ? `Année de la classe : ${_escName(cls.annee || '')}.` : ''}</div>
+        <label for="pref-codea">Code « absent »</label>
+        <input id="pref-codea" value="${_escAttr(_codeA())}" maxlength="3" style="max-width:80px;font-family:var(--font-mono);text-transform:uppercase" onchange="setPref('codeAbsent', this.value.toUpperCase())">
+        <div class="pref-help">Ce qu'on tape dans un relevé quand l'élève était absent : rien à relever ce jour-là, ce n'est ni un zéro ni un vide.</div>
+        <label for="pref-obs-palier">Couleurs du carnet</label>
+        <div class="prefs-row"><span>tous les</span> <input id="pref-obs-palier" type="number" min="0" max="100" step="1" value="${_obsPalier()}" style="max-width:80px;font-family:var(--font-mono)" onchange="setPref('obsPalier', this.value)"> <span>observations</span></div>
+        <div class="pref-help">Le fond d'un cumul change de couleur à chaque multiple de cette valeur — dans la grille des observations, sa feuille imprimée, la liste des élèves et la fiche. ${_obsPalier() ? _obsLegendeHTML(_obsPalier() * OBS_BANDES) : '<strong>0 : sans couleurs.</strong>'} ${_obsPalier() ? '· 0 = sans couleurs.' : ''}</div>
+      </div>`;
+    }
+    case 'disciplines': return _disciplinesTableHTML();
+    case 'salles': return _sallesEditorHTML();
+    case 'instances': return `<div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renommez, décrivez, décochez celles que votre établissement n'utilise pas, ajoutez les vôtres. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>${_instancesTableHTML()}`;
+    case 'apparence': {
+      const sombre = document.documentElement.getAttribute('data-theme') === 'dark';
+      return `<div class="prefs">
+        <label for="pref-police-ecran">Police de l'écran</label>
+        <select id="pref-police-ecran" onchange="setPref('policeEcran', this.value)" style="max-width:220px">
+          ${Object.entries(_POLICES).map(([k, v]) => `<option value="${k}"${_applyPolices().ecran === k ? ' selected' : ''}>${_escName(v.label)}${k === 'andika' ? ' (par défaut)' : ''}</option>`).join('')}
+        </select>
+        <div class="pref-help">Andika est dessinée pour la lecture : lettres bien distinctes (<em>I l 1</em>, <em>a</em> à une seule panse). Latin Modern est la police des documents LaTeX.</div>
+        <label for="pref-police-papier">Police de l'impression</label>
+        <select id="pref-police-papier" onchange="setPref('policePapier', this.value)" style="max-width:220px">
+          ${Object.entries(_POLICES).map(([k, v]) => `<option value="${k}"${_applyPolices().papier === k ? ' selected' : ''}>${_escName(v.label)}${k === 'lm' ? ' (par défaut)' : ''}</option>`).join('')}
+        </select>
+        <div class="pref-help">Toutes les feuilles imprimées : listes, moyennes, synthèse de période, retours de documents, procès-verbal. Les feuilles qui tiennent sur une page recalculent leur taille de texte avec cette police.</div>
+        <label>Thème</label>
+        <div><button class="btn btn-g btn-sm" onclick="toggleAppTheme(); renderDonnees()">◐ ${sombre ? 'Sombre — passer au clair' : 'Clair — passer au sombre'}</button></div>
+        <div class="pref-help">Propre à ce poste. Aussi le bouton ◐ en tête de page. Le papier s'imprime toujours en clair.</div>
+      </div>`;
+    }
+    case 'imports': {
+      const imp = (ic, quoi, format, ou, btn) => `<div class="don-imp"><div><strong>${ic} ${quoi}</strong><div class="tb-hint">${format}${ou ? ` · aussi ${ou}` : ''}</div></div>${btn}</div>`;
+      const b = (onclick, label) => `<button class="btn btn-g btn-sm" onclick="${onclick}">${label}</button>`;
+      return sec('Exporter', `<div class="don-ligne"><button class="btn btn-p" onclick="exportJSON()" title="Télécharger un fichier JSON contenant TOUTES vos données. Sauvegarde manuelle ou transfert vers une autre machine.">⬇ Exporter (.json)</button><span class="tb-hint">toutes les données, dans un fichier : sauvegarde à la main, ou passage à un autre poste</span></div>`)
+        + sec('Importer', `<div class="don-imps">
       ${imp('👥', 'Élèves', 'liste Pronote, SIECLE ou tableur (.csv, .xlsx, .ods, ou collée)', 'dans Élèves ▸ Importer', b('openImportStudents()', '📥 Importer…'))}
       ${imp('🪑', 'Depuis Plan de classe', 'plan-classe-*.json : élèves, groupes, options, places, ordres de ramassage', '', b("document.getElementById('imp-file-pdc').click()", '📥 Importer…'))}
       ${imp('🍽', 'Régimes (Mon Bureau Numérique)', 'export « régimes de sortie » (.xlsx) : demi-pension, entrée, sortie', 'dans Élèves ▸ 🍽 Régimes', b('openMbnImport()', '📥 Importer…'))}
@@ -4457,49 +4656,15 @@ function _renderDonneesInner(el) {
       ${imp('📄', 'Récapitulatif vie scolaire (Mon Bureau Numérique)', 'le PDF de la classe : observations, punitions, absences et retards, naissance, régimes, groupes', 'dans Observations ▸ Observations MBN', b('openRecapImport()', '📥 Importer…'))}
       ${imp('📷', 'Photos (Mon Bureau Numérique)', 'le trombinoscope de la classe (.pdf), lu dans le navigateur', 'une à la fois dans la fiche', b('openTrombiImport()', '📥 Importer…'))}
       ${imp('📈', 'Moyennes (bureau numérique)', 'export des moyennes (.csv)', 'dans Moyennes', b('openMoyImport()', '📥 Importer…'))}
-      ${imp('🗣', 'Avis des collègues', 'la feuille .ods du Nuage, relue', 'dans Avis des collègues', b("switchTab('avis')", 'Ouvrir l\'onglet'))}
+      ${imp('🗣', 'Avis des collègues', 'la feuille .ods du Nuage, relue', 'dans Avis des collègues', b('openAvis()', 'Ouvrir l\'onglet'))}
       ${imp('⬆', 'Sauvegarde complète', 'fichier .json exporté par l\'app : REMPLACE tout après confirmation (Ctrl+Z annule)', '', b("document.getElementById('imp-file').click()", '📥 Importer…'))}
       ${imp('🔍', 'Décrire un fichier sans ses données', 'un PDF ou un tableau collé : la mise en page reste, les lettres deviennent X et les chiffres 9 — pour faire connaître un format sans le montrer', '', b('openStructure()', '🔍 Ouvrir…'))}
       ${imp('🩹', 'Récupérer des dates', 'une ancienne sauvegarde .json : remplit seulement les naissances, arrivées, départs et civilités vides', '', b("document.getElementById('imp-file-recup').click()", '📥 Importer…'))}
-    </div>
-    <h3 style="margin-bottom:10px">⚙ Réglages</h3>
-    <div class="prefs">
-      <label for="pref-period">Périodes</label>
-      <select id="pref-period" onchange="setPref('periodMode', this.value)" style="max-width:220px">
-        <option value="semestre"${pm === 'semestre' ? ' selected' : ''}>Semestres (2)</option>
-        <option value="trimestre"${pm === 'trimestre' ? ' selected' : ''}>Trimestres (3)</option>
-      </select>
-      <div class="pref-help">Détermine les totaux de période des relevés de carnet (« depuis le début du S1 »). Se change à tout moment : rien n'est stocké par période, tout est recalculé.</div>
-      <label for="pref-codea">Code « absent »</label>
-      <input id="pref-codea" value="${_escAttr(_codeA())}" maxlength="3" style="max-width:80px;font-family:var(--font-mono);text-transform:uppercase" onchange="setPref('codeAbsent', this.value.toUpperCase())">
-      <div class="pref-help">Ce qu'on tape dans un relevé quand l'élève était absent : rien à relever ce jour-là, ce n'est ni un zéro ni un vide.</div>
-      <label for="pref-obs-palier">Couleurs du carnet</label>
-      <div class="prefs-row"><span>tous les</span> <input id="pref-obs-palier" type="number" min="0" max="100" step="1" value="${_obsPalier()}" style="max-width:80px;font-family:var(--font-mono)" onchange="setPref('obsPalier', this.value)"> <span>observations</span></div>
-      <div class="pref-help">Le fond d'un cumul change de couleur à chaque multiple de cette valeur — dans la grille des observations, sa feuille imprimée, la liste des élèves et la fiche. ${_obsPalier() ? _obsLegendeHTML(_obsPalier() * OBS_BANDES) : '<strong>0 : sans couleurs.</strong>'} ${_obsPalier() ? '· 0 = sans couleurs.' : ''}</div>
-      <label for="pref-entrees">Régimes d'entrée</label>
-      <textarea id="pref-entrees" rows="3" style="max-width:420px;font-family:var(--font-mono)" onchange="regimesCodesUI('regimesEntree', this.value)">${_escName(_entreeCodes().map(c => c.code + (c.label ? ' = ' + c.label : '')).join('\n'))}</textarea>
-      <div class="pref-help">Les codes d'entrée de l'établissement, un par ligne, avec leur signification après « = » (par exemple <code>A1 = arrivée à la première heure de cours</code>).</div>
-      <label for="pref-sorties">Régimes de sortie</label>
-      <textarea id="pref-sorties" rows="4" style="max-width:420px;font-family:var(--font-mono)" onchange="regimesCodesUI('regimesSortie', this.value)">${_escName(_sortieCodes().map(c => c.code + (c.label ? ' = ' + c.label : '')).join('\n'))}</textarea>
-      <div class="pref-help">Les codes de sortie, de même. Ils se choisissent sur chaque élève (✏️, ou la puce 🍽 Régimes de la liste des élèves), s'affichent dans la colonne Groupe · options, et se reprennent de l'export de Mon Bureau Numérique (📥 Imports, en haut de cette page).</div>
-      <label for="pref-police-ecran">Police de l'écran</label>
-      <select id="pref-police-ecran" onchange="setPref('policeEcran', this.value)" style="max-width:220px">
-        ${Object.entries(_POLICES).map(([k, v]) => `<option value="${k}"${_applyPolices().ecran === k ? ' selected' : ''}>${_escName(v.label)}${k === 'andika' ? ' (par défaut)' : ''}</option>`).join('')}
-      </select>
-      <div class="pref-help">Andika est dessinée pour la lecture : lettres bien distinctes (<em>I l 1</em>, <em>a</em> à une seule panse). Latin Modern est la police des documents LaTeX.</div>
-      <label for="pref-police-papier">Police de l'impression</label>
-      <select id="pref-police-papier" onchange="setPref('policePapier', this.value)" style="max-width:220px">
-        ${Object.entries(_POLICES).map(([k, v]) => `<option value="${k}"${_applyPolices().papier === k ? ' selected' : ''}>${_escName(v.label)}${k === 'lm' ? ' (par défaut)' : ''}</option>`).join('')}
-      </select>
-      <div class="pref-help">Toutes les feuilles imprimées : listes, moyennes, synthèse de période, retours de documents, procès-verbal. Les feuilles qui tiennent sur une page recalculent leur taille de texte avec cette police.</div>
-    </div>
-    <h3 style="margin-bottom:10px">🏷 Options suivies</h3>
-    <div class="pref-help" style="margin-bottom:8px">Les codes de groupes de Pronote (<code>LATIN</code>, <code>BIL</code>, <code>DNL</code>…), matière des choix d'orientation. ${_pdcOrigine(getCls()) ? '🪑 <strong>Un import depuis <em>Plan de classe</em> réécrit les options de chaque élève</strong> (le catalogue, lui, n\'est que complété) : une option cochée ici à la main est à cocher aussi là-bas.' : 'Un import (Pronote ou Plan de classe) peut en ajouter, il ne renomme ni ne supprime les vôtres.'}</div>
-    <div style="max-width:760px">${_tagsTableHTML()}${_tagsFormHTML('dtags')}</div>
-    <h3 style="margin:18px 0 10px">🪑 Salles et placements</h3>
-    ${_sallesEditorHTML()}
-    <h3 style="margin-bottom:10px">🔄 Sauvegarde automatique</h3>
-    <div class="prefs" style="grid-template-columns:max-content 1fr">
+    </div>`)
+        + sec('Recommencer', `<div class="don-ligne"><button class="btn btn-g" onclick="loadDemoOnDemand()" title="Remplacer les données par une classe fictive complète, pour essayer l'application sans risque. Récupérable par Ctrl+Z.">🧪 Données de démo</button>
+          <button class="btn btn-d" onclick="resetEverything()" title="Effacer classes, élèves, relevés, documents et élections. Récupérable par Ctrl+Z.">🗑 Tout effacer</button><span class="tb-hint">l'un et l'autre remplacent tout, après confirmation ; Ctrl+Z les défait</span></div>`);
+    }
+    case 'sauvegarde': return `<div class="prefs" style="grid-template-columns:max-content 1fr">
       <label>Dossier</label>
       <div>${dirHandle ? `<code>${_escName(dirHandle.name)}</code>` : '<span class="tb-hint">aucun — la sync auto en a besoin</span>'}
         <button class="btn btn-g btn-sm" onclick="openFilePicker()">📂 ${dirHandle ? 'Versions & historique' : 'Choisir un dossier'}</button>
@@ -4509,29 +4674,22 @@ function _renderDonneesInner(el) {
       <div><button class="btn ${autoSyncEnabled ? 'btn-s' : 'btn-g'} btn-sm" onclick="toggleAutoSync()">${autoSyncEnabled ? '🔄 Activée — clic pour couper' : '🔄 Désactivée — clic pour activer'}</button></div>
       <label>Backups</label>
       <div><button class="btn btn-g btn-sm" onclick="openBackupSettings()">⚙ ${_escName(_currentBackupStrategy().label)}</button></div>
-    </div>
-    <h3 style="margin-bottom:10px">📎 Pièces jointes (PDF)</h3>
-    <div class="prefs" style="grid-template-columns:max-content 1fr">
+    </div>`;
+    case 'fichiers': return `<div class="prefs" style="grid-template-columns:max-content 1fr">
       <label>Dossier des PDF</label>
       <div>${pjDirHandle ? `<code>${_escName(pjDirHandle.name)}</code>` : '<span class="tb-hint">aucun — les fiches incident ne pourront pas être jointes</span>'}
         <button class="btn btn-g btn-sm" onclick="choosePjDir()">📂 ${pjDirHandle ? 'Changer' : 'Choisir un dossier'}</button>${
         pjDirHandle ? ` <button class="btn btn-g btn-sm" onclick="pjNettoyerUI()" title="Lister puis supprimer les PDF que plus aucune entrée ne référence, et les photos d'élèves supprimés">🧹 Orphelins…</button>` : ''}</div>
       <div class="pref-help">Les PDF joints aux incidents sont <strong>copiés</strong> dans ce dossier, jamais dans la sauvegarde JSON (trop lourds pour la mémoire du navigateur) ; les photos des élèves vont dans son sous-dossier <code>photos/</code>. Choisissez un dossier <strong>synchronisé par Nextcloud</strong>, distinct du dossier de sauvegarde : sur l'autre poste, il suffira de choisir le même. L'app n'y efface rien d'elle-même.</div>
-    </div>
-    <h3 style="margin-bottom:10px">⚖️ Instances et incidents</h3>
-    <div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renommez, décrivez, décochez celles que votre établissement n'utilise pas, ajoutez les vôtres. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>
-    ${_instancesTableHTML()}
-    <h3 style="margin-bottom:10px">🗣 Disciplines — avis des collègues</h3>
-    <div class="pref-help" style="margin-bottom:8px">Les onglets de la feuille d'avis envoyée aux collègues. Renommez, décochez, ajoutez les vôtres (Latin, LCE…). Une discipline d'office se décoche, elle ne se supprime pas.</div>
-    <div style="margin-bottom:10px"><button class="btn btn-p btn-sm" onclick="openAvis()" title="Préparer la feuille d'avis, la relire, revoir les changements — la même fenêtre que 👥 Élèves → 🗣 Avis des collègues">🗣 Ouvrir les avis des collègues…</button></div>
-    ${_disciplinesTableHTML()}
-    <h3 style="margin-bottom:10px">💾 Mémoire locale</h3>
-    <div id="about-storage" class="sto-box" style="max-width:620px;margin-bottom:18px">
+    </div>`;
+    case 'memoire': {
+      const nb = o => Object.keys(o || {}).length;
+      const nbRel = Object.values(S.releves).reduce((n, m) => n + nb(m), 0), nbEle = Object.values(S.elections).reduce((n, m) => n + nb(m), 0);
+      const octets = (() => { try { return (localStorage.getItem(LS_KEY) || '').length; } catch (_) { return 0; } })();
+      return sec('Occupation', `<div id="about-storage" class="sto-box" style="max-width:620px">
       <div class="sto-head"><strong>Occupation</strong> <span class="sto-sum">mesure en cours…</span></div>
       <div class="sto-bar"><div class="sto-fill" style="width:0"></div></div>
-    </div>
-    <h3 style="margin-bottom:10px">📦 Contenu</h3>
-    <table class="dt" style="max-width:520px">
+    </div>`) + sec('📦 Contenu', `<table class="dt" style="max-width:520px">
       <thead><tr><th>Contenu</th><th style="text-align:right">Nombre</th></tr></thead>
       <tbody>
         <tr><td>Classes</td><td style="text-align:right">${nb(S.classes)}</td></tr>
@@ -4541,8 +4699,29 @@ function _renderDonneesInner(el) {
         <tr><td>Élections</td><td style="text-align:right">${nbEle}</td></tr>
         <tr><td>Taille en mémoire locale</td><td style="text-align:right">${(octets / 1024).toFixed(1)} Ko</td></tr>
       </tbody>
-    </table>`;
-  _renderStorageGauge();
+    </table>`);
+    }
+  }
+  return '';
+}
+// Les débuts de période 2 et 3 (`prefs.periodStarts[mode]`, en MM-JJ). i = -1 : revenir aux dates d'office.
+function periodeDebutUI(i, ymd) {
+  const mode = _periodMode(), cur = _periodStarts(mode).slice();
+  if (i >= 0) {
+    if (!/^\d{4}-\d\d-\d\d$/.test(String(ymd || ''))) { toast('⚠️ Date incomplète : l\'ancienne est gardée.', 'warn'); renderDonnees(); return; }
+    const md = ymd.slice(5);
+    if (md.slice(0, 2) === '08') { toast('⚠️ Une période ne commence pas en août : l\'année scolaire commence à la rentrée.', 'warn'); renderDonnees(); return; }
+    cur[i] = md;
+    const rang = x => ((+x.slice(0, 2) + 4) % 12) * 100 + +x.slice(3);   // septembre d'abord
+    if (cur.some((x, k) => k && rang(x) <= rang(cur[k - 1]))) { toast('⚠️ Les périodes doivent se suivre dans l\'ordre de l\'année.', 'warn'); renderDonnees(); return; }
+  }
+  const nouveau = i < 0 ? _PERIOD_START_DEFAULTS[mode].slice() : cur;
+  if (JSON.stringify(nouveau) === JSON.stringify(_periodStarts(mode))) { renderDonnees(); return; }
+  pushUndo();
+  const ps = _isPlainObj(_prefs().periodStarts) ? _prefs().periodStarts : {};
+  S.prefs.periodStarts = { ...ps, [mode]: nouveau };   // ⚠️ remplacé, jamais modifié en place
+  save(); renderDonnees();
+  toast(i < 0 ? 'Débuts de période : les dates d\'office.' : `Débuts de période : ${nouveau.map(x => x.slice(3) + '/' + x.slice(0, 2)).join(', ')}.`);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -17431,7 +17610,7 @@ function _avisRattacherHTML(cls) {
   if (!liste.length) return '';
   const opts = m => `<option value="__" selected>— à rattacher —</option>${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}">${_escName(d.nom)}</option>`).join('')}
       <option value="new">＋ Nouvelle discipline « ${_escName(_avisTitre(m.nom))} »</option><option value="">Ignorer (pas d'avis à demander)</option>`;
-  return `<div class="al al-w" style="margin-bottom:10px"><strong>Matières des moyennes sans discipline</strong> — dites-moi où les ranger ; le choix se garde (et se corrige dans 💾 Données).
+  return `<div class="al al-w" style="margin-bottom:10px"><strong>Matières des moyennes sans discipline</strong> — dites-moi où les ranger ; le choix se garde (et se corrige dans <button type="button" class="btn-lien" onclick="openDonnees('disciplines')">💾 Données ▸ Disciplines et matières</button>).
     <div style="display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);gap:6px 10px;align-items:center;margin-top:6px">${liste.map(m =>
       `<span>${_escName(m.nom)}</span><select onchange="avisRattacherUI('${_escJsAttr(m.id)}',this.value)" style="max-width:100%">${opts(m)}</select>`).join('')}</div></div>`;
 }
@@ -18340,53 +18519,66 @@ function avisSupprimerUI(campId) {
     onOk: () => { pushUndo(); avisCampagneSupprimer(cls.id, campId); save(); _avisCampId = null; _avisRender(); renderStudents(); } });
 }
 
-// ── 💾 Données : le catalogue des disciplines et le rattachement des matières ──
+// ── 💾 Données ▸ 📚 Disciplines et matières (v1.65.0, maquette A) : les disciplines rangées par champ disciplinaire (un intertitre
+// par domaine), une ligne par discipline — le détail (nom, domaine, onglet, suppression) s'ouvre d'un clic sur son nom —, puis
+// « À rattacher » : les matières importées (moyennes) ou des fiches de suivi que rien ne range. Les autres, sur demande.
 function _disciplinesTableHTML() {
   const cls = getCls();
-  const mats = cls ? _avisMatieresClasse(cls.id) : [];
-  const rows = _disciplinesAll().map(d => {
-    const ms = mats.filter(m => _matiereDisc(m.id) === d.id).map(m => m.nom);
-    return `<tr${d.actif ? '' : ' class="inactive"'}>
-      <td style="text-align:center"><input type="checkbox"${d.actif ? ' checked' : ''} onchange="disciplineSetUI('${_escJsAttr(d.id)}',{actif:this.checked})" title="${d.actif ? 'Proposée pour les feuilles d\'avis — décocher pour la retirer' : 'Retirée des feuilles d\'avis'}"></td>
-      <td style="min-width:190px;white-space:nowrap"><span class="av-sw" style="background:${_discCouleur(d.id)}" title="La couleur de son onglet dans la feuille"></span><input type="text" value="${_escAttr(d.nom)}" maxlength="60" style="width:calc(100% - 22px)" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{nom:this.value})"></td>
-      <td><select onchange="disciplineSetUI('${_escJsAttr(d.id)}',{domaine:this.value})" title="Le domaine donne la couleur de l'onglet ; chaque discipline en prend une nuance">${Object.entries(DOMAINES).map(([k, v]) => `<option value="${k}"${_discDomaine(d.id) === k ? ' selected' : ''}>${_escName(v.label)}</option>`).join('')}</select></td>
-      <td style="min-width:120px"><input type="text" value="${_escAttr(d.onglet)}" maxlength="31" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{onglet:this.value})" title="Le nom de l'onglet dans la feuille (31 caractères au plus)"></td>
+  const mats = cls ? _avisMatieresClasse(cls.id) : [], fmats = cls ? _ficheMatieresClasse(cls.id) : [];
+  const ouvert = _donDiscOuvert && S.disciplines[_donDiscOuvert] ? _donDiscOuvert : null;
+  const lignes = Object.keys(DOMAINES).map(dom => {
+    const ds = _disciplinesAll().filter(d => _discDomaine(d.id) === dom);
+    if (!ds.length) return '';
+    return `<tr class="fam"><td colspan="5"><span class="av-sw" style="background:${DOMAINES[dom].couleur}" aria-hidden="true"></span>${_escName(DOMAINES[dom].label)}</td></tr>` + ds.map(d => {
+      const ms = [...mats.filter(m => _matiereDisc(m.id) === d.id).map(m => m.nom), ...fmats.filter(n => _ficheMatDisc(n) === d.id)];
+      const on = ouvert === d.id;
+      const det = on ? `<tr class="disc-det"><td colspan="5"><div class="disc-det-b">
+          <label>Nom <input type="text" value="${_escAttr(d.nom)}" maxlength="60" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{nom:this.value})"></label>
+          <label>Domaine <select onchange="disciplineSetUI('${_escJsAttr(d.id)}',{domaine:this.value})" title="Le domaine range la discipline et donne la couleur de son onglet ; c'est aussi le champ disciplinaire de la matière dans les fiches de suivi">${Object.entries(DOMAINES).map(([k, v]) => `<option value="${k}"${_discDomaine(d.id) === k ? ' selected' : ''}>${_escName(v.label)}</option>`).join('')}</select></label>
+          <label>Onglet de la feuille d'avis <input type="text" value="${_escAttr(d.onglet)}" maxlength="31" onchange="disciplineSetUI('${_escJsAttr(d.id)}',{onglet:this.value})" title="Le nom de l'onglet dans la feuille (31 caractères au plus)"><span class="av-sw" style="background:${_discCouleur(d.id)}" title="La couleur de son onglet dans la feuille"></span></label>
+          ${d.builtin ? '<span class="tb-hint" title="Discipline d\'office : se décoche, ne se supprime pas">discipline d\'office : se décoche, ne se supprime pas</span>'
+            : `<button class="btn btn-d btn-sm" onclick="disciplineRemoveUI('${_escJsAttr(d.id)}')" title="Supprimer cette discipline">🗑 Supprimer</button>`}
+        </div></td></tr>` : '';
+      return `<tr${d.actif ? '' : ' class="inactive"'}${on ? ' data-ouvert' : ''}>
+      <td style="text-align:center"><input type="checkbox"${d.actif ? ' checked' : ''} onchange="disciplineSetUI('${_escJsAttr(d.id)}',{actif:this.checked})" aria-label="${_escAttr(d.nom)} proposée" title="${d.actif ? 'Proposée pour les feuilles d\'avis — décocher pour la retirer' : 'Retirée des feuilles d\'avis'}"></td>
+      <td style="white-space:nowrap"><button type="button" class="disc-nom" aria-expanded="${on}" onclick="donDiscUI('${_escJsAttr(d.id)}')" title="Détail : nom, domaine, onglet de la feuille d'avis${d.builtin ? '' : ', suppression'}">${_escName(d.nom)} <span aria-hidden="true">${on ? '▾' : '▸'}</span></button></td>
       <td style="min-width:110px">${_discCodeCelluleHTML(cls, d)}</td>
-      <td style="min-width:150px"><input type="text" value="${_escAttr(cls ? _discProfs(cls.id, d.id) : (d.profs || ''))}" maxlength="120" placeholder="${_escAttr(cls && _discProfsAuto(cls.id, d.id) || 'à saisir')}" onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)" title="Repris des moyennes quand elles le donnent ; ce que vous tapez passe avant"></td>
-      <td class="tb-hint" style="width:99%">${ms.length ? _escName(ms.join(' · ')) : '—'}</td>
-      <td style="white-space:nowrap">${d.builtin ? '<span class="tb-hint" title="Discipline d\'office : se décoche, ne se supprime pas">d\'office</span>'
-        : `<button class="btn btn-d btn-sm" onclick="disciplineRemoveUI('${_escJsAttr(d.id)}')" title="Supprimer cette discipline">🗑 Supprimer</button>`}</td></tr>`;
+      <td style="min-width:160px"><input type="text" style="width:100%;box-sizing:border-box" value="${_escAttr(cls ? _discProfs(cls.id, d.id) : (d.profs || ''))}" maxlength="120" placeholder="${_escAttr(cls && _discProfsAuto(cls.id, d.id) || 'à saisir')}" onchange="disciplineProfsUI('${_escJsAttr(d.id)}',this.value)" aria-label="Professeur(s) de ${_escAttr(d.nom)}" title="Repris des moyennes quand elles le donnent ; ce que vous tapez passe avant"></td>
+      <td class="tb-hint">${ms.length ? _escName(ms.join(' · ')) : '—'}</td></tr>${det}`;
+    }).join('');
   }).join('');
-  const matRows = mats.map(m => {
-    const auto = _matiereDiscAuto(m.norm || _moyNorm(m.nom));
-    const val = typeof m.disc === 'string' ? m.disc : 'auto';
-    return `<tr><td>${_escName(m.nom)}</td><td><select onchange="matiereDiscUI('${_escJsAttr(m.id)}',this.value)" style="max-width:100%">
-        <option value="auto"${val === 'auto' ? ' selected' : ''}>automatique${auto ? ' → ' + _escName(S.disciplines[auto]?.nom || '') : ' — non reconnue'}</option>
-        ${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}"${val === d.id ? ' selected' : ''}>${_escName(d.nom)}</option>`).join('')}
-        <option value=""${val === '' ? ' selected' : ''}>aucune — pas d'avis à demander</option></select></td></tr>`;
-  }).join('');
-  const fmats = cls ? _ficheMatieresClasse(cls.id) : [];
-  const fRows = fmats.map(nom => {
-    const k = _moyNorm(nom), auto = _matiereDiscAuto(k), pr = _isPlainObj(_prefs().matieresFiche) ? _prefs().matieresFiche : {};
-    const v = Object.prototype.hasOwnProperty.call(pr, k) ? pr[k] : 'auto', val = v === '' || S.disciplines[v] ? v : 'auto', did = _ficheMatDisc(nom);
-    const prof = did && cls ? _discProfs(cls.id, did) : '';
-    return `<tr><td>${_escName(nom)}</td><td><select onchange="ficheMatDiscUI('${_escJsAttr(nom)}',this.value)" style="max-width:100%">
-        <option value="auto"${val === 'auto' ? ' selected' : ''}>automatique${auto ? ' → ' + _escName(S.disciplines[auto]?.nom || '') : ' — non reconnue'}</option>
-        ${_disciplinesAll().map(d => `<option value="${_escAttr(d.id)}"${val === d.id ? ' selected' : ''}>${_escName(d.nom)}</option>`).join('')}
-        <option value=""${val === '' ? ' selected' : ''}>aucune — propre à la fiche</option></select></td>
-      <td class="tb-hint">${did ? (prof ? _escName(prof) : 'à saisir dans la discipline') : '—'}</td></tr>`;
-  }).join('');
+  // les matières, d'où qu'elles viennent : à rattacher d'abord, les autres sur demande
+  const choix = (val, auto, onch, aucune) => `<select onchange="${onch}" style="max-width:100%">
+        <option value="auto"${val === 'auto' ? ' selected' : ''}>${auto ? 'automatique → ' + _escName(S.disciplines[auto]?.nom || '') : '— à choisir —'}</option>
+        ${Object.keys(DOMAINES).map(dom => { const ds = _disciplinesAll().filter(d => _discDomaine(d.id) === dom); return ds.length ? `<optgroup label="${_escAttr(DOMAINES[dom].label)}">${ds.map(d => `<option value="${_escAttr(d.id)}"${val === d.id ? ' selected' : ''}>${_escName(d.nom)}</option>`).join('')}</optgroup>` : ''; }).join('')}
+        <option value=""${val === '' ? ' selected' : ''}>${aucune}</option></select>`;
+  const pr = _isPlainObj(_prefs().matieresFiche) ? _prefs().matieresFiche : {};
+  const toutes = [
+    ...mats.map(m => ({ src: 'moy', nom: m.nom, fait: _matiereDisc(m.id) !== null,
+      sel: choix(typeof m.disc === 'string' && (m.disc === '' || S.disciplines[m.disc]) ? m.disc : 'auto', _matiereDiscAuto(m.norm || _moyNorm(m.nom)), `matiereDiscUI('${_escJsAttr(m.id)}',this.value)`, 'aucune — pas d\'avis à demander') })),
+    ...fmats.map(nom => { const k = _moyNorm(nom), v = Object.prototype.hasOwnProperty.call(pr, k) ? pr[k] : 'auto';
+      return { src: 'fiche', nom, fait: _ficheMatDisc(nom) !== null, sel: choix(v === '' || S.disciplines[v] ? v : 'auto', _matiereDiscAuto(k), `ficheMatDiscUI('${_escJsAttr(nom)}',this.value)`, 'aucune — propre à la fiche') }; }),
+  ];
+  const src = s => s === 'moy' ? '<span class="don-chip">📈 moyennes</span>' : '<span class="don-chip">📋 fiches de suivi</span>';
+  const tab = l => `<div class="rel-wrap" style="max-width:760px"><table class="dt inst-table"><thead><tr><th>Matière</th><th>Vient de</th><th>Discipline</th></tr></thead><tbody>${l.map(x => `<tr><td>${_escName(x.nom)}</td><td>${src(x.src)}</td><td>${x.sel}</td></tr>`).join('')}</tbody></table></div>`;
+  const afaire = toutes.filter(x => !x.fait), faites = toutes.filter(x => x.fait);
   const listeCodes = `<datalist id="disc-codes">${[...new Set(Object.values(S.tags || {}).filter(_isPlainObj).map(t => String(t.abbr || '').trim()).filter(Boolean))].map(a => `<option value="${_escAttr(a)}">`).join('')}</datalist>`;
-  return `${listeCodes}<div class="rel-wrap" style="max-width:900px;margin-bottom:8px"><table class="dt inst-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th>Domaine</th><th>Onglet</th><th title="Le code de l'option que portent les élèves qui suivent cette discipline (LAT pour le latin) — vide : toute la classe">Option (code)</th><th>Professeur(s)</th><th>Matières des moyennes rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="tb" style="max-width:900px;margin-bottom:12px"><input type="text" id="disc-new" placeholder="Nouvelle discipline (ex. : Latin, Espagnol…)" maxlength="60" style="flex:1;min-width:200px"
-         onkeydown="if(event.key==='Enter'){event.preventDefault();disciplineAddUI()}"> <button class="btn btn-s btn-sm" onclick="disciplineAddUI()">+ Ajouter</button></div>
-    ${mats.length ? `<div class="pref-help" style="margin-bottom:6px">Chaque matière des imports de moyennes se range dans une discipline — c'est ce qui donne le professeur de l'onglet, et regroupe par exemple « ANGLAIS » et « ANGLAIS LV2 ».</div>
-    <div class="rel-wrap" style="max-width:640px;margin-bottom:18px"><table class="dt inst-table"><thead><tr><th>Matière (bureau numérique)</th><th>Discipline</th></tr></thead><tbody>${matRows}</tbody></table></div>`
-    : '<div class="pref-help" style="margin-bottom:18px">Les matières des moyennes apparaîtront ici après un import (📈 Moyennes).</div>'}
-    ${fmats.length ? `<div class="pref-help" style="margin-bottom:6px">Chaque matière de l'emploi du temps des fiches de suivi${cls ? ' de la ' + _escName(cls.nom) : ''} se range dans une discipline — c'est ce qui lui donne son enseignant (celui de la discipline, ci-dessus) et, pour une option, le groupe du pinceau. « Aucune » : elle reste propre à la fiche (Vie de classe, Devoirs faits…). Le choix vaut pour ce nom de matière, dans toutes les classes.</div>
-    <div class="rel-wrap" style="max-width:760px;margin-bottom:18px"><table class="dt inst-table"><thead><tr><th>Matière (fiches de suivi)</th><th>Discipline</th><th>Enseignant envoyé à la fiche</th></tr></thead><tbody>${fRows}</tbody></table></div>`
-    : `<div class="pref-help" style="margin-bottom:18px">Les matières des fiches de suivi apparaîtront ici dès que la classe aura un suivi (onglet 📋 Suivis), avec son emploi du temps.</div>`}`;
+  return `${listeCodes}<section class="don-sec">
+      <div class="don-sec-t"><h3>Disciplines</h3><span class="tb-hint">rangées par champ disciplinaire</span><span class="don-sp"></span>
+        <input type="text" id="disc-new" placeholder="Nouvelle discipline…" maxlength="60" style="width:220px" aria-label="Nouvelle discipline" onkeydown="if(event.key==='Enter'){event.preventDefault();disciplineAddUI()}"> <button class="btn btn-g btn-sm" onclick="disciplineAddUI()">+ Ajouter</button></div>
+      <div class="rel-wrap" style="max-width:980px"><table class="dt inst-table disc-table"><thead><tr><th title="Proposée pour les feuilles d'avis">Actif</th><th>Discipline</th><th title="Le code de l'option que portent les élèves qui suivent cette discipline (LAT pour le latin) — vide : toute la classe">Option (code)</th><th>Professeur(s)</th><th>Matières rattachées${cls ? ' (' + _escName(cls.nom) + ')' : ''}</th></tr></thead><tbody>${lignes}</tbody></table></div>
+      <p class="tb-hint" style="margin:0">Un clic sur le nom d'une discipline ouvre son détail (nom, domaine, onglet de la feuille d'avis, suppression) ; le tableau ne garde que ce qu'on consulte.</p>
+    </section>
+    <section class="don-sec">
+      <div class="don-sec-t"><h3>À rattacher</h3>${afaire.length ? `<span class="don-chip warn">${afaire.length}</span>` : ''}<span class="tb-hint">les matières lues ailleurs que Suivi PP ne sait pas ranger — moyennes du bureau numérique et fiches de suivi</span></div>
+      ${!toutes.length ? '<p class="pref-help">Les matières apparaîtront ici après un import de moyennes (📈 Moyennes), ou dès que la classe aura un suivi (onglet 📋 Suivis), avec son emploi du temps.</p>'
+        : afaire.length ? tab(afaire) : '<p class="pref-help">Toutes les matières sont rangées dans une discipline.</p>'}
+      ${faites.length ? `<button type="button" class="btn-lien" aria-expanded="${_donMatTout}" onclick="donMatToutUI()">${_donMatTout ? 'Masquer' : 'Voir aussi'} les ${_pl(faites.length, 'matière')} déjà ${faites.length > 1 ? 'rattachées' : 'rattachée'}</button>${_donMatTout ? tab(faites) : ''}` : ''}
+      <p class="tb-hint" style="margin:0">Le choix d'une matière des fiches de suivi vaut pour ce nom, dans toutes les classes ; il donne à la fiche l'enseignant de la discipline et son champ disciplinaire.</p>
+    </section>`;
 }
+function donDiscUI(did) { _donDiscOuvert = _donDiscOuvert === did ? null : did; renderDonnees(); }
+function donMatToutUI() { _donMatTout = !_donMatTout; renderDonnees(); }
 // La case du code d'option, dans 💾 Données : le champ (les codes des options connues proposés) et, dessous, qui le porte.
 function _discCodeCelluleHTML(cls, d) {
   const codes = _discCodes(d.id), n = cls && codes.length ? cls.eleves.filter(sid => S.eleves[sid] && _discSuit(d.id, sid)).length : null;
