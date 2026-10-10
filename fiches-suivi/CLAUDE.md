@@ -37,8 +37,7 @@ python3 fiches-suivi/app/assemble.py
 - L'assemblage produit `app/Fiche de suivi collective.html` (version autonome) ET écrit la version intégrée, compressée, dans
   `../suivi pp.html` (entre `<!-- FICHES-SUIVI-DEBUT` et `<!-- FICHES-SUIVI-FIN -->`). `--autonome` : la première seulement.
   Il concatène head.html, puis le bloc de données vide, puis core, demo, ui, sections et tuto.
-  ⚠️ Écrire dans `suivi pp.html` change Suivi PP : avancer `APP_VERSION` et `APP_BUILD_DATE` (et sa ligne du tableau de
-  construction) avant de pousser. `test/fiches-suivi.test.js` (côté Suivi PP) refuse un bloc retouché à la main (empreinte).
+  ⚠️ Écrire dans `suivi pp.html` change Suivi PP : avancer `APP_VERSION` et `APP_BUILD_DATE` (et documenter la nouveauté dans la section de son sujet du CLAUDE.md de Suivi PP) avant de pousser. `test/fiches-suivi.test.js` (côté Suivi PP) refuse un bloc retouché à la main (empreinte).
 - Vérification de syntaxe :
   ```bash
   cd fiches-suivi/app && cat core.js demo.js ui.js sections.js tuto.js > /tmp/tout.js && node --check /tmp/tout.js
