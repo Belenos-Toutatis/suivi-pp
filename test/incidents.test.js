@@ -117,8 +117,8 @@ test('incidentSetPdf / incidentRemove : la référence du PDF, jamais le fichier
 });
 
 test('_pjSafeName : sans chemin ni caractères interdits, accents et espaces gardés, en .pdf', () => {
-  assert.strictEqual(ev(`_pjSafeName('C:\\\\scans\\\\fiche incident élève.PDF')`), 'fiche incident élève.pdf');
-  assert.strictEqual(ev(`_pjSafeName('../../x/y.pdf')`), 'y.pdf');
+  assert.strictEqual(ev(`_pjSafeName('C:\\\\scans\\\\fiche incident élève.PDF', true)`), 'fiche incident élève.pdf');
+  assert.strictEqual(ev(`_pjSafeName('../../x/y.pdf', true)`), 'y.pdf');
   assert.strictEqual(ev(`_pjSafeName('')`), 'document.pdf');
   assert.strictEqual(ev(`_pjSafeName('a:b*c?d"e<f>g|h')`), 'a_b_c_d_e_f_g_h.pdf');
   assert.strictEqual(ev(`_pjSafeName('  .. espace   double . ')`), 'espace double.pdf');
