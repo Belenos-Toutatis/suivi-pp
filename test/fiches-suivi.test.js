@@ -293,7 +293,8 @@ test('réglages communs changés dans la fiche : repris par Suivi PP, dans le cr
   const r2 = evObj(`(() => { const u = undoStack.length;
     _suivisRecevoir({ type: 'etat', cle: '5C', etat: ${ETAT_FICHE({ referent: 'Mme PIN', matieres: [{ nom: 'Mathématiques', prof: 'M. NOYER' }, { nom: 'Allemand', prof: 'M. HECHT' }] })}, etape: true });
     const apres = { maths: _discProfs('5C', 'maths'), ref: S.prefs.avisNom, crans: undoStack.length - u };
-    undoLast(true); return { apres, annule: { maths: S.disciplines.maths.profs || null, ref: S.prefs.avisNom } }; })()`);
+    undoLast(true); _suivisEnvoyer();   // la fiche reçoit le suivi annulé (le harnais ne redessine pas l'onglet : on envoie à sa place)
+    return { apres, annule: { maths: S.disciplines.maths.profs || null, ref: S.prefs.avisNom } }; })()`);
   assert.deepStrictEqual(r2, { apres: { maths: 'M. NOYER', ref: 'Mme PIN', crans: 1 }, annule: { maths: null, ref: 'M. CHÊNE' } });
   // revenir à l'enseignant des moyennes : la saisie à la main est retirée (il redevient automatique)
   const r3 = evObj(`(() => { const auto = _discProfsAuto('5C', 'maths');
