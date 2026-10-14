@@ -5474,10 +5474,12 @@ function _ficheDocuments(cls, sid) {
       const r = _retour(d, sid);
       const reponses = (d.champs || []).map(ch => {
         const v = r.reponses[ch.id];
-        const ids = Array.isArray(v) ? v : (v ? [v] : []);
+        // ⚠️ Seule une option EXISTANTE compte (`_repIds`) : une réponse orpheline (option retirée ou renommée)
+        // ne s'affiche pas sous son id brut — elle n'est plus une réponse, comme partout ailleurs.
+        const ids = _repIds(ch, v);
         if (!ids.length) return null;
         // Les LIBELLÉS, pas les ids : une fiche qu'on lit à voix haute en rendez-vous.
-        const valeurs = ids.map(id => (ch.options || []).find(o => o.id === id)?.label || id);
+        const valeurs = ids.map(id => (ch.options || []).find(o => o.id === id).label);
         return { champ: ch.label, par: ch.par === 'prof' ? 'prof' : 'famille', valeurs };
       }).filter(Boolean);
       return { docId: d.id, titre: d.titre, archive: !!d.archive,
@@ -7531,9 +7533,11 @@ function _chaleurGroupes(cls, bcols, colM) {
       const d = docs.find(x => x.id === id);
       if (!_docExpected(d).some(x => x.id === sid)) return ['ch-no', '—', `${d.titre} : non concerné`];
       const r = _retour(d, sid);
+      // Distribution à venir (préparé d'avance) : pas encore « à rendre », comme la liste (`_papierDistribue`).
+      if (!r.rendu && !_papierDistribue(d)) return ['ch-no', '·', `${d.titre} : pas encore distribué`];
       return r.rendu ? ['ch-ok', '✓', `${d.titre} : rendu${r.dateRetour ? ' le ' + _fmtDateFr(r.dateRetour) : ''}`] : ['ch-miss', '☐', `${d.titre} : pas rendu`];
     },
-    sum: sid => { const n = docs.filter(d => _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu).length;
+    sum: sid => { const n = docs.filter(d => _papierDistribue(d) && _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu).length;
       return [n ? 'ch-miss' : 'ch-ok', n ? n + ' ☐' : '✓', n ? `${n} papier(s) à rendre` : 'tout est rendu']; } });
   // `clic` (v1.46.16) : la case s'ouvre d'un clic (4e élément de la case) et le groupe finit par
   // une case *Total* du moment — pour les contacts, comme la colonne des Indicateurs.
@@ -8363,7 +8367,7 @@ function _ficheRender() {
   // y chercher, et la cacher derrière un clic reviendrait à cacher l'essentiel avec
   // l'accessoire. Le pli se souvient d'une fiche à l'autre.
   const choix = docs.flatMap(d => d.reponses.map(r => `${d.titre} — ${r.champ} : ${r.valeurs.join(', ')}`));
-  const nonRendus = docs.filter(d => d.attendu && !d.rendu && S.documents[d.docId]?.suiviRetour !== false).length;
+  const nonRendus = docs.filter(d => d.attendu && !d.rendu && S.documents[d.docId]?.suiviRetour !== false && S.documents[d.docId] && _papierDistribue(S.documents[d.docId])).length;
   const resume = `<span class="fi-vide">${docs.length} document${docs.length > 1 ? 's' : ''}${
     nonRendus ? ` · <span class="badge warn">${nonRendus} non rendu${nonRendus > 1 ? 's' : ''}</span>` : ''}</span>`;
   const choixHTML = choix.length
@@ -8494,7 +8498,9 @@ function _ficheKey(e) {
 // titre) — plus ceux de 🗓 Moments (v1.46.0 → v1.46.7). Le moment choisi reste partagé.
 function _ficheMoments(cls) { return _chaleurMoments(cls); }
 function _ficheMomentCourant(cls) { return _chaleurMomentCourant(cls); }
-function ficheMomentSet(k) { const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); if (document.activeElement?.id === 'fi-dec') ficheDecisionSave(); _ficheMoment = k; _ficheMot = null; _ficheRender(); }
+function ficheMomentSet(k) { const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); if (document.activeElement?.id === 'fi-dec') ficheDecisionSave(); _ficheMoment = k; _ficheMot = null; _ficheRender();
+  // Le moment est partagé avec la carte de chaleur affichée à côté de la fiche (comme `chaleurMomentSet`, dans l'autre sens).
+  if (_elevesAffichage() === 'chaleur') renderStudents(); }
 // Les bornes de ce qu'on résume : la période entière pour un conseil ; du début de la
 // période à son milieu pour la mi-période ; le mois pour un point du mois. PUR.
 function _ficheBornes(cls, col) {
@@ -8623,8 +8629,8 @@ function _ficheFaits(cls, stu, col) {
   if (ct.length) F.push({ k: 'contact', html: `<strong>${pl(ct.length, 'contact')}</strong> avec la famille : ${ct.map(x => `${e(_journalType(x.type).label.toLowerCase())} le ${e(_fmtDateFr(x.date).slice(0, 5))}`).join(', ')}.`,
     phrase: `famille contactée (${ct.map(x => `${_journalType(x.type).label.toLowerCase()} le ${_fmtDateFr(x.date).slice(0, 5)}`).join(', ')})` });
   // Les MÊMES papiers que la liste, la carte de chaleur et la synthèse (audit du 2026-10-10) : non
-  // archivés, distribués avant la fin du moment, et pas rendus aujourd'hui.
-  const nr = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid))
+  // archivés, distribués avant la fin du moment ET déjà distribués (`_papierDistribue`), et pas rendus aujourd'hui.
+  const nr = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= b.end) && _papierDistribue(d) && _docExpected(d).some(x => x.id === sid))
     .filter(d => !_retour(d, sid).rendu);
   if (nr.length) F.push({ k: 'papier', n: nr.length, html: `Papier${nr.length > 1 ? 's' : ''} à rendre : ${nr.map(d => e(d.titre)).join(', ')}.`, phrase: '' });
   const prec = _bilansOf(sid).filter(x => x.date < col.date && !(x.type === col.type && _bilanCible(cls, sid, { type: col.type, date: col.date }) === x))[0];
@@ -8811,7 +8817,11 @@ function _ficheCourbeHTML(cls, stu, col) {
   g += `<line class="ax" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/>`;
   if (mi <= p.end) g += `<line class="mid" x1="${X(mi)}" y1="${y1}" x2="${X(mi)}" y2="${y0}"/><text x="${+X(mi) + 3}" y="${y1 + 9}">mi-${_escName(p.label)}</text>`;
   _moisDe(p).forEach(([ym, l]) => { g += `<text x="${X(ym + '-01' < p.start ? p.start : ym + '-01')}" y="${H - 6}">${_escName(l)}</text>`; });
-  for (let v = 0; v <= mx; v += 5) g += `<text x="2" y="${+Y(v) + 3}">${v}</text>`;
+  // Graduations : tous les 5 jusqu'à 100, puis un pas « rond » (1, 2, 5 × 10ⁿ) qui en garde une dizaine au plus —
+  // un cumul aberrant (un numéro collé : 99999999) ne doit pas écrire des millions de graduations.
+  let pas = 5;
+  if (mx > 100) { const brut = mx / 10, e = Math.pow(10, Math.floor(Math.log10(brut))); pas = [1, 2, 5, 10].map(m => m * e).find(z => z >= brut) || brut; }
+  for (let v = 0, n = 0; v <= mx && n < 25; v += pas, n++) g += `<text x="2" y="${+Y(v) + 3}">${v}</text>`;
   g += `<polyline class="ln" points="${pts.map(q => X(q[0]) + ',' + Y(q[1])).join(' ')}"/>`;
   pts.forEach((q, k) => { const d = k ? q[1] - pts[k - 1][1] : 0; g += `<circle class="pt" cx="${X(q[0])}" cy="${Y(q[1])}" r="3.5"><title>${_escName(_fmtDateFr(q[0]))} : ${q[1]}</title></circle>${d > 0 ? `<text class="lb" x="${+X(q[0]) - 6}" y="${+Y(q[1]) - 7}">+${d}</text>` : ''}`; });
   // Ce que la courbe additionne et où elle s'arrête : en légende au-dessus, pas dans le
@@ -8837,7 +8847,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const absR = _absMbnClasseAny(cls) ? _absMbnResume(sid, b.start, b.end) : null;
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
-  const manq = docs.filter(d => !d.archive && d.suiviRetour !== false && !_retour(d, sid).rendu);   // comme la liste et la synthèse
+  const manq = docs.filter(d => !d.archive && d.suiviRetour !== false && _papierDistribue(d) && !_retour(d, sid).rendu);   // comme la liste et la synthèse
   // Moyennes : matières en lignes, imports en colonnes, Δ du premier au dernier.
   const m = _ficheMoy(cls, sid, col, b);
   let moyT = '<p class="pf-empty">Aucun import de moyennes pour ce moment.</p>';
@@ -8893,7 +8903,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
     ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
     ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
-      return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : (d.archive && !r.rendu) ? '<span class="pf-mu">(archivé)</span>' /* rangé : pas un manquant (le compteur l'exclut) */ : `${d.archive ? '<span class="pf-mu">(archivé)</span> ' : ''}<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
+      return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : (d.archive && !r.rendu) ? '<span class="pf-mu">(archivé)</span>' /* rangé : pas un manquant (le compteur l'exclut) */ : (!r.rendu && !_papierDistribue(d)) ? '<span class="pf-mu">pas encore distribué</span>' /* à venir : pas un manquant non plus */ : `${d.archive ? '<span class="pf-mu">(archivé)</span> ' : ''}<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
   </div>`;
 }
 // ── Vue « Faits et rédaction » ──
@@ -9554,6 +9564,10 @@ function saveEdit() {
   // ⚠️ `departureDate` est le premier jour d'ABSENCE : un départ le jour même de
   // l'arrivée est cohérent (présent zéro jour), un départ AVANT ne l'est pas.
   if (arr && dep && dep < arr) { toast('⚠️ Le départ ne peut pas précéder l\'arrivée.', 'warn'); return; }
+  // Sans rien changer (on a ouvert la fenêtre puis validé), aucun cran d'undo ni « Élève modifié » : on compare
+  // l'élève avant / après en ignorant ce que la validation normalise (absent ↔ null ↔ false).
+  const _sansNul = o => JSON.stringify(o, (k, v) => (v === null || v === false || v === undefined || v === '') ? undefined : v);
+  const avant = nouveau ? null : _sansNul(s);
   pushUndo();
   if (nouveau) {   // créé ici, dans la classe choisie, puis rempli comme une modification
     sid = uid('e');
@@ -9579,6 +9593,11 @@ function saveEdit() {
   s.tags = [...document.querySelectorAll('#es-tags input[data-tag]')].filter(c => c.checked).map(c => c.dataset.tag);
   const newCid = document.getElementById('es-cls').value;
   const moved = !nouveau && moveStudentToClass(sid, newCid);
+  if (!nouveau && !moved && avant === _sansNul(S.eleves[sid])) {
+    _undoAnnulerRefus();
+    closeMod2('me');
+    return toast('Aucune modification.');
+  }
   save();
   closeMod2('me');
   refreshSelector();
@@ -12108,13 +12127,14 @@ function docToggleReponse(doc, sid, champId, optionId) {
 }
 
 // Dupliquer : LE geste de la rentrée suivante. Mêmes champs, mêmes options (copie
-// profonde), retours vides, dates remises à zéro. Sans pushUndo ni save.
+// profonde), retours vides, échéance remise à zéro, distribution = date du jour (comme un document créé : sans date, la
+// copie passerait pour DISTRIBUÉE et réclamerait ses retours à toute la classe). Sans pushUndo ni save.
 function docDuplicate(docId) {
   const src = S.documents[docId];
   if (!src) return null;
   const id = uid('doc');
   const ord = Object.keys(S.documents).length;
-  const d = { ...JSON.parse(JSON.stringify(src)), id, titre: `${src.titre} (copie)`, dateDistribution: null, dateEcheance: null, retours: {}, archive: false, ord };
+  const d = { ...JSON.parse(JSON.stringify(src)), id, titre: `${src.titre} (copie)`, dateDistribution: _dateParDefaut(getCls()), dateEcheance: null, retours: {}, archive: false, ord };
   S.documents[id] = d;
   return d;
 }
@@ -12287,6 +12307,18 @@ const _OPTION_COLORS = ['#16a085', '#c0392b', '#2c3e50', '#95a5a6', '#27ae60', '
 function _optProche(a, b) {
   a = _slug(a); b = _slug(b);
   if (Math.min(a.length, b.length) < 4) return false;
+  // ⚠️ Une FAUTE DE FRAPPE ne porte ni sur un chiffre (« Option 1 » → « Option 2 »), ni sur une lettre
+  // isolée (« Groupe A » → « Groupe B »), ni sur un préfixe qui change le sens (« Favorable » → « Défavorable »,
+  // « in- », « non ») : ce sont deux options différentes, dont les réponses ne se passent pas de l'une à l'autre.
+  if ((a.match(/\d+/g) || []).join(',') !== (b.match(/\d+/g) || []).join(',')) return false;
+  if (a.length !== b.length && (a.endsWith(b) || b.endsWith(a))) return false;
+  const ta = a.split('-'), tb = b.split('-');
+  if (ta.length === tb.length) {
+    for (let k = 0; k < ta.length; k++) {
+      const x = ta[k], y = tb[k];
+      if (x !== y && (Math.min(x.length, y.length) < 2 || x.endsWith(y) || y.endsWith(x))) return false;
+    }
+  }
   let prevRow = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const row = [i];
@@ -12298,22 +12330,23 @@ function _optProche(a, b) {
 function _champParseOptions(text, existing) {
   const prev = Array.isArray(existing) ? existing : [];
   const labels = String(text || '').split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
-  // Options d'avant que retrouve un libellé ou un id : jamais redonnées par position.
-  const prises = new Set();
-  for (const l of labels) {
-    const o = prev.find(x => x.label === l) || prev.find(x => x.id === _slug(l));
-    if (o) prises.add(o.id);
-  }
-  const out = [], seen = new Set();
+  // Options d'avant que retrouve un libellé ou un id : jamais redonnées par position. ⚠️ Un libellé retrouvé
+  // EXACTEMENT garde son option AVANT qu'un autre libellé ne la reprenne par son id : « LATIN, BILINGUE » →
+  // « LATTIN, BILINGUE » (id latin sous le libellé LATTIN) → « LATIN, LATTIN, BILINGUE » : LATTIN garde ses
+  // réponses, LATIN est une option neuve (elle ne les vole pas par l'id).
+  const claimed = new Set(), olds = new Array(labels.length).fill(null);
+  labels.forEach((l, i) => { const o = prev.find(x => x.label === l && !claimed.has(x.id)); if (o) { olds[i] = o; claimed.add(o.id); } });
+  labels.forEach((l, i) => { if (olds[i]) return; const o = prev.find(x => x.id === _slug(l) && !claimed.has(x.id)); if (o) { olds[i] = o; claimed.add(o.id); } });
+  labels.forEach((l, i) => {
+    if (olds[i]) return;
+    if (labels.length === prev.length && prev[i] && !claimed.has(prev[i].id) && _optProche(prev[i].label, l)) { olds[i] = prev[i]; claimed.add(prev[i].id); }
+  });
+  const out = [], used = new Set(claimed);
   for (let i = 0; i < labels.length; i++) {
-    const label = labels[i];
-    let base = _slug(label), id = base, k = 2;
-    let old = prev.find(o => o.label === label) || prev.find(o => o.id === base && !seen.has(base));
-    if (!old && labels.length === prev.length && prev[i] && !prises.has(prev[i].id) && !seen.has(prev[i].id)
-        && _optProche(prev[i].label, label)) old = prev[i];
-    if (old) id = old.id;
-    while (seen.has(id)) id = `${base}-${k++}`;
-    seen.add(id);
+    const label = labels[i], old = olds[i];
+    let base = _slug(label), id = old ? old.id : base, k = 2;
+    if (!old) while (used.has(id)) id = `${base}-${k++}`;
+    used.add(id);
     out.push({ id, label, color: _safeColor(old?.color || _OPTION_COLORS[out.length % _OPTION_COLORS.length]) });
   }
   return out;
@@ -12929,7 +12962,8 @@ function openRamassage() {
   if (!cls) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
   const dispo = _ramDocsDisponibles(cls.id);
   if (!dispo.length) return toast('⚠️ Aucun document à ramasser dans cette classe.', 'warn');
-  const incomplets = dispo.filter(d => _ramStats(d, cls.id).manquants.length);
+  // Un papier pas encore distribué n'est pas présélectionné « incomplet » (il reste choisissable à la main).
+  const incomplets = dispo.filter(d => _papierDistribue(d) && _ramStats(d, cls.id).manquants.length);
   _ramSel = (incomplets.length ? incomplets : dispo).map(d => d.id);
   // ⚠️ Repli d'office des documents à PLUSIEURS champs de famille. Un seul champ (le cas
   // courant : « Devoirs Faits — OUI / NON / ULYSS ») tient sur une ligne et se lit d'un
@@ -13450,11 +13484,41 @@ function docModalOk() {
   const champs = _docEdit.champs.filter(c => c.label).map(c => ({ ...c, options: Array.isArray(c.options) ? c.options : [] }));
   const sansOption = champs.find(c => !c.options.length);
   if (sansOption) { toast(`⚠️ Le champ « ${sansOption.label} » n'a aucune option.`, 'warn'); return; }
+  // ⚠️ Une option retirée (ou un champ retiré) qui porte des réponses les rend orphelines : elles ne seront plus
+  // comptées. On le DIT avant d'enregistrer, et on laisse renoncer (jamais de dialogue natif).
+  const perdues = _docReponsesPerdues(_docEdit.id ? S.documents[_docEdit.id] : null, champs);
+  const suivi = document.getElementById('mdoc-suivi').checked, desc = document.getElementById('mdoc-desc').value.trim();
+  if (perdues.length) {
+    _uiConfirm({ title: 'Des réponses ne seront plus comptées', okLabel: 'Enregistrer quand même', okClass: 'btn-d',
+      message: perdues.map(x => `${x.n} réponse${x.n > 1 ? 's' : ''} portée${x.n > 1 ? 's' : ''} sur « ${x.label} » ne seront plus comptées`).join(' ; ') + '. Renoncez pour garder l\'option (ou corriger sa faute de frappe).',
+      onOk: () => _docModalApply(titre, desc, classIds, dist, ech, suivi, champs) });
+    return;
+  }
+  _docModalApply(titre, desc, classIds, dist, ech, suivi, champs);
+}
+// Les réponses portées sur des options qui n'existeront plus après l'enregistrement : [{ label, n }].
+function _docReponsesPerdues(doc, champs) {
+  if (!doc) return [];
+  const out = [];
+  for (const ch of (doc.champs || [])) {
+    const neuf = (champs || []).find(c => c.id === ch.id);
+    for (const o of (ch.options || [])) {
+      if (neuf && (neuf.options || []).some(x => x.id === o.id)) continue;
+      let n = 0;
+      for (const r of Object.values(doc.retours || {})) {
+        const v = _isPlainObj(r) && _isPlainObj(r.reponses) ? r.reponses[ch.id] : null;
+        if (Array.isArray(v) ? v.includes(o.id) : v === o.id) n++;
+      }
+      if (n) out.push({ label: o.label, n });
+    }
+  }
+  return out;
+}
+function _docModalApply(titre, description, classIds, dist, ech, suiviRetour, champs) {
   pushUndo();
   let d = _docEdit.id ? S.documents[_docEdit.id] : null;
   if (!d) { d = { id: uid('doc'), retours: {}, archive: false, ord: Object.keys(S.documents).length }; S.documents[d.id] = d; }
-  Object.assign(d, { titre, description: document.getElementById('mdoc-desc').value.trim(), classIds, dateDistribution: dist, dateEcheance: ech,
-                     suiviRetour: document.getElementById('mdoc-suivi').checked, champs });
+  Object.assign(d, { titre, description, classIds, dateDistribution: dist, dateEcheance: ech, suiviRetour, champs });
   save();
   closeMod2('mdoc');
   if (!_docEdit.id) _docView = d.id;
@@ -19155,7 +19219,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
     // Aucun relevé chiffré dans le moment (un point du mois sans relevé) : le cumul REPORTÉ du dernier
     // relevé d'avant, comme la carte de chaleur et la fiche (audit du 2026-10-10) — pas une case vide.
     if (cumulFin === null) for (const d of _relDates(cid)) { if (d > p.end) break; const v = _relValue(m[d], stu.id); if (typeof v === 'number') { cumulFin = v; cumulFinDate = d; } }
-    const nonRendus = docs.filter(d => _docExpected(d).some(x => x.id === stu.id) && !_retour(d, stu.id).rendu).map(d => d.titre);
+    const nonRendus = docs.filter(d => _papierDistribue(d) && _docExpected(d).some(x => x.id === stu.id) && !_retour(d, stu.id).rendu).map(d => d.titre);
     const incidents = _incidentsOf(stu.id).filter(e => e.date >= p.start && e.date <= p.end)
       .map(e => ({ date: e.date, type: e.type, objet: e.objet, texte: e.texte || '' })).reverse();
     const contacts = _journalOf(stu.id).filter(e => e.date >= p.start && e.date <= p.end)
@@ -19513,7 +19577,7 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
   const papH = docs.length ? docs.map(d => { const r = _retour(d, sid), info = infos.find(x => x.docId === d.id);
     // Un document ARCHIVÉ non rendu n'est pas un manquant (la fiche reste un dossier : il est listé, marqué).
-    const etat = d.suiviRetour === false ? 'rien à rendre' : r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _fmtDateFr(r.dateRetour).slice(0, 5) : ''}${d.archive ? ' (archivé)' : ''}` : d.archive ? '(archivé)' : '☐ pas rendu';
+    const etat = d.suiviRetour === false ? 'rien à rendre' : r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _fmtDateFr(r.dateRetour).slice(0, 5) : ''}${d.archive ? ' (archivé)' : ''}` : d.archive ? '(archivé)' : !_papierDistribue(d) ? 'pas encore distribué' : '☐ pas rendu';
     const ch = (info?.reponses || []).map(x => `${x.champ} : ${x.valeurs.join(', ')}`).join(' · ');
     return `<div class="fp-ent"><span class="fp-d">${d.dateDistribution ? jm(d.dateDistribution) : ''}</span><span>${_escName(d.titre)} — ${_escName(etat)}${ch ? `<br><span class="fp-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : vide('Aucun papier.');
   // ── Les autres moments de l'année : leurs bilans et décisions, s'ils en ont ──
