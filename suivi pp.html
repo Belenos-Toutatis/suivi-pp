@@ -5589,12 +5589,21 @@ function _bilanLabel(e) {
 // pour un point du mois). C'est celui qu'on reprend plutôt que d'en créer un second. PUR.
 function _bilanCible(cls, sid, mode) {
   if (!mode) return null;
+  return _bilansOf(sid).find(e => _momentEst(cls, e, mode)) || null;
+}
+// Une entrée (bilan ou décision) est-elle DE ce moment { type, date } ? Même type, même période (même
+// mois pour un point du mois). Un point du mois est AUSSI borné à la période (audit du 2026-10-10) :
+// en trimestres, mars est coupé en deux (T2 jusqu'au 14, T3 ensuite) — sans cette borne, les deux
+// points de mars étaient le même bilan, et écrire celui du T2 remplaçait celui du T3.
+// ⚠️ Date HORS de toute période (année tapée de travers, hors année scolaire) : le moment est alors
+// la date elle-même (même mois pour un point du mois). Sans cela rien ne se retrouvait, et chaque
+// enregistrement créait une décision de plus (vider le champ n'en retirait aucune).
+function _momentEst(cls, e, mode) {
+  if (e.type !== mode.type) return false;
   const p = _periodOf(cls, mode.date);
-  // Un point du mois est AUSSI borné à la période (audit du 2026-10-10) : en trimestres, mars est coupé
-  // en deux (T2 jusqu'au 14, T3 ensuite) — sans cette borne, les deux points de mars étaient le même
-  // bilan, et écrire celui du T2 remplaçait celui du T3.
-  return _bilansOf(sid).find(e => e.type === mode.type && !!p && e.date >= p.start && e.date <= p.end
-    && (mode.type !== 'mois' || String(e.date).slice(0, 7) === String(mode.date).slice(0, 7))) || null;
+  const memeMois = mode.type !== 'mois' || String(e.date).slice(0, 7) === String(mode.date).slice(0, 7);
+  if (!p) return !_periodOf(cls, e.date) && memeMois && (mode.type === 'mois' || e.date === mode.date);
+  return e.date >= p.start && e.date <= p.end && memeMois;
 }
 // Du plus récent au plus ancien ; à date égale, le dernier saisi devant.
 function _bilansOf(sid) {
@@ -5643,12 +5652,7 @@ function _decisionsOf(sid) {
 }
 function _decisionCible(cls, sid, mode) {
   if (!mode) return null;
-  const p = _periodOf(cls, mode.date);
-  // Un point du mois est AUSSI borné à la période (audit du 2026-10-10) : en trimestres, mars est coupé
-  // en deux (T2 jusqu'au 14, T3 ensuite) — sans cette borne, les deux points de mars étaient le même
-  // bilan, et écrire celui du T2 remplaçait celui du T3.
-  return _decisionsOf(sid).find(e => e.type === mode.type && !!p && e.date >= p.start && e.date <= p.end
-    && (mode.type !== 'mois' || String(e.date).slice(0, 7) === String(mode.date).slice(0, 7))) || null;
+  return _decisionsOf(sid).find(e => _momentEst(cls, e, mode)) || null;
 }
 // Écrit (ou crée) la décision du moment ; un texte vide la RETIRE. → 'ajout' | 'modif' |
 // 'suppr' | null (rien ne change). Sans pushUndo ni save : l'appelant s'en charge.
@@ -8829,7 +8833,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
     ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
     ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
-      return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : `<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
+      return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : (d.archive && !r.rendu) ? '<span class="pf-mu">(archivé)</span>' /* rangé : pas un manquant (le compteur l'exclut) */ : `${d.archive ? '<span class="pf-mu">(archivé)</span> ' : ''}<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
   </div>`;
 }
 // ── Vue « Faits et rédaction » ──
@@ -11939,9 +11943,17 @@ function _retourW(doc, sid) {
   if (!_isPlainObj(r.reponses)) r.reponses = {};
   return r;
 }
+// Les options COCHÉES d'un champ, qu'elles soient rangées en chaîne ou en tableau : changer le
+// type d'un champ (choix unique ↔ multiple) laisse les réponses d'avant sous leur ancienne
+// forme, et la cellule imprimée comme `_docPrintBilan` les lisent déjà toutes les deux.
+// ⚠️ Seule une option EXISTANTE du champ compte (retirée ou renommée, la réponse devient
+// orpheline : invisible partout, donc « sans réponse » et à relancer).
+function _repIds(champ, v) {
+  const ids = Array.isArray(v) ? v : (typeof v === 'string' && v ? [v] : []);
+  return ids.filter(id => (champ.options || []).some(o => o.id === id));
+}
 function _hasReponse(champ, rep) {
-  const v = rep[champ.id];
-  return champ.type === 'multi' ? (Array.isArray(v) && v.length > 0) : (typeof v === 'string' && v !== '');
+  return _repIds(champ, rep[champ.id]).length > 0;
 }
 // Compteurs d'un document. ⚠️ `reponsesManquantes` ne compte que les champs
 // OBLIGATOIRES attendus des FAMILLES — un avis du PP en attente n'y entre pas, sinon
@@ -12096,6 +12108,22 @@ function _ramRows(docIds, classId, mode) {
     });
 }
 
+// Les compteurs d'un document VU DEPUIS LE RAMASSAGE : mêmes champs que `_docStats`, mais comptés sur
+// les seuls élèves de la classe courante (`_ramRows`, la garde unique) — un papier partagé avec
+// une autre division n'y fait pas entrer ses élèves dans « rendus / attendus » ni dans « à lire ».
+function _ramStats(doc, classId) {
+  const rows = _ramRows([doc.id], classId);
+  const manquants = [], sansReponse = [];
+  let rendus = 0;
+  for (const r of rows) {
+    const c = r.cells[0];
+    if (doc.suiviRetour !== false) { if (c.rendu) rendus++; else manquants.push(r.sid); }
+    if (c.repManquantes) sansReponse.push(r.sid);
+  }
+  return { attendus: rows.length, rendus: doc.suiviRetour !== false ? rendus : null, manquants,
+           reponsesManquantes: sansReponse.length, sansReponse };
+}
+
 // Coche (ou décoche) UNE case. Retourne false si l'élève n'est pas attendu sur ce
 // document : cocher inventerait un retour, et le compteur « manquants » deviendrait faux.
 // ⚠️ La date posée est celle du RAMASSAGE, pas celle du jour : on saisit souvent le soir,
@@ -12133,8 +12161,8 @@ function _ramConstatRetour(docId, sid, ymd) {
 function ramSetReponse(docId, sid, champId, optionId, ymd) {
   const doc = S.documents[docId];
   if (!_ramAttendu(doc, sid)) return false;
-  const cur = _retour(doc, sid).reponses[champId];
-  const efface = cur === optionId;
+  const ch = _champ(doc, champId);
+  const efface = !!ch && _repIds(ch, _retour(doc, sid).reponses[champId]).includes(optionId);
   const ok = docSetReponse(doc, sid, champId, efface ? '' : optionId);
   if (ok && !efface) _ramConstatRetour(docId, sid, ymd);
   return ok;
@@ -12143,8 +12171,8 @@ function ramSetReponse(docId, sid, champId, optionId, ymd) {
 function ramToggleReponse(docId, sid, champId, optionId, ymd) {
   const doc = S.documents[docId];
   if (!_ramAttendu(doc, sid)) return false;
-  const avant = _retour(doc, sid).reponses[champId];
-  const etait = Array.isArray(avant) ? avant.includes(optionId) : avant === optionId;
+  const ch = _champ(doc, champId);
+  const etait = !!ch && _repIds(ch, _retour(doc, sid).reponses[champId]).includes(optionId);
   const ok = docToggleReponse(doc, sid, champId, optionId);
   if (ok && !etait) _ramConstatRetour(docId, sid, ymd);
   return ok;
@@ -12179,14 +12207,37 @@ const _OPTION_COLORS = ['#16a085', '#c0392b', '#2c3e50', '#95a5a6', '#27ae60', '
 // « OUI, NON, ULYSS » → [{ id, label, color }]. Les ids et couleurs des options déjà
 // existantes (même libellé ou même id) sont CONSERVÉS : sinon renommer une option
 // rendrait orphelines toutes les réponses cochées.
+// ⚠️ Faute de frappe corrigée : à nombre d'options égal, une option dont le libellé a disparu et
+// qui ressemble de près (≤ 1 lettre d'écart par 4, 4 lettres au moins) à celui de la MÊME
+// POSITION garde son id (« LATTIN » → « LATIN »). Remplacer une option par une autre n'est pas
+// une correction : ses réponses ne passent pas à la nouvelle.
+function _optProche(a, b) {
+  a = _slug(a); b = _slug(b);
+  if (Math.min(a.length, b.length) < 4) return false;
+  let prevRow = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) row[j] = Math.min(prevRow[j] + 1, row[j - 1] + 1, prevRow[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prevRow = row;
+  }
+  return prevRow[b.length] <= Math.max(1, Math.floor(Math.min(a.length, b.length) / 4));
+}
 function _champParseOptions(text, existing) {
   const prev = Array.isArray(existing) ? existing : [];
+  const labels = String(text || '').split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
+  // Options d'avant que retrouve un libellé ou un id : jamais redonnées par position.
+  const prises = new Set();
+  for (const l of labels) {
+    const o = prev.find(x => x.label === l) || prev.find(x => x.id === _slug(l));
+    if (o) prises.add(o.id);
+  }
   const out = [], seen = new Set();
-  for (const raw of String(text || '').split(/[,;\n]+/)) {
-    const label = raw.trim();
-    if (!label) continue;
+  for (let i = 0; i < labels.length; i++) {
+    const label = labels[i];
     let base = _slug(label), id = base, k = 2;
-    const old = prev.find(o => o.label === label) || prev.find(o => o.id === base && !seen.has(base));
+    let old = prev.find(o => o.label === label) || prev.find(o => o.id === base && !seen.has(base));
+    if (!old && labels.length === prev.length && prev[i] && !prises.has(prev[i].id) && !seen.has(prev[i].id)
+        && _optProche(prev[i].label, label)) old = prev[i];
     if (old) id = old.id;
     while (seen.has(id)) id = `${base}-${k++}`;
     seen.add(id);
@@ -12722,10 +12773,10 @@ function _renderDocDetail(el, doc) {
     const cells = champs.map(c => {
       const opts = c.options || [];
       if (c.type === 'multi') {
-        const cur = Array.isArray(r.reponses[c.id]) ? r.reponses[c.id] : [];
+        const cur = _repIds(c, r.reponses[c.id]);
         return `<td class="doc-champ">${opts.map(o => `<button class="optbtn" onclick="docToggleReponseUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}','${_escJsAttr(c.id)}','${_escJsAttr(o.id)}')">${_docChipHTML(o, cur.includes(o.id), (cur.includes(o.id) ? 'Coché — clic pour retirer : ' : 'Clic pour cocher : ') + o.label)}</button>`).join('')}</td>`;
       }
-      const cur = typeof r.reponses[c.id] === 'string' ? r.reponses[c.id] : '';
+      const cur = _repIds(c, r.reponses[c.id])[0] || '';
       const o = opts.find(x => x.id === cur);
       const bg = o ? _safeColor(o.color) : '';
       return `<td class="doc-champ"><select class="optsel" style="${o ? `background:${bg};color:${_contrastTextColor(bg)};border-color:${bg}` : ''}" onchange="docSetReponseUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}','${_escJsAttr(c.id)}',this.value)">
@@ -12805,7 +12856,7 @@ function openRamassage() {
   if (!cls) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
   const dispo = _ramDocsDisponibles(cls.id);
   if (!dispo.length) return toast('⚠️ Aucun document à ramasser dans cette classe.', 'warn');
-  const incomplets = dispo.filter(d => _docStats(d).manquants.length);
+  const incomplets = dispo.filter(d => _ramStats(d, cls.id).manquants.length);
   _ramSel = (incomplets.length ? incomplets : dispo).map(d => d.id);
   // ⚠️ Repli d'office des documents à PLUSIEURS champs de famille. Un seul champ (le cas
   // courant : « Devoirs Faits — OUI / NON / ULYSS ») tient sur une ligne et se lit d'un
@@ -12881,7 +12932,7 @@ function _renderRamassage(el) {
   }
 
   const th = sel.map(d => {
-    const st = _docStats(d);
+    const st = _ramStats(d, cls.id);
     const complet = st.rendus === st.attendus;
     const attendFam = (d.champs || []).some(c => c.par !== 'prof' && c.obligatoire !== false);
     return `<th class="ram-doc">
@@ -12934,9 +12985,7 @@ function _ramChipsId(docId, sid, champId) { return `ram-ch-${docId}__${sid}__${c
 
 function _ramChipsHTML(doc, sid, ch) {
   const rep = _retour(doc, sid).reponses;
-  const cur = ch.type === 'multi'
-    ? (Array.isArray(rep[ch.id]) ? rep[ch.id] : [])
-    : (typeof rep[ch.id] === 'string' && rep[ch.id] ? [rep[ch.id]] : []);
+  const cur = _repIds(ch, rep[ch.id]);
   const fn = ch.type === 'multi' ? 'ramRepToggle' : 'ramRepSet';
   return (ch.options || []).map(o => {
     const on = cur.includes(o.id);
@@ -13034,7 +13083,7 @@ function _ramRefreshCounters() {
     const d = S.documents[id];
     const b = document.getElementById('ram-c-' + id);
     if (!d || !b) continue;
-    const st = _docStats(d);
+    const st = _ramStats(d, cls.id);
     b.textContent = `${st.rendus} / ${st.attendus}`;
     b.className = 'badge' + (st.rendus === st.attendus ? ' ok' : ' warn');
     const q = document.getElementById('ram-q-' + id);
@@ -13053,10 +13102,14 @@ function ramColonne(docId, on) {
   const doc = S.documents[docId];
   const cls = getCls();
   if (!doc || !cls) return;
-  const visibles = _ramRows([docId], cls.id).filter(r => _ramShowGone || r.actif).map(r => r.sid);
+  // ⚠️ Tout se compte sur les élèves de la CLASSE (`_ramRows`) : ceux d'une autre division, attendus
+  // sur un papier partagé, ne sont ni « affichés » ni « partis ».
+  const lignes = _ramRows([docId], cls.id);
+  const visibles = lignes.filter(r => _ramShowGone || r.actif).map(r => r.sid);
   const vus = new Set(visibles);
-  const n = _docExpected(doc).filter(s => vus.has(s.id) && _retour(doc, s.id).rendu !== !!on).length;
-  const horsVue = _docExpected(doc).filter(s => !vus.has(s.id) && _retour(doc, s.id).rendu !== !!on).length;
+  const aChanger = lignes.filter(r => r.cells[0].rendu !== !!on);
+  const n = aChanger.filter(r => vus.has(r.sid)).length;
+  const horsVue = aChanger.filter(r => !vus.has(r.sid)).length;
   if (!n) return toast(horsVue
     ? `Rien à changer parmi les élèves affichés — ${horsVue} parti${horsVue > 1 ? 's' : ''} non touché${horsVue > 1 ? 's' : ''}.`
     : 'Rien à changer dans cette colonne.', 'warn');
@@ -18993,7 +19046,9 @@ function _periodePrintRefresh() {
     if (h) h.textContent = `${_pl(n, 'élève')}${filtre} · les colonnes affichées · ${o.format} paysage, texte en ${String(_elevesPrintPt(o.format)).replace('.', ',')} pt, sur autant de pages qu'il faut`;
     return;
   }
-  const syn = cls ? _periodeSynthese(cls, o.idx, { type: o.type }) : null;
+  // ⚠️ Le résumé décrit la feuille QU'ON IMPRIMERA : bornée au moment choisi (`col`), comme
+  // `_periodePrintHTML` — mêmes élèves présents, mêmes relevés, bilan DE CE MOMENT sans repli.
+  const syn = cls ? _periodeSynthese(cls, o.idx, { type: o.type, col: o.col }) : null;
   const h = document.getElementById('mper-hint');
   if (!syn) { h.textContent = ''; return; }
   const sans = syn.rows.filter(r => !r.bilan).length;
@@ -19162,7 +19217,8 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
   const infos = _ficheDocuments(cls, sid);
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
   const papH = docs.length ? docs.map(d => { const r = _retour(d, sid), info = infos.find(x => x.docId === d.id);
-    const etat = d.suiviRetour === false ? 'rien à rendre' : r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _fmtDateFr(r.dateRetour).slice(0, 5) : ''}` : '☐ pas rendu';
+    // Un document ARCHIVÉ non rendu n'est pas un manquant (la fiche reste un dossier : il est listé, marqué).
+    const etat = d.suiviRetour === false ? 'rien à rendre' : r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _fmtDateFr(r.dateRetour).slice(0, 5) : ''}${d.archive ? ' (archivé)' : ''}` : d.archive ? '(archivé)' : '☐ pas rendu';
     const ch = (info?.reponses || []).map(x => `${x.champ} : ${x.valeurs.join(', ')}`).join(' · ');
     return `<div class="fp-ent"><span class="fp-d">${d.dateDistribution ? jm(d.dateDistribution) : ''}</span><span>${_escName(d.titre)} — ${_escName(etat)}${ch ? `<br><span class="fp-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : vide('Aucun papier.');
   // ── Les autres moments de l'année : leurs bilans et décisions, s'ils en ont ──
@@ -19450,8 +19506,13 @@ async function _pjReady(mode) {
 // Accents et espaces restent — c'est un dossier que l'utilisateur ouvre lui-même, et
 // « 2026-02-05 Commission éducative — GUÉRIN Nathan.pdf » doit s'y lire tel quel.
 // ⚠️ Plus de préfixe d'id (v1.20.0) : l'unicité se règle dans le dossier (_pjUnique).
-function _pjSafeName(nom) {
-  let base = String(nom || '').split(/[\\/]/).pop().replace(/\.pdf$/i, '');
+// ⚠️ Le chemin n'est retiré (`/` et `\` : on garde le dernier morceau) que pour le nom d'un FICHIER
+// d'origine (`origine` vrai : il vient d'un `File`). Dans un nom construit ou tapé, « / » est une
+// barre du texte (« Cellule de veille / GPDS », « 5C/5D ») : elle devient « - », rien n'est coupé.
+function _pjSafeName(nom, origine) {
+  let base = String(nom || '');
+  base = origine ? base.split(/[\\/]/).pop() : base.replace(/\s*[\\/]+\s*/g, ' - ');
+  base = base.replace(/\.pdf$/i, '');
   base = base.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').replace(/\s+/g, ' ').replace(/^[\s._]+|[\s.]+$/g, '').slice(0, 100).trim();
   return `${base || 'document'}.pdf`;
 }
@@ -19478,7 +19539,7 @@ async function _pjUnique(fichier) {
 // Copie le fichier sous le nom choisi ; `nom` est le nom VOULU (déjà arbitré par pjChooseName).
 async function pjStore(file, nom) {
   if (!pjDirHandle) throw new Error('aucun dossier choisi');
-  const fichier = await _pjUnique(_pjSafeName(nom || file.name));
+  const fichier = await _pjUnique(_pjSafeName(nom || file.name, !nom));
   const fh = await pjDirHandle.getFileHandle(fichier, { create: true });
   const w = await fh.createWritable();
   await w.write(file);
@@ -19492,7 +19553,7 @@ function pjChooseName(original, auto) {
   return new Promise(resolve => {
     _pjNomResolve = resolve;
     const g = document.getElementById('pjn-garder-l'), a = document.getElementById('pjn-auto-l'), inp = document.getElementById('pjn-nom');
-    if (g) g.textContent = _pjSafeName(original);
+    if (g) g.textContent = _pjSafeName(original, true);
     if (a) a.textContent = auto;
     if (inp) inp.value = auto.replace(/\.pdf$/i, '');
     const r = document.querySelector('input[name="pjn"][value="auto"]');
