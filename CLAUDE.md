@@ -1282,6 +1282,17 @@ Familles à couvrir dès le début :
   - ⚠️ Les **feuilles imprimées se mesurent aux grandes largeurs** : à 320 px, une feuille A4 simulée « déborde » (324 à 666 px) sans que le papier en soit affecté. À 320 px, lancer `run({ papier: false })`.
   - ⚠️ Les tests e2e des fiches qui dépendent du jour **fixent `window.aujourdhui`** : la démo des fiches est datée (12/10 → 31/12/2026), un test qui lit la vraie date échoue une fois ces dates passées (`e2e_retours5`, le 2026-10-14).
 
+### Quand auditer (arbitré le 2026-10-14)
+
+Chaque audit trouve du nouveau : il échantillonne (d'autres scénarios, d'autres domaines, d'autres méthodes), il ne prouve pas l'absence de défauts. Le signal qui compte est la **gravité** de ce qu'il trouve, pas le nombre : premier audit, des défauts bloquants dans l'usage normal ; second audit, surtout des régressions des corrections et des cas limites (fichiers forgés, valeurs aberrantes).
+
+- **Plus d'audits complets en série.** Les tests `audit-1014-*` et `audit2-*` gardent tout ce qui a été trouvé ; un troisième audit complet coûterait cher pour des cas limites, et chaque correction rapporte un risque de régression.
+- **L'usage réel est l'audit qui compte** : noter ce qui ne va pas en classe, un défaut rencontré vaut dix scénarios imaginés. Restent à essayer à la main : récapitulatif PDF réel de MBN, feuille d'avis dans Collabora, signature Outlook collée, calendrier natif d'un champ date, enchaînement Suivis ↔ Données, vidéoprojecteur.
+- **Après une fonctionnalité nouvelle** : audit fonctionnel CIBLÉ sur son domaine, puis vérification de régression sur ses voisins (rejouer les scénarios d'avant) — pas un audit de toute l'application.
+- **Corriger en lots petits et SÉQUENTIELS** quand ils touchent des zones qui se croisent : six lots en parallèle ont produit les régressions du second audit.
+- **Un audit complet par trimestre au plus**, ou avant un moment à fort enjeu (élection des délégués, conseils de classe).
+- Un geste au clavier ou à la souris se vérifie dans un **vrai navigateur** (Puppeteer, panneau navigateur), pas seulement par le harnais Node.
+
 ### Leçons des défauts trouvés (numérotés)
 
 1. Bandeau RGPD à 1,63:1 en sombre : un fond clair posé pour le mode clair a besoin de son propre couple de tokens (`--rgpd-bg` / `--rgpd-fg`…), pas d'une encre qui s'inverse.
