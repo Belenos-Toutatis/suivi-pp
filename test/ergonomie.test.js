@@ -220,7 +220,7 @@ test('Carte de chaleur (v1.55.3) : une case d\'incidents propose les incidents q
   assert.match(f, /_appDialogValeur\(/);
 });
 
-test('Indicateurs (v1.55.5) : le compteur « n à rendre » montre quels papiers, et chacun se valide (date du jour, un cran d\'undo)', () => {
+test('Indicateurs (v1.55.5) : le compteur « n à rendre » montre quels papiers, et chacun se valide (date du jour ramenée dans l\'année de la classe, un cran d\'undo)', () => {
   ev(DEMO);
   const r = JSON.parse(ev(`(() => {
     const cls = getCls();
@@ -233,7 +233,7 @@ test('Indicateurs (v1.55.5) : le compteur « n à rendre » montre quels papiers
     elevesPapierRenduUI(sid, d0.id);
     const apres = { rendu: _retour(S.documents[d0.id], sid).rendu, date: _retour(S.documents[d0.id], sid).dateRetour, reste: _papiersARendre(cls, sid).length, pile: undoStack.length - pile };
     undoLast();
-    return JSON.stringify({ titres, liste, h, apres, annule: _retour(S.documents[d0.id], sid).rendu, auj: _todayYmd() });
+    return JSON.stringify({ titres, liste, h, apres, annule: _retour(S.documents[d0.id], sid).rendu, auj: _dateParDefaut(S.classes[S.eleves[sid].classe_id]) });
   })()`));
   assert.deepStrictEqual(r.liste, r.titres, 'les mêmes papiers que la colonne');
   assert.strictEqual((r.h.match(/elevesPapierRenduUI\(/g) || []).length, r.titres.length, 'un bouton « ✓ Rendu » par papier');

@@ -414,7 +414,7 @@ test('ficheToggleRendu : coche et décoche par docSetRendu — date du jour pos�
   ev(`_ficheSid = 's1'; S.documents.d1.retours.s1.rendu = false; S.documents.d1.retours.s1.dateRetour = null;`);
   ev(`ficheToggleRendu('d1')`);
   assert.strictEqual(evObj(`S.documents.d1.retours.s1.rendu`), true);
-  assert.strictEqual(evObj(`S.documents.d1.retours.s1.dateRetour`), ev(`_todayYmd()`));
+  assert.strictEqual(evObj(`S.documents.d1.retours.s1.dateRetour`), ev(`_dateParDefaut(S.classes['5C'])`));
   assert.deepStrictEqual(evObj(`S.documents.d1.retours.s1.reponses`), { opt1: 'latin', opts: ['dnl', 'catho'] }, 'les réponses ne bougent pas');
   ev(`ficheToggleRendu('d1')`);
   assert.deepStrictEqual(evObj(`[S.documents.d1.retours.s1.rendu, S.documents.d1.retours.s1.dateRetour]`), [false, null]);
