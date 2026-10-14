@@ -81,7 +81,9 @@ est propre passe par `HOTE` (ui.js, bloc « hôte »). Le côté Suivi PP est d�
 - **Messages** (postMessage, `app: "suivi-pp"` → fiche, `app: "fiche-suivi"` → Suivi PP, vérifiés par leur source). Suivi PP envoie
   `charger` (`cle` = la classe, `etat`, `classe` = la liste, `demo`, `theme`, `polices`, `pile`, `raison` : `annuler` / `retablir`),
   `apparence`, `pile`, `imprimer` (Ctrl+P), `commun`, `aller` (`#eleve/…`). La fiche envoie `pret`, `etat` (`cle`, l'enveloppe,
-  `etape`, `retirer`), `annuler` (`sens`) et `autonome`.
+  `etape`, `retirer`, `version`), `annuler` (`sens`) et `autonome`.
+  - `charger` porte un numéro (`version`), retenu (`hoteVersion`) APRÈS la frappe en attente qu'il fait partir : chaque `etat` le
+    répète, et Suivi PP écarte un suivi fondé sur un état qu'il a remplacé depuis.
 - **Rien ne s'enregistre dans la fiche** : `persist()` envoie l'état (s'il a changé) ; aucune clé `localStorage` propre à la page
   (son adresse change à chaque ouverture : elles s'accumuleraient) ; ni `dirty`, ni Enregistrer, nouveau suivi, démonstration,
   nouvelle année, thème ou polices dans le menu.

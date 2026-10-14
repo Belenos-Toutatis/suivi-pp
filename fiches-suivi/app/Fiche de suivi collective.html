@@ -2430,6 +2430,7 @@ let hoteDemo = false;        // données de démonstration de Suivi PP : la dém
 let hotePile = {};           // { annuler, retablir } : la pile de Suivi PP
 let hotePolices = null;      // { ecran, papier } : les polices réglées dans Suivi PP (💾 Données)
 let hoteCommun = null;       // les réglages COMMUNS aux deux applications (cf. appliquerCommunHote)
+let hoteVersion = null;      // le numéro du dernier « charger » reçu : chaque « etat » le répète (Suivi PP écarte un suivi fondé sur un état remplacé)
 let S = null;                 // état courant
 let dirty = false;            // modifications non enregistrées dans un fichier
 let fileHandle = null;        // ce fichier .html, choisi pour l'enregistrement (Chrome/Edge : réenregistrement direct)
@@ -5330,7 +5331,7 @@ window.addEventListener("afterprint", () => { $("#print-area").innerHTML = ""; i
    le cadre peut être d'une autre origine quand Suivi PP est ouvert en file://).
    • Suivi PP → fiche : « charger » (le suivi de la classe, ou rien ; la liste de la classe ; thème, polices ; état de la pile
      d'annulation), « apparence », « pile ».
-   • fiche → Suivi PP : « pret », « etat » (le suivi à ranger, à chaque persist ; `etape` : poser un cran d'annulation), « annuler ».
+   • fiche → Suivi PP : « pret », « etat » (le suivi à ranger, à chaque persist ; `etape` : poser un cran d'annulation ; `version` : le dernier « charger » reçu), « annuler ».
    La pile d'annulation est celle de Suivi PP : Ctrl+Z ici lui est transmis, et le suivi revient par « charger ». */
 const hoteCible = (() => { try { return location.origin && location.origin !== "null" ? location.origin : "*"; } catch (e) { return "*"; } })();
 function hoteEnvoyer(msg) { try { parent.postMessage(Object.assign({ app: "fiche-suivi" }, msg), hoteCible); } catch (e) { /* cadre détaché */ } }
@@ -5340,7 +5341,7 @@ function hoteMessageEtat() {
   const j = S ? JSON.stringify(S) : null;
   if (j === hoteDernier && !hoteRetirer) { hoteEtape = false; return null; }
   hoteDernier = j;
-  const m = { app: "fiche-suivi", type: "etat", cle: hoteCle, etat: S ? { app: "fiche-suivi-collective", format: FORMAT_DONNEES, savedAt: new Date().toISOString(), S: JSON.parse(j) } : null, etape: hoteEtape, retirer: hoteRetirer };
+  const m = { app: "fiche-suivi", type: "etat", cle: hoteCle, version: hoteVersion, etat: S ? { app: "fiche-suivi-collective", format: FORMAT_DONNEES, savedAt: new Date().toISOString(), S: JSON.parse(j) } : null, etape: hoteEtape, retirer: hoteRetirer };
   hoteEtape = false; hoteRetirer = false;
   return m;
 }
@@ -5353,7 +5354,8 @@ function hoteApparence(m) {
   if (m.polices) { hotePolices = { ecran: m.polices.ecran === "lm" ? "lm" : "andika", papier: m.polices.papier === "andika" ? "andika" : "lm" }; appliquerPolices(); }
 }
 function hoteCharger(m) {
-  persistMaintenant();                     // une frappe en attente part d'abord, avec SA classe (hoteCle)
+  persistMaintenant();                     // une frappe en attente part d'abord, avec SA classe (hoteCle) et SON numéro
+  hoteVersion = m.version === undefined ? null : m.version;
   hoteApparence(m);
   hotePile = m.pile || {}; hoteClasse = m.classe || null; hoteDemo = !!m.demo;
   const avant = S, autreClasse = m.cle !== hoteCle, premier = !hotePret;
