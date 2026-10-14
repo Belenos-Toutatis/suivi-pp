@@ -184,12 +184,13 @@ test('saisie d\'une date : RIEN ne s\'écrit tant que le champ a le focus', () =
     S.eleves = { s1:{ id:'s1', nom:'A', prenom:'B', classe_id:'5C', tags:[], naissance:'2012-04-09' } };
     globalThis.__inp = { dataset:{ sid:'s1' }, value:'0001-05-21', focus(){}, blur(){} };`);
 
-  ev(`document.activeElement = __inp; eleveNaisChange(__inp);`);
+  // (Le `change` passe par `_dateChamp`, cf. test/audit2-dates.test.js pour le `change` reçu champ « quitté ».)
+  ev(`document.activeElement = __inp; _dateChamp({ type:'change', target:__inp }, () => eleveNaisCommit(__inp));`);
   assert.strictEqual(ev(`__inp.value`), '0001-05-21', 'le champ ne doit PAS être réécrit pendant la frappe');
   assert.strictEqual(ev(`S.eleves.s1.naissance`), '2012-04-09', 'rien ne doit être enregistré pendant la frappe');
 
   // Deuxième chiffre : l'accumulation a pu se faire, puisque rien n'a été touché.
-  ev(`__inp.value = '0013-05-21'; eleveNaisChange(__inp);`);
+  ev(`__inp.value = '0013-05-21'; _dateChamp({ type:'change', target:__inp }, () => eleveNaisCommit(__inp));`);
   assert.strictEqual(ev(`__inp.value`), '0013-05-21');
   assert.strictEqual(ev(`S.eleves.s1.naissance`), '2012-04-09');
 

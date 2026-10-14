@@ -2461,7 +2461,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <h2 id="mbilan-title">🎓 Conseil de classe</h2>
     <div class="tb-hint" style="margin-bottom:8px">Ce que je dirai de l'élève au conseil, ou ce que je retiens à mi-période — sans note ni moyenne, elles sont dans Pronote. La période se déduit de la date. <strong>Ctrl+Entrée</strong> enregistre et passe à l'élève suivant, dans l'ordre de la liste.</div>
     <div class="fi-form" style="margin-bottom:10px">
-      <label>Date <input type="date" id="mbilan-date" style="min-width:140px" onchange="_bilanHint()"></label>
+      <label>Date <input type="date" id="mbilan-date" style="min-width:140px" data-date-affichage onchange="_bilanHint()"></label>
       <label>Moment <select id="mbilan-type" onchange="_bilanHint()"></select></label>
       <span id="mbilan-per" class="tb-hint"></span>
     </div>
@@ -3022,7 +3022,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
         <option value="eco">🌱 éco-délégués — un par classe, sans suppléant (circulaires 2019 et 2020) ; deux si l'établissement le décide</option>
       </select><div id="mel-textes"></div></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <div class="fg" style="flex:1;min-width:150px"><label for="mel-date">Date du scrutin</label><input type="date" id="mel-date" data-autofocus onchange="document.getElementById('mel-inscrits').value=_elInscrits(S.cur,this.value)"></div>
+      <div class="fg" style="flex:1;min-width:150px"><label for="mel-date">Date du scrutin</label><input type="date" id="mel-date" data-autofocus data-date-affichage onchange="document.getElementById('mel-inscrits').value=_elInscrits(S.cur,this.value)"></div>
       <div class="fg" style="flex:1;min-width:150px"><label for="mel-inscrits">Inscrits <span style="font-weight:400;font-size:.85em">(effectif, corrigible)</span></label><input type="number" id="mel-inscrits" min="1" max="60"></div>
     </div>
     <div class="fg"><label for="mel-titre">Titre</label><input type="text" id="mel-titre" maxlength="80"></div>
@@ -4662,7 +4662,7 @@ function _donRubHTML(k) {
     case 'periodes': {
       const pm = _periodMode(), starts = _periodStarts(pm), defs = _PERIOD_START_DEFAULTS[pm], y0 = _classStartYear(cls);
       const ymd = md => `${+md.slice(0, 2) >= 8 ? y0 : y0 + 1}-${md}`, lib = pm === 'trimestre' ? 'T' : 'S';
-      const debuts = starts.map((md, i) => `<span class="don-deb">${lib}${i + 2} à partir du <input type="date" id="pref-debut-${i}" value="${ymd(md)}" onchange="periodeDebutUI(${i}, this.value)" aria-label="Début de la période ${lib}${i + 2}"></span>`).join('');
+      const debuts = starts.map((md, i) => `<span class="don-deb">${lib}${i + 2} à partir du <input type="date" id="pref-debut-${i}" value="${ymd(md)}" onchange="_dateChamp(event,()=>periodeDebutUI(${i}, this))" onblur="_dateChamp(event,()=>periodeDebutUI(${i}, this))" aria-label="Début de la période ${lib}${i + 2}"></span>`).join('');
       const office = JSON.stringify(starts) === JSON.stringify(defs);
       return `<div class="prefs">
         <label for="pref-period">Découpage</label>
@@ -4765,18 +4765,24 @@ function _donRubHTML(k) {
   return '';
 }
 // Les débuts de période 2 et 3 (`prefs.periodStarts[mode]`, en MM-JJ). i = -1 : revenir aux dates d'office.
-function periodeDebutUI(i, ymd) {
+// `src` = le champ (écrit à sa SORTIE, `_dateChamp`) ou sa valeur. Refus, ou rien de changé : le champ
+// reprend la date en place, sans redessiner la rubrique.
+function periodeDebutUI(i, src) {
   const mode = _periodMode(), cur = _periodStarts(mode).slice();
+  const inp = src && typeof src === 'object' ? src : null;
+  const ymd = inp ? (inp.validity && inp.validity.badInput ? '' : _ymdCompleteAnnee(inp.value)) : src;
+  const y0 = _classStartYear(getCls()), aff = md => `${+md.slice(0, 2) >= 8 ? y0 : y0 + 1}-${md}`;
+  const remettre = () => { if (inp) inp.value = aff(_periodStarts(mode)[i]); else renderDonnees(); };
   if (i >= 0) {
-    if (!/^\d{4}-\d\d-\d\d$/.test(String(ymd || ''))) { toast('⚠️ Date incomplète : l\'ancienne est gardée.', 'warn'); renderDonnees(); return; }
+    if (!/^\d{4}-\d\d-\d\d$/.test(String(ymd || ''))) { toast('⚠️ Date incomplète : l\'ancienne est gardée.', 'warn'); remettre(); return; }
     const md = ymd.slice(5);
-    if (md.slice(0, 2) === '08') { toast('⚠️ Une période ne commence pas en août : l\'année scolaire commence à la rentrée.', 'warn'); renderDonnees(); return; }
+    if (md.slice(0, 2) === '08') { toast('⚠️ Une période ne commence pas en août : l\'année scolaire commence à la rentrée.', 'warn'); remettre(); return; }
     cur[i] = md;
     const rang = x => ((+x.slice(0, 2) + 4) % 12) * 100 + +x.slice(3);   // septembre d'abord
-    if (cur.some((x, k) => k && rang(x) <= rang(cur[k - 1]))) { toast('⚠️ Les périodes doivent se suivre dans l\'ordre de l\'année.', 'warn'); renderDonnees(); return; }
+    if (cur.some((x, k) => k && rang(x) <= rang(cur[k - 1]))) { toast('⚠️ Les périodes doivent se suivre dans l\'ordre de l\'année.', 'warn'); remettre(); return; }
   }
   const nouveau = i < 0 ? _PERIOD_START_DEFAULTS[mode].slice() : cur;
-  if (JSON.stringify(nouveau) === JSON.stringify(_periodStarts(mode))) { renderDonnees(); return; }
+  if (JSON.stringify(nouveau) === JSON.stringify(_periodStarts(mode))) { if (inp) remettre(); else renderDonnees(); return; }
   pushUndo();
   const ps = _isPlainObj(_prefs().periodStarts) ? _prefs().periodStarts : {};
   S.prefs.periodStarts = { ...ps, [mode]: nouveau };   // ⚠️ remplacé, jamais modifié en place
@@ -7186,16 +7192,15 @@ function _elevesArmUndo() {
 // premier chiffre d'année tapé : `change` part avec l'an 0001. Réécrire le champ à ce
 // moment-là remet le segment année à zéro, et la frappe suivante recommence — taper
 // « 1 » puis « 3 » donnait 2001 puis 2003 au lieu de 2013. On attend donc que le champ
-// soit QUITTÉ pour normaliser et enregistrer.
-function eleveNaisChange(inp) {
-  if (document.activeElement === inp) return;   // encore en train de taper
-  eleveNaisCommit(inp);
-}
+// soit QUITTÉ (`_dateChamp`) pour normaliser et enregistrer.
 function eleveNaisCommit(inp) {
   const s = S.eleves[inp.dataset.sid];
   if (!s) return;
+  // ⚠️ Une date PARTIELLE se lit '' : elle n'efface pas la naissance enregistrée (audit du 2026-10-14).
+  if (inp.validity && inp.validity.badInput) { toast('⚠️ Date incomplète : l\'ancienne est gardée.', 'warn'); inp.value = s.naissance || ''; return; }
   const v = inp.value ? _ymdCompleteAnnee(inp.value) : null;
-  if (v !== null && v === s.naissance) { if (inp.value !== v) inp.value = v; return; }   // rien de neuf
+  // Rien de neuf — y compris un champ VIDE traversé sans rien taper (null et null : pas de cran d'undo vide).
+  if ((v || null) === (s.naissance || null)) { if (v && inp.value !== v) inp.value = v; return; }
   if (v && v !== inp.value) inp.value = v;      // le champ montre l'année complète
   if (v && !_ymdValid(v)) { toast('⚠️ Date de naissance illisible.', 'warn'); inp.value = s.naissance || ''; return; }
   // ⚠️ Même garde-fou qu'à l'édition : une naissance postérieure à l'arrivée en classe
@@ -7898,7 +7903,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     td.rem = () => s.remarque ? `<button class="el-rem" onclick="openRemarque('${j}')" title="${_escAttr(s.remarque)}">${_escName(s.remarque)}</button>` : dot('Pas de remarque — clic : en écrire une', `openRemarque('${j}')`);
     return `<tr class="${isFuture || isGone ? 'inactive' : ''}${fiche === sid ? ' el-cur' : ''}" onclick="_elevesLigneClic(event,'${j}')">
       <td>${_vignetteHTML(sid, avecPhI)}${civ}<a href="#" onclick="openFiche('${j}');return false" title="Ouvrir la fiche" class="el-nom" data-photo-sid="${_escAttr(sid)}">${_nomHTML(sid, s.nom, s.prenom)}</a>${cible ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}${_ageSubHTML(s, 'age-' + sid)}${life}</td>
-      ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(sid)}" max="${_escAttr(today)}" onchange="eleveNaisChange(this)" onblur="eleveNaisCommit(this)" onkeydown="eleveNaisKey(event)" title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
+      ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(sid)}" max="${_escAttr(today)}" onchange="_dateChamp(event,()=>eleveNaisCommit(this))" onblur="_dateChamp(event,()=>eleveNaisCommit(this))" onkeydown="eleveNaisKey(event)" title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
       ${_elevesReg ? _regimeSelectsHTML(s) : ''}
       ${cols.map(c => `<td class="el-c-${c.key}"${c.key === 'grp' ? ` data-sid="${_escAttr(sid)}"` : ''}>${td[c.key]()}</td>`).join('')}</tr>`;
   }).join('');
@@ -8003,11 +8008,12 @@ function ficheSaveNom() {
 function ficheCycleCivilite() { _ficheMut(s => { s.civilite = s.civilite === 'M' ? 'F' : s.civilite === 'F' ? null : 'M'; }); }
 // Une date saisie en place — naissance, arrivée, départ — avec les mêmes gardes-fous que
 // la modale ✏️, et la même règle de MOMENT : on n'écrit qu'une fois le champ quitté
-// (cf. « Champs <input type="date"> — l'année telle que tapée »).
-function ficheDateChange(inp, champ) { if (document.activeElement !== inp) ficheSetDate(inp, champ); }
+// (`_dateChamp`, cf. « Champs <input type="date"> — l'année telle que tapée »).
 function ficheSetDate(inp, champ) {
   const s = S.eleves[_ficheSid];
   if (!s || !inp) return;
+  // ⚠️ Une date PARTIELLE (jour effacé, puis sortie) se lit '' : elle n'efface rien (audit du 2026-10-14).
+  if (inp.validity && inp.validity.badInput) { toast('⚠️ Date incomplète : l\'ancienne est gardée.', 'warn'); inp.value = s[champ] || ''; return; }
   const v = inp.value ? _ymdCompleteAnnee(inp.value) : null;
   if (v && v !== inp.value) inp.value = v;
   if ((v || null) === (s[champ] || null)) return;
@@ -8194,7 +8200,7 @@ function _ficheRender() {
   // Chaque champ d'identité se corrige en place : date directement dans le champ (écrite
   // une fois le champ quitté), civilité qui cycle au clic, classe et place par sélecteur.
   const dateInp = (champ, val, extra = '') => `<input type="date" value="${_escAttr(val || '')}" max="${champ === 'naissance' ? _escAttr(_todayYmd()) : ''}" ${extra}
-      onchange="ficheDateChange(this,'${champ}')" onblur="ficheSetDate(this,'${champ}')" style="max-width:150px">`;
+      onchange="_dateChamp(event,()=>ficheSetDate(this,'${champ}'))" onblur="_dateChamp(event,()=>ficheSetDate(this,'${champ}'))" style="max-width:150px">`;
   const edClasse = _ficheEdit !== 'classe' || !cls ? '' : `<div class="fi-editor">
       <input type="text" id="fi-cls-nom" data-fi-focus value="${_escAttr(cls.nom)}" placeholder="Nom de la classe" maxlength="40" style="width:140px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveClasse()}">
       <input type="text" id="fi-cls-annee" value="${_escAttr(cls.annee || '')}" placeholder="2025-26" maxlength="12" style="width:90px" onkeydown="if(event.key==='Enter'){event.preventDefault();ficheSaveClasse()}">
@@ -8269,7 +8275,7 @@ function _ficheRender() {
             : `<select class="optsel" onchange="ficheDocReponse('${_escJsAttr(d.docId)}','${_escJsAttr(ch.id)}',this.value)"><option value="">—</option>${(ch.options || []).map(o => `<option value="${_escAttr(o.id)}"${cur[0] === o.id ? ' selected' : ''}>${_escName(o.label)}</option>`).join('')}</select>`;
           return `<div class="fi-doc-champ"><span class="tb-hint">${ch.par === 'prof' ? '👤 ' : ''}${_escName(ch.label)} :</span> ${ctrl}</div>`;
         }).join('') : d.reponses.map(r => `<div class="tb-hint">${r.par === 'prof' ? '👤 ' : ''}${_escName(r.champ)} : <strong>${_escName(r.valeurs.join(', '))}</strong></div>`).join('');
-        const dateNote = d.attendu && suivi ? `<div class="fi-doc-champ">${d.rendu ? `<label class="tb-hint">rendu le <input type="date" value="${_escAttr(d.dateRetour || '')}" onchange="ficheDocDate('${_escJsAttr(d.docId)}',this)" onblur="ficheDocDate('${_escJsAttr(d.docId)}',this)" style="max-width:150px"></label> ` : ''}<input type="text" value="${_escAttr(ret.note || '')}" placeholder="mot sur ce retour…" maxlength="120" style="flex:1;min-width:160px;font-size:.9em" onchange="ficheDocNote('${_escJsAttr(d.docId)}',this.value)"></div>` : '';
+        const dateNote = d.attendu && suivi ? `<div class="fi-doc-champ">${d.rendu ? `<label class="tb-hint">rendu le <input type="date" value="${_escAttr(d.dateRetour || '')}" onchange="_dateChamp(event,()=>ficheDocDate('${_escJsAttr(d.docId)}',this))" onblur="_dateChamp(event,()=>ficheDocDate('${_escJsAttr(d.docId)}',this))" style="max-width:150px"></label> ` : ''}<input type="text" value="${_escAttr(ret.note || '')}" placeholder="mot sur ce retour…" maxlength="120" style="flex:1;min-width:160px;font-size:.9em" onchange="ficheDocNote('${_escJsAttr(d.docId)}',this.value)"></div>` : '';
         return `<div style="margin-bottom:9px"><strong>${_escName(d.titre)}</strong>${d.archive ? ' ' + vide('(archivé)') : ''} ${etat}${
           !d.attendu && d.note ? ` <span class="fi-vide">« ${_escName(d.note)} »</span>` : ''}${rep}${dateNote}</div>`;
       }).join('')
@@ -9213,7 +9219,7 @@ function _journalRender() {
     const t = _journalType(e.type);
     return `<tr data-jid="${_escAttr(e.id)}">
       <td><input type="date" value="${_escAttr(e.date)}" style="max-width:150px;font-size:.88em" title="Date du contact — se corrige ici"
-            onchange="journalDateUI('${_escJsAttr(e.id)}', this)"></td>
+            onchange="_dateChamp(event,()=>journalDateUI('${_escJsAttr(e.id)}', this))" onblur="_dateChamp(event,()=>journalDateUI('${_escJsAttr(e.id)}', this))"></td>
       <td><select style="font-size:.88em;max-width:170px" title="Type du contact — se corrige ici" onchange="journalTypeUI('${_escJsAttr(e.id)}', this.value)">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}"${t2.key === t.key ? ' selected' : ''}>${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></td>
       <td style="width:99%;min-width:180px"><textarea class="jl-txt" rows="1" maxlength="2000" aria-label="Texte du contact — se corrige ici"
             oninput="_autoTaille(this)" onchange="journalEditUI('${_escJsAttr(e.id)}', this.value)">${_escName(e.texte)}</textarea></td>
@@ -9249,11 +9255,15 @@ function journalEditUI(id, txt) {
   save();
   renderStudents();
 }
+// Écrite à la sortie du champ (`_dateChamp`) ; partielle ou illisible, l'ancienne date est remise dans le
+// champ, sans le redessiner.
 function journalDateUI(id, inp) {
-  const d = inp.value ? _ymdCompleteAnnee(inp.value) : '';
-  if (!_ymdValid(d)) { toast('⚠️ Date du contact illisible.', 'warn'); _journalRender(); return; }
   const e = _journalOf(_remSid).find(x => x.id === id);
-  if (!e || e.date === d) return;
+  if (!e) return;
+  const d = inp.value && !(inp.validity && inp.validity.badInput) ? _ymdCompleteAnnee(inp.value) : '';
+  if (!_ymdValid(d)) { toast('⚠️ Date du contact illisible : l\'ancienne est gardée.', 'warn'); inp.value = e.date || ''; return; }
+  if (d !== inp.value) inp.value = d;
+  if (e.date === d) return;
   pushUndo(); journalSet(_remSid, id, { date: d }); save();
   _journalRender(); renderStudents();
 }
@@ -11347,7 +11357,8 @@ function _periodStarts(mode) {
   const raw = _prefs().periodStarts;
   const def = _PERIOD_START_DEFAULTS[mode];
   const got = (raw && Array.isArray(raw[mode])) ? raw[mode] : [];
-  return def.map((d, i) => (typeof got[i] === 'string' && /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(got[i])) ? got[i] : d);
+  // ⚠️ Pas d'août (« 08-xx », venu d'un fichier importé) : la période commencerait avant la rentrée, à l'envers.
+  return def.map((d, i) => (typeof got[i] === 'string' && /^(0[1-79]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(got[i])) ? got[i] : d);
 }
 // Année de départ de la classe : '2025-26' → 2025. Illisible → année scolaire courante.
 function _classStartYear(cls) {
@@ -11435,6 +11446,55 @@ function _ymdCompleteAnnee(v) {
   if (an >= 100) return v;
   const plein = (an + 2000) > +_todayYmd().slice(0, 4) ? an + 1900 : an + 2000;
   return `${plein}-${m[2]}-${m[3]}`;
+}
+// ⚠️ CHAMPS DATE — le `change` NE DIT PAS que le champ est quitté. Chrome envoie `change` à chaque
+// segment complété (le jour, puis le mois…), et PENDANT ce `change` document.activeElement vaut BODY :
+// le champ reprend le focus juste après (mesuré, audit du 2026-10-14). La garde « activeElement !== champ
+// ⇒ quitté » laissait donc partir des écritures en pleine frappe, parfois suivies d'un re-rendu qui
+// remplaçait le champ : la suite de la frappe était perdue. Règle (arbitrée) : une date — clavier OU
+// calendrier — s'écrit à la SORTIE du champ, jamais pendant la frappe. Tout champ date qui écrit passe
+// par ici, sur `onchange` ET `onblur` (test statique), et `ecrire` compare à la valeur enregistrée
+// (l'appeler deux fois ne coûte rien) :
+// - `blur` : le vrai signal de sortie, on écrit — sauf si le champ a TOUJOURS le focus (la fenêtre seule
+//   a perdu le focus : on reviendra taper) ;
+// - `change` : cru seulement une tâche plus tard, si le champ n'a toujours pas le focus et est encore dans
+//   la page (calendrier d'un mobile qui ne donne pas le focus au champ) ; sinon rien, le `blur` viendra.
+// Après un `blur` dont l'écriture redessine (fiche, contacts, Données), le focus est rendu au champ que
+// visait Tab, retrouvé par sa signature (sinon il tombait sur BODY). La fermeture de la page enregistre
+// d'abord le champ date focalisé (`_dateChampFermeture`, dans `beforeunload`). Seule exception permise par
+// le test : le champ d'un FORMULAIRE lu au bouton, dont le `onchange` ne fait qu'afficher (`data-date-affichage`).
+function _dateChamp(ev, ecrire) {
+  const inp = ev && ev.target;
+  if (!inp || document.activeElement === inp) return;
+  if (ev.type !== 'blur') {
+    setTimeout(() => { if (inp.isConnected !== false && document.activeElement !== inp) ecrire(); }, 0);
+    return;
+  }
+  const suivant = ev.relatedTarget || null, sig = suivant ? _focusSignature(suivant) : null;
+  ecrire();
+  if (sig && suivant.isConnected === false) setTimeout(() => _focusRetrouver(sig), 0);
+}
+// Un élément focalisable reconnu d'un rendu à l'autre : son id, sinon sa balise et ses gestionnaires
+// (écrits à l'identique par le même gabarit), et son rang parmi les éléments pareils.
+const _FOCUS_ATTRS = ['onchange', 'onblur', 'onclick', 'oninput', 'onkeydown', 'data-sid', 'name', 'aria-label'];
+function _focusSignature(el) {
+  if (!el || !el.tagName) return null;
+  const attrs = _FOCUS_ATTRS.map(a => (el.getAttribute && el.getAttribute(a)) || '');
+  const pareils = el.id ? [] : [...document.querySelectorAll(el.tagName)].filter(x => _FOCUS_ATTRS.every((a, i) => ((x.getAttribute && x.getAttribute(a)) || '') === attrs[i]));
+  return { id: el.id || '', tag: el.tagName, attrs, k: Math.max(0, pareils.indexOf(el)) };
+}
+function _focusRetrouver(sig) {
+  const a = document.activeElement;
+  if (!sig || (a && a !== document.body && a.isConnected !== false)) return null;   // l'utilisateur est déjà ailleurs
+  const el = sig.id ? document.getElementById(sig.id)
+    : [...document.querySelectorAll(sig.tag)].filter(x => _FOCUS_ATTRS.every((at, i) => ((x.getAttribute && x.getAttribute(at)) || '') === sig.attrs[i]))[sig.k];
+  if (el && typeof el.focus === 'function') { try { el.focus({ preventScroll: true }); } catch (_) { el.focus(); } }
+  return el || null;
+}
+// La page se ferme : le champ date en cours de saisie s'enregistre d'abord (son `blur` écrit).
+function _dateChampFermeture() {
+  const a = document.activeElement;
+  if (a && a.tagName === 'INPUT' && a.type === 'date' && typeof a.blur === 'function') a.blur();
 }
 
 // Crée un relevé vide. null si la date est illisible ou déjà prise (on ne relève pas
@@ -12858,7 +12918,7 @@ function _renderDocDetail(el, doc) {
     return `<tr>
       <td>${_nomFicheHTML(s.id, s.nom, s.prenom)}${multi ? ` <span class="tb-hint">${_escName(S.classes[s.classe_id]?.nom || '')}</span>` : ''}${_ageSubHTML(s)}</td>
       ${suivi ? `<td style="text-align:center"><input type="checkbox" class="doc-rendu"${r.rendu ? ' checked' : ''} onchange="docSetRenduUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.checked)" title="${r.rendu ? 'Rendu — décocher si ce n\'est pas le bon élève' : 'Cocher quand le papier est rendu (la date du jour est posée)'}"></td>
-      <td><input type="date" class="doc-date" value="${_escAttr(r.dateRetour || '')}" onchange="docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this)" onblur="docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this)" title="Date de retour"${r.rendu ? '' : ' disabled'}></td>` : ''}
+      <td><input type="date" class="doc-date" value="${_escAttr(r.dateRetour || '')}" onchange="_dateChamp(event,()=>docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this))" onblur="_dateChamp(event,()=>docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this))" title="Date de retour"${r.rendu ? '' : ' disabled'}></td>` : ''}
       ${cells}
       <td><input type="text" class="doc-note" value="${_escAttr(r.note)}" placeholder="mot sur ce retour…" maxlength="120" onchange="docSetNoteUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.value)" title="${_escAttr(r.note || 'Un mot sur CE retour : « manque la signature du père »')}"></td>
     </tr>`;
@@ -12979,7 +13039,7 @@ function _renderRamassage(el) {
       <button class="btn btn-g btn-sm" onclick="closeRamassage()">← Liste</button>
       <strong style="font-size:1.02em">🧺 Ramassage</strong>
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px">Reçus le
-        <input type="date" id="ram-date" value="${_escAttr(_ramDate || _dateParDefaut(cls))}" onchange="ramSetDate(this)" onblur="ramSetDate(this)"
+        <input type="date" id="ram-date" value="${_escAttr(_ramDate || _dateParDefaut(cls))}" onchange="_dateChamp(event,()=>ramSetDate(this))" onblur="_dateChamp(event,()=>ramSetDate(this))"
                title="Date portée sur les retours cochés à partir de maintenant — on saisit souvent le soir, ou le lendemain matin avec la pile sur le bureau"></label>
       ${_ordrePassageHTML('ram', cls)}
       ${partis ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Ils restent comptés dans les manquants du document, mais on ne peut rien ramasser auprès d'eux"><input type="checkbox"${_ramShowGone ? ' checked' : ''} onchange="_ramShowGone=this.checked;renderDocuments()"> ${partis} parti${partis > 1 ? 's' : ''}</label>` : ''}
@@ -18495,7 +18555,7 @@ function _avisMessageHTML(cls, camp) {
     </div>`;
   }).join('');
   return `<div class="fi-form" style="margin:6px 0">
-      <label>Avant le <input type="date" value="${_escAttr(r.echeance)}" style="min-width:140px" onchange="avisMsgReglageUI('${id}','echeance',this.value)"></label></div>
+      <label>Avant le <input type="date" value="${_escAttr(r.echeance)}" style="min-width:140px" onchange="_dateChamp(event,()=>avisEcheanceUI('${id}',this))" onblur="_dateChamp(event,()=>avisEcheanceUI('${id}',this))"></label></div>
     <div class="fg"><label for="mavis-lien">Lien de partage de la feuille</label>
       <input id="mavis-lien" type="text" value="${_escAttr(camp.lien || '')}" placeholder="https://nuage03.apps.education.fr/index.php/s/…" style="width:100%" onchange="avisLienUI('${id}',this.value)"></div>
     <div class="tb-hint" style="margin-bottom:6px">Cochez les parties à garder, réécrivez celles que vous voulez : votre texte devient le modèle des prochaines feuilles (↺ pour revenir au texte proposé). Remplacés tout seuls : <code>${_escName(AVIS_REPERES)}</code>. <code>**entre deux paires d'étoiles**</code> = en gras ; une ligne qui commence par « – » = une puce.</div>
@@ -18523,6 +18583,14 @@ function _avisMessageHTML(cls, camp) {
       <button class="btn btn-g btn-sm" onclick="avisCopierMessage('${id}', true)" title="Sans mise en forme, pour un champ qui n'accepte que du texte">Copier en texte brut</button></div>`;
 }
 function _avisCampOf(campId) { return _avisMap(getCls()?.id)?.[campId] || null; }
+// L'échéance du message : écrite à la SORTIE du champ (`_dateChamp`) ; partielle ou illisible, l'ancienne est
+// gardée (`_dateChampLire`), jamais effacée.
+function avisEcheanceUI(campId, inp) {
+  const camp = _avisCampOf(campId);
+  if (!camp) return;
+  const v = _dateChampLire(inp, _avisMsgReglages(camp).echeance || '', true);
+  if (v !== undefined) avisMsgReglageUI(campId, 'echeance', v);
+}
 function avisMsgReglageUI(campId, champ, val) {
   const camp = _avisCampOf(campId);
   if (!camp) return;
@@ -22687,7 +22755,7 @@ document.addEventListener('keydown', e => {
 
 // La dernière frappe doit survivre à la fermeture de l'onglet : save() est SYNCHRONE,
 // c'est précisément pourquoi la compression (asynchrone) est écartée.
-window.addEventListener('beforeunload', () => { _suivisRecupererFrappe(); try { save(); } catch (_) {} });
+window.addEventListener('beforeunload', () => { try { _dateChampFermeture(); } catch (_) {} _suivisRecupererFrappe(); try { save(); } catch (_) {} });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DONNÉES DE DÉMONSTRATION
