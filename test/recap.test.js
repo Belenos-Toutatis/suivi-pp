@@ -90,7 +90,8 @@ test('rattachement manuel : un nom inconnu se rattache, ou reste ignoré', async
   ev(DEMO);
   sb.__lu = await LIRE();
   const r = evObj(`(() => { const cls = getCls(), cible = cls.eleves[7];
-    const b = _recapBilan(cls, __lu, { 'Zoé INCONNUE': cible });
+    const pageZoe = __lu.eleves.find(e => e.nom === 'Zoé INCONNUE').page;   // rattachement indexé par la PAGE, pas par le nom
+    const b = _recapBilan(cls, __lu, { [pageZoe]: cible });
     return { sids: b.sids.length, zoe: b.obs.nouveaux.filter(x => x.sid === cible).map(x => x.ev.motif) }; })()`);
   assert.deepStrictEqual(r, { sids: 4, zoe: ['Bavardage'] });
 });

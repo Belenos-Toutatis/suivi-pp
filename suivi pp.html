@@ -5012,7 +5012,12 @@ function _impClassIdFromLabel(label) {
   const flat = String(label || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toUpperCase().replace(/[^A-Z0-9_]/g, '');
   // Un niveau SEUL (« 3ème », « 5e ») donne le chiffre (« 3ME » ne désignerait rien).
-  return flat.replace(/^(\d{1,2})(?:EME|ERE|NDE|ND|ER|E)(?=[A-Z0-9]|$)/, '$1').slice(0, 20);
+  // ⚠️ « 3E » en MAJUSCULE seul est la classe E du niveau 3, pas un ordinal : une seule lettre
+  // « E » en fin de libellé ne vaut ordinal que si l'ORIGINE l'écrit en minuscule (« 3e »,
+  // « 3 e ») — décidé avant la mise en majuscules, qui efface la différence.
+  const eMinuscule = /^\s*\d{1,2}\s*e\s*$/.test(String(label || ''));
+  if (eMinuscule) return flat.replace(/E$/, '').slice(0, 20);
+  return flat.replace(/^(\d{1,2})(?:EME|ERE|NDE|ND|ER|E(?=[A-Z0-9]))(?=[A-Z0-9]|$)/, '$1').slice(0, 20);
 }
 // Crée une classe « nue ». Sans pushUndo ni save : l'appelant s'en charge.
 function _createClassBare(id, nom, annee) {
@@ -6200,13 +6205,20 @@ function _mbnLire(rows) {
   return { ok: true, lignes, colonnes: Object.keys(col).filter(k => col[k] >= 0) };
 }
 // Rattache chaque ligne à un élève de la classe (ou null). PUR.
+// Deux homonymes dans la classe : si la ligne porte une date de naissance (`l.naissance`, ISO — le récapitulatif PDF
+// en a une) et qu'elle désigne UN SEUL des homonymes qui en connaît une, c'est lui ; sinon rien n'est deviné.
 function _mbnRapprocher(cls, lignes) {
-  const parCle = new Map(), doublons = new Set();
+  const parCle = new Map();
   for (const s of cls.eleves.map(id => S.eleves[id]).filter(Boolean)) {
     const k = _moyNameKey(`${s.nom} ${s.prenom}`);
-    if (parCle.has(k)) doublons.add(k); else parCle.set(k, s.id);
+    parCle.set(k, [...(parCle.get(k) || []), s]);
   }
-  return lignes.map(l => { const k = _moyNameKey(l.nom); return { ...l, sid: doublons.has(k) ? null : parCle.get(k) || null, homonyme: doublons.has(k) }; });
+  return lignes.map(l => {
+    const c = parCle.get(_moyNameKey(l.nom)) || [];
+    if (c.length <= 1) return { ...l, sid: c[0] ? c[0].id : null, homonyme: false };
+    const memeNaiss = l.naissance ? c.filter(s => s.naissance && s.naissance === l.naissance) : [];
+    return { ...l, sid: memeNaiss.length === 1 ? memeNaiss[0].id : null, homonyme: memeNaiss.length !== 1 };
+  });
 }
 // Ce qui CHANGERAIT, champ par champ : [{ sid, champ, avant, apres }]. Une case vide de
 // l'export ne propose rien ; la civilité n'est remplie que si elle est vide ici. PUR.
@@ -6761,8 +6773,10 @@ function _recapIncident(x) {
   return { date: x.date, type, objet: x.motif || x.consequence || 'Punition',
     texte: [conseq, x.etat ? `État : ${x.etat}` : '', x.par ? `Demandeur : ${x.par}` : '', 'D\'après le récapitulatif vie scolaire de Mon Bureau Numérique.'].filter(Boolean).join(' · ') };
 }
+// ⚠️ Le rattachement manuel est indexé par la PAGE (la ligne lue), jamais par le nom : deux homonymes du
+// PDF reçoivent chacun leur élève.
 function _recapRattache(cls, lu, manuel) {
-  return _mbnRapprocher(cls, lu.eleves).map(l => manuel && manuel[l.nom] !== undefined ? { ...l, sid: manuel[l.nom] || null } : l);
+  return _mbnRapprocher(cls, lu.eleves).map(l => manuel && manuel[l.page] !== undefined ? { ...l, sid: manuel[l.page] || null } : l);
 }
 // PUR (sauf la lecture de S) : ce que l'import changerait.
 // → { obs: { nouveaux, connus, retirables }, abs: { nouveaux, modifies, connus, retirables },
@@ -6907,7 +6921,7 @@ function _recapRender() {
   const sans = L.filter(l => !l.sid);
   const opts = l => `<option value="">— ignorer —</option>${cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => `<option value="${_escAttr(s.id)}"${l.sid === s.id ? ' selected' : ''}>${_escName(s.nom + ' ' + s.prenom)}</option>`).join('')}`;
   if (sans.length) blocs.push(`<div class="al al-w"><strong>${_pl(sans.length, 'nom')} à rattacher</strong> (introuvable${sans.some(l => l.homonyme) ? ' ou homonymes' : ''}) — choisissez l'élève, ou laissez « ignorer » :
-    <div class="rc-grid">${sans.map(l => `<span>${_escName(l.nom)} · page ${l.page}</span><select onchange="recapUI('rattacher', '${_escJsAttr(l.nom)}', this.value)" style="max-width:100%">${opts(l)}</select>`).join('')}</div></div>`);
+    <div class="rc-grid">${sans.map(l => `<span>${_escName(l.nom)} · page ${l.page}</span><select onchange="recapUI('rattacher', '${_escJsAttr(String(l.page))}', this.value)" style="max-width:100%">${opts(l)}</select>`).join('')}</div></div>`);
   const absents = cls.eleves.filter(id => S.eleves[id] && _isStudentActive(S.eleves[id]) && !bil.sids.includes(id));
   if (absents.length) blocs.push(`<div class="tb-hint">Élèves de la classe absents du récapitulatif : ${absents.map(id => _escName(nom(id))).join(', ')}.</div>`);
   const liste = (items, f) => items.length ? `<div class="rc-list">${items.map(f).join('')}</div>` : '';
@@ -9788,7 +9802,7 @@ function tagRename(tid) {
   if (!t) return;
   _uiPrompt({
     title: '✏️ Nom de l\'option', label: `Nom complet de « ${t.abbr} »`, value: t.name || '', maxlength: 40,
-    onOk: v => { pushUndo(); t.name = v; save(); _tagsRefresh(); },
+    onOk: v => { pushUndo(); t.name = v; if (_undoSiRien()) return; save(); _tagsRefresh(); },   // même nom : pas de cran vide
   });
 }
 function tagSetColor(tid, color) {
@@ -10110,7 +10124,46 @@ function _impSplitRecords(text) {
   }
   if (q) return t.split('\n');
   out.push(cur);
-  return out;
+  // ⚠️ Un guillemet ouvrant jamais refermé AVANT la ligne suivante peut l'être par hasard plus loin
+  // (« "ras" » d'un autre élève) et avaler les lignes intermédiaires dans une cellule. Un enregistrement
+  // qui s'étend sur plusieurs lignes n'est donc gardé que s'il est BIEN FORMÉ au regard de l'en-tête
+  // (même nombre de champs, chaque cellule entre guillemets refermée juste avant un séparateur ou la
+  // fin) ; sinon on retombe sur ses lignes physiques.
+  if (!out.some(r => r.includes('\n'))) return out;
+  const tete = t.split('\n')[0];
+  const sep = ['\t', ';', ','].find(c => _impSplitLine(tete, c).length >= 2);
+  if (!sep) return t.split('\n');
+  const n = _impSplitLine(tete, sep).length;
+  const res = [];
+  for (const r of out) {
+    if (r.includes('\n') && !_impRecordBienForme(r, sep, n)) res.push(...r.split('\n'));
+    else res.push(r);
+  }
+  return res;
+}
+// Un enregistrement est BIEN FORMÉ s'il a `n` champs et que chaque cellule entre guillemets (ouverte en début
+// de champ) est refermée par un guillemet suivi d'un séparateur ou de la fin.
+function _impRecordBienForme(rec, sep, n) {
+  let i = 0, champs = 0;
+  for (;;) {
+    while (rec[i] === ' ') i++;
+    if (rec[i] === '"') {
+      i++;
+      for (;;) {
+        if (i >= rec.length) return false;
+        if (rec[i] === '"') { if (rec[i + 1] === '"') { i += 2; continue; } i++; break; }
+        i++;
+      }
+      while (rec[i] === ' ') i++;
+      if (i < rec.length && rec[i] !== sep) return false;
+    } else {
+      while (i < rec.length && rec[i] !== sep) i++;
+    }
+    champs++;
+    if (i >= rec.length) break;
+    i++; // le séparateur
+  }
+  return champs === n;
 }
 // Détecte le format : séparateur donnant ≥ 2 colonnes sur ≥ 80 % des lignes (TAB
 // prioritaire, puis « ; », puis « , »), puis présence d'un en-tête (≥ 1 titre reconnu,
@@ -10695,7 +10748,10 @@ function _pdcYear(v) {
 const _pdcNorm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[\s-]+/g, ' ').trim();
 // Id local d'une classe du fichier : celui qu'`_createClassBare` lui donne (majuscules, sans blancs de bord).
 // ⚠️ Un id source en minuscules (« c_ab12 ») devient « C_AB12 » : les élèves doivent recevoir le MÊME id.
-const _pdcLocalCid = cid => S.classes[cid] ? cid : String(cid || '').trim().toUpperCase();
+// ⚠️ Entrées PROPRES seulement (`_pdcHas`) : un id source « toString » ou « valueOf » ne doit pas se lire comme
+// une classe ou un élève déjà connu (la propriété héritée d'Object.prototype), comme `getCls` / `_withStudent`.
+const _pdcHas = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+const _pdcLocalCid = cid => _pdcHas(S.classes, cid) ? cid : String(cid || '').trim().toUpperCase();
 
 // Analyse PURE du fichier : ce qu'il contient, classe par classe, et ce que l'import
 // ferait — reconnaissances par id, par nom+prénom, créations. Rien n'est écrit.
@@ -10713,12 +10769,12 @@ function _pdcAnalyze(d) {
     // Les classes recomposées de Plan de classe (virtuelles, tirées d'un tag) ne sont
     // pas des divisions : un PP n'en a pas.
     if (c.virtual) continue;
-    const sids = (Array.isArray(c.eleves) ? c.eleves : []).filter(sid => _isPlainObj(d.eleves[sid]));
+    const sids = (Array.isArray(c.eleves) ? c.eleves : []).filter(sid => _pdcHas(d.eleves, sid) && _isPlainObj(d.eleves[sid]));
     const lid = _pdcLocalCid(cid);
     let nbKnown = 0;
     for (const sid of sids) {
       const e = d.eleves[sid];
-      if (S.eleves[sid] || bySig.has(`${lid}|${_pdcNorm(e.nom)}|${_pdcNorm(e.prenom)}`)) nbKnown++;
+      if (_pdcHas(S.eleves, sid) || bySig.has(`${lid}|${_pdcNorm(e.nom)}|${_pdcNorm(e.prenom)}`)) nbKnown++;
     }
     // Ce que le fichier porte comme PLACEMENT pour cette classe. ⚠️ Compté ici pour être
     // affiché AVANT l'import : sans ce repère, un export fait dans Plan de classe sans
@@ -10733,7 +10789,7 @@ function _pdcAnalyze(d) {
       patterns += salle.patterns.length;
     }
     classes.push({ id: cid, nom: String(c.nom || cid), annee: _pdcYear(c.année ?? c.annee),
-                   nb: sids.length, deja: !!S.classes[lid], nbKnown, nbNew: sids.length - nbKnown,
+                   nb: sids.length, deja: _pdcHas(S.classes, lid), nbKnown, nbNew: sids.length - nbKnown,
                    places, patterns });
   }
   classes.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
@@ -10789,20 +10845,20 @@ function _pdcImport(d, classIds) {
   for (const e of Object.values(S.eleves)) bySig.set(`${e.classe_id}|${_pdcNorm(e.nom)}|${_pdcNorm(e.prenom)}`, e.id);
 
   for (const cid of classIds) {
-    const c = d.classes[cid];
+    const c = _pdcHas(d.classes, cid) ? d.classes[cid] : null;
     if (!_isPlainObj(c) || c.virtual) continue;
     const lid = _pdcLocalCid(cid);
-    let cls = S.classes[lid];
+    let cls = _pdcHas(S.classes, lid) ? S.classes[lid] : null;
     if (!cls) { cls = _createClassBare(lid, c.nom, _pdcYear(c.année ?? c.annee)); if (!cls) continue; stats.classes++; }
     const idMap = new Map();   // id source → id local de l'élève (rapprochement par nom : ids différents)
     // Date du dernier import : la fiche s'en sert pour prévenir qu'un groupe, une option ou
     // un aménagement corrigé ICI sera remplacé au prochain import s'il ne l'est pas là-bas.
     cls.pdcImportAt = _todayYmd();
     for (const sid of (Array.isArray(c.eleves) ? c.eleves : [])) {
-      const src = d.eleves[sid];
+      const src = _pdcHas(d.eleves, sid) ? d.eleves[sid] : null;
       if (!_isPlainObj(src) || !String(src.nom || '').trim() || !String(src.prenom || '').trim()) continue;
-      const localId = S.eleves[sid] ? sid : (bySig.get(`${lid}|${_pdcNorm(src.nom)}|${_pdcNorm(src.prenom)}`) || null);
-      let stu = localId ? S.eleves[localId] : null;
+      const localId = _pdcHas(S.eleves, sid) ? sid : (bySig.get(`${lid}|${_pdcNorm(src.nom)}|${_pdcNorm(src.prenom)}`) || null);
+      let stu = localId && _pdcHas(S.eleves, localId) ? S.eleves[localId] : null;
       if (stu) stats.maj++;
       else { stu = { id: sid, classe_id: lid, tags: [] }; S.eleves[sid] = stu; stats.eleves++; }
       idMap.set(sid, stu.id);
@@ -10825,7 +10881,7 @@ function _pdcImport(d, classIds) {
       }
       stu.tags = (Array.isArray(src.tags) ? src.tags : []).map(mapTag).filter(Boolean).filter((t, i, a) => a.indexOf(t) === i);
       if (stu.classe_id !== lid) {
-        const old = S.classes[stu.classe_id];
+        const old = _pdcHas(S.classes, stu.classe_id) ? S.classes[stu.classe_id] : null;
         if (old) old.eleves = old.eleves.filter(x => x !== stu.id);
         stu.classe_id = lid;
       }
@@ -11156,7 +11212,8 @@ function ordrePaintEnd(e) {
   renderDonnees();
 }
 
-function _salleMut(fn, msg) { pushUndo(); const ok = fn(); if (ok === false) { _undoAnnulerRefus(); return false; } save(); renderDonnees(); if (msg) toast(msg); return true; }
+// Refus (`false`) ou geste sans effet (même nom, même place, même réglage) : le cran est retiré, jamais un cran vide.
+function _salleMut(fn, msg) { pushUndo(); const ok = fn(); if (_undoSiRien(ok)) return ok !== false; save(); renderDonnees(); if (msg) toast(msg); return true; }
 function salleAddUI() {
   _uiPrompt({ title: '+ Nouvelle salle', label: 'Nom de la salle', value: '', maxlength: 40,
     onOk: v => { if (!_salleMut(() => { const sa = salleAdd(v, 5, 6); if (sa) _salleEd.id = sa.id; return !!sa; })) toast('⚠️ Il faut un nom.', 'warn'); } });
@@ -11249,6 +11306,8 @@ function setPref(key, value) {
   if (!(key in DEFAULT_PREFS)) return;
   let v = key === 'codeAbsent' ? String(value || '').trim().slice(0, 3) : value;
   if (key === 'codeAbsent' && !v) { toast('⚠️ Le code « absent » ne peut pas être vide.', 'warn'); renderDonnees(); return; }
+  // Un code qui est un NOMBRE (« 5 ») est un cumul : saisir 5 noterait « absent ». Le code d'avant reste.
+  if (key === 'codeAbsent' && /^[+-]?\d+(?:[.,]\d+)?$/.test(v)) { toast('⚠️ Le code « absent » ne peut pas être un nombre : il se confondrait avec un cumul.', 'warn'); renderDonnees(); return; }
   if (key === 'obsPalier') {
     v = String(value ?? '').trim() === '' ? NaN : Number(value);
     if (!Number.isInteger(v) || v < 0 || v > 100) { toast('⚠️ Palier du carnet : un nombre entier de 0 à 100 (0 = sans couleurs).', 'warn'); renderDonnees(); return; }
@@ -15809,7 +15868,8 @@ function moyReleveEdit(classId, rid, patch) {
   if (patch.date !== undefined && !_ymdValid(date)) return false;
   let periode = rel.periode;
   if (patch.periode !== undefined) { const p = String(patch.periode || '').trim(); if (!p) return false; periode = p.slice(0, 80); }
-  if ((patch.date !== undefined || patch.periode !== undefined) && _moySameDay(classId, date, periode).some(r => r.id !== rid)) return false;
+  // Le contrôle ne vaut que si la date ou la période CHANGE : un doublon hérité d'avant ce contrôle reste modifiable (libellé seul).
+  if ((date !== rel.date || periode !== rel.periode) && _moySameDay(classId, date, periode).some(r => r.id !== rid)) return false;
   rel.date = date; rel.periode = periode;
   if (patch.label !== undefined) rel.label = String(patch.label || '').trim().slice(0, 60);
   return true;
@@ -16297,12 +16357,15 @@ function moyEditOk() {
   const periode = document.getElementById('mmoyed-per').value.trim();
   if (!periode) { toast('⚠️ La période ne peut pas être vide : c\'est elle qui regroupe les imports comparables.', 'warn'); return; }
   // Une date déjà prise par un AUTRE import de la même période ferait deux imports identiques : refusé, rien n'est écrit.
-  if (_moySameDay(cls.id, date, periode).some(r => r.id !== _moyEditRid)) {
+  // Seulement si la date ou la période CHANGE : un doublon hérité (avant ce contrôle) garde son libellé modifiable.
+  const rel0 = _moyMap(cls.id)?.[_moyEditRid];
+  if (rel0 && (date !== rel0.date || periode !== rel0.periode) && _moySameDay(cls.id, date, periode).some(r => r.id !== _moyEditRid)) {
     toast(`⚠️ Un import existe déjà le ${_fmtDateFr(date)} pour cette période : changez la date, ou supprimez l'autre import.`, 'warn');
     return;
   }
   pushUndo();
-  moyReleveEdit(cls.id, _moyEditRid, { date, periode, label: document.getElementById('mmoyed-label').value });
+  const res = moyReleveEdit(cls.id, _moyEditRid, { date, periode, label: document.getElementById('mmoyed-label').value });
+  if (_undoSiRien(res)) { closeMod2('mmoyed'); return; }   // rien n'a changé : pas de cran vide
   save(); closeMod2('mmoyed');
   _moyPeriodeSel = periode; _moyRidSel = _moyEditRid;
   renderMoyennes();
