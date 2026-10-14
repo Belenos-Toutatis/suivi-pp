@@ -268,6 +268,7 @@ Les observations sont notées à deux endroits (carnet de correspondance et MBN,
     - **absences et retards** → `stu.absMbn`, reconnus par sorte + bornes ; un réimport **met à jour** le reste (une absence se régularise) ; fin illisible ramenée au début ;
     - **fiche** : naissance, demi-pension, régime de sortie, groupe (code GPn), options (autres codes, créées au catalogue si besoin) — **seulement les champs VIDES**, un par un.
   - ⚠️ Un retrait (observation ou absence absente du PDF) n'est proposé que DANS la période du récapitulatif et pour un élève qui y figure, jamais coché d'office. Noms non reconnus : rattachement manuel (« ignorer » par défaut).
+  - ⚠️ Deux HOMONYMES sur deux pages consécutives sont deux élèves si les dates de naissance des en-têtes diffèrent (sans date d'un côté : la suite). `_recapInstance` borne le mot « colle » (« collectif », « collégien » ne sont pas des retenues).
 - **Où l'on voit les absences** : colonne **Absences** des Indicateurs (période courante, « 🕒 2 abs. · 5 h · 1 ret. », rouge s'il y a du non valable ; clic → `absencesUI` ; seulement si la classe en a), vues *Préparer le conseil* et *Appeler les familles* (« abs » ne compte pas pour reconnaître une vue enregistrée), carte *Absences et retards* de la fiche (bornée au moment), synthèse de période, fiche imprimée, **carte de chaleur** (groupe *Absences et retards*, un mois par case + Total, rouge si non valable, case remplie → liste, case vide inerte). Calcul pur `_absMbnResume` : un événement compte dans la période où il commence ; demi-journées NON calculées (non déductibles). « non valable » gardé dans le texte court (`_absMbnTexte(e, true)`). Démo : dix absences et retards.
 - Fixture `test/fixtures/recap-mbn-invente.pdf` (`scripts/gen_recap_fixture.py`, noms inventés). ⚠️ **Vérifié sur la seule fixture** : le vrai fichier est à essayer par l'utilisateur (la revue montre tout avant d'appliquer).
 
@@ -379,6 +380,7 @@ releveMoy = {
 - **Trois états d'une case, comme au carnet** : un nombre (⚠️ **0 compris, c'est une note**), un **code** du bureau numérique (`Abs`, `Disp`, `NN`…) conservé tel quel, l'**absence de clé** = pas de note. Seuls les nombres entrent dans les statistiques ; un code s'affiche en italique, un vide en tiret.
 - ⚠️ **L'évolution ne traverse pas les périodes** : les moyennes repartent de zéro à chaque période, comparer S2 à S1 donnerait un Δ sans sens. `_moyPrev` ne cherche que dans les imports de la **même** `periode`, et remonte au dernier import où la case était un NOMBRE (un code ou un vide ne se soustrait pas).
 - **Même date + même période = REMPLACEMENT**, pas empilement (réexport après une saisie). L'aperçu le dit avant l'import ; changer la date garde les deux.
+  - ⚠️ La période d'un fichier SANS colonne « Périodes » est celle que la date donne (`_periodOf`), dans l'aperçu (`_moyImpRefresh`) comme dans `moyImport` : sinon l'aperçu n'annonce pas le remplacement. ⚠️ Corriger la date d'un import vers celle d'un AUTRE import de la même période est refusé (`moyReleveEdit` rend `false`, `moyEditOk` le dit, aucune mutation ni cran d'undo) : cela ferait deux imports identiques.
 - **Plusieurs périodes dans un même fichier** (export annuel) → un import par période.
 - **Rapprochement des élèves** (`_moyMatch`) : clé = mots du nom complet sans accents ni casse, **triés** (l'export écrit « NOM Prénom », la classe connaît nom et prénom à part ; les prénoms composés perdent leur trait d'union d'un côté ou de l'autre).
   - ⚠️ Deux homonymes parfaits dans la classe → **rien n'est deviné**, la ligne passe au rattachement manuel.
@@ -395,6 +397,7 @@ releveMoy = {
 ### Affichage
 
 - **Intitulés abrégés** (`_moyAbbr` : SVT, EPS, Maths, Hist.-géo.…), nom complet et professeurs en infobulle. Seul ce qu'on sait abréger l'est ; une matière inconnue garde son intitulé (les intitulés complets, coupés en plein mot sur onze colonnes, rendaient la grille illisible).
+  - Les intitulés réels « SCIENCES VIE & TERRE » et « ÉD.PHYSIQUE & SPORT. » s'abrègent en SVT et EPS (forme normalisée, `_MOY_ABBR`).
 - Cases **sous 10 sur fond d'alerte** (`--alert-bg` / `--alert-fg`), Δ en `--ok-fg` / `--danger-fg`, et dans une case d'alerte le Δ reprend l'encre de la case.
 - Tri par moyenne générale, par évolution, par nombre de matières sous 10, ou par une matière (clic sur l'en-tête) : **toujours la plus basse d'abord** (on trie pour voir qui décroche).
 - **Fiche élève** : section 📈 en lecture seule (la source est l'import), une table par période, **transposée** (matières en lignes, imports en colonnes : beaucoup plus de matières que d'imports). **Liste des élèves** : colonne « Moy. » (dernière moyenne générale, Δ, nombre de matières sous 10), triable par l'en-tête (la plus basse d'abord au premier clic, les élèves sans moyenne au bout dans les deux sens), reprise à l'impression de la liste.
@@ -1093,6 +1096,7 @@ Module repris intégralement. À adapter :
 - **Garder** le panneau « Codes de groupes rencontrés » : il transforme `4B-LATIN` en tag `LATIN`.
 - **Garder** le décodage **UTF-8 strict puis repli Windows-1252** (`_impFileSelected`) : les exports Pronote/SIECLE sont en 1252, « Léa » devient « LÃ©a » sans ce repli.
 - **Garder** la création des classes inconnues (`_impClassIdFromLabel` : « 5ème C » → `5C`, libellé complet conservé comme nom).
+  - Un niveau SEUL (« 3ème », « 5e ») donne `3`, `5`, pas `3ME`. Nom complet « MARTIN Noé (M.) » : la civilité entre parenthèses est lue (`_impSplitFullName`), jamais rangée dans le nom. Doublons : trait d'union = espace, espaces repliés (comme `_moyNameKey`). Dates impossibles (« 31/02/2013 ») = non reconnues (`_ymdValid`) ; un nombre de SÉRIE de tableur n'est converti que dans une colonne date (`_impNormDate(v, true)`). Une cellule entre guillemets peut contenir un retour à la ligne (`_impSplitRecords`, texte libre exclu).
 
 ### 2. Export JSON de Plan de classe
 
@@ -1100,6 +1104,7 @@ Module repris intégralement. À adapter :
 
 - ⚠️ **Lecture seule et à sens unique** : aucune écriture vers Plan de classe, aucun couplage de format (les deux apps évoluent séparément). Passer par une **liste blanche explicite** des champs, pas par une copie d'objet.
 - ⚠️ **Les ids d'élèves sont conservés** : c'est ce qui permet de réimporter sans doublons et de reconnaître un élève présent. La détection de doublon garde le filet nom+prénom+classe (sans accents ni casse) du module CSV.
+  - ⚠️ Un élève retrouvé par NOM a un autre id local : ses places suivent la correspondance id source → id local (`idMap`). L'id d'une classe source en minuscules devient celui qu'`_createClassBare` crée (`_pdcLocalCid`) — élèves, rapprochement et `S.cur` inclus. Dates de la source validées par `_ymdValid` ; ids de tags jamais pris pour des clés d'objet (`tagMap` sans prototype, `hasOwnProperty`).
 - Les tags de Plan de classe (`S.tags`, `{id, abbr, name, color}`) se reprennent avec `stu.tags`, sinon ils arrivent sans libellé.
 - **Salles, places et patterns** : liste blanche `{nom, rows, cols, collectPatterns}` — ni cases vides, ni îlots, ni emplois du temps, ni tablettes (un champ repris « au cas où » est un champ dont plus personne ne sait s'il est à jour).
   - ⚠️ **Ids de salle PRÉFIXÉS `pdc_`** : Plan de classe les nomme `s1`, `s2` (compteurs locaux, sans unicité entre fichiers) ; sans préfixe, la « Salle 102 » d'un collègue écraserait la nôtre.

@@ -4952,7 +4952,8 @@ function _isStudentActive(stu, ymd) {
 function _impClassIdFromLabel(label) {
   const flat = String(label || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toUpperCase().replace(/[^A-Z0-9_]/g, '');
-  return flat.replace(/^(\d{1,2})(?:EME|ERE|NDE|ND|ER|E)(?=[A-Z0-9])/, '$1').slice(0, 20);
+  // Un niveau SEUL (« 3ème », « 5e ») donne le chiffre : « 3ME » n'est le nom de personne.
+  return flat.replace(/^(\d{1,2})(?:EME|ERE|NDE|ND|ER|E)(?=[A-Z0-9]|$)/, '$1').slice(0, 20);
 }
 // Crée une classe « nue ». Sans pushUndo ni save : l'appelant s'en charge.
 function _createClassBare(id, nom, annee) {
@@ -6550,7 +6551,15 @@ function _recapLire(pages) {
     const nomTete = tete ? tete.segs.find(x => x.size >= 10.5 && x.x > 20).text : null;
     let saute = false;
     const sautees = [];
-    if (tete && cur && _moyNameKey(nomTete) === _moyNameKey(cur.nom)) saute = true;
+    // ⚠️ Deux HOMONYMES sur deux pages consécutives ne sont pas un seul élève : si les deux en-têtes portent une date
+    // de naissance et qu'elles diffèrent, c'est un nouvel élève (sans date d'un côté, on garde la suite).
+    let naissTete = null;
+    for (const r of rows) {
+      if (r.y >= 60) break;
+      const m = /\d+\s*ans\s*-\s*(\d{1,2}\/\d{1,2}\/\d{4})/.exec(r.segs.map(x => x.text).join(' '));
+      if (m) { naissTete = _recapDmy(m[1]); break; }
+    }
+    if (tete && cur && _moyNameKey(nomTete) === _moyNameKey(cur.nom) && !(cur.naissance && naissTete && cur.naissance !== naissTete)) saute = true;
     else if (tete) {
       cur = { nom: nomTete, page: pi + 1, naissance: null, classe: '', groupes: [], regime: '', sortie: '', sections: [] };
       eleves.push(cur); sect = null;
@@ -6672,7 +6681,7 @@ function absencesUI(sid, a, b, lab) {
 // cours…), par son nom ; à défaut « Autre punition ».
 function _recapInstance(consequence) {
   const n = _structNorm(consequence);
-  const T = [[/retenue|colle/, 'retenue'], [/exclu.*cours/, 'exclusion_cours'], [/devoir/, 'devoir_supp'], [/excuse/, 'excuse'], [/avertissement/, 'avertissement'], [/blame/, 'blame']];
+  const T = [[/retenue|\bcolles?\b/, 'retenue'], [/exclu.*cours/, 'exclusion_cours'], [/devoir/, 'devoir_supp'], [/excuse/, 'excuse'], [/avertissement/, 'avertissement'], [/blame/, 'blame']];
   const hit = T.find(([re]) => re.test(n));
   if (hit && S.instances[hit[1]]) return hit[1];
   const lab = n && Object.values(S.instances).find(i => _structNorm(i.label) === n);
@@ -9891,14 +9900,17 @@ function _impLooksLikeGroupCodes(vals) {
 }
 
 function _impTruthy(v) { return /^(x|oui|o|yes|y|1|vrai|true|v|✓|✔)$/i.test(String(v || '').trim()); }
-// Date : AAAA-MM-JJ ou JJ/MM/AAAA → AAAA-MM-JJ, sinon null.
-function _impNormDate(v) {
+// Date : AAAA-MM-JJ ou JJ/MM/AAAA → AAAA-MM-JJ, sinon null. ⚠️ Une date impossible (« 31/02/2013 »,
+// « 2013-13-45 ») est illisible, pas une date : `_ymdValid` tranche. `serie` : dans une colonne qu'on SAIT être une
+// date, un nombre de série de tableur (.xlsx : « 41338 ») est converti (même conversion que l'import MBN).
+function _impNormDate(v, serie) {
   const t = String(v || '').trim();
   let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  m = t.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/);
-  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-  return null;
+  let ymd = null;
+  if (m) ymd = `${m[1]}-${m[2]}-${m[3]}`;
+  else if ((m = t.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/))) ymd = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  else if (serie && /^\d{5}(\.0+)?$/.test(t)) ymd = _obsMbnDate(t.replace(/\..*$/, ''))?.date || null;
+  return ymd && _ymdValid(ymd) ? ymd : null;
 }
 // Classe : par identifiant puis par nom, insensible à la casse. Renvoie l'id ou null.
 function _impResolveClass(v) {
@@ -9912,17 +9924,26 @@ function _impResolveClass(v) {
 // « DUPONT Marie », « Marie DUPONT », « DE LA TOUR Jean » : les mots tout en majuscules
 // font le nom, les autres le prénom — quel que soit l'ordre. Sans majuscules pour
 // trancher, on suppose l'ordre annoncé par la colonne (NOM Prénom, ou Prénom NOM).
+// La civilité entre parenthèses (« MARTIN Noé (M.) », format des exports Pronote / MBN) n'est ni nom ni prénom :
+// lue comme `parseStudentLine`, retirée du nom et rendue à part (`civilite`, seulement si elle a été lue).
 function _impSplitFullName(v, order) {
-  const toks = String(v || '').trim().split(/\s+/).filter(Boolean);
-  if (!toks.length) return { nom: '', prenom: '' };
+  let civilite = null;
+  const brut = String(v || '').replace(/\(([^()]*)\)/g, (tout, x) => {
+    const cv = _normalizeCivilite(x.trim());
+    if (!cv || civilite) return tout;
+    civilite = cv; return ' ';
+  });
+  const toks = brut.trim().split(/\s+/).filter(Boolean);
+  const out = (o) => (civilite ? Object.assign(o, { civilite }) : o);
+  if (!toks.length) return out({ nom: '', prenom: '' });
   const caps = t => t === t.toUpperCase() && /[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜŸŒÆ]/.test(t);
   if (toks.some(caps) && toks.some(t => !caps(t))) {
-    return { nom: toks.filter(caps).join(' '), prenom: toks.filter(t => !caps(t)).join(' ') };
+    return out({ nom: toks.filter(caps).join(' '), prenom: toks.filter(t => !caps(t)).join(' ') });
   }
-  if (toks.length === 1) return order === 'pn' ? { nom: '', prenom: toks[0] } : { nom: toks[0], prenom: '' };
-  return order === 'pn'
+  if (toks.length === 1) return out(order === 'pn' ? { nom: '', prenom: toks[0] } : { nom: toks[0], prenom: '' });
+  return out(order === 'pn'
     ? { prenom: toks[0], nom: toks.slice(1).join(' ') }
-    : { nom: toks[0], prenom: toks.slice(1).join(' ') };
+    : { nom: toks[0], prenom: toks.slice(1).join(' ') });
 }
 // Analyse une ligne de TEXTE LIBRE : tokens ALL_CAPS = nom(s), Title_Case = prénom(s),
 // 1/2/3/G1/G2/G3 = groupe, token = id de classe existante, [DF] = option,
@@ -9978,18 +9999,41 @@ function _impSplitLine(line, sep) {
   out.push(cur);
   return out.map(c => c.trim());
 }
+// Découpe un texte en ENREGISTREMENTS : un retour à la ligne entre guillemets (« "ligne1\nligne2" ») reste dans
+// sa cellule, il ne coupe pas la ligne. Un guillemet n'ouvre une cellule qu'en début d'enregistrement ou de champ
+// (« Marie "Mimi" DUPONT » n'en ouvre pas) ; jamais refermé, on retombe sur le découpage par lignes.
+function _impSplitRecords(text) {
+  const t = String(text || '').replace(/\r\n?/g, '\n');
+  const out = []; let cur = '', q = false, debut = true;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (q) {
+      cur += ch;
+      if (ch === '"') { if (t[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+      continue;
+    }
+    if (ch === '\n') { out.push(cur); cur = ''; debut = true; continue; }
+    if (ch === '"' && debut) q = true;
+    cur += ch;
+    debut = (debut && ch === ' ') || ch === '\t' || ch === ';' || ch === ',';
+  }
+  if (q) return t.split('\n');
+  out.push(cur);
+  return out;
+}
 // Détecte le format : séparateur donnant ≥ 2 colonnes sur ≥ 80 % des lignes (TAB
 // prioritaire, puis « ; », puis « , »), puis présence d'un en-tête (≥ 1 titre reconnu,
 // et au moins un tiers des colonnes). Sinon : texte libre.
 function _impDetect(text) {
-  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n').filter(l => l.trim());
+  const lines = _impSplitRecords(text).filter(l => l.trim());
   if (!lines.length) return { mode: 'text', sep: null, rows: [], header: false };
   let sep = null;
   for (const cand of ['\t', ';', ',']) {
     const multi = lines.filter(l => _impSplitLine(l, cand).length >= 2).length;
     if (multi >= Math.ceil(lines.length * 0.8)) { sep = cand; break; }
   }
-  if (!sep) return { mode: 'text', sep: null, rows: lines.map(l => [l]), header: false };
+  // Texte libre : une ligne = un élève, les guillemets n'y regroupent rien.
+  if (!sep) return { mode: 'text', sep: null, rows: String(text || '').replace(/\r\n?/g, '\n').split('\n').filter(l => l.trim()).map(l => [l]), header: false };
   const rows = lines.map(l => _impSplitLine(l, sep));
   const hits = rows[0].filter(c => _impGuessField(c)).length;
   const header = hits >= 1 && hits >= Math.ceil(rows[0].length / 3);
@@ -10064,7 +10108,8 @@ function _impAnalyze(text, opts) {
 
   const defaultClassId = opts.defaultClassId || null;
   const seen = new Map(); // dédoublonnage interne au fichier : "classe|nom|prenom"
-  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  // Trait d'union = espace (« Anne-Sophie » = « Anne Sophie »), comme `_moyNameKey` : sinon un doublon passe.
+  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[\s-]+/g, ' ').trim();
   const existingSid = new Map(Object.values(S.eleves || {}).map(e => [`${e.classe_id}|${norm(e.nom)}|${norm(e.prenom)}`, e.id]));
   const existing = new Set(existingSid.keys());
   const records = [];
@@ -10082,6 +10127,7 @@ function _impAnalyze(text, opts) {
         const sp = _impSplitFullName(row[c], k === 'fullname_pn' ? 'pn' : 'np');
         if (sp.nom) rec.nom = sp.nom;
         if (sp.prenom) rec.prenom = sp.prenom;
+        if (sp.civilite) rec.civilite = sp.civilite;
       });
       mapping.forEach((k, c) => {
         const v = row[c];
@@ -10115,13 +10161,13 @@ function _impAnalyze(text, opts) {
           if (!any && k === 'groupe') rec.warnings.push(`groupe « ${cell} » non reconnu`);
           return;
         }
-        if (k === 'civilite') { const cv = _impNormCiv(v); if (String(v || '').trim() && !cv) rec.warnings.push(`civilité « ${String(v).trim()} » non reconnue`); rec.civilite = cv; return; }
+        if (k === 'civilite') { const cv = _impNormCiv(v); if (String(v || '').trim() && !cv) rec.warnings.push(`civilité « ${String(v).trim()} » non reconnue`); rec.civilite = cv || rec.civilite; return; }
         if (k === 'amen')     { Object.assign(rec.statuses, _impNormAmen(v)); return; }
         if (_IMP_BOOL_KEYS.includes(k)) { if (_impTruthy(v)) rec.statuses[k] = true; return; }
-        if (k === 'arrivee')  { const d = _impNormDate(v); if (String(v || '').trim() && !d) rec.warnings.push(`date « ${String(v).trim()} » non reconnue`); rec.arrivalDate = d; return; }
-        if (k === 'depart')   { const d = _impNormDate(v); if (String(v || '').trim() && !d) rec.warnings.push(`date « ${String(v).trim()} » non reconnue`); rec.departureDate = d; return; }
+        if (k === 'arrivee')  { const d = _impNormDate(v, true); if (String(v || '').trim() && !d) rec.warnings.push(`date « ${String(v).trim()} » non reconnue`); rec.arrivalDate = d; return; }
+        if (k === 'depart')   { const d = _impNormDate(v, true); if (String(v || '').trim() && !d) rec.warnings.push(`date « ${String(v).trim()} » non reconnue`); rec.departureDate = d; return; }
         if (k === 'remarque') { rec.remarque = String(v || '').trim(); return; }
-        if (k === 'naissance') { const d = _impNormDate(v); if (String(v || '').trim() && !d) rec.warnings.push(`naissance « ${String(v).trim()} » non reconnue`); rec.naissance = d; return; }
+        if (k === 'naissance') { const d = _impNormDate(v, true); if (String(v || '').trim() && !d) rec.warnings.push(`naissance « ${String(v).trim()} » non reconnue`); rec.naissance = d; return; }
         if (k === 'regime')   { const r = _impNormRegime(v); if (String(v || '').trim() && !r) rec.warnings.push(`régime « ${String(v).trim()} » non reconnu`); rec.regime = r; return; }
         if (k === 'sortie')   { rec.sortie = _impNormSortie(v); return; }
         if (k === 'entree')   { rec.entree = _impNormEntree(v); return; }
@@ -10553,7 +10599,12 @@ function _pdcYear(v) {
   if (/^\d{4}$/.test(s)) return _pdcYear(+s);
   return s || _defaultSchoolYear();
 }
-const _pdcNorm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+// Trait d'union = espace, espaces multiples repliés : « Anne-Sophie » et « Anne Sophie » sont le même prénom
+// (même règle que `_moyNameKey`), sinon l'import crée un doublon.
+const _pdcNorm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[\s-]+/g, ' ').trim();
+// Id local d'une classe du fichier : celui qu'`_createClassBare` lui donne (majuscules, sans blancs de bord).
+// ⚠️ Un id source en minuscules (« c_ab12 ») devient « C_AB12 » : les élèves doivent recevoir le MÊME id.
+const _pdcLocalCid = cid => S.classes[cid] ? cid : String(cid || '').trim().toUpperCase();
 
 // Analyse PURE du fichier : ce qu'il contient, classe par classe, et ce que l'import
 // ferait — reconnaissances par id, par nom+prénom, créations. Rien n'est écrit.
@@ -10572,10 +10623,11 @@ function _pdcAnalyze(d) {
     // pas des divisions : un PP n'en a pas.
     if (c.virtual) continue;
     const sids = (Array.isArray(c.eleves) ? c.eleves : []).filter(sid => _isPlainObj(d.eleves[sid]));
+    const lid = _pdcLocalCid(cid);
     let nbKnown = 0;
     for (const sid of sids) {
       const e = d.eleves[sid];
-      if (S.eleves[sid] || bySig.has(`${cid}|${_pdcNorm(e.nom)}|${_pdcNorm(e.prenom)}`)) nbKnown++;
+      if (S.eleves[sid] || bySig.has(`${lid}|${_pdcNorm(e.nom)}|${_pdcNorm(e.prenom)}`)) nbKnown++;
     }
     // Ce que le fichier porte comme PLACEMENT pour cette classe. ⚠️ Compté ici pour être
     // affiché AVANT l'import : sans ce repère, un export fait dans Plan de classe sans
@@ -10590,7 +10642,7 @@ function _pdcAnalyze(d) {
       patterns += salle.patterns.length;
     }
     classes.push({ id: cid, nom: String(c.nom || cid), annee: _pdcYear(c.année ?? c.annee),
-                   nb: sids.length, deja: !!S.classes[cid], nbKnown, nbNew: sids.length - nbKnown,
+                   nb: sids.length, deja: !!S.classes[lid], nbKnown, nbNew: sids.length - nbKnown,
                    places, patterns });
   }
   classes.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
@@ -10627,8 +10679,9 @@ function _pdcSalle(src, id) {
 function _pdcImport(d, classIds) {
   const stats = { classes: 0, eleves: 0, maj: 0, tags: 0, salles: 0, places: 0, patterns: 0, gardes: 0 };
   const srcTags = _isPlainObj(d.tags) ? d.tags : {};
-  const tagMap = {};   // id source → id local
+  const tagMap = Object.create(null);   // id source → id local (sans prototype : « constructor » n'est pas un id)
   const mapTag = tid => {
+    if (typeof tid !== 'string' || !Object.prototype.hasOwnProperty.call(srcTags, tid)) return null;
     if (tagMap[tid]) return tagMap[tid];
     const t = srcTags[tid];
     if (!_isPlainObj(t) || !t.abbr) return null;
@@ -10647,18 +10700,21 @@ function _pdcImport(d, classIds) {
   for (const cid of classIds) {
     const c = d.classes[cid];
     if (!_isPlainObj(c) || c.virtual) continue;
-    let cls = S.classes[cid];
-    if (!cls) { cls = _createClassBare(cid, c.nom, _pdcYear(c.année ?? c.annee)); stats.classes++; }
+    const lid = _pdcLocalCid(cid);
+    let cls = S.classes[lid];
+    if (!cls) { cls = _createClassBare(lid, c.nom, _pdcYear(c.année ?? c.annee)); if (!cls) continue; stats.classes++; }
+    const idMap = new Map();   // id source → id local de l'élève (rapprochement par nom : ids différents)
     // Date du dernier import : la fiche s'en sert pour prévenir qu'un groupe, une option ou
     // un aménagement corrigé ICI sera remplacé au prochain import s'il ne l'est pas là-bas.
     cls.pdcImportAt = _todayYmd();
     for (const sid of (Array.isArray(c.eleves) ? c.eleves : [])) {
       const src = d.eleves[sid];
       if (!_isPlainObj(src) || !String(src.nom || '').trim() || !String(src.prenom || '').trim()) continue;
-      const localId = S.eleves[sid] ? sid : (bySig.get(`${cid}|${_pdcNorm(src.nom)}|${_pdcNorm(src.prenom)}`) || null);
+      const localId = S.eleves[sid] ? sid : (bySig.get(`${lid}|${_pdcNorm(src.nom)}|${_pdcNorm(src.prenom)}`) || null);
       let stu = localId ? S.eleves[localId] : null;
       if (stu) stats.maj++;
-      else { stu = { id: sid, classe_id: cid, tags: [] }; S.eleves[sid] = stu; stats.eleves++; }
+      else { stu = { id: sid, classe_id: lid, tags: [] }; S.eleves[sid] = stu; stats.eleves++; }
+      idMap.set(sid, stu.id);
       // Liste blanche — et rien d'autre.
       for (const k of _PDC_STU_FIELDS) {
         const v = src[k];
@@ -10670,17 +10726,17 @@ function _pdcImport(d, classIds) {
         else if (k === 'civilite') { if (v === 'M' || v === 'F') stu[k] = v; else if (stu[k] === 'M' || stu[k] === 'F') stats.gardes++; else stu[k] = null; }
         else if (k === 'groupe') stu[k] = [1, 2, 3].includes(v) ? v : null;
         else if (k === 'arrivalDate' || k === 'departureDate' || k === 'naissance') {
-          if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) stu[k] = v;
+          if (_ymdValid(v)) stu[k] = v;   // « 2013-02-31 » est illisible : jamais stockée
           else if (_ymdValid(stu[k])) stats.gardes++;
           else stu[k] = null;
         }
         else stu[k] = v === true;
       }
       stu.tags = (Array.isArray(src.tags) ? src.tags : []).map(mapTag).filter(Boolean).filter((t, i, a) => a.indexOf(t) === i);
-      if (stu.classe_id !== cid) {
+      if (stu.classe_id !== lid) {
         const old = S.classes[stu.classe_id];
         if (old) old.eleves = old.eleves.filter(x => x !== stu.id);
-        stu.classe_id = cid;
+        stu.classe_id = lid;
       }
       if (!cls.eleves.includes(stu.id)) cls.eleves.push(stu.id);
     }
@@ -10703,8 +10759,10 @@ function _pdcImport(d, classIds) {
       const seating = {};
       for (const [pos, occ] of Object.entries(srcRoom.seating)) {
         if (typeof pos !== 'string' || !/^\d{1,3},\d{1,3}$/.test(pos)) continue;
-        if (typeof occ !== 'string' || !cls.eleves.includes(occ)) continue;
-        seating[pos] = occ;
+        // L'occupant est nommé par son id SOURCE ; l'élève retrouvé par son nom porte un autre id local.
+        const loc = typeof occ === 'string' ? idMap.get(occ) : null;
+        if (!loc || !cls.eleves.includes(loc)) continue;
+        seating[pos] = loc;
       }
       if (!Object.keys(seating).length) continue;
       if (!_isPlainObj(cls.rooms)) cls.rooms = {};
@@ -10776,7 +10834,7 @@ async function _pdcConfirm() {
   pushUndo();
   const st = _pdcImport(_pdcData, ids);
   _pdcData = null;
-  if (!S.cur || !S.classes[S.cur]) S.cur = ids[0];
+  if (!S.cur || !S.classes[S.cur]) S.cur = _pdcLocalCid(ids[0]);
   save();
   closeMod2('mpdc');
   refreshSelector();
@@ -15191,6 +15249,8 @@ function _moyMatch(parse, classId, manual) {
 // inconnue garde son intitulé tel quel — on n'abrège que ce qu'on sait abréger.
 const _MOY_ABBR = [
   ['SCIENCES DE LA VIE ET DE LA TERRE', 'SVT'], ['EDUCATION PHYSIQUE ET SPORTIVE', 'EPS'],
+  // Intitulés réels des exports (« SCIENCES VIE & TERRE », « ÉD.PHYSIQUE & SPORT. »), en forme normalisée.
+  ['SCIENCES VIE TERRE', 'SVT'], ['ED PHYSIQUE SPORT', 'EPS'],
   ['ENSEIGNEMENT MORAL ET CIVIQUE', 'EMC'], ['LANGUES ET CULTURES DE L ANTIQUITE', 'LCA'],
   ['HISTOIRE GEOGRAPHIE', 'Hist.-géo.'], ['PHYSIQUE CHIMIE', 'Phys.-chimie'], ['MATHEMATIQUES', 'Maths'],
   ['FRANCAIS', 'Français'], ['TECHNOLOGIE', 'Techno.'], ['ARTS PLASTIQUES', 'Arts plast.'],
@@ -15407,9 +15467,14 @@ function moyImport(classId, parse, match, opts) {
 function moyReleveEdit(classId, rid, patch) {
   const rel = _moyMap(classId)?.[rid];
   if (!rel) return false;
-  if (patch.date !== undefined) { if (!_ymdValid(patch.date)) return false; rel.date = patch.date; }
+  // Valider AVANT d'écrire, et refuser de rejoindre un autre import de même date et même période.
+  const date = patch.date !== undefined ? patch.date : rel.date;
+  if (patch.date !== undefined && !_ymdValid(date)) return false;
+  let periode = rel.periode;
+  if (patch.periode !== undefined) { const p = String(patch.periode || '').trim(); if (!p) return false; periode = p.slice(0, 80); }
+  if ((patch.date !== undefined || patch.periode !== undefined) && _moySameDay(classId, date, periode).some(r => r.id !== rid)) return false;
+  rel.date = date; rel.periode = periode;
   if (patch.label !== undefined) rel.label = String(patch.label || '').trim().slice(0, 60);
-  if (patch.periode !== undefined) { const p = String(patch.periode || '').trim(); if (!p) return false; rel.periode = p.slice(0, 80); }
   return true;
 }
 function moyReleveDelete(classId, rid) {
@@ -15822,7 +15887,9 @@ function _moyImpRefresh() {
   const nonRecon = match.rows.filter(r => !r.sid);
   const nouv = match.matieres.filter(m => !m.mid);
   const date = _ymdCompleteAnnee(document.getElementById('mmoyimp-date').value);
-  const remplace = _ymdValid(date) ? match.periodes.flatMap(p => _moySameDay(cls.id, date, p || '—')) : [];
+  // Même période que `moyImport` : celle du fichier, sinon celle que la date donne (sinon l'aperçu n'annonce pas le remplacement).
+  const defPer = _periodOf(cls, date)?.label || '';
+  const remplace = _ymdValid(date) ? match.periodes.flatMap(p => _moySameDay(cls.id, date, p || defPer || '—')) : [];
   const horsBareme = recon.flatMap(r => Object.entries(r.notes).filter(([, v]) => typeof v === 'number' && (v < 0 || v > 20)).map(([n, v]) => `${r.nomAffiche} : ${_fmtNote(v)}`));
   const pris = new Set(recon.map(r => r.sid));
   const roster = cls.eleves.map(id => S.eleves[id]).filter(Boolean)
@@ -15892,6 +15959,11 @@ function moyEditOk() {
   if (!_ymdValid(date)) { toast('⚠️ Date invalide.', 'warn'); return; }
   const periode = document.getElementById('mmoyed-per').value.trim();
   if (!periode) { toast('⚠️ La période ne peut pas être vide : c\'est elle qui regroupe les imports comparables.', 'warn'); return; }
+  // Une date déjà prise par un AUTRE import de la même période ferait deux imports identiques : refusé, rien n'est écrit.
+  if (_moySameDay(cls.id, date, periode).some(r => r.id !== _moyEditRid)) {
+    toast(`⚠️ Un import existe déjà le ${_fmtDateFr(date)} pour cette période : changez la date, ou supprimez l'autre import.`, 'warn');
+    return;
+  }
   pushUndo();
   moyReleveEdit(cls.id, _moyEditRid, { date, periode, label: document.getElementById('mmoyed-label').value });
   save(); closeMod2('mmoyed');
@@ -22934,12 +23006,17 @@ const _RECUP_CHAMPS = [
 // PUR : ce qu'on récupérerait. [{ sid, nom, champ, label, valeur }]
 function _recupChamps(ancien) {
   if (!_isPlainObj(ancien) || !_isPlainObj(ancien.eleves)) return [];
-  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const sigDe = e => `${e.classe_id}|${norm(e.nom)}|${norm(e.prenom)}`;
+  // ⚠️ Rien n'est deviné : deux homonymes (dans l'ancienne sauvegarde, ou aujourd'hui) rendent la signature ambiguë,
+  // et on ne propose rien pour ce nom (le dernier venu gagnait en silence). Le rapprochement par id reste sûr.
   const parSig = new Map();
-  for (const e of Object.values(ancien.eleves)) if (_isPlainObj(e)) parSig.set(`${e.classe_id}|${norm(e.nom)}|${norm(e.prenom)}`, e);
+  for (const e of Object.values(ancien.eleves)) if (_isPlainObj(e)) { const g = sigDe(e); parSig.set(g, parSig.has(g) ? null : e); }
+  const nbActuels = new Map();
+  for (const s of Object.values(S.eleves)) nbActuels.set(sigDe(s), (nbActuels.get(sigDe(s)) || 0) + 1);
   const out = [];
   for (const s of Object.values(S.eleves)) {
-    const o = _isPlainObj(ancien.eleves[s.id]) ? ancien.eleves[s.id] : parSig.get(`${s.classe_id}|${norm(s.nom)}|${norm(s.prenom)}`);
+    const o = _isPlainObj(ancien.eleves[s.id]) ? ancien.eleves[s.id] : (nbActuels.get(sigDe(s)) > 1 ? null : parSig.get(sigDe(s)));
     if (!o) continue;
     for (const c of _RECUP_CHAMPS) {
       if (c.ok(s[c.key]) || !c.ok(o[c.key])) continue;
