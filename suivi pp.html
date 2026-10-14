@@ -17645,8 +17645,9 @@ function _avisLire(cls, camp, sheets) {
     if (parCle.has(k)) doublons.add(k); else parCle.set(k, s.id);
   }
   // `etrangers` (onglets non lus mais remplis) et `lignes` (la ligne de chaque non-reconnu) : ce
-  // que la mise à jour de la feuille RECOPIE tel quel (`_avisFeuillesGardees`).
-  const avis = {}, lus = [], inconnus = [], nonReconnus = [], etrangers = [], lignes = [];
+  // que la mise à jour de la feuille RECOPIE tel quel (`_avisFeuillesGardees`) ; `repetes` : les
+  // élèves qui ont plusieurs lignes remplies dans un même onglet.
+  const avis = {}, lus = [], inconnus = [], nonReconnus = [], etrangers = [], lignes = [], repetes = [];
   const discDe = sh => {
     const n = _moyNorm(sh.name);
     const d = camp.disciplines.find(x => _moyNorm(x.onglet) === n || _moyNorm(x.nom) === n);
@@ -17678,6 +17679,7 @@ function _avisLire(cls, camp, sheets) {
     // PAS lu — sinon il ferait foi, vide, et proposerait d'effacer tout ce que l'app a rangé.
     if (cols.every(c => col[c.key] < 0)) { ignore(); continue; }
     lus.push(d.id);
+    const parSid = new Map();   // sid → ses lignes remplies dans CET onglet : [{ vals, ligne }]
     for (const r of rows.slice(h + 1)) {
       const nom = String((r || [])[0] || '').trim();
       const vals = {};
@@ -17685,29 +17687,57 @@ function _avisLire(cls, camp, sheets) {
       if (!Object.keys(vals).length) continue;
       const k = _moyNameKey(nom);
       const sid = doublons.has(k) ? null : parCle.get(k);
+      // La ligne, remise dans l'ordre des colonnes de l'app ; les cases des autres colonnes suivent.
+      const cases = (r || []).map(x => String(x == null ? '' : x)), connues = new Set([0, ...cols.map(c => col[c.key])]);
+      const ligne = [cases[0] || '', ...cols.map(c => col[c.key] >= 0 ? cases[col[c.key]] || '' : ''), ...cases.filter((x, i) => !connues.has(i) && x.trim())];
       if (!sid) {
-        // La ligne, remise dans l'ordre des colonnes de l'app ; les cases des autres colonnes suivent.
-        const cases = (r || []).map(x => String(x == null ? '' : x)), connues = new Set([0, ...cols.map(c => col[c.key])]);
-        const ligne = [cases[0] || '', ...cols.map(c => col[c.key] >= 0 ? cases[col[c.key]] || '' : ''), ...cases.filter((x, i) => !connues.has(i) && x.trim())];
         nonReconnus.push({ onglet: d.onglet, nom: nom || '(sans nom)' });
         lignes.push({ did: d.id, onglet: d.onglet, ligne });
         continue;
       }
-      ((avis[sid] = avis[sid] || {})[d.id] = vals);
+      if (!parSid.has(sid)) parSid.set(sid, []);
+      parSid.get(sid).push({ vals, ligne });
+    }
+    // ⚠️ Plusieurs lignes remplies pour le MÊME élève dans un onglet (ligne copiée, nom corrigé
+    // par un collègue) : jamais « la dernière gagne ». Si elles se COMPLÈTENT (chaque colonne
+    // n'a qu'un texte, ou le même), elles sont réunies colonne par colonne — rien ne se perd.
+    // Si une colonne porte deux textes différents, RIEN n'est rangé pour cet élève dans cet
+    // onglet (l'app garde ce qu'elle avait, aucun changement n'est proposé) et les lignes
+    // sont recopiées à la mise à jour, comme une ligne non reconnue. Dans les deux cas, c'est
+    // RAPPORTÉ (`repetes` : revue, toast, panneau de la feuille).
+    for (const [sid, ls] of parSid) {
+      if (ls.length === 1) { (avis[sid] = avis[sid] || {})[d.id] = ls[0].vals; continue; }
+      const fus = {};
+      let conflit = false;
+      for (const l of ls) for (const [key, v] of Object.entries(l.vals)) { if (fus[key] === undefined) fus[key] = v; else if (fus[key] !== v) conflit = true; }
+      repetes.push({ onglet: d.onglet, did: d.id, sid, nom: `${S.eleves[sid].nom} ${S.eleves[sid].prenom}`, n: ls.length, conflit });
+      if (!conflit) { (avis[sid] = avis[sid] || {})[d.id] = fus; continue; }
+      const vues = new Set();
+      for (const l of ls) {
+        const cle = JSON.stringify(l.vals);
+        if (!vues.has(cle)) { vues.add(cle); lignes.push({ did: d.id, onglet: d.onglet, ligne: l.ligne, sid, vals: l.vals }); }
+      }
     }
   }
-  return { avis, lus, inconnus, nonReconnus, etrangers, lignes };
+  return { avis, lus, inconnus, nonReconnus, etrangers, lignes, repetes };
 }
 // Les onglets à écrire, plus ce que l'app ne reconnaît pas dans le fichier, RECOPIÉ tel quel
 // (arbitré le 2026-10-14 : mettre la feuille à jour n'efface rien en silence) : les onglets
 // inconnus — ajoutés par un collègue, en-têtes modifiés, discipline retirée de la feuille —
 // à la suite (renommés « (2) » si le nom est pris), les lignes d'élèves non reconnues au bout
-// de leur onglet. PUR. → { sheets, garde } (`garde` : la phrase qui le dit, '' si rien).
-function _avisFeuillesGardees(cls, camp, lec) {
+// de leur onglet. PUR. → { sheets, garde, efface } (`garde` : la phrase qui le dit, '' si rien).
+// ⚠️ Pour une NOUVELLE feuille (`nouvelle` : fichier d'une autre période réutilisé), RIEN n'est
+// recopié — la revue l'annonce : ce qui n'est pas repris est effacé du fichier ; `efface` le dit.
+function _avisFeuillesGardees(cls, camp, lec, nouvelle) {
   const sheets = _avisFeuilles(cls, camp);
-  if (!lec) return { sheets, garde: '' };
+  if (!lec) return { sheets, garde: '', efface: '' };
+  if (nouvelle) return { sheets, garde: '', efface: _avisNonLuTexte(lec) };
+  // Une ligne en double d'un élève qui dit exactement ce que l'app écrit sur SA ligne n'est
+  // pas recopiée : la feuille ne grossit pas d'une mise à jour à l'autre.
+  const memes = (a, b) => _avisCols(camp).every(c => (a?.[c.key] || '') === (b?.[c.key] || ''));
+  const lignes = (lec.lignes || []).filter(x => !x.sid || !memes(x.vals, camp.avis?.[x.sid]?.[x.did]));
   const parDisc = {};
-  for (const x of lec.lignes || []) (parDisc[x.did] = parDisc[x.did] || []).push(x);
+  for (const x of lignes) (parDisc[x.did] = parDisc[x.did] || []).push(x);
   const enPlus = [];
   for (const [did, xs] of Object.entries(parDisc)) {
     const i = camp.disciplines.findIndex(d => d.id === did);
@@ -17722,10 +17752,25 @@ function _avisFeuillesGardees(cls, camp, lec) {
     pris.add(_moyNorm(nom));
     sheets.push({ name: nom, rows: sh.rows });
   }
-  const nl = (lec.lignes || []).length, et = lec.etrangers || [];
-  const garde = [et.length ? `onglet${et.length > 1 ? 's' : ''} ${et.map(s => `« ${s.name} »`).join(', ')}` : '',
-    nl ? `${nl} ligne${nl > 1 ? 's' : ''} d'élève${nl > 1 ? 's' : ''} non reconnue${nl > 1 ? 's' : ''} (au bout de l'onglet)` : ''].filter(Boolean).join(' ; ');
-  return { sheets, garde };
+  return { sheets, garde: _avisNonLuTexte({ ...lec, lignes }, true), efface: '' };
+}
+// Ce que l'app ne reconnaît pas dans le fichier (onglets, lignes d'élèves non reconnues ou en
+// double aux avis différents), en une phrase ; '' si rien. `garde` : recopiées au bout de l'onglet. PUR.
+function _avisNonLuTexte(lec, garde) {
+  const et = lec.etrangers || [], ls = lec.lignes || [], ou = garde ? ' (au bout de l\'onglet)' : '';
+  const nl = ls.filter(x => !x.sid).length, nd = ls.filter(x => x.sid).length;
+  return [et.length ? `onglet${et.length > 1 ? 's' : ''} ${et.map(s => `« ${s.name} »`).join(', ')}` : '',
+    nl ? `${nl} ligne${nl > 1 ? 's' : ''} d'élève${nl > 1 ? 's' : ''} non reconnue${nl > 1 ? 's' : ''}${ou}` : '',
+    nd ? `${nd} ligne${nd > 1 ? 's' : ''} en double d'un même élève${ou}` : ''].filter(Boolean).join(' ; ');
+}
+// Les élèves qui ont plusieurs lignes remplies dans un onglet (`lec.repetes`), en une phrase ;
+// '' si aucun. PUR.
+function _avisRepetesTexte(lec) {
+  const rs = lec?.repetes || [];
+  const qui = x => `${x.nom} (${x.onglet})`;
+  const c = rs.filter(x => x.conflit), f = rs.filter(x => !x.conflit);
+  return [c.length ? `plusieurs lignes aux avis différents pour ${c.map(qui).join(', ')} : rien n'est repris pour ${c.length > 1 ? 'ces élèves dans ces onglets' : 'cet élève dans cet onglet'} — ne gardez qu'une ligne par élève dans la feuille` : '',
+    f.length ? `lignes en double réunies en une seule : ${f.map(qui).join(', ')}` : ''].filter(Boolean).join(' ; ');
 }
 // Ce qui DIFFÈRE entre l'app et la feuille lue, case par case (élève × discipline × critère).
 // PUR. ⚠️ Seuls les onglets LUS comptent : un onglet absent du fichier (tronqué, mauvaise
@@ -17734,12 +17779,14 @@ function _avisFeuillesGardees(cls, camp, lec) {
 // modifications accidentelles »).
 function _avisChangements(cls, camp, lecture) {
   const lus = new Set(lecture.lus || []);
+  // Un élève aux lignes contradictoires dans un onglet : rien n'est proposé (ni effacement).
+  const conflits = new Set((lecture.repetes || []).filter(x => x.conflit).map(x => x.sid + '|' + x.did));
   const nom = sid => { const s = S.eleves[sid]; return s ? `${s.nom} ${s.prenom}` : sid; };
   const sids = [...new Set([...Object.keys(camp.avis || {}), ...Object.keys(lecture.avis || {})])]
     .sort((a, b) => nom(a).localeCompare(nom(b), 'fr', { sensitivity: 'base' }));
   const out = [];
   for (const sid of sids) for (const d of camp.disciplines || []) {
-    if (!lus.has(d.id)) continue;
+    if (!lus.has(d.id) || conflits.has(sid + '|' + d.id)) continue;
     const a = camp.avis?.[sid]?.[d.id] || {}, b = lecture.avis?.[sid]?.[d.id] || {};
     for (const c of _avisCols(camp)) {
       const avant = a[c.key] || '', apres = b[c.key] || '';
@@ -18178,7 +18225,8 @@ function _avisCampHTML(cls, camp) {
       <td style="font-family:var(--font-mono);text-align:right">${cpt.parDisc[d.id] ? `<strong>${cpt.parDisc[d.id]}</strong>` : '<span class="tb-hint">0</span>'} / ${total}</td></tr>`).join('');
   const rapport = !lec ? '' : [
     lec.nonReconnus.length ? `<div class="al al-w" style="margin-top:6px">⚠️ ${lec.nonReconnus.length} ligne${lec.nonReconnus.length > 1 ? 's' : ''} écrite${lec.nonReconnus.length > 1 ? 's' : ''} sur un élève que l'app ne reconnaît pas (nom retouché, homonyme) — rien n'a été rangé : ${lec.nonReconnus.slice(0, 6).map(x => `${_escName(x.onglet)} : « ${_escName(x.nom)} »`).join(' · ')}${lec.nonReconnus.length > 6 ? '…' : ''}</div>` : '',
-    lec.inconnus.length ? `<div class="al al-w" style="margin-top:6px">⚠️ Onglet${lec.inconnus.length > 1 ? 's' : ''} ignoré${lec.inconnus.length > 1 ? 's' : ''} (pas une discipline de cette feuille, ou en-têtes modifiés) : ${lec.inconnus.map(_escName).join(', ')}</div>` : ''].join('');
+    lec.inconnus.length ? `<div class="al al-w" style="margin-top:6px">⚠️ Onglet${lec.inconnus.length > 1 ? 's' : ''} ignoré${lec.inconnus.length > 1 ? 's' : ''} (pas une discipline de cette feuille, ou en-têtes modifiés) : ${lec.inconnus.map(_escName).join(', ')}</div>` : '',
+    _avisRepetesTexte(lec) ? `<div class="al al-w" style="margin-top:6px">⚠️ ${_escName(_maj(_avisRepetesTexte(lec)))}.</div>` : ''].join('');
   const fichier = camp.fichier ? `<strong>${_escName(camp.fichier)}</strong>` : '<em>aucune feuille choisie</em>';
   const choisirLbl = camp.fichier ? 'Autre fichier…' : 'Choisir la feuille…';
   const obj = _avisObjectif(cls, camp);
@@ -18352,13 +18400,12 @@ function _htmlSur(html) {
       const an = a[1].toLowerCase();
       if (!_HS_ATTRS.has(an)) continue;
       const v = a[3] !== undefined ? a[3] : a[4] !== undefined ? a[4] : a[5];
+      if (an === 'style') {
+        const st = _htmlSurStyle(v);
+        if (st !== null) attrs.push(` style="${st}"`);
+        continue;
+      }
       if (/[\\]|&#|[\u0000-\u001f]/.test(v)) continue;
-      // Un style ne garde que de la mise en forme : tout ce qui pourrait charger quelque chose est
-      // refusé en bloc, y compris déguisé — entité (« url&lpar; », « &LeftParenthesis; »),
-      // image-set, list-style-image, cursor:url… Une signature n'a besoin d'aucun de ces mots.
-      if (an === 'style' && /&[a-zA-Z#]|url|image|src|expression|javascript|@import|behavior|binding|[<>]/i.test(v)) continue;
-      // Ni `position: fixed` ni `sticky` : une signature ne sort pas de son cadre pour recouvrir l'app.
-      if (an === 'style' && /position\s*:\s*(fixed|sticky)/i.test(v)) continue;
       if (an === 'href' && !/^(https:\/\/|mailto:)[^\s"'<>]+$/i.test(v.trim())) continue;
       attrs.push(` ${an}="${v.replace(/&(?![a-zA-Z]+;)/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`);
     }
@@ -18368,6 +18415,29 @@ function _htmlSur(html) {
   out.push(texte(src.slice(k)));
   while (pile.length) out.push(`</${pile.pop()}>`);
   return out.join('').trim();
+}
+// Un attribut style, tel qu'écrit dans le HTML → la valeur à réécrire (déjà encodée), ou null
+// s'il est refusé. Un style ne garde que de la mise en forme. PUR.
+// ⚠️ IDEMPOTENT (la signature filtrée à l'enregistrement est refiltrée au rendu) : les guillemets
+// en entité (« &quot; » d'une copie depuis Chrome, et de la sortie de ce filtre lui-même), les
+// apostrophes et « &amp; » sont DÉCODÉS d'abord, en une seule passe ; toute AUTRE entité refuse
+// le style (« url&lpar; », « &LeftParenthesis; »). Les contrôles portent donc sur ce que lira
+// le CSS, et la sortie réencode tout « & » et tout guillemet.
+function _htmlSurStyle(v) {
+  const ENT = { quot: '"', '#34': '"', '#x22': '"', apos: "'", '#39': "'", '#x27': "'", amp: '&' };
+  let s = String(v).replace(/&(quot|apos|amp|#34|#x22|#39|#x27);/gi, (_, e) => ENT[e.toLowerCase()])
+    // Les retours à la ligne d'Outlook au milieu d'un style sont des espaces pour le CSS.
+    .replace(/[\t\n\r\f]+/g, ' ');
+  if (/[\\]|[\u0000-\u001f]|&[a-zA-Z#]/.test(s)) return null;
+  // Les commentaires CSS retirés AVANT les contrôles : « position:/**/fixed », « ur/**/l(… ».
+  s = s.replace(/\/\*[^]*?(\*\/|$)/g, '').trim();
+  // Tout ce qui pourrait charger quelque chose est refusé en bloc, y compris déguisé —
+  // image-set, list-style-image, cursor:url… Une signature n'a besoin d'aucun de ces mots.
+  if (/url|image|src|expression|javascript|@import|behavior|binding|[<>]/i.test(s)) return null;
+  // `position` : static ou relative seulement. Ni fixed ni sticky (recouvrir l'app), ni absolute
+  // (l'aperçu n'est pas positionné : l'élément en sortirait).
+  if (/(^|[^a-z0-9_-])position\s*:(?!\s*(static|relative)\s*(!\s*important\s*)?(;|$))/i.test(s)) return null;
+  return s ? s.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : null;
 }
 // Le TEXTE d'un HTML (pour la copie en texte brut) : une ligne par bloc. PUR.
 const _HT_ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', mdash: '—', ndash: '–', hellip: '…', laquo: '«', raquo: '»', rsquo: '’', lsquo: '‘', middot: '·', bull: '•', euro: '€', copy: '©',
@@ -18796,7 +18866,8 @@ async function avisPreparerUI(telecharger, creer) {
 // NOUVELLE feuille, rien n'est coché : des avis déjà là viennent sans doute d'une autre
 // période (une feuille du S1 réutilisée pour le S2). Un fichier qui contient AUTRE chose
 // qu'une feuille d'avis n'est écrasé qu'après confirmation. Sinon, ce que l'app ne reconnaît
-// pas (onglets, lignes d'élèves) est recopié tel quel (`_avisFeuillesGardees`) et le toast le dit.
+// pas (onglets, lignes d'élèves) est recopié tel quel (`_avisFeuillesGardees`) et le toast le dit
+// — sauf pour une NOUVELLE feuille : ce qui n'est pas repris est effacé, et le toast le dit.
 async function _avisEcrireFeuille(cls, camp, h, { nouvelle } = {}) {
   if (!await _avisPermission(h, 'readwrite', true)) { toast('⚠️ Écriture refusée par le navigateur.', 'warn'); return _avisRender(); }
   let existant = [];
@@ -18814,16 +18885,17 @@ async function _avisEcrireFeuille(cls, camp, h, { nouvelle } = {}) {
     _avisRevueOuvrir({ campId: camp.id, mode: nouvelle ? 'nouvelle' : 'ecrire', changes, lec, h });
     return;
   }
-  await _avisEcrireMaintenant(cls, camp, h, lec);
+  await _avisEcrireMaintenant(cls, camp, h, lec, nouvelle);
 }
-// `lec` : la lecture du fichier avant écriture (absente : rien à garder).
-async function _avisEcrireMaintenant(cls, camp, h, lec) {
+// `lec` : la lecture du fichier avant écriture (absente : rien à garder). `nouvelle` : rien n'est recopié.
+async function _avisEcrireMaintenant(cls, camp, h, lec, nouvelle) {
   try {
-    const { sheets, garde } = _avisFeuillesGardees(cls, camp, lec);
+    const { sheets, garde, efface } = _avisFeuillesGardees(cls, camp, lec, nouvelle);
+    const rep = nouvelle ? '' : _avisRepetesTexte(lec);
     const w = await h.createWritable();
     await w.write(_odsBuild(sheets, { police: { nom: 'Andika SuiviPP', variantes: _ODS_ANDIKA } }));
     await w.close();
-    toast(`✓ Feuille « ${h.name} » préparée : ${camp.disciplines.length} onglet${camp.disciplines.length > 1 ? 's' : ''}, ${_avisEleves(cls, camp).length} élèves.${garde ? ` Gardé tel quel, que l'app ne reconnaît pas : ${garde}.` : ''} Le client Nextcloud l'envoie au Nuage.`, garde ? 9000 : 2600);
+    toast(`✓ Feuille « ${h.name} » préparée : ${camp.disciplines.length} onglet${camp.disciplines.length > 1 ? 's' : ''}, ${_avisEleves(cls, camp).length} élèves.${garde ? ` Gardé tel quel, que l'app ne reconnaît pas : ${garde}.` : ''}${efface ? ` Effacé du fichier, que l'app ne reconnaît pas : ${efface}.` : ''}${rep ? ` ⚠️ ${_maj(rep)}.` : ''} Le client Nextcloud l'envoie au Nuage.`, garde || efface || rep ? 9000 : 2600);
   } catch (e) { toast('⚠️ Écriture impossible : ' + e.message, 'error'); }
   _avisRender();
   renderStudents();
@@ -18896,7 +18968,10 @@ function _avisAppliquer(cls, camp, sheets, silencieux) {
   _avisRapport[camp.id] = { lec, quand: Date.now() };
   const changes = _avisChangements(cls, camp, lec);
   if (!lec.lus.length) { if (!silencieux) toast('⚠️ Aucun onglet de cette feuille n\'a été reconnu — est-ce la bonne feuille ?', 'warn'); }
-  else if (!changes.length) { if (!silencieux) toast('✓ Rien de nouveau dans la feuille.'); }
+  else if (!changes.length) {
+    const rep = _avisRepetesTexte(lec);
+    if (!silencieux) toast(rep ? `Rien de nouveau dans la feuille. ⚠️ ${_maj(rep)}.` : '✓ Rien de nouveau dans la feuille.', rep ? 9000 : 2600);
+  }
   else return _avisRevueOuvrir({ campId: camp.id, mode: 'relire', changes, lec });
   if (_avisOnglet()) _avisRender();
 }
@@ -18924,6 +18999,11 @@ function _avisRevueHTML(cls, camp) {
     ecrire: `<strong>La feuille porte ${n} différence${n > 1 ? 's' : ''}</strong> avec ce que l'app a rangé. Cochez ce que vous gardez ; ce que vous ne cochez pas sera <strong>remplacé dans la feuille</strong> par la version de l'app quand elle la mettra à jour.`,
     nouvelle: `<strong>Ce fichier contient déjà ${n} réponse${n > 1 ? 's' : ''}</strong> — sans doute celles d'une autre période. Cochez celles à reprendre dans la nouvelle feuille ; les autres seront <strong>effacées du fichier</strong> quand l'app le préparera.`,
   }[r.mode];
+  // Lignes en double d'un même élève (et, pour une nouvelle feuille, ce qui sera effacé sans
+  // être proposé) : dites ici, la revue cache le panneau de la feuille.
+  const rep = _avisRepetesTexte(r.lec), eff = r.mode === 'nouvelle' && r.lec ? _avisNonLuTexte(r.lec) : '';
+  const avert = [rep ? `⚠️ ${_escName(_maj(rep))}.` : '', eff ? `Aussi effacé du fichier, que l'app ne reconnaît pas : ${_escName(eff)}.` : '']
+    .filter(Boolean).map(t => `<div class="al al-w" style="margin-bottom:8px">${t}</div>`).join('');
   const typeLbl = { ajout: 'nouveau', modif: 'modifié', suppr: 'effacé dans la feuille' };
   let dernier = '';
   const lignes = r.changes.map((c, i) => {
@@ -18937,7 +19017,7 @@ function _avisRevueHTML(cls, camp) {
   }).join('');
   const k = r.coches.size;
   const ok = { relire: `✓ Reprendre ${k} changement${k > 1 ? 's' : ''}`, ecrire: `✓ Garder ${k} et mettre la feuille à jour`, nouvelle: `✓ Préparer la feuille${k ? ` en reprenant ${k} réponse${k > 1 ? 's' : ''}` : ' (vide)'}` }[r.mode];
-  return `<div class="al al-i" style="margin-bottom:8px">${intro}</div>
+  return `<div class="al al-i" style="margin-bottom:8px">${intro}</div>${avert}
     <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
       <button class="btn btn-g btn-sm" onclick="avisRevueTous(true)">Tout cocher</button>
       <button class="btn btn-g btn-sm" onclick="avisRevueTous(false)">Tout décocher</button></div>
@@ -18976,7 +19056,7 @@ async function avisRevueValider() {
     if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
     return;
   }
-  await _avisEcrireMaintenant(cls, camp, r.h, r.lec);
+  await _avisEcrireMaintenant(cls, camp, r.h, r.lec, r.mode === 'nouvelle');
 }
 function avisSupprimerUI(campId) {
   const cls = getCls();
