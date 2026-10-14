@@ -26,7 +26,8 @@ const D = __dirname, ok = (c, m) => console.log((c ? "OK    " : "ÉCHEC ") + m),
   // 3. trimestres / semestres
   r = await p.evaluate(() => { S.anneeScolaire = 2026; S.decoupage = { mode: "trimestres", fins: ["2026-11-20", ""] }; const pa = periodesAnnee(S); S.decoupage = { mode: "semestres", fins: [] }; const ps = periodesAnnee(S); return [pa.map(x => x.lib + ":" + x.au).join(","), ps.map(x => x.lib + ":" + x.au).join(",")]; });
   ok(/1er trimestre:2026-11-20/.test(r[0]) && /3e trimestre/.test(r[0]) && /1er semestre:2027-01-29/.test(r[1]), "trimestres (date corrigée) et semestres (dernier vendredi de janvier) " + JSON.stringify(r));
-  r = await p.evaluate(() => { S.decoupage = { mode: "trimestres", fins: ["2026-11-13", ""] }; return periodesBilan(semaines(S)).map(x => x[0]).join(", "); });
+  r = await p.evaluate(() => { S.decoupage = { mode: "trimestres", fins: ["2026-11-13", ""] }; const a0 = window.aujourdhui; window.aujourdhui = () => "2027-01-15";   /* date FIXÉE : seules les périodes commencées sont proposées, le test échouait dès la rentrée passée */
+    const x = periodesBilan(semaines(S)).map(x => x[0]).join(", "); window.aujourdhui = a0; return x; });
   ok(/1er trimestre/.test(r) && /2e trimestre/.test(r), "raccourcis de période : 1er et 2e trimestre — " + r);
   // 4. bulle du tutoriel déplaçable
   await p.evaluate(() => allerEtape(4, 7)); await att(600);

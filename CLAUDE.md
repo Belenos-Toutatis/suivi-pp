@@ -1231,7 +1231,9 @@ Familles à couvrir dès le début :
 - Tests statiques du design system (`test/design-system.test.js`, avec méta-tests) : symétrie des tokens entre les trois blocs dans les deux sens, tout token *utilisé* a une valeur en thème clair, aucune encre figée derrière un fond dynamique, pose ET retrait des orientations d'impression, boîte focalisable dans chaque modale, règles responsive.
 - ⚠️ Rendu papier non vérifié sur du vrai papier : `window.print` est mocké. Orientation : `@page` anonyme injecté le temps de l'impression puis retiré à `afterprint` (les pages nommées sont ignorées par Firefox) ; une page de chaque est à vérifier à la main sur Chromium et Firefox.
 - ⚠️ Non vérifiés à la main : vidéoprojecteur réel (1024 × 768 et 1920 × 1080, lisibilité du fond de la salle), clavier virtuel d'une vraie tablette, dossier Nextcloud réel pour les PDF.
-- **Dernier état mesuré** (v1.65.0, 2026-10-11) : parcours de 180 états, 2 thèmes, 1 400/1 570 et 320 px, feuilles imprimées comprises, 0 défaut de contraste, débordement, texte tronqué ou erreur JS.
+- **Dernier état mesuré** (v1.66.0, 2026-10-14) : parcours de 188 états (82 écrans + 12 feuilles, × 2 thèmes ; une rubrique de 💾 Données par état depuis ce jour), 1 570, 1 009 et 320 px, 0 défaut de contraste, débordement, texte tronqué ou erreur JS ; suite `npm test` 687/687, `fiches-suivi/suite.sh` 56 tests verts.
+  - ⚠️ Les **feuilles imprimées se mesurent aux grandes largeurs** : à 320 px, une feuille A4 simulée « déborde » (324 à 666 px) sans que le papier en soit affecté. À 320 px, lancer `run({ papier: false })`.
+  - ⚠️ Les tests e2e des fiches qui dépendent du jour **fixent `window.aujourdhui`** : la démo des fiches est datée (12/10 → 31/12/2026), un test qui lit la vraie date échoue une fois ces dates passées (`e2e_retours5`, le 2026-10-14).
 
 ### Leçons des défauts trouvés (numérotés)
 

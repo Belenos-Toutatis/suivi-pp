@@ -107,7 +107,11 @@
     // 📋 Suivis : ici, l'onglet et son cadre ; le CONTENU du cadre (la fiche) a son propre audit, fiches-suivi/e2e_contraste.js.
     ['suivis · fiches de suivi', () => onglet('suivis')],
     // 💾 Données
-    ['données', () => { onglet('donnees'); }],
+    // Une rubrique à la fois (v1.65.0) : un état par rubrique, sinon seule la rubrique retenue est mesurée.
+    ...DON_RUBS.map(r => [`données · ${r.t}`, () => { _donFiltre = ''; _donDiscOuvert = null; _donMatTout = false; onglet('donnees'); donRubUI(r.k); }]),
+    ['données · détail d\'une discipline', () => { _donFiltre = ''; _donMatTout = false; onglet('donnees'); donRubUI('disciplines'); _donDiscOuvert = null; donDiscUI(Object.keys(S.disciplines)[0]); }],
+    ['données · matières déjà rattachées', () => { _donFiltre = ''; _donDiscOuvert = null; onglet('donnees'); donRubUI('disciplines'); _donMatTout = false; donMatToutUI(); }],
+    ['données · recherche d\'un réglage', () => { _donDiscOuvert = null; _donMatTout = false; onglet('donnees'); _donFiltre = 'police'; renderDonnees(); }],
     ['fenêtre · stratégie de sauvegarde', () => { onglet('donnees'); openBackupSettings(); }],
     ['fenêtre · à propos', () => { onglet('donnees'); openAbout(); }],
     ['fenêtre · mise à jour', () => { onglet('donnees'); openMod('mupdate'); }],
@@ -172,7 +176,7 @@
           finally { simulerPapier(false); window.dispatchEvent(new Event('afterprint')); }
         }
       }
-    } finally { window.print = imprimer; fermer(); theme('light'); onglet('eleves'); }
+    } finally { window.print = imprimer; fermer(); _donFiltre = ''; _donDiscOuvert = null; _donMatTout = false; theme('light'); onglet('eleves'); }
     return __audit.report();
   }
   // La démo, rechargée proprement (cf. les pièges en tête).
