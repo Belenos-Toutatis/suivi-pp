@@ -3992,6 +3992,8 @@ function _sanitizeImbrique() {
     nb(e, 'groupe');
     if (e.groupe !== undefined && e.groupe !== null && !ent(e.groupe, 1, 3)) e.groupe = null;
     for (const f of ['nom', 'prenom', 'remarque']) chaine(e, f);
+    // Sans nom ni prénom (audit du 2026-10-14) : les tris `localeCompare` de Vie de classe tombaient.
+    for (const f of ['nom', 'prenom']) if (typeof e[f] !== 'string') e[f] = '';
     for (const f of ['journal', 'incidents', 'bilans', 'decisions', 'obsMbn']) if (Array.isArray(e[f])) {
       e[f] = e[f].filter(_isPlainObj);
       for (const x of e[f]) { date(x, 'date'); for (const t of ['texte', 'objet', 'motif', 'type', 'par', 'info']) if (typeof x[t] === 'number') x[t] = String(x[t]); }
@@ -4045,6 +4047,57 @@ function _sanitizeImbrique() {
         b.voix = Array.isArray(b.voix) ? b.voix.filter(x => typeof x === 'string') : [];
       });
     });
+  }
+  // L'identifiant suit sa clé aussi pour les classes (audit du 2026-10-14 : un `cls.id` différent rendait ses relevés
+  // invisibles et laissait la purge orpheline) et pour les catalogues.
+  for (const k of ['classes', 'salles', 'tags', 'matieres', 'disciplines', 'instances'])
+    for (const [id, x] of Object.entries(S[k])) if (x.id !== id) x.id = id;
+  _sanitizeRefs();
+}
+// Les RÉFÉRENCES par id écrites en VALEUR (audit du 2026-10-14). `_validateImport` contrôle les clés, pas les valeurs :
+// un `S.cur`, un roster ou un `classe_id` valant « constructor », « toString » ou « __proto__ » trouvait une propriété
+// HÉRITÉE de `Object.prototype` (`S.classes.constructor` est une fonction) — onglets qui tombent, et un roster contenant
+// « __proto__ » faisait écrire dans `Object.prototype` par un geste ordinaire (`_withStudent`, `journalAdd`).
+// Ce qui désigne un élève ou une classe COURANTS doit désigner une entrée PROPRE de sa section, sinon il est retiré ;
+// ce qui peut légitimement désigner un disparu (PV d'élection, tag, instance d'un incident…) ne perd que le nom hérité.
+function _sanitizeRefs() {
+  const own = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
+  const herite = (o, k) => typeof k === 'string' && !own(o, k) && k in o;
+  const avert = (m) => console.warn(`Référence invalide — ${m}`);
+  for (const [cid, c] of Object.entries(S.classes)) {
+    const n = c.eleves.length;
+    c.eleves = c.eleves.filter(sid => own(S.eleves, sid));
+    if (c.eleves.length !== n) avert(`classe ${cid} : ${n - c.eleves.length} élève(s) inconnu(s) retiré(s) du roster`);
+    for (const [salleId, room] of Object.entries(c.rooms)) {
+      for (const [pos, occ] of Object.entries(room.seating)) if (!own(S.eleves, occ)) { avert(`classe ${cid} / salle ${salleId} : place ${pos} libérée`); delete room.seating[pos]; }
+    }
+    if (c.salleCur && !own(c.rooms, c.salleCur)) c.salleCur = Object.keys(c.rooms)[0] || null;
+    for (const key of ['delegues', 'ecoDelegues']) if (_isPlainObj(c[key]))
+      for (const k of ['titulaires', 'suppleants']) if (Array.isArray(c[key][k])) c[key][k] = c[key][k].filter(x => !herite(S.eleves, x));
+  }
+  for (const [sid, e] of Object.entries(S.eleves)) {
+    if (e.classe_id !== undefined && e.classe_id !== null && !own(S.classes, e.classe_id)) {
+      const cid = Object.keys(S.classes).find(k => S.classes[k].eleves.includes(sid));
+      avert(`élève ${sid} : classe ${String(e.classe_id).slice(0, 40)} inconnue`);
+      if (cid) e.classe_id = cid; else delete e.classe_id;
+    }
+    e.tags = e.tags.filter(t => !herite(S.tags, t));
+    for (const x of e.incidents) if (herite(S.instances, x.type)) x.type = 'autre';
+  }
+  for (const [did, d] of Object.entries(S.documents)) {
+    const n = d.classIds.length;
+    d.classIds = d.classIds.filter(cid => own(S.classes, cid));
+    if (d.classIds.length !== n) avert(`document ${did} : classe(s) inconnue(s) retirée(s)`);
+  }
+  for (const m of Object.values(S.matieres)) if (herite(S.disciplines, m.disc)) delete m.disc;
+  for (const byId of Object.values(S.moyennes)) for (const r of Object.values(byId)) r.matieres = r.matieres.filter(mid => !herite(S.matieres, mid));
+  for (const byId of Object.values(S.avis)) for (const camp of Object.values(byId)) camp.cibles = camp.cibles.filter(x => !herite(S.eleves, x));
+  for (const [cid, m] of Object.entries(S.elections)) for (const el of Object.values(m)) {
+    if (herite(S.classes, el.classId)) el.classId = cid;
+    if (_isPlainObj(el.supDe) && herite(m, el.supDe.elId)) delete el.supDe;
+    for (const c of el.candidats) for (const f of ['sidTitulaire', 'sidSuppleant']) if (herite(S.eleves, c[f])) c[f] = null;
+    el.assesseurs = el.assesseurs.map(x => herite(S.eleves, x) ? null : x);
+    if (_isPlainObj(el.president) && herite(S.eleves, el.president.sid)) delete el.president.sid;
   }
 }
 function _sanitizeCoreSections() {
@@ -4180,7 +4233,8 @@ function postLoadHook() {
     try { S.prefs.backupStrategy = localStorage.getItem(LS_BKSTRAT_KEY) || 'standard'; } catch (_) { S.prefs.backupStrategy = 'standard'; }
   }
   // La classe courante peut pointer sur une classe supprimée (fichier plus ancien).
-  if (S.cur && !S.classes[S.cur]) S.cur = null;
+  // ⚠️ Une entrée PROPRE (audit du 2026-10-14) : « constructor » trouvait `S.classes.constructor`, une fonction.
+  if (S.cur && !Object.prototype.hasOwnProperty.call(S.classes, S.cur)) { console.warn(`Classe courante ${String(S.cur).slice(0, 40)} inconnue — remplacée`); S.cur = null; }
   if (!S.cur) { const first = Object.keys(S.classes)[0]; if (first) S.cur = first; }
   _applyPolices();
   _clockOnLoad();
@@ -4341,13 +4395,15 @@ function _purgeClassRefs(classId) {
 function _auditState() {
   const pb = [];
   const known = new Set(Object.keys(S.eleves));
+  const ownCls = k => typeof k === 'string' && Object.prototype.hasOwnProperty.call(S.classes, k);   // jamais une propriété héritée
+  if (S.cur && !ownCls(S.cur)) pb.push(`classe courante inconnue ${S.cur}`);
   for (const [cid, c] of Object.entries(S.classes)) {
     for (const sid of (c.eleves || [])) {
       if (!known.has(sid)) pb.push(`classe ${cid} : élève fantôme ${sid}`);
     }
   }
   for (const [sid, s] of Object.entries(S.eleves)) {
-    if (s.classe_id && !S.classes[s.classe_id]) pb.push(`élève ${sid} : classe inconnue ${s.classe_id}`);
+    if (s.classe_id && !ownCls(s.classe_id)) pb.push(`élève ${sid} : classe inconnue ${s.classe_id}`);
   }
   for (const [cid, byDate] of Object.entries(S.releves)) {
     if (!S.classes[cid]) pb.push(`relevés : classe inconnue ${cid}`);
@@ -4390,7 +4446,7 @@ function _auditState() {
   }
   for (const [did, doc] of Object.entries(S.documents)) {
     for (const cid of (doc.classIds || [])) {
-      if (!S.classes[cid]) pb.push(`document ${did} : classe inconnue ${cid}`);
+      if (!ownCls(cid)) pb.push(`document ${did} : classe inconnue ${cid}`);
     }
     for (const sid of Object.keys(doc.retours || {})) {
       if (!known.has(sid)) pb.push(`document ${did} : élève fantôme ${sid}`);
@@ -4402,7 +4458,7 @@ function _auditState() {
 // ═══════════════════════════════════════════════════════════
 // CLASSES & SÉLECTEUR
 // ═══════════════════════════════════════════════════════════
-function getCls() { return S.cur ? S.classes[S.cur] : null; }
+function getCls() { return S.cur && Object.prototype.hasOwnProperty.call(S.classes, S.cur) ? S.classes[S.cur] : null; }
 
 function refreshSelector() {
   const sel = document.getElementById('cls-sel');
@@ -7827,6 +7883,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
 // ─── Bascules rapides depuis la liste ───
 // pushUndo AVANT la mutation, systématiquement.
 function _withStudent(sid, fn, msg) {
+  if (!Object.prototype.hasOwnProperty.call(S.eleves, sid)) return;   // jamais une propriété héritée (« __proto__ »)
   const s = S.eleves[sid];
   if (!s) return;
   pushUndo();
@@ -9697,6 +9754,7 @@ function tagSetColor(tid, color) {
   if (!t) return;
   pushUndo();
   t.color = _safeColor(color);
+  if (_undoSiRien()) return;   // même couleur : pas de cran vide
   save();
   _tagsRefresh();
 }
@@ -11056,6 +11114,7 @@ function instanceSetUI(id, patch) {
   if (patch && typeof patch.label === 'string' && !patch.label.trim()) { toast('⚠️ Une instance sans nom ne se propose pas — décochez-la plutôt.', 'warn'); renderDonnees(); return; }
   pushUndo();
   instanceSet(id, patch);
+  if (_undoSiRien()) { renderDonnees(); return; }   // un espace ajouté : pas de cran vide (audit du 2026-10-14)
   save();
   renderDonnees();
 }
@@ -11510,6 +11569,15 @@ function relCellChange(inp) {
   if (!cls) return;
   const { ymd, sid } = inp.dataset;
   const before = S.releves[cls.id]?.[ymd]?.counts?.[sid];
+  // Sans effet (« 08 » retapé sur 8, la touche « inchangé » sur une case déjà à cette valeur) : rien n'est écrit et la
+  // salve n'est pas armée — armer puis renoncer laisserait un Ctrl+Z vide (audit du 2026-10-14).
+  const t = String(inp.value ?? '').trim();
+  const vise = t === '' ? undefined : t.toUpperCase() === _codeA().toUpperCase() ? REL_ABSENT : /^\d+$/.test(t) ? parseInt(t, 10) : NaN;
+  if (vise === before && _relMap(cls.id)?.[ymd]) {
+    const v = _relValue({ counts: { [sid]: before } }, sid);
+    inp.value = v === null ? '' : (v === REL_ABSENT ? _codeA() : String(v));
+    return;
+  }
   const deja = _relUndoArmed;
   _relArmUndo();
   const ok = releveSetCount(cls.id, ymd, sid, inp.value);
@@ -16854,12 +16922,14 @@ const DOMAINES = {
   eps:      { label: 'EPS',                   couleur: '#d9801a' },
   autre:    { label: 'Autre',                 couleur: '#6f6f6f' },
 };
+// Un domaine CONNU : une clé propre de DOMAINES — « __proto__ » lu dans un fichier trouvait Object.prototype (audit du 2026-10-14).
+const _domaineOk = k => typeof k === 'string' && Object.prototype.hasOwnProperty.call(DOMAINES, k);
 const DISCIPLINES_DOMAINE = { allemand: 'langues', anglais: 'langues', francais: 'lettres', histoire_geo: 'lettres',
   religions: 'lettres', maths: 'sciences', physique_chimie: 'sciences', svt: 'sciences', technologie: 'sciences',
   arts_plastiques: 'arts', education_musicale: 'arts', eps: 'eps' };
 function _discDomaine(did) {
   const d = S.disciplines?.[did];
-  const k = d && DOMAINES[d.domaine] ? d.domaine : (DISCIPLINES_DOMAINE[did] || 'autre');
+  const k = d && _domaineOk(d.domaine) ? d.domaine : (DISCIPLINES_DOMAINE[did] || 'autre');
   return k;
 }
 // La nuance d'une discipline : la couleur du domaine, éclaircie selon son rang parmi les
@@ -16897,7 +16967,7 @@ function _disciplinesSeed() {
     if (typeof cur.onglet !== 'string' || !cur.onglet.trim()) cur.onglet = onglet;
     if (typeof cur.actif !== 'boolean') cur.actif = true;
     if (cur.profs !== undefined && typeof cur.profs !== 'string') delete cur.profs;
-    if (!DOMAINES[cur.domaine]) cur.domaine = DISCIPLINES_DOMAINE[id] || 'autre';
+    if (!_domaineOk(cur.domaine)) cur.domaine = DISCIPLINES_DOMAINE[id] || 'autre';
   });
   for (const [id, d] of Object.entries(S.disciplines)) {
     if (DISCIPLINES_DEFAUT.some(x => x[0] === id)) continue;
@@ -16907,7 +16977,7 @@ function _disciplinesSeed() {
     if (typeof d.actif !== 'boolean') d.actif = true;
     if (typeof d.ord !== 'number') d.ord = 1000;
     if (d.profs !== undefined && typeof d.profs !== 'string') delete d.profs;
-    if (!DOMAINES[d.domaine]) d.domaine = 'autre';
+    if (!_domaineOk(d.domaine)) d.domaine = 'autre';
   }
 }
 // Par DOMAINE d'abord (l'ordre de DOMAINES), puis dans l'ordre du catalogue : les onglets
@@ -16935,7 +17005,7 @@ function disciplineSet(id, patch) {
   if ('nom' in patch) { const n = String(patch.nom || '').trim().slice(0, 60); if (!n) return false; d.nom = n; }
   if ('onglet' in patch) d.onglet = _discOngletSur(patch.onglet || d.nom);
   if ('actif' in patch) d.actif = !!patch.actif;
-  if ('domaine' in patch && DOMAINES[patch.domaine]) d.domaine = patch.domaine;
+  if ('domaine' in patch && _domaineOk(patch.domaine)) d.domaine = patch.domaine;
   return true;
 }
 // ── Le CODE d'option d'une discipline (v1.62.0, l'utilisateur : « dans la liste des disciplines, le code court qui la
@@ -18219,6 +18289,7 @@ function avisCibleUI(campId, sid, on) {
   if (on) cur.add(sid); else cur.delete(sid);
   pushUndo();
   avisCiblesSet(cls.id, campId, [...cur]);
+  if (_undoSiRien()) return _avisRender();   // déjà demandé : pas de cran vide
   save(); _avisRender();
 }
 // Les volets repliables de la modale restent ouverts d'un rendu à l'autre (chaque case
@@ -18576,7 +18647,9 @@ function _discCodeCelluleHTML(cls, d) {
 }
 function disciplineSetUI(id, patch) {
   if (patch && typeof patch.nom === 'string' && !patch.nom.trim()) { toast('⚠️ Une discipline sans nom ne se propose pas — décochez-la plutôt.', 'warn'); renderDonnees(); return; }
-  pushUndo(); disciplineSet(id, patch); save(); renderDonnees();
+  pushUndo();
+  if (_undoSiRien(disciplineSet(id, patch))) { renderDonnees(); return; }   // un espace ajouté : pas de cran vide (audit du 2026-10-14)
+  save(); renderDonnees();
 }
 function disciplineAddUI() {
   const inp = document.getElementById('disc-new');
@@ -18595,7 +18668,9 @@ function ficheMatDiscUI(nom, val) {
 }
 function matiereDiscUI(mid, val) {
   if (!S.matieres[mid] || !(val === 'auto' || val === '' || S.disciplines[val])) return;
-  pushUndo(); matiereSetDisc(mid, val); save(); renderDonnees();
+  pushUndo(); matiereSetDisc(mid, val);
+  if (_undoSiRien()) return renderDonnees();   // même rattachement : pas de cran vide
+  save(); renderDonnees();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -20850,6 +20925,7 @@ function setBackupStrategy(key) {
   pushUndo();
   _prefs().backupStrategy = key;
   try { localStorage.setItem(LS_BKSTRAT_KEY, key); } catch (_) {}
+  if (_undoSiRien()) return openBackupSettings();   // déjà la stratégie retenue : pas de cran vide
   save();
   toast(`💾 Stratégie : ${BACKUP_STRATEGIES[key].label}`);
   openBackupSettings();
