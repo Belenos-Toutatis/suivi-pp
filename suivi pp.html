@@ -6294,13 +6294,18 @@ function _obsMbnMotifs(list) {
   for (const e of list) { const k = String(e.motif || e.type || 'observation').trim(); n.set(k, (n.get(k) || 0) + 1); }
   return [...n.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr')).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ');
 }
+// « 9 », « 05 » → « 09:05 » ; une heure absente ou impossible (« 25:99 ») vaut l'heure vide. PUR.
+function _obsMbnHeure(h, mi) {
+  if (h == null || mi == null || h === '') return '';
+  return (+h <= 23 && +mi <= 59) ? `${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}` : '';
+}
 // Une date-heure de tableur → { date: 'YYYY-MM-DD', heure: 'HH:MM' | '' } | null. PUR.
 function _obsMbnDate(v) {
   const s = String(v ?? '').trim();
   if (!s) return null;
   const p2 = n => String(n).padStart(2, '0');
   if (/^\d{4,6}(\.\d+)?$/.test(s)) {           // nombre de série (Excel, système 1900)
-    const x = Number(s), j = Math.floor(x), mn = Math.round((x - j) * 1440);
+    const x = Number(s), j = Math.floor(x), mn = Math.min(1439, Math.round((x - j) * 1440));   // 23:59:50 → 23:59, jamais « 00:00 » le même jour
     const d = new Date(Date.UTC(1899, 11, 30) + j * 864e5);
     if (d.getUTCFullYear() < 1990 || d.getUTCFullYear() > 2100) return null;
     return { date: `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}`, heure: mn ? `${p2(Math.floor(mn / 60) % 24)}:${p2(mn % 60)}` : '' };
@@ -6309,10 +6314,10 @@ function _obsMbnDate(v) {
   if (m) {
     const y = m[3].length === 2 ? '20' + m[3] : m[3];
     const ymd = `${y}-${p2(m[2])}-${p2(m[1])}`;
-    return _ymdValid(ymd) ? { date: ymd, heure: m[4] ? `${p2(m[4])}:${m[5]}` : '' } : null;
+    return _ymdValid(ymd) ? { date: ymd, heure: _obsMbnHeure(m[4], m[5]) } : null;
   }
   m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(s);
-  if (m) { const ymd = `${m[1]}-${m[2]}-${m[3]}`; return _ymdValid(ymd) ? { date: ymd, heure: m[4] ? `${m[4]}:${m[5]}` : '' } : null; }
+  if (m) { const ymd = `${m[1]}-${m[2]}-${m[3]}`; return _ymdValid(ymd) ? { date: ymd, heure: _obsMbnHeure(m[4], m[5]) } : null; }
   return null;
 }
 function _obsMbnColonnes(entete) {
@@ -7220,7 +7225,12 @@ function _obsFenetre(cls, cle, auj) {
   let start;
   if (f.key === 'per') start = per.start;
   else if (f.jours) start = _ymdAdd(end, -(f.jours - 1));
-  else { const d = new Date(end + 'T12:00:00'); d.setMonth(d.getMonth() - f.mois); d.setDate(d.getDate() + 1); start = _todayYmd(d); }
+  else {
+    // « n mois » = le même quantième n mois plus tôt, plus un jour, ramené au dernier jour du mois quand il
+    // n'existe pas (audit du 2026-10-14 : `setMonth` débordait — fin 31/03, un mois → début 04/03).
+    const m0 = +end.slice(5, 7) - 1 - f.mois, an = +end.slice(0, 4) + Math.floor(m0 / 12), mo = ((m0 % 12) + 12) % 12 + 1;
+    start = _ymdAdd(_ymdJourValide(`${an}-${String(mo).padStart(2, '0')}-${end.slice(8, 10)}`), 1);
+  }
   if (start < ps[0].start) start = ps[0].start;
   return { key: f.key, start, end, court: f.key === 'per' ? per.label : f.court, long: `${_obsFenetreLabel(f).toLowerCase()} (du ${_fmtDateFr(start)} au ${_fmtDateFr(end)})` };
 }
@@ -7976,7 +7986,15 @@ function ficheSetCumul(ymd, inp) {
 // ── Documents : réponses, date de retour, note — par les fonctions du tableau ──
 function ficheDocReponse(docId, champId, optId) { _docMut(docId, d => docSetReponse(d, _ficheSid, champId, optId)); _ficheRender(); }
 function ficheDocToggle(docId, champId, optId) { _docMut(docId, d => docToggleReponse(d, _ficheSid, champId, optId)); _ficheRender(); }
-function ficheDocDate(docId, ymd) { _docMut(docId, d => docSetDateRetour(d, _ficheSid, ymd), false); _ficheRender(); }
+function ficheDocDate(docId, src) {
+  const doc = S.documents[docId];
+  if (!doc) return;
+  const avant = _retour(doc, _ficheSid).dateRetour || '';
+  const v = _dateChampLire(src, avant, true);
+  if (v === undefined || v === avant) return;
+  _docMut(docId, d => docSetDateRetour(d, _ficheSid, v), false);
+  _ficheRender();
+}
 function ficheDocNote(docId, txt) { _docMut(docId, d => docSetNote(d, _ficheSid, txt), false); }
 // ── Contacts : corriger ou supprimer une entrée existante ──
 function ficheJournalEdit(id, txt) {
@@ -8178,7 +8196,7 @@ function _ficheRender() {
             : `<select class="optsel" onchange="ficheDocReponse('${_escJsAttr(d.docId)}','${_escJsAttr(ch.id)}',this.value)"><option value="">—</option>${(ch.options || []).map(o => `<option value="${_escAttr(o.id)}"${cur[0] === o.id ? ' selected' : ''}>${_escName(o.label)}</option>`).join('')}</select>`;
           return `<div class="fi-doc-champ"><span class="tb-hint">${ch.par === 'prof' ? '👤 ' : ''}${_escName(ch.label)} :</span> ${ctrl}</div>`;
         }).join('') : d.reponses.map(r => `<div class="tb-hint">${r.par === 'prof' ? '👤 ' : ''}${_escName(r.champ)} : <strong>${_escName(r.valeurs.join(', '))}</strong></div>`).join('');
-        const dateNote = d.attendu && suivi ? `<div class="fi-doc-champ">${d.rendu ? `<label class="tb-hint">rendu le <input type="date" value="${_escAttr(d.dateRetour || '')}" onchange="ficheDocDate('${_escJsAttr(d.docId)}',this.value)" style="max-width:150px"></label> ` : ''}<input type="text" value="${_escAttr(ret.note || '')}" placeholder="mot sur ce retour…" maxlength="120" style="flex:1;min-width:160px;font-size:.9em" onchange="ficheDocNote('${_escJsAttr(d.docId)}',this.value)"></div>` : '';
+        const dateNote = d.attendu && suivi ? `<div class="fi-doc-champ">${d.rendu ? `<label class="tb-hint">rendu le <input type="date" value="${_escAttr(d.dateRetour || '')}" onchange="ficheDocDate('${_escJsAttr(d.docId)}',this)" onblur="ficheDocDate('${_escJsAttr(d.docId)}',this)" style="max-width:150px"></label> ` : ''}<input type="text" value="${_escAttr(ret.note || '')}" placeholder="mot sur ce retour…" maxlength="120" style="flex:1;min-width:160px;font-size:.9em" onchange="ficheDocNote('${_escJsAttr(d.docId)}',this.value)"></div>` : '';
         return `<div style="margin-bottom:9px"><strong>${_escName(d.titre)}</strong>${d.archive ? ' ' + vide('(archivé)') : ''} ${etat}${
           !d.attendu && d.note ? ` <span class="fi-vide">« ${_escName(d.note)} »</span>` : ''}${rep}${dateNote}</div>`;
       }).join('')
@@ -8259,7 +8277,7 @@ function _ficheRender() {
        <div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="ficheSaveRemarque()">✓ Enregistrer</button><button class="btn btn-g btn-sm" onclick="ficheEdit('remarque')">Annuler</button></div>`
     : (stu.remarque ? `<div class="fi-rem">${_escName(stu.remarque)}</div>` : vide('Aucune remarque.'));
   const contactForm = _ficheEdit !== 'contact' ? '' : `<div class="fi-form">
-      <label>Date <input type="date" id="fi-j-date" value="${_escAttr(_todayYmd())}" style="min-width:140px"></label>
+      <label>Date <input type="date" id="fi-j-date" value="${_escAttr(_dateParDefaut(cls))}" style="min-width:140px"></label>
       <label>Type <select id="fi-j-type">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}">${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></label>
       <input type="text" id="fi-j-txt" data-fi-focus placeholder="Ce qu'il faut en retenir" maxlength="300" style="flex:1;min-width:170px"
              onkeydown="if(event.key==='Enter'){event.preventDefault();ficheAddContact()}">
@@ -9442,8 +9460,14 @@ function saveEdit() {
   if (!nom || !prn) { toast('⚠️ Nom et prénom sont obligatoires.', 'warn'); document.getElementById(nom ? 'es-prn' : 'es-nom')?.focus(); return; }
   const clsNouv = nouveau ? (S.classes[document.getElementById('es-cls').value] || getCls()) : null;
   if (nouveau && !clsNouv) { toast('⚠️ Sélectionnez d\'abord une classe.', 'warn'); return; }
-  const arr = document.getElementById('es-arrival').value || null;
-  const dep = document.getElementById('es-departure').value || null;
+  // ⚠️ Arrivée et départ comme la naissance : année à deux chiffres complétée, date illisible refusée
+  // (« 01/12/25 » donnait `0025-12-01` et l'élève passait pour parti depuis toujours — audit du 2026-10-14).
+  const arrBrut = document.getElementById('es-arrival').value, depBrut = document.getElementById('es-departure').value;
+  const arr = arrBrut ? _ymdCompleteAnnee(arrBrut) : null, dep = depBrut ? _ymdCompleteAnnee(depBrut) : null;
+  if (arr && arr !== arrBrut) document.getElementById('es-arrival').value = arr;
+  if (dep && dep !== depBrut) document.getElementById('es-departure').value = dep;
+  if (arr && !_ymdValid(arr)) { toast('⚠️ Date d\'arrivée illisible.', 'warn'); return; }
+  if (dep && !_ymdValid(dep)) { toast('⚠️ Date de départ illisible.', 'warn'); return; }
   const naiBrut = document.getElementById('es-naissance').value;
   const nai = naiBrut ? _ymdCompleteAnnee(naiBrut) : null;
   if (nai && nai !== naiBrut) document.getElementById('es-naissance').value = nai;
@@ -11209,7 +11233,8 @@ function _classStartYear(cls) {
 function _periods(cls) {
   const mode = _periodMode();
   const y0 = _classStartYear(cls);
-  const toYmd = md => `${+md.slice(0, 2) >= 8 ? y0 : y0 + 1}-${md}`;
+  // ⚠️ Un « 02-30 » ou « 02-29 » d'une année non bissextile est ramené au dernier jour du mois (audit du 2026-10-14).
+  const toYmd = md => _ymdJourValide(`${+md.slice(0, 2) >= 8 ? y0 : y0 + 1}-${md}`);
   const starts = [`${y0}-08-01`, ..._periodStarts(mode).map(toYmd)].sort();
   const endOfYear = `${y0 + 1}-07-31`;
   const prev = ymd => { const d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() - 1); return _todayYmd(d); };
@@ -11882,10 +11907,31 @@ function _docStats(doc) {
   return { attendus: exp.length, rendus: doc.suiviRetour !== false ? rendus : null, manquants,
            reponsesManquantes: sansReponse.length, sansReponse, avisManquants };
 }
+// La date de retour proposée quand personne n'en donne : aujourd'hui, ramené dans l'année scolaire de la
+// classe de l'élève (à défaut la classe courante) — une classe 2025-26 vue en octobre 2026 ne reçoit pas
+// de retours datés d'octobre 2026 (audit du 2026-10-14, cf. défaut 35).
+function _dateRetourDefaut(sid) { return _dateParDefaut(S.classes[S.eleves[sid]?.classe_id] || getCls()); }
+// La date d'un champ « retour » ou « ramassage », lue au moment de la quitter : année à deux chiffres
+// complétée. `src` = le champ (ou sa valeur). → la date, '' (champ vidé, si `videOk`), ou undefined = rien à
+// écrire (champ pas encore quitté, ou date illisible : le champ revient à `ancien` et on le dit).
+function _dateChampLire(src, ancien, videOk) {
+  const inp = (src && typeof src === 'object') ? src : null;
+  if (inp && document.activeElement === inp) return undefined;
+  const brut = inp ? String(inp.value || '') : String(src ?? '');
+  const v = brut ? _ymdCompleteAnnee(brut) : '';
+  if (!v && videOk && !inp?.validity?.badInput) return '';
+  if (!_ymdValid(v) || inp?.validity?.badInput) {
+    toast('⚠️ Date illisible : l\'ancienne est gardée.', 'warn');
+    if (inp) inp.value = ancien || '';
+    return undefined;
+  }
+  if (inp && v !== brut) inp.value = v;
+  return v;
+}
 function docSetRendu(doc, sid, on) {
   const r = _retourW(doc, sid);
   r.rendu = !!on;
-  if (on && !r.dateRetour) r.dateRetour = _todayYmd();
+  if (on && !r.dateRetour) r.dateRetour = _dateRetourDefaut(sid);
   if (!on) r.dateRetour = null;
 }
 function docSetDateRetour(doc, sid, ymd) {
@@ -12002,7 +12048,7 @@ function ramSetRendu(docId, sid, on, ymd) {
   const doc = S.documents[docId];
   if (!_ramAttendu(doc, sid)) return false;
   docSetRendu(doc, sid, on);
-  if (on) docSetDateRetour(doc, sid, _ymdValid(ymd) ? ymd : _todayYmd());
+  if (on) docSetDateRetour(doc, sid, _ymdValid(ymd) ? ymd : _dateRetourDefaut(sid));
   return true;
 }
 
@@ -12630,7 +12676,7 @@ function _renderDocDetail(el, doc) {
     return `<tr>
       <td>${_nomFicheHTML(s.id, s.nom, s.prenom)}${multi ? ` <span class="tb-hint">${_escName(S.classes[s.classe_id]?.nom || '')}</span>` : ''}${_ageSubHTML(s)}</td>
       ${suivi ? `<td style="text-align:center"><input type="checkbox" class="doc-rendu"${r.rendu ? ' checked' : ''} onchange="docSetRenduUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.checked)" title="${r.rendu ? 'Rendu — décocher si ce n\'est pas le bon élève' : 'Cocher quand le papier est rendu (la date du jour est posée)'}"></td>
-      <td><input type="date" class="doc-date" value="${_escAttr(r.dateRetour || '')}" onchange="docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.value)" title="Date de retour"${r.rendu ? '' : ' disabled'}></td>` : ''}
+      <td><input type="date" class="doc-date" value="${_escAttr(r.dateRetour || '')}" onchange="docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this)" onblur="docSetDateRetourUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this)" title="Date de retour"${r.rendu ? '' : ' disabled'}></td>` : ''}
       ${cells}
       <td><input type="text" class="doc-note" value="${_escAttr(r.note)}" placeholder="mot sur ce retour…" maxlength="120" onchange="docSetNoteUI('${_escJsAttr(doc.id)}','${_escJsAttr(s.id)}',this.value)" title="${_escAttr(r.note || 'Un mot sur CE retour : « manque la signature du père »')}"></td>
     </tr>`;
@@ -12653,7 +12699,16 @@ function _docMut(docId, fn, rerender = true) {
   if (rerender) renderDocuments();
 }
 function docSetRenduUI(docId, sid, on) { _docMut(docId, d => docSetRendu(d, sid, on)); }
-function docSetDateRetourUI(docId, sid, ymd) { _docMut(docId, d => docSetDateRetour(d, sid, ymd), false); }
+// ⚠️ Un champ date livre l'année telle que tapée : on complète (« 21/05/26 »), et une date illisible
+// n'efface RIEN — le champ revient à la date enregistrée (audit du 2026-10-14). Écrit au départ du champ.
+function docSetDateRetourUI(docId, sid, src) {
+  const doc = S.documents[docId];
+  if (!doc) return;
+  const avant = _retour(doc, sid).dateRetour || '';
+  const v = _dateChampLire(src, avant, true);
+  if (v === undefined || v === avant) return;
+  _docMut(docId, d => docSetDateRetour(d, sid, v), false);
+}
 function docSetNoteUI(docId, sid, txt) { _docMut(docId, d => docSetNote(d, sid, txt), false); }
 function docSetReponseUI(docId, sid, champId, optId) { _docMut(docId, d => docSetReponse(d, sid, champId, optId)); }
 function docToggleReponseUI(docId, sid, champId, optId) { _docMut(docId, d => docToggleReponse(d, sid, champId, optId)); }
@@ -12699,7 +12754,7 @@ function openRamassage() {
   // coup d'œil ; deux champs de quatre options font des lignes de 130 px et la grille
   // devient illisible avant d'avoir servi. Un clic sur ⌄ les rouvre.
   _ramRepOff = new Set(_ramSel.filter(id => (S.documents[id].champs || []).filter(c => c.par !== 'prof').length > 1));
-  _ramDate = _todayYmd();
+  _ramDate = _dateParDefaut(getCls());
   _docView = null;
   renderDocuments();
 }
@@ -12712,7 +12767,14 @@ function ramToggleDoc(docId, on) {
   _ramSel = ordre.filter(id => set.has(id));   // on garde l'ordre des documents, pas celui des clics
   renderDocuments();
 }
-function ramSetDate(v) { _ramDate = _ymdValid(v) ? v : _todayYmd(); _renderRamassageHint(); }
+// La date du ramassage : année complétée à la sortie du champ ; illisible → la précédente est GARDÉE (et dite),
+// plus de retombée silencieuse sur aujourd'hui (audit du 2026-10-14).
+function ramSetDate(src) {
+  const v = _dateChampLire(src, _ramDate, false);
+  if (v === undefined) return;
+  _ramDate = v;
+  _renderRamassageHint();
+}
 
 function _renderRamassage(el) {
   const cls = getCls();
@@ -12735,7 +12797,7 @@ function _renderRamassage(el) {
       <button class="btn btn-g btn-sm" onclick="closeRamassage()">← Liste</button>
       <strong style="font-size:1.02em">🧺 Ramassage</strong>
       <label class="tb-hint" style="display:flex;align-items:center;gap:5px">Reçus le
-        <input type="date" id="ram-date" value="${_escAttr(_ramDate || _todayYmd())}" onchange="ramSetDate(this.value)"
+        <input type="date" id="ram-date" value="${_escAttr(_ramDate || _dateParDefaut(cls))}" onchange="ramSetDate(this)" onblur="ramSetDate(this)"
                title="Date portée sur les retours cochés à partir de maintenant — on saisit souvent le soir, ou le lendemain matin avec la pile sur le bureau"></label>
       ${_ordrePassageHTML('ram', cls)}
       ${partis ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px;cursor:pointer" title="Ils restent comptés dans les manquants du document, mais on ne peut rien ramasser auprès d'eux"><input type="checkbox"${_ramShowGone ? ' checked' : ''} onchange="_ramShowGone=this.checked;renderDocuments()"> ${partis} parti${partis > 1 ? 's' : ''}</label>` : ''}
@@ -13136,7 +13198,7 @@ function openDocNew() {
   document.getElementById('mdoc-tpl-wrap').style.display = '';
   const tpl = document.getElementById('mdoc-tpl');
   tpl.innerHTML = '<option value="">— Partir de zéro —</option>' + _docTemplates().map((t, i) => `<option value="${i}">${_escName(t.titre)}</option>`).join('');
-  _docFillForm({ titre: '', description: '', classIds: [S.cur], dateDistribution: _todayYmd(), dateEcheance: null, suiviRetour: true, champs: [] });
+  _docFillForm({ titre: '', description: '', classIds: [S.cur], dateDistribution: _dateParDefaut(getCls()), dateEcheance: null, suiviRetour: true, champs: [] });
   openMod('mdoc');
 }
 function openDocEdit(docId) {
@@ -13152,7 +13214,7 @@ function docApplyTemplate(i) {
   const t = _docTemplates()[+i];
   if (!t) return;
   _docEdit.champs = JSON.parse(JSON.stringify(t.champs));
-  _docFillForm({ titre: t.titre, description: t.description, classIds: [S.cur], dateDistribution: _todayYmd(), dateEcheance: null, suiviRetour: t.suiviRetour, champs: t.champs });
+  _docFillForm({ titre: t.titre, description: t.description, classIds: [S.cur], dateDistribution: _dateParDefaut(getCls()), dateEcheance: null, suiviRetour: t.suiviRetour, champs: t.champs });
 }
 function _docFillForm(d) {
   document.getElementById('mdoc-titre').value = d.titre || '';
@@ -13193,7 +13255,13 @@ function docModalOk() {
   if (!titre) { toast('⚠️ Donnez un titre au document.', 'warn'); document.getElementById('mdoc-titre').focus(); return; }
   const classIds = [...document.querySelectorAll('#mdoc-classes input[data-cid]')].filter(c => c.checked).map(c => c.dataset.cid);
   if (!classIds.length) { toast('⚠️ Cochez au moins une classe.', 'warn'); return; }
-  const dist = document.getElementById('mdoc-dist').value || null, ech = document.getElementById('mdoc-ech').value || null;
+  // ⚠️ Années à deux chiffres complétées, date illisible refusée : « 10/09/25 » donnait `0025-09-10` (audit du 2026-10-14).
+  const distBrut = document.getElementById('mdoc-dist').value, echBrut = document.getElementById('mdoc-ech').value;
+  const dist = distBrut ? _ymdCompleteAnnee(distBrut) : null, ech = echBrut ? _ymdCompleteAnnee(echBrut) : null;
+  if (dist && !_ymdValid(dist)) { toast('⚠️ Date de distribution illisible.', 'warn'); return; }
+  if (ech && !_ymdValid(ech)) { toast('⚠️ Date d\'échéance illisible.', 'warn'); return; }
+  if (dist && dist !== distBrut) document.getElementById('mdoc-dist').value = dist;
+  if (ech && ech !== echBrut) document.getElementById('mdoc-ech').value = ech;
   if (dist && ech && ech < dist) { toast('⚠️ L\'échéance ne peut pas précéder la distribution.', 'warn'); return; }
   const champs = _docEdit.champs.filter(c => c.label).map(c => ({ ...c, options: Array.isArray(c.options) ? c.options : [] }));
   const sansOption = champs.find(c => !c.options.length);

@@ -102,13 +102,14 @@ test('docSetRendu : date du jour posée au premier rendu, effacée quand on déc
   ev(FIXTURE);
   ev(`docSetRendu(S.documents.d1, 's3', true)`);
   assert.strictEqual(ev(`S.documents.d1.retours.s3.rendu`), true);
-  assert.strictEqual(ev(`S.documents.d1.retours.s3.dateRetour`), ev(`_todayYmd()`));
+  // Le « jour » est ramené dans l'année scolaire de la classe (audit du 2026-10-14).
+  assert.strictEqual(ev(`S.documents.d1.retours.s3.dateRetour`), ev(`_dateParDefaut(S.classes[S.eleves.s3.classe_id])`));
   assert.strictEqual(ev(`S.documents.d1.retours.s3.reponses.opt1`), 'bil');   // la réponse survit
   ev(`docSetRendu(S.documents.d1, 's3', false)`);
   assert.strictEqual(ev(`S.documents.d1.retours.s3.dateRetour`), null);
   // Une date déjà saisie n'est pas remplacée par celle du jour.
   ev(`docSetRendu(S.documents.d1, 's1', false); docSetRendu(S.documents.d1, 's1', true)`);
-  assert.strictEqual(ev(`S.documents.d1.retours.s1.dateRetour`), ev(`_todayYmd()`));
+  assert.strictEqual(ev(`S.documents.d1.retours.s1.dateRetour`), ev(`_dateParDefaut(S.classes[S.eleves.s1.classe_id])`));
   ev(`S.documents.d1.retours.s1.dateRetour = '2025-09-20'; docSetRendu(S.documents.d1, 's1', true)`);
   assert.strictEqual(ev(`S.documents.d1.retours.s1.dateRetour`), '2025-09-20');
 });
