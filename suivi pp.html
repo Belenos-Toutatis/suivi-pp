@@ -3138,8 +3138,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.67.0';
-const APP_BUILD_DATE = '2026-10-14T17:00:00Z';
+const APP_VERSION    = '1.67.1';
+const APP_BUILD_DATE = '2026-10-14T17:13:17Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8926,7 +8926,7 @@ function _ficheEvenements(cls, stu, col) {
   _decisionsOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>Décisions — ${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
   _docsOfCurrent().filter(d => (d.classIds || []).includes(cid) && dans(d.dateDistribution) && _docExpected(d).some(x => x.id === sid)).forEach(d => {
     const r = _retour(d, sid);
-    E.push({ date: d.dateDistribution, k: 'papier', html: `${_escName(d.titre)} distribué${d.suiviRetour === false ? '' : r.rendu ? ` — rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour)) : ''}` : ' — <strong>pas rendu</strong>'}` });
+    E.push({ date: d.dateDistribution, k: 'papier', html: `${_escName(d.titre)} distribué${d.suiviRetour === false ? '' : r.rendu ? ` — rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour)) : ''}` : d.archive ? '' : ' — <strong>pas rendu</strong>'}${d.archive ? ' (archivé)' : ''}` });   // archivé non rendu : pas un manquant (comme la carte Papiers)
   });
   return E.sort((x, y) => x.date.localeCompare(y.date)).map((x, i) => ({ ...x, i }));
 }
@@ -9014,9 +9014,11 @@ function _appDialogMaj(titre, html) {
 // les mêmes que la colonne (`_syntheseRow.nonRendus` : documents non archivés de la classe, suivis,
 // où l'élève est attendu), chacun avec « ✓ Rendu » — la date du jour, par `docSetRendu`, un cran
 // d'undo par papier. La fenêtre reste ouverte et se met à jour : on en valide plusieurs d'affilée.
+// Un papier n'est « à rendre » qu'une fois distribué : une date de distribution à venir (préparé d'avance) ne compte pas.
+function _papierDistribue(d) { return !d.dateDistribution || d.dateDistribution <= _todayYmd(); }
 function _papiersARendre(cls, sid) {
   return _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cls.id) && d.suiviRetour !== false
-    && _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu);
+    && _papierDistribue(d) && _docExpected(d).some(x => x.id === sid) && !_retour(d, sid).rendu);
 }
 // `ouverts` : les papiers qui étaient à rendre à l'ouverture de la fenêtre. Ceux qui sont rendus
 // depuis se RELISENT dans les données (avec leur date) — un Ctrl+Z les remet à rendre, et la
@@ -16337,7 +16339,7 @@ function _syntheseRow(cls, stu) {
     const attendu = _docExpected(d).some(s => s.id === stu.id);
     if (!attendu) continue;
     const r = _retour(d, stu.id);
-    if (d.suiviRetour !== false && !r.rendu) nonRendus.push(d.titre);
+    if (d.suiviRetour !== false && !r.rendu && _papierDistribue(d)) nonRendus.push(d.titre);   // même filtre que `_papiersARendre`
     for (const c of (d.champs || [])) {
       const v = r.reponses[c.id];
       const ids = Array.isArray(v) ? v : (v ? [v] : []);
@@ -17391,8 +17393,10 @@ function disciplineRemove(id) {
 // (ignorée) ou null (personne ne sait : c'est la question à poser).
 function _matiereDiscAuto(norm) {
   // ⚠️ La LCE (« LCE ALLEMAND », « LANGU.CULT EU ALLEM ») est un autre enseignement que la
-  // langue qu'elle nomme : jamais rattachée d'office par un motif, l'app demande.
-  const lce = /\bLCE\b|\bLANGU\w* CULT/.test(norm);
+  // langue qu'elle nomme : jamais rattachée d'office par un motif, l'app demande. De même pour une
+  // DNL (« SVT DNL ANGLAIS » : la matière ou la langue ?), l'histoire des arts (pas l'histoire-géo.)
+  // et l'association sportive (pas l'EPS) : un mot du motif n'y dit pas la discipline.
+  const lce = /\bLCE\b|\bLANGU\w* CULT|\bDNL\b|\bHISTOIRE DES ARTS\b|\bASSOCIATION SPORTIVE\b/.test(norm);
   if (!lce) for (const [id, , , re] of DISCIPLINES_DEFAUT) if (re.test(norm) && S.disciplines[id]) return id;
   // Une discipline ajoutée par l'utilisateur reconnaît la matière de même nom (« Latin »).
   for (const d of _disciplinesAll()) if (_moyNorm(d.nom) === norm || _moyNorm(d.onglet) === norm) return d.id;
@@ -18353,6 +18357,8 @@ function _htmlSur(html) {
       // refusé en bloc, y compris déguisé — entité (« url&lpar; », « &LeftParenthesis; »),
       // image-set, list-style-image, cursor:url… Une signature n'a besoin d'aucun de ces mots.
       if (an === 'style' && /&[a-zA-Z#]|url|image|src|expression|javascript|@import|behavior|binding|[<>]/i.test(v)) continue;
+      // Ni `position: fixed` ni `sticky` : une signature ne sort pas de son cadre pour recouvrir l'app.
+      if (an === 'style' && /position\s*:\s*(fixed|sticky)/i.test(v)) continue;
       if (an === 'href' && !/^(https:\/\/|mailto:)[^\s"'<>]+$/i.test(v.trim())) continue;
       attrs.push(` ${an}="${v.replace(/&(?![a-zA-Z]+;)/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`);
     }
@@ -18532,8 +18538,10 @@ function avisMsgPartieUI(campId, key, on) {
   const camp = _avisCampOf(campId);
   if (!camp) return;
   const r = _avisMsgReglages(camp);
+  const off = on ? r.off.filter(k => k !== key) : [...new Set([...r.off, key])];
+  if (off.length === r.off.length && off.every(k => r.off.includes(k))) return;   // déjà dans cet état : pas de cran vide
   pushUndo();
-  camp.msg = { ...r, off: on ? r.off.filter(k => k !== key) : [...new Set([...r.off, key])] };
+  camp.msg = { ...r, off };
   save(); _avisRender();
 }
 // Un texte réécrit devient le MODÈLE (pour toutes les feuilles) ; null = retour au texte proposé.
