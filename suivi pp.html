@@ -16477,9 +16477,10 @@ async function _zipRead(u8) {
 
 /* ── ODS : écriture ── */
 
-// Échappe pour XML ; retire les caractères de contrôle, interdits même en entité en XML 1.0.
+// Échappe pour XML ; retire les caractères de contrôle, interdits même en entité en XML 1.0,
+// et U+FFFE / U+FFFF (interdits aussi : LibreOffice refuse le fichier entier).
 function _odsEsc(s) {
-  return String(s == null ? '' : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+  return String(s == null ? '' : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
@@ -16991,6 +16992,13 @@ function avisColonnesSet(camp, cols) {
     const alias = old ? [...new Set([...(old.alias || []), ...(_moyNorm(old.label) !== _moyNorm(c.label) ? [old.label] : [])])].filter(a => _moyNorm(a) !== _moyNorm(c.label)).slice(-5) : [];
     return { key, label: c.label, aide: c.aide, ...(alias.length ? { alias } : {}) };
   });
+  // ⚠️ Un titre PORTÉ par une colonne n'est l'alias d'aucune autre (titres échangés, ancien
+  // titre repris par une colonne neuve) : sinon deux clés liraient la même colonne de la feuille.
+  for (const c of out) {
+    if (!c.alias) continue;
+    const a = c.alias.filter(x => !norms.includes(_moyNorm(x)));
+    if (a.length) c.alias = a; else delete c.alias;
+  }
   const gardees = new Set(out.map(c => c.key));
   const perdues = avant.filter(c => !gardees.has(c.key)).map(c => {
     let n = 0;
@@ -17166,7 +17174,10 @@ function disciplineRemove(id) {
 // une option sans avis à demander) ; absent = reconnaissance automatique. Rend un id, ''
 // (ignorée) ou null (personne ne sait : c'est la question à poser).
 function _matiereDiscAuto(norm) {
-  for (const [id, , , re] of DISCIPLINES_DEFAUT) if (re.test(norm) && S.disciplines[id]) return id;
+  // ⚠️ La LCE (« LCE ALLEMAND », « LANGU.CULT EU ALLEM ») est un autre enseignement que la
+  // langue qu'elle nomme : jamais rattachée d'office par un motif, l'app demande.
+  const lce = /\bLCE\b|\bLANGU\w* CULT/.test(norm);
+  if (!lce) for (const [id, , , re] of DISCIPLINES_DEFAUT) if (re.test(norm) && S.disciplines[id]) return id;
   // Une discipline ajoutée par l'utilisateur reconnaît la matière de même nom (« Latin »).
   for (const d of _disciplinesAll()) if (_moyNorm(d.nom) === norm || _moyNorm(d.onglet) === norm) return d.id;
   return null;
@@ -17413,26 +17424,39 @@ function _avisLire(cls, camp, sheets) {
     const k = _moyNameKey(`${s.nom} ${s.prenom}`);
     if (parCle.has(k)) doublons.add(k); else parCle.set(k, s.id);
   }
-  const avis = {}, lus = [], inconnus = [], nonReconnus = [];
+  // `etrangers` (onglets non lus mais remplis) et `lignes` (la ligne de chaque non-reconnu) : ce
+  // que la mise à jour de la feuille RECOPIE tel quel (`_avisFeuillesGardees`).
+  const avis = {}, lus = [], inconnus = [], nonReconnus = [], etrangers = [], lignes = [];
   const discDe = sh => {
     const n = _moyNorm(sh.name);
     const d = camp.disciplines.find(x => _moyNorm(x.onglet) === n || _moyNorm(x.nom) === n);
     if (d) return d;
     const titre = _moyNorm((sh.rows[0] || [])[0] || '');
-    return camp.disciplines.find(x => titre && (titre === _moyNorm(x.nom) || titre.startsWith(_moyNorm(x.nom) + ' '))) || null;
+    if (!titre) return null;
+    // ⚠️ Le nom le PLUS LONG qui correspond : « Anglais euro — Mme Z » est l'onglet d'Anglais
+    // euro, pas d'Anglais. Deux disciplines au même nom : rien n'est deviné (onglet rapporté).
+    const ok = camp.disciplines.filter(x => titre === _moyNorm(x.nom) || titre.startsWith(_moyNorm(x.nom) + ' '));
+    const lg = Math.max(-1, ...ok.map(x => _moyNorm(x.nom).length));
+    const meilleurs = ok.filter(x => _moyNorm(x.nom).length === lg);
+    return meilleurs.length === 1 ? meilleurs[0] : null;
   };
   for (const sh of sheets || []) {
     const rows = Array.isArray(sh.rows) ? sh.rows : [];
     const plein = rows.some(r => (r || []).some(c => String(c || '').trim()));
+    const ignore = () => { if (plein) { inconnus.push(String(sh.name || '?')); etrangers.push({ name: String(sh.name || '?'), rows }); } };
     const d = discDe(sh);
-    if (!d || lus.includes(d.id)) { if (plein) inconnus.push(String(sh.name || '?')); continue; }
+    if (!d || lus.includes(d.id)) { ignore(); continue; }
     const h = rows.findIndex(r => _moyNorm((r || [])[0]) === 'ELEVE');
-    if (h < 0) { if (plein) inconnus.push(String(sh.name)); continue; }
-    const col = {}, cols = _avisCols(camp);
-    for (const c of cols) col[c.key] = rows[h].findIndex(x => [c.label, ...(c.alias || [])].some(l => _moyNorm(x) === _moyNorm(l)));
+    if (h < 0) { ignore(); continue; }
+    // Le TITRE d'une colonne d'abord, ses anciens titres (alias) ensuite : un en-tête qui est
+    // le titre d'une colonne lui revient, et un même en-tête n'est jamais lu par deux clés.
+    const col = {}, cols = _avisCols(camp), prises = new Set();
+    const chercher = (c, ls) => rows[h].findIndex((x, i) => !prises.has(i) && ls.some(l => _moyNorm(x) === _moyNorm(l)));
+    for (const c of cols) { col[c.key] = chercher(c, [c.label]); if (col[c.key] >= 0) prises.add(col[c.key]); }
+    for (const c of cols) if (col[c.key] < 0) { col[c.key] = chercher(c, c.alias || []); if (col[c.key] >= 0) prises.add(col[c.key]); }
     // ⚠️ Aucune colonne reconnue (feuille préparée avec d'autres colonnes) : l'onglet n'est
     // PAS lu — sinon il ferait foi, vide, et proposerait d'effacer tout ce que l'app a rangé.
-    if (cols.every(c => col[c.key] < 0)) { if (plein) inconnus.push(String(sh.name)); continue; }
+    if (cols.every(c => col[c.key] < 0)) { ignore(); continue; }
     lus.push(d.id);
     for (const r of rows.slice(h + 1)) {
       const nom = String((r || [])[0] || '').trim();
@@ -17441,11 +17465,47 @@ function _avisLire(cls, camp, sheets) {
       if (!Object.keys(vals).length) continue;
       const k = _moyNameKey(nom);
       const sid = doublons.has(k) ? null : parCle.get(k);
-      if (!sid) { nonReconnus.push({ onglet: d.onglet, nom: nom || '(sans nom)' }); continue; }
+      if (!sid) {
+        // La ligne, remise dans l'ordre des colonnes de l'app ; les cases des autres colonnes suivent.
+        const cases = (r || []).map(x => String(x == null ? '' : x)), connues = new Set([0, ...cols.map(c => col[c.key])]);
+        const ligne = [cases[0] || '', ...cols.map(c => col[c.key] >= 0 ? cases[col[c.key]] || '' : ''), ...cases.filter((x, i) => !connues.has(i) && x.trim())];
+        nonReconnus.push({ onglet: d.onglet, nom: nom || '(sans nom)' });
+        lignes.push({ did: d.id, onglet: d.onglet, ligne });
+        continue;
+      }
       ((avis[sid] = avis[sid] || {})[d.id] = vals);
     }
   }
-  return { avis, lus, inconnus, nonReconnus };
+  return { avis, lus, inconnus, nonReconnus, etrangers, lignes };
+}
+// Les onglets à écrire, plus ce que l'app ne reconnaît pas dans le fichier, RECOPIÉ tel quel
+// (arbitré le 2026-10-14 : mettre la feuille à jour n'efface rien en silence) : les onglets
+// inconnus — ajoutés par un collègue, en-têtes modifiés, discipline retirée de la feuille —
+// à la suite (renommés « (2) » si le nom est pris), les lignes d'élèves non reconnues au bout
+// de leur onglet. PUR. → { sheets, garde } (`garde` : la phrase qui le dit, '' si rien).
+function _avisFeuillesGardees(cls, camp, lec) {
+  const sheets = _avisFeuilles(cls, camp);
+  if (!lec) return { sheets, garde: '' };
+  const parDisc = {};
+  for (const x of lec.lignes || []) (parDisc[x.did] = parDisc[x.did] || []).push(x);
+  const enPlus = [];
+  for (const [did, xs] of Object.entries(parDisc)) {
+    const i = camp.disciplines.findIndex(d => d.id === did);
+    const rows = xs.map(x => x.ligne.map((t, j) => ({ text: t, style: j ? 'saisie' : 'nom' })));
+    if (i >= 0) sheets[i].rows.push(...rows); else enPlus.push({ name: xs[0].onglet, rows });
+  }
+  enPlus.push(...(lec.etrangers || []).map(sh => ({ name: sh.name, rows: sh.rows.map(r => (r || []).map(c => String(c == null ? '' : c))) })));
+  const pris = new Set(sheets.map(s => _moyNorm(s.name)));
+  for (const sh of enPlus) {
+    let nom = String(sh.name || 'Onglet').slice(0, 31), k = 2;
+    while (pris.has(_moyNorm(nom))) nom = `${String(sh.name || 'Onglet').slice(0, 26)} (${k++})`;
+    pris.add(_moyNorm(nom));
+    sheets.push({ name: nom, rows: sh.rows });
+  }
+  const nl = (lec.lignes || []).length, et = lec.etrangers || [];
+  const garde = [et.length ? `onglet${et.length > 1 ? 's' : ''} ${et.map(s => `« ${s.name} »`).join(', ')}` : '',
+    nl ? `${nl} ligne${nl > 1 ? 's' : ''} d'élève${nl > 1 ? 's' : ''} non reconnue${nl > 1 ? 's' : ''} (au bout de l'onglet)` : ''].filter(Boolean).join(' ; ');
+  return { sheets, garde };
 }
 // Ce qui DIFFÈRE entre l'app et la feuille lue, case par case (élève × discipline × critère).
 // PUR. ⚠️ Seuls les onglets LUS comptent : un onglet absent du fichier (tronqué, mauvaise
@@ -18073,7 +18133,10 @@ function _htmlSur(html) {
       if (!_HS_ATTRS.has(an)) continue;
       const v = a[3] !== undefined ? a[3] : a[4] !== undefined ? a[4] : a[5];
       if (/[\\]|&#|[\u0000-\u001f]/.test(v)) continue;
-      if (an === 'style' && /url\s*\(|expression|javascript:|@import|behavior|binding|[<>]/i.test(v)) continue;
+      // Un style ne garde que de la mise en forme : tout ce qui pourrait charger quelque chose est
+      // refusé en bloc, y compris déguisé — entité (« url&lpar; », « &LeftParenthesis; »),
+      // image-set, list-style-image, cursor:url… Une signature n'a besoin d'aucun de ces mots.
+      if (an === 'style' && /&[a-zA-Z#]|url|image|src|expression|javascript|@import|behavior|binding|[<>]/i.test(v)) continue;
       if (an === 'href' && !/^(https:\/\/|mailto:)[^\s"'<>]+$/i.test(v.trim())) continue;
       attrs.push(` ${an}="${v.replace(/&(?![a-zA-Z]+;)/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`);
     }
@@ -18507,7 +18570,8 @@ async function avisPreparerUI(telecharger, creer) {
 // la revue les montre, avant / après, et l'utilisateur coche ce qu'il garde. Pour une
 // NOUVELLE feuille, rien n'est coché : des avis déjà là viennent sans doute d'une autre
 // période (une feuille du S1 réutilisée pour le S2). Un fichier qui contient AUTRE chose
-// qu'une feuille d'avis n'est écrasé qu'après confirmation.
+// qu'une feuille d'avis n'est écrasé qu'après confirmation. Sinon, ce que l'app ne reconnaît
+// pas (onglets, lignes d'élèves) est recopié tel quel (`_avisFeuillesGardees`) et le toast le dit.
 async function _avisEcrireFeuille(cls, camp, h, { nouvelle } = {}) {
   if (!await _avisPermission(h, 'readwrite', true)) { toast('⚠️ Écriture refusée par le navigateur.', 'warn'); return _avisRender(); }
   let existant = [];
@@ -18525,14 +18589,16 @@ async function _avisEcrireFeuille(cls, camp, h, { nouvelle } = {}) {
     _avisRevueOuvrir({ campId: camp.id, mode: nouvelle ? 'nouvelle' : 'ecrire', changes, lec, h });
     return;
   }
-  await _avisEcrireMaintenant(cls, camp, h);
+  await _avisEcrireMaintenant(cls, camp, h, lec);
 }
-async function _avisEcrireMaintenant(cls, camp, h) {
+// `lec` : la lecture du fichier avant écriture (absente : rien à garder).
+async function _avisEcrireMaintenant(cls, camp, h, lec) {
   try {
+    const { sheets, garde } = _avisFeuillesGardees(cls, camp, lec);
     const w = await h.createWritable();
-    await w.write(_odsBuild(_avisFeuilles(cls, camp), { police: { nom: 'Andika SuiviPP', variantes: _ODS_ANDIKA } }));
+    await w.write(_odsBuild(sheets, { police: { nom: 'Andika SuiviPP', variantes: _ODS_ANDIKA } }));
     await w.close();
-    toast(`✓ Feuille « ${h.name} » préparée : ${camp.disciplines.length} onglet${camp.disciplines.length > 1 ? 's' : ''}, ${_avisEleves(cls, camp).length} élèves. Le client Nextcloud l'envoie au Nuage.`);
+    toast(`✓ Feuille « ${h.name} » préparée : ${camp.disciplines.length} onglet${camp.disciplines.length > 1 ? 's' : ''}, ${_avisEleves(cls, camp).length} élèves.${garde ? ` Gardé tel quel, que l'app ne reconnaît pas : ${garde}.` : ''} Le client Nextcloud l'envoie au Nuage.`, garde ? 9000 : 2600);
   } catch (e) { toast('⚠️ Écriture impossible : ' + e.message, 'error'); }
   _avisRender();
   renderStudents();
@@ -18685,7 +18751,7 @@ async function avisRevueValider() {
     if (document.getElementById('mfiche')?.classList.contains('on')) _ficheRender();
     return;
   }
-  await _avisEcrireMaintenant(cls, camp, r.h);
+  await _avisEcrireMaintenant(cls, camp, r.h, r.lec);
 }
 function avisSupprimerUI(campId) {
   const cls = getCls();
