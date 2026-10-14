@@ -130,7 +130,7 @@ test('docSetReponse : choix unique (string ou null), choix multiple (tableau, ba
   assert.strictEqual(ev(`docSetReponse(S.documents.d1, 's1', 'champ_inconnu', 'x')`), false);
 });
 
-test('docDuplicate : mêmes champs et options, retours VIDES, dates remises à zéro', () => {
+test('docDuplicate : mêmes champs et options, retours VIDES, échéance remise à zéro, distribution = date du jour', () => {
   ev(FIXTURE);
   const r = evObj(`(() => { const d = docDuplicate('d1'); return { id: d.id, titre: d.titre, champs: d.champs.length, opts: d.champs[0].options.map(o => o.id), retours: Object.keys(d.retours), dist: d.dateDistribution, ech: d.dateEcheance, cls: d.classIds, n: Object.keys(S.documents).length, distinct: d.champs !== S.documents.d1.champs }; })()`);
   assert.notStrictEqual(r.id, 'd1');
@@ -138,7 +138,7 @@ test('docDuplicate : mêmes champs et options, retours VIDES, dates remises à z
   assert.strictEqual(r.champs, 3);
   assert.deepStrictEqual(r.opts, ['latin', 'bil']);
   assert.deepStrictEqual(r.retours, []);
-  assert.strictEqual(r.dist, null);
+  assert.strictEqual(r.dist, evObj(`_dateParDefaut(getCls())`));   // audit 2 du 2026-10-14 : datée, sinon « distribuée » d'office
   assert.strictEqual(r.ech, null);
   assert.deepStrictEqual(r.cls, ['5C']);
   assert.strictEqual(r.n, 4);
