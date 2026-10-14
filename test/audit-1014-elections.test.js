@@ -44,14 +44,15 @@ test('départage à la main de PLUSIEURS sièges : des cases à cocher, autant d
     cs[1].checked = true; _elDepCoche(2);
     return { un, deux: reg['el-dep-ok'].disabled, troisiemeGrisee: cs[2].disabled };`);
   assert.deepStrictEqual(c, { un: true, deux: false, troisiemeGrisee: true });
-  // On valide la fenêtre avec deux cases cochées : les deux sont élus, l'élection se clôt.
+  // On valide la fenêtre avec deux cases cochées, puis la confirmation de clôture : les deux sont
+  // élus, l'élection se clôt (audit 2 : la décision n'entre dans les données qu'avec la clôture).
   ev(`document.querySelectorAll = sel => /:checked/.test(sel) ? [{ value: __A }, { value: __B }] : []; _appDialogResolve(true);`);
   await new Promise(res => setImmediate(res));
-  const f = J(`const el = __el; const cle = _elTourCle(el.tours[1]);
+  const f = J(`reg['mconfirm2-ok'].onclick();
+    const el = S.elections['5C'][__el.id]; const cle = _elTourCle(el.tours[1]);
     const choix = el.departageManuel[cle];
-    const w = electionCloreTour(el, 1);
-    return { choix: choix.length, bloque: w.bloque, clos: el.clos, elus: el.elus.titulaires.filter(id => id === __A || id === __B).length };`);
-  assert.deepStrictEqual(f, { choix: 2, bloque: false, clos: true, elus: 2 });
+    return { choix: choix.length, clos: el.clos, elus: el.elus.titulaires.filter(id => id === __A || id === __B).length };`);
+  assert.deepStrictEqual(f, { choix: 2, clos: true, elus: 2 });
 });
 
 test('remplacement : le suppléant PROMU qui part à son tour laisse le siège vacant (binôme et hors binôme)', () => {
