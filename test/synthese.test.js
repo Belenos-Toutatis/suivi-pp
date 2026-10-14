@@ -50,7 +50,7 @@ test('_syntheseRow : un A au dernier relevé remonte au cumul chiffré précéde
 
 test('_syntheseRow : documents archivés ignorés, élève parti non attendu', () => {
   ev(FIXTURE);
-  const rows = evObj(`_syntheseRows(S.classes['5C'])`);
+  const rows = evObj(`S.classes['5C'].eleves.map(id => _syntheseRow(S.classes['5C'], S.eleves[id]))`);
   assert.strictEqual(rows.length, 3);
   const s3 = rows.find(r => r.sid === 's3');
   assert.strictEqual(s3.actif, false);

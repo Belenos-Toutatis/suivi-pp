@@ -3137,8 +3137,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.66.0';
-const APP_BUILD_DATE = '2026-10-10T23:21:16Z';
+const APP_VERSION    = '1.66.1';
+const APP_BUILD_DATE = '2026-10-14T15:46:00Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12825,14 +12825,7 @@ function _ramChipsHTML(doc, sid, ch) {
   }).join('');
 }
 
-// Une pastille PAR reste, empilées (cf. .ram-reste) : « 2 à rendre » au-dessus de
-// « 1 à lire ». Le texte seul, sans balise, reste disponible pour un test ou un toast.
-function _ramResteLabel(r) {
-  const bouts = [];
-  if (r.reste) bouts.push(`${r.reste} à rendre`);
-  if (r.resteRep) bouts.push(`${r.resteRep} à lire`);
-  return bouts.length ? bouts.join(' · ') : 'complet';
-}
+// Une pastille PAR reste, empilées (cf. .ram-reste) : « 2 à rendre » au-dessus de « 1 à lire ».
 function _ramResteHTML(r) {
   const bouts = [];
   if (r.reste) bouts.push(`${r.reste} à rendre`);
@@ -15976,9 +15969,6 @@ function _syntheseRow(cls, stu) {
     nbBilans: Array.isArray(stu.bilans) ? stu.bilans.length : 0,
   };
 }
-function _syntheseRows(cls) {
-  return cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(s => _syntheseRow(cls, s));
-}
 function _setPageOrientation(kind, format) {
   _clearPageOrientation();
   const st = document.createElement('style');
@@ -17298,11 +17288,6 @@ function _avisAvecChoix(camp, changes, choisis) {
     if (!Object.keys(parDisc).length) delete avis[ch.sid];
   }
   return avis;
-}
-// Tout reprendre (les tests, et la règle : un onglet lu fait foi, un onglet absent garde ses avis).
-function _avisFusion(camp, lecture) {
-  const ch = _avisChangements({ eleves: [] }, camp, lecture);
-  return { avis: _avisAvecChoix(camp, ch, ch.map((_, i) => i)), change: ch.length > 0 };
 }
 // Les avis d'un élève pour une période : la DERNIÈRE campagne de cette période qui en
 // porte, dans l'ordre de ses onglets. [{ disc: { nom, profs }, travail, … }]

@@ -766,7 +766,7 @@ Conseil de classe · conseil de mi-période (« mi-semestre » / « mi-trimestre
 
 ### Lecture et écriture
 
-- **Lecture** (`_avisLire`, pur) : onglet par son nom (ou, renommé, par la discipline en titre), colonnes par leur **en-tête** (un collègue peut en déplacer une), élève par la clé de nom des moyennes. ⚠️ **Rien n'est rangé au hasard** : homonymes parfaits, nom retouché, onglet inconnu sont **rapportés**. **Fusion** (`_avisFusion`) : un onglet lu fait foi (un avis effacé par son auteur disparaît), un onglet ABSENT du fichier garde ses avis (une mauvaise feuille n'efface rien). Un undo seulement si quelque chose change. Relecture silencieuse à l'ouverture si la permission est restée accordée — elle n'ouvre que la revue.
+- **Lecture** (`_avisLire`, pur) : onglet par son nom (ou, renommé, par la discipline en titre), colonnes par leur **en-tête** (un collègue peut en déplacer une), élève par la clé de nom des moyennes. ⚠️ **Rien n'est rangé au hasard** : homonymes parfaits, nom retouché, onglet inconnu sont **rapportés**. **Fusion** (`_avisChangements` ne compare que les onglets LUS) : un onglet lu fait foi (un avis effacé par son auteur disparaît), un onglet ABSENT du fichier garde ses avis (une mauvaise feuille n'efface rien). Un undo seulement si quelque chose change. Relecture silencieuse à l'ouverture si la permission est restée accordée — elle n'ouvre que la revue.
 - **Écriture** (`_avisEcrireFeuille` → `_avisEcrireMaintenant`) : relit d'abord le fichier ; s'il diffère de l'app, la revue passe avant ; un fichier qui contient AUTRE chose qu'une feuille d'avis n'est écrasé qu'après confirmation. ⚠️ Mettre à jour pendant qu'un collègue écrit peut créer un conflit dans le Nuage (la modale prévient).
 
 ### Module .ods et police Andika incluse
@@ -1026,7 +1026,7 @@ Onglet renommé (identifiants du code inchangés : `tab-delegues`, `renderDelegu
 
 ### 5. 📊 Synthèse — retirée
 
-Fusionnée dans Élèves (arbitré par l'utilisateur : doublon). Subsistent le calcul pur `_syntheseRow` (nom conservé, testé) et `_syntheseRows`, la pastille des non-rendus (`_synthOpen`, détail au survol ou au clic : la liste des titres en clair élargissait la colonne), les classes CSS `.synth-*`. **Colonne Réponses retirée** (les choix portés se lisent dans la fiche). Supprimés : `renderSynthese`, `_synthSorted`, `syntheseSort`, `_synthFilter`, l'onglet et sa zone ; `printSynthese` → `printEleves` ; `Ctrl+P` sur Élèves imprime. Un onglet mémorisé « synthese » retombe sur Élèves (`init` vérifie que `tab-<id>` existe).
+Fusionnée dans Élèves (arbitré par l'utilisateur : doublon). Subsistent le calcul pur `_syntheseRow` (nom conservé, testé ; `_syntheseRows` retirée, code mort), la pastille des non-rendus (`_synthOpen`, détail au survol ou au clic : la liste des titres en clair élargissait la colonne), les classes CSS `.synth-*`. **Colonne Réponses retirée** (les choix portés se lisent dans la fiche). Supprimés : `renderSynthese`, `_synthSorted`, `syntheseSort`, `_synthFilter`, l'onglet et sa zone ; `printSynthese` → `printEleves` ; `Ctrl+P` sur Élèves imprime. Un onglet mémorisé « synthese » retombe sur Élèves (`init` vérifie que `tab-<id>` existe).
 
 ### 6. 💾 Données et réglages
 

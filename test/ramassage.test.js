@@ -347,5 +347,4 @@ test('_ramResteHTML : une pastille PAR reste, « complet » sinon', () => {
     ['2 à rendre', '1 à lire']);
   assert.strictEqual(ev(`_ramResteHTML({ reste: 0, resteRep: 3 })`), '<span class="badge warn">3 à lire</span>');
   assert.strictEqual(ev(`_ramResteHTML({ reste: 0, resteRep: 0 })`), '<span class="badge ok">complet</span>');
-  assert.strictEqual(ev(`_ramResteLabel({ reste: 2, resteRep: 1 })`), '2 à rendre · 1 à lire');
 });

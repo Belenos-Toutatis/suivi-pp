@@ -138,7 +138,7 @@ test('fichier altéré : nombres ramenés à leur type (rien d’injecté), tabl
     const el2 = Object.values(S.elections[cls.id])[1]; el2.elus = { titulaires: 7 }; el2.candidats = [null, ...el2.candidats];
     const sa = Object.values(S.salles)[0]; if (sa) sa.rows = '"><img src=x>';
     postLoadHook();
-    let err = null; try { _syntheseRows(cls).forEach(() => {}); _elevesIndicHTML(cls, _elevesRows(cls), []); _elevesChaleurHTML(cls, _elevesRows(cls), []); for (const sid of cls.eleves) _delegueOf(sid); } catch (e) { err = e.message; }
+    let err = null; try { cls.eleves.forEach(id => S.eleves[id] && _syntheseRow(cls, S.eleves[id])); _elevesIndicHTML(cls, _elevesRows(cls), []); _elevesChaleurHTML(cls, _elevesRows(cls), []); for (const sid of cls.eleves) _delegueOf(sid); } catch (e) { err = e.message; }
     return { g0: s.groupe, g1: S.eleves[cls.eleves[1]].groupe, journal: s.journal.length, date: s.journal[0].date, n: el.tours[0].bulletins[0].n,
       rows: sa ? sa.rows : 6, err }; })()`);
   assert.deepStrictEqual(r, { g0: null, g1: 2, journal: 1, date: '', n: 1, rows: 6, err: null });

@@ -146,10 +146,12 @@ test('Relecture : un onglet lu fait foi, un onglet ABSENT garde ses avis', () =>
   ev(FIXTURE);
   ev(`window.__c = avisCampagneCreer(getCls(), { pIdx: 0, disciplines: ['maths', 'anglais'] });
       window.__c.avis = { s1: { maths: { travail: 'Ancien' }, anglais: { comportement: 'Gardé' } }, s2: { maths: { participation: 'Effacé' } } };`);
-  const f = evObj(`_avisFusion(window.__c, { avis: { s1: { maths: { travail: 'Nouveau' } } }, lus: ['maths'] })`);
+  // Le chemin de l'app : changements (seulement des onglets LUS), puis application des changements choisis — ici tous.
+  const f = evObj(`(() => { const ch = _avisChangements(getCls(), window.__c, { avis: { s1: { maths: { travail: 'Nouveau' } } }, lus: ['maths'] });
+    return { ch: ch.map(c => c.sid + '/' + c.did + '/' + c.type), avis: _avisAvecChoix(window.__c, ch, ch.map((_, i) => i)) }; })()`);
+  assert.deepStrictEqual(f.ch.sort(), ['s1/maths/modif', 's2/maths/suppr'], 'anglais, absent du fichier, ne produit aucun changement');
   assert.deepStrictEqual(f.avis, { s1: { maths: { travail: 'Nouveau' }, anglais: { comportement: 'Gardé' } } });
-  assert.strictEqual(f.change, true);
-  assert.strictEqual(evObj(`_avisFusion(window.__c, { avis: {}, lus: [] })`).change, false, 'un fichier vide ne change rien');
+  assert.strictEqual(evObj(`_avisChangements(getCls(), window.__c, { avis: {}, lus: [] })`).length, 0, 'un fichier vide ne change rien');
 });
 
 test('.ods : aller-retour par le vrai format, et lecture d\'un fichier enregistré par LibreOffice', async () => {
