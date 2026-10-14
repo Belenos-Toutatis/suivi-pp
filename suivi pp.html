@@ -4952,7 +4952,7 @@ function _isStudentActive(stu, ymd) {
 function _impClassIdFromLabel(label) {
   const flat = String(label || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toUpperCase().replace(/[^A-Z0-9_]/g, '');
-  // Un niveau SEUL (« 3ème », « 5e ») donne le chiffre : « 3ME » n'est le nom de personne.
+  // Un niveau SEUL (« 3ème », « 5e ») donne le chiffre (« 3ME » ne désignerait rien).
   return flat.replace(/^(\d{1,2})(?:EME|ERE|NDE|ND|ER|E)(?=[A-Z0-9]|$)/, '$1').slice(0, 20);
 }
 // Crée une classe « nue ». Sans pushUndo ni save : l'appelant s'en charge.
