@@ -332,8 +332,9 @@ instances (sanctions comprises) avec, si vous les joignez, les PDF des fiches.
   prépare un texte où les noms qu'elle connaît sont remplacés par des repères
   (`[Élève]`, `[Camarade 1]`…), que vous relisez et corrigez avant de le **copier
   vous-même** dans l'assistant autorisé par votre académie ; la réponse collée
-  retrouve les vrais noms sur votre poste. C'est une pseudonymisation relue, pas un
-  anonymat garanti.
+  retrouve les vrais noms sur votre poste. Pour toute la classe d'un coup, un JSON
+  où chaque élève a un repère tiré au hasard ; la table des repères reste sur le poste.
+  C'est une pseudonymisation relue, pas un anonymat garanti.
 - La **seule** requête réseau est la vérification de mise à jour, qui interroge
   `api.github.com` et n'envoie **aucune donnée**. Elle est désactivable en coupant
   simplement la connexion : l'app fonctionne intégralement hors-ligne.

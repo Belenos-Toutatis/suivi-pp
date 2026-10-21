@@ -1890,7 +1890,7 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-bloc.vide, .ia-rien { color: var(--pencil); }
 .ia-cons { margin-top: 10px; font-size: 13.5px; }
 .ia-cons summary { cursor: pointer; color: var(--link-fg); }
-#mia textarea { width: 100%; font: inherit; font-size: 13.5px; line-height: 1.45; margin-top: 6px; }
+#mia textarea, #miac textarea { width: 100%; font: inherit; font-size: 13.5px; line-height: 1.45; margin-top: 6px; }
 .ia-verif { margin-top: 4px; font-size: 13px; }
 .ia-vl { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-block: 4px; }
 .ia-vt { font-weight: 700; color: var(--pencil); font-size: 12.5px; margin-right: 2px; }
@@ -1904,6 +1904,11 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-rest { margin-top: 8px; padding: 6px 10px; border-left: 3px dashed var(--i-bilan); white-space: pre-line; font-size: 13.5px; }
 .ia-rest:empty { display: none; }
 .ia-rest mark { background: var(--highlighter); color: var(--highlighter-fg); padding: 0 1px; border-radius: 2px; }
+.ia-b.ia-lien { margin-left: auto; color: var(--link-fg); font-weight: 400; }
+.ia-corr { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.ia-rv { border-left: 3px dashed var(--i-bilan); padding: 4px 10px; margin-block: 8px; }
+.ia-rv-h { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.ia-rv-t { white-space: pre-line; font-size: 13.5px; margin-top: 4px; }
 /* Fiche refondue (v1.44.0) : plein écran, ou ancrée à droite de la liste. */
 #mfiche.plein { padding: 0; }
 #mfiche.plein .fi-mb { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; padding: 0 22px 14px; }
@@ -2254,6 +2259,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <button class="btn btn-g btn-sm" onclick="openTrombiImport()" title="Les photos des élèves, depuis le trombinoscope PDF de Mon Bureau Numérique — dans la fiche et au survol des noms">📥 Importer des photos</button>
       <button class="btn btn-g btn-sm" onclick="openClassesModal()" title="Créer, renommer, réordonner ou supprimer une classe">🏫 Classes…</button>
       <button class="btn btn-g btn-sm" onclick="openTagsModal()" title="Les options suivies : LATIN, BILINGUE, DNL…">🏷 Options…</button>
+      <button class="btn btn-g btn-sm" onclick="openSynthIAClasse()" title="Une synthèse par élève, pour toute la classe en une seule demande à un assistant : un JSON dont les noms sont remplacés par des repères, relu avant de partir">🤖 Synthèses par une IA…</button>
       <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La liste telle qu'elle est à l'écran, ou la synthèse d'un moment (conseil, mi-période, point du mois) en tableau ou en fiches — Ctrl+P fait pareil">🖨 Imprimer…</button>
       <input type="search" id="eleve-search" placeholder="🔍 nom, prénom, option…" oninput="setEleveFilter(this.value)" style="margin-left:auto;min-width:180px">
     </div>
@@ -2514,7 +2520,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <div class="mb" style="max-width:880px;width:100%">
     <h2 id="mia-title">🤖 Synthèse par une IA</h2>
     <div class="tb-hint" id="mia-sous"></div>
-    <div class="ia-etape"><span class="ia-n">1</span>Ce que l'IA doit savoir</div>
+    <div class="ia-etape"><span class="ia-n">1</span>Ce que l'IA doit savoir<button class="ia-b ia-lien" onclick="iaVersClasseUI()" title="Une seule demande pour toute la classe, en JSON : un repère tiré au hasard par élève">Toute la classe d'un coup…</button></div>
     <div id="mia-blocs" class="ia-blocs"></div>
     <details class="ia-cons">
       <summary>Consigne donnée à l'IA (copiée avant le texte)</summary>
@@ -2533,6 +2539,39 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('mia')">Fermer</button>
       <button class="btn btn-p" onclick="iaRangerUI()">✓ Ranger dans la fiche</button>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════ 🤖 Synthèses par une IA — toute la classe (v1.70.0) ═══════════════ -->
+<div id="miac" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:960px;width:100%">
+    <h2 id="miac-title">🤖 Synthèses par une IA — toute la classe</h2>
+    <div class="tb-hint">Une seule demande pour toute la classe : chaque élève reçoit un repère tiré au hasard ([Élève 14]), le même partout. Rien ne part sans votre geste « Copier » ou « Télécharger », et rien ne part du tout vers un serveur depuis l'app.</div>
+    <div class="ia-etape"><span class="ia-n">1</span>Le moment, les élèves, les données</div>
+    <div class="ia-row"><label class="ia-bloc">Moment <select id="miac-mom" onchange="iaLotMomentUI(this.value)"></select></label><label class="ia-bloc"><input type="checkbox" id="miac-seul" onchange="iaLotSeulUI(this.checked)">Seulement les élèves sans synthèse pour ce moment</label><span id="miac-n" class="tb-hint"></span></div>
+    <div id="miac-blocs" class="ia-blocs"></div>
+    <details class="ia-cons">
+      <summary>Consigne donnée à l'IA (dans le JSON)</summary>
+      <textarea id="miac-cons" rows="8" aria-label="Consigne donnée à l'IA pour toute la classe" onchange="iaConsigneUI(this.value,true)"></textarea>
+      <div class="ia-row"><button class="btn btn-g btn-sm" id="miac-cons-raz" onclick="iaConsigneUI(null,true)" title="Revenir à la consigne proposée">↺ Consigne proposée</button><span class="tb-hint">Elle demande une réponse en JSON, une synthèse par repère.</span></div>
+    </details>
+    <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez</div>
+    <div class="tb-hint">Une section par élève, sous son repère (« ### [Élève 14] » : ne touchez pas à ces lignes, elles séparent les élèves). Le JSON est fait de ce texte, et de rien d'autre.</div>
+    <details class="ia-cons">
+      <summary>Correspondances des repères (restent sur ce poste)</summary>
+      <div id="miac-corr" class="ia-corr"></div>
+    </details>
+    <textarea id="miac-txt" data-autofocus rows="16" spellcheck="false" aria-label="Texte qui sera envoyé pour toute la classe" oninput="iaTexteSaisi()"></textarea>
+    <div id="miac-verif" class="ia-verif"></div>
+    <div class="ia-row"><button class="btn btn-p" onclick="iaLotCopierUI()">📋 Copier le JSON</button><button class="btn btn-s" onclick="iaLotTelechargerUI()" title="Un fichier .json à joindre à l'assistant">💾 Télécharger le JSON</button><button class="btn btn-g btn-sm" onclick="iaLotRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À donner à l'assistant que votre académie autorise.</span></div>
+    <div class="ia-etape"><span class="ia-n">3</span>La réponse de l'IA</div>
+    <label for="miac-rep" class="tb-hint">Collez la réponse (le JSON, ou un texte avec un titre par élève), ou ouvrez le fichier qu'elle a produit : l'app remet les vrais noms, ici, sans rien envoyer.</label>
+    <div class="ia-row"><input type="file" id="miac-fic" accept=".json,.txt,.md,application/json,text/plain" style="display:none" onchange="iaLotFichierUI(this)"><button class="btn btn-g btn-sm" onclick="document.getElementById('miac-fic').click()">📂 Ouvrir un fichier…</button></div>
+    <textarea id="miac-rep" rows="6" oninput="iaLotReponseSaisie()" placeholder="La réponse de l'assistant…"></textarea>
+    <div id="miac-revue"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('miac')">Fermer</button>
+      <button class="btn btn-p" id="miac-ok" onclick="iaLotRangerUI()">✓ Ranger les synthèses cochées</button>
     </div>
   </div>
 </div>
@@ -3192,8 +3231,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.69.0';
-const APP_BUILD_DATE = '2026-10-21T22:03:57Z';
+const APP_VERSION    = '1.70.0';
+const APP_BUILD_DATE = '2026-10-21T22:25:09Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3300,6 +3339,7 @@ const DEFAULT_PREFS = {
   // La consigne donnée à l'IA pour la synthèse d'un élève (v1.69.0) : '' = le texte proposé
   // (`IA_CONSIGNE`) ; seule une consigne RÉÉCRITE est gardée.
   iaConsigne: '',
+  iaConsigneClasse: '',   // la même chose pour toute la classe d'un coup (v1.70.0)
   // Les colonnes MASQUÉES de la liste des élèves (v1.41.0) — des clés ; écran et papier.
   elevesColsOff: [],
   // Les RÉGIMES D'ENTRÉE et DE SORTIE de l'établissement (v1.45.2, vus dans l'export MBN de
@@ -9052,15 +9092,22 @@ function _iaFormesClasse(c) {
   if (m) [`${m[1]}${m[2]}`, `${m[1]} ${m[2]}`, `${m[1]}e ${m[2]}`, `${m[1]}e${m[2]}`, `${m[1]}ème ${m[2]}`].forEach(x => f.add(x));
   return [...f];
 }
-function _iaPersonnes(cls, stu) {
-  const P = [], vus = new Set();
+// `codes` (toute la classe d'un coup, { sid: n }) : chaque élève du lot a SON repère, « [Élève n] », et son nom seul
+// « [Nom de l'élève n] » ; `stu` (s'il y en a un) passe devant : à forme égale (deux « Lucas »), c'est lui.
+function _iaPersonnes(cls, stu, codes) {
+  const P = [], vus = new Set(), dedans = new Set();
   const eleve = (s, jeton, famille) => {
     const full = [`${s.prenom || ''} ${s.nom || ''}`, `${s.nom || ''} ${s.prenom || ''}`].map(x => x.trim()).filter(x => x.includes(' '));
     return { id: 'e:' + s.id, jeton, famille, retour: String(s.prenom || '').trim(), formes: [...new Set([...full.flatMap(_iaFormesNom).filter(x => x.includes(' ') || x.includes('-')), ..._iaFormesNom(s.prenom)])] };
   };
-  P.push(eleve(stu, '[Élève]'));
-  P.push({ id: 'n:' + stu.id, jeton: '[Nom de l\'élève]', defaut: String(stu.nom || '').trim(), formes: _iaFormesNom(stu.nom) });
-  const autres = Object.values(S.eleves || {}).filter(s => _isPlainObj(s) && s.id !== stu.id)
+  const sujets = [stu, ...Object.keys(codes || {}).map(id => S.eleves[id])].filter((s, i, a) => _isPlainObj(s) && a.indexOf(s) === i);
+  for (const s of sujets) {
+    const n = codes && codes[s.id];
+    dedans.add(s.id);
+    P.push(eleve(s, n ? `[Élève ${n}]` : '[Élève]'));
+    P.push({ id: 'n:' + s.id, jeton: n ? `[Nom de l'élève ${n}]` : '[Nom de l\'élève]', defaut: String(s.nom || '').trim(), formes: _iaFormesNom(s.nom) });
+  }
+  const autres = Object.values(S.eleves || {}).filter(s => _isPlainObj(s) && !dedans.has(s.id))
     .sort((a, b) => (b.classe_id === cls.id) - (a.classe_id === cls.id));
   for (const s of autres) { const p = eleve(s, null, '[Camarade {n}]'); p.formes.push(..._iaFormesNom(s.nom)); P.push(p); }
   const adulte = (s, jeton, famille) => {
@@ -9087,7 +9134,8 @@ function _iaPersonnes(cls, stu) {
 
 // ── Les données d'un moment, en texte (avec les vrais noms dans les textes libres : le moteur passe ensuite) ──
 // → { texte, ok } ; `ok` = les mots des libellés écrits par l'app, jamais « à vérifier ».
-function _iaDonnees(cls, stu, col, blocs) {
+// `repere` (toute la classe d'un coup) : « [Élève n] » au lieu de « [Élève] », et le moment dit une seule fois, en tête du lot.
+function _iaDonnees(cls, stu, col, blocs, repere) {
   const b = _ficheBornes(cls, col);
   if (!b) return { texte: '', ok: new Set() };
   const on = k => blocs.has(k), cid = cls.id, sid = stu.id, civ = _civOf(sid), ok = new Set(), parts = [];
@@ -9095,7 +9143,7 @@ function _iaDonnees(cls, stu, col, blocs) {
   const st = s => { for (const re of [/[^\p{L}\p{N}]+/u, /[^\p{L}\p{N}'’-]+/u]) String(s ?? '').split(re).forEach(w => { w = w.replace(/^['’-]+|['’-]+$/g, ''); if (w) ok.add(_iaPlie(w)); }); return String(s ?? ''); };
   const jm = d => _fmtDateFr(d).slice(0, 5);
   const ligne = t => String(t ?? '').trim().replace(/\s*\n\s*/g, ' / ');
-  const id = ['[Élève]'];
+  const id = [repere || '[Élève]'];
   if (on('genre') && civ) id.push(civ === 'F' ? 'une fille' : 'un garçon');
   const niv = /^\s*(\d)/.exec(cls.nom || '');
   if (niv) id.push(`en ${niv[1]}e`);
@@ -9106,7 +9154,7 @@ function _iaDonnees(cls, stu, col, blocs) {
     if (e) id.push(`${_delMot(civ, true)}${e === 'titulaire' ? '' : ' ' + _supMot(civ)}`);
   }
   const debut = _debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start;   // rien ne se passe en août
-  const tete = [`Élève : ${id.join(', ')}.`, `Moment : ${st(col.long)}, du ${jm(debut)} au ${jm(b.end)}.`];
+  const tete = [`Élève : ${id.join(', ')}.`, ...(repere ? [] : [`Moment : ${st(col.long)}, du ${jm(debut)} au ${jm(b.end)}.`])];
   if (on('options')) {
     const t = [stu.groupe ? `groupe ${stu.groupe}` : '', ...(stu.tags || []).map(x => tagById(x)).filter(Boolean).map(x => st(x.name || x.abbr))].filter(Boolean);
     if (t.length) tete.push(`Groupe et options : ${t.join(', ')}.`);
@@ -9172,6 +9220,9 @@ function _iaConsigne() { const c = _prefs().iaConsigne; return typeof c === 'str
 let _iaBlocsSel = null;   // les blocs cochés, pour la séance (comme les réglages d'impression), rien dans `S`
 const _iaEtats = {};      // par élève et moment : texte relu, table, mots écartés, réponse collée — séance seulement
 let _ia = null, _iaVerifT = null;
+// L'état de la fenêtre ouverte — un élève (`_ia`) ou toute la classe (`_iaLot`) : la relecture (signalements, masquer,
+// remplacer) sert aux deux. Chacun porte `ids` (son texte, sa vérification), `personnes()` et, s'il le faut, `apres()`.
+let _iaActif = null;
 function _iaBlocs() { return _iaBlocsSel || (_iaBlocsSel = new Set(IA_BLOCS.filter(x => x.on).map(x => x.k))); }
 function _iaCtx() {
   const stu = _ia && S.eleves[_ia.sid], cls = stu && S.classes[stu.classe_id];
@@ -9183,6 +9234,9 @@ function openSynthIA() {
   if (!col) return toast('⚠️ Choisissez d\'abord un moment dans la fiche (Synthèse pour).', 'warn');
   const cle = stu.id + '|' + col.key;
   _ia = _iaEtats[cle] || (_iaEtats[cle] = { sid: stu.id, colKey: col.key, txt: null, modifie: false, table: null, ok: [], ignores: [], rep: null });
+  _ia.ids = { txt: 'mia-txt', verif: 'mia-verif' };
+  _ia.personnes = () => { const x = _iaCtx(); return x ? _iaPersonnes(x.cls, x.stu) : []; };
+  _iaActif = _ia;
   const c = _iaCtx();
   document.getElementById('mia-title').textContent = `🤖 Synthèse par une IA — ${stu.prenom} ${stu.nom}`;
   document.getElementById('mia-sous').textContent = `${col.long} · rien ne part sans votre geste « Copier », et rien ne part du tout vers un serveur depuis l'app.`;
@@ -9191,13 +9245,21 @@ function openSynthIA() {
   _iaConsigneRaz();
   // Refait à neuf (les données ont pu changer), sauf un texte corrigé à la main ou une réponse collée qui porte
   // encore des repères : la table d'aujourd'hui doit rester celle de ce texte-là.
-  if (_ia.txt === null || (!_ia.modifie && !String(_ia.rep || '').match(_IA_REPERE))) _iaGenerer(); else { document.getElementById('mia-txt').value = _ia.txt; _iaBlocsRender(); _iaVerifRender(); }
+  if (_ia.txt === null || (!_ia.modifie && !String(_ia.rep || '').match(_IA_REPERE))) _iaGenerer(); else { _iaTexteRemplir('mia-txt', _ia.txt); _iaBlocsRender(); _iaVerifRender(); }
   if (_ia.rep === null) { const si = _synthIACible(c.cls, c.stu.id, c.mode); _ia.rep = si ? si.texte : ''; }
   document.getElementById('mia-rep').value = _ia.rep;
   _iaRestRender();
   openMod('mia');
-  _modalReturnTo['mia'] = () => { clearTimeout(_iaVerifT); _ia = null; _ficheRedessine(); };
+  _modalReturnTo['mia'] = () => { clearTimeout(_iaVerifT); _ia = null; _iaActif = null; _ficheRedessine(); };
   if (_suivisAUnSuivi(c.cls) && !_suivisPret) { const ici = _ia; _suivisPretAttendre().then(() => { if (_ia === ici && !_ia.modifie) _iaGenerer(); }); }
+}
+// Le texte à relire, posé avec le curseur au DÉBUT : la fenêtre le focalise, et un curseur laissé à la fin ouvrait
+// la relecture au milieu du lot.
+function _iaTexteRemplir(id, v) {
+  const ta = document.getElementById(id);
+  ta.value = v;
+  if (ta.setSelectionRange) ta.setSelectionRange(0, 0);
+  ta.scrollTop = 0;
 }
 function _iaGenerer() {
   const c = _iaCtx();
@@ -9208,7 +9270,7 @@ function _iaGenerer() {
   r.table.jetons['[Élève]'] = r.table.jetons['[Élève]'] || { retour: String(c.stu.prenom || '').trim(), vus: {} };
   r.table.par['e:' + c.stu.id] = '[Élève]';
   Object.assign(_ia, { txt: r.texte, table: r.table, ok: [...d.ok], modifie: false });
-  document.getElementById('mia-txt').value = r.texte;
+  _iaTexteRemplir('mia-txt', r.texte);
   _iaBlocsRender(); _iaVerifRender();
 }
 function _iaBlocsRender() {
@@ -9230,45 +9292,47 @@ function iaRefaireUI() {
   _uiConfirm({ title: 'Refaire le texte à copier ?', message: 'Vos corrections à la main seront perdues.', okLabel: 'Refaire', onOk: _iaGenerer });
 }
 function iaTexteSaisi() {
-  const ta = document.getElementById('mia-txt');
-  if (!_ia || !ta) return;
-  _ia.txt = ta.value; _ia.modifie = true;
+  const st = _iaActif, ta = st && document.getElementById(st.ids.txt);
+  if (!ta) return;
+  st.txt = ta.value; st.modifie = true;
   clearTimeout(_iaVerifT); _iaVerifT = setTimeout(_iaVerifRender, 250);
 }
 function _iaVerifRender() {
-  const c = _iaCtx(), box = document.getElementById('mia-verif');
-  if (!c || !box) return;
-  const txt = _ia.txt || '', ign = new Set(_ia.ignores);
-  _ia.fuites = _iaFuites(txt, _iaPersonnes(c.cls, c.stu), ign);
-  _ia.suspects = _iaSuspects(txt, new Set([...IA_MOTS_OK, ..._ia.ok, ..._ia.fuites.map(f => _iaPlie(f.mot))]), ign);   // un nom connu n'est dit qu'une fois
+  const st = _iaActif, box = st && document.getElementById(st.ids.verif);
+  if (!box) return;
+  const txt = st.txt || '', ign = new Set(st.ignores);
+  st.fuites = _iaFuites(txt, st.personnes(), ign);
+  st.suspects = _iaSuspects(txt, new Set([...IA_MOTS_OK, ...st.ok, ...st.fuites.map(f => _iaPlie(f.mot))]), ign);   // un nom connu n'est dit qu'une fois
   const n = x => x.n > 1 ? ` ×${x.n}` : '';
-  const rempl = Object.entries(_ia.table?.jetons || {}).filter(([j, e]) => txt.includes(j) && Object.keys(e.vus).length)
+  const rempl = Object.entries(st.table?.jetons || {}).filter(([j, e]) => txt.includes(j) && Object.keys(e.vus).length)
     .map(([j, e]) => `<span class="ia-chip">${_escName(Object.keys(e.vus).join(', '))} → <strong>${_escName(j)}</strong></span>`);
-  box.innerHTML = (_ia.fuites.length ? `<div class="ia-vl"><span class="ia-vt">⚠ Noms connus encore là</span>${_ia.fuites.map((f, i) => `<span class="ia-chip f">${_escName(f.mot)}${n(f)}<button class="ia-b" onclick="iaIgnorerUI('f',${i})" title="Ce mot n'est pas le nom d'une personne ici : le laisser">ce n'est pas un nom</button></span>`).join('')}<button class="ia-b ia-bp" onclick="iaFuitesUI()">Remplacer</button></div>` : '')
-    + `<div class="ia-vl"><span class="ia-vt">À vérifier</span>${_ia.suspects.length ? _ia.suspects.map((s, i) => `<span class="ia-chip s">${_escName(s.mot)}${n(s)}<button class="ia-b" onclick="iaMasquerUI(${i})" title="Le remplacer partout par un repère [Nom n]">masquer</button><button class="ia-b" onclick="iaIgnorerUI('s',${i})" title="Il ne fait reconnaître personne : le laisser">laisser</button></span>`).join('') : '<span class="ia-ok">aucun mot à majuscule inconnu en milieu de phrase</span>'}</div>`
+  box.innerHTML = (st.fuites.length ? `<div class="ia-vl"><span class="ia-vt">⚠ Noms connus encore là</span>${st.fuites.map((f, i) => `<span class="ia-chip f">${_escName(f.mot)}${n(f)}<button class="ia-b" onclick="iaIgnorerUI('f',${i})" title="Ce mot n'est pas le nom d'une personne ici : le laisser">ce n'est pas un nom</button></span>`).join('')}<button class="ia-b ia-bp" onclick="iaFuitesUI()">Remplacer</button></div>` : '')
+    + `<div class="ia-vl"><span class="ia-vt">À vérifier</span>${st.suspects.length ? st.suspects.map((s, i) => `<span class="ia-chip s">${_escName(s.mot)}${n(s)}<button class="ia-b" onclick="iaMasquerUI(${i})" title="Le remplacer partout par un repère [Nom n]">masquer</button><button class="ia-b" onclick="iaIgnorerUI('s',${i})" title="Il ne fait reconnaître personne : le laisser">laisser</button></span>`).join('') : '<span class="ia-ok">aucun mot à majuscule inconnu en milieu de phrase</span>'}</div>`
     + (rempl.length ? `<div class="ia-vl"><span class="ia-vt">Remplacés</span>${rempl.join('')}</div>` : '')
     + `<div class="tb-hint">⚠️ Un prénom que l'app ne connaît pas, placé en début de phrase, n'est pas repéré : relisez tout le texte.</div>`;
 }
 function _iaTexteMaj(r) {
-  _ia.txt = r.texte; _ia.table = r.table; _ia.modifie = true;
-  document.getElementById('mia-txt').value = r.texte;
+  const st = _iaActif;
+  st.txt = r.texte; st.table = r.table; st.modifie = true;
+  document.getElementById(st.ids.txt).value = r.texte;
+  if (st.apres) st.apres();
   _iaVerifRender();
 }
 // Les noms connus revenus dans le texte (correction à la main) : remplacés, numéros gardés.
 function iaFuitesUI() {
-  const c = _iaCtx();
-  if (!c) return;
-  _iaTexteMaj(_iaPseudo(document.getElementById('mia-txt').value, { personnes: _iaPersonnes(c.cls, c.stu), ignores: new Set(_ia.ignores) }, _ia.table));
+  const st = _iaActif;
+  if (!st) return;
+  _iaTexteMaj(_iaPseudo(document.getElementById(st.ids.txt).value, { personnes: st.personnes(), ignores: new Set(st.ignores) }, st.table));
 }
 function iaMasquerUI(i) {
-  const s = _ia && _ia.suspects && _ia.suspects[i];
+  const st = _iaActif, s = st && st.suspects && st.suspects[i];
   if (!s) return;
-  _iaTexteMaj(_iaPseudo(document.getElementById('mia-txt').value, { personnes: [{ id: 'm:' + _iaPlie(s.mot), famille: '[Nom {n}]', retour: s.mot, formes: [s.mot] }] }, _ia.table));
+  _iaTexteMaj(_iaPseudo(document.getElementById(st.ids.txt).value, { personnes: [{ id: 'm:' + _iaPlie(s.mot), famille: '[Nom {n}]', retour: s.mot, formes: [s.mot] }] }, st.table));
 }
 function iaIgnorerUI(sorte, i) {
-  const x = _ia && (sorte === 'f' ? _ia.fuites : _ia.suspects)?.[i];
+  const st = _iaActif, x = st && (sorte === 'f' ? st.fuites : st.suspects)?.[i];
   if (!x) return;
-  _ia.ignores.push(_iaPlie(x.mot));
+  st.ignores.push(_iaPlie(x.mot));
   _iaVerifRender();
 }
 // Copier : la consigne, puis le texte relu. Un nom connu encore là → on demande avant.
@@ -9280,31 +9344,35 @@ function iaCopierUI() {
   if (_ia.fuites.length) return _uiConfirm({ title: 'Des noms connus sont encore dans le texte', message: `${_ia.fuites.map(f => f.mot).join(', ')} : ils partiraient tels quels. Les remplacer avant de copier ?`, okLabel: 'Remplacer et copier', onOk: () => { iaFuitesUI(); _iaCopier(); } });
   _iaCopier();
 }
-async function _iaCopier() {
-  const t = _iaConsigne().trim() + '\n\n' + String(_ia.txt || '').trim() + '\n';
-  try { await navigator.clipboard.writeText(t); toast('📋 Copié : la consigne et le texte relu. Collez-les dans l\'assistant, puis rapportez sa réponse ici (étape 3).'); }
+function _iaCopier() { _iaPressePapiers(_iaConsigne().trim() + '\n\n' + String(_ia.txt || '').trim() + '\n', '📋 Copié : la consigne et le texte relu. Collez-les dans l\'assistant, puis rapportez sa réponse ici (étape 3).'); }
+// Repli sans `navigator.clipboard` : un champ caché DANS la fenêtre ouverte (le piège à focus), sélectionné, copié.
+async function _iaPressePapiers(t, message) {
+  try { await navigator.clipboard.writeText(t); toast(message); }
   catch (_) {
     const ta = document.createElement('textarea');
     ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0';
-    document.getElementById('mia').appendChild(ta); ta.select();
+    (document.querySelector('.mo.on .mb') || document.body).appendChild(ta); ta.select();
     let ok = false;
     try { ok = document.execCommand('copy'); } catch (_) {}
     ta.remove();
-    toast(ok ? '📋 Copié : la consigne et le texte relu.' : 'Copie impossible ici : sélectionnez la consigne puis le texte à la main.', ok ? 'info' : 'warn');
+    toast(ok ? message : 'Copie impossible ici : sélectionnez le texte à la main.', ok ? 'info' : 'warn');
   }
 }
-function iaConsigneUI(v) {
+function iaConsigneUI(v, classe) {
+  const cle = classe ? 'iaConsigneClasse' : 'iaConsigne', defaut = classe ? IA_CONSIGNE_CLASSE : IA_CONSIGNE;
   const t = v === null ? '' : String(v).replace(/\r\n/g, '\n').slice(0, 4000);
-  const n = t.trim() === '' || t.trim() === IA_CONSIGNE ? '' : t;
-  if ((_prefs().iaConsigne || '') === n) { _iaConsigneRaz(); return; }
+  const n = t.trim() === '' || t.trim() === defaut ? '' : t;
+  if ((_prefs()[cle] || '') === n) { _iaConsigneRaz(); return; }
   pushUndo();
-  _prefs().iaConsigne = n;
+  _prefs()[cle] = n;
   save();
-  const cons = document.getElementById('mia-cons');
-  if (cons && v === null) cons.value = IA_CONSIGNE;
+  const cons = document.getElementById(classe ? 'miac-cons' : 'mia-cons');
+  if (cons && v === null) cons.value = defaut;
   _iaConsigneRaz();
 }
-function _iaConsigneRaz() { const b = document.getElementById('mia-cons-raz'); if (b) b.style.display = (_prefs().iaConsigne || '').trim() ? '' : 'none'; }
+function _iaConsigneRaz() {
+  for (const [id, cle] of [['mia-cons-raz', 'iaConsigne'], ['miac-cons-raz', 'iaConsigneClasse']]) { const b = document.getElementById(id); if (b) b.style.display = (_prefs()[cle] || '').trim() ? '' : 'none'; }
+}
 function iaReponseSaisie() {
   const ta = document.getElementById('mia-rep');
   if (!_ia || !ta) return;
@@ -9358,6 +9426,291 @@ function ficheSynthIARetirer() {
   synthIASet(cls, stu.id, { type: col.type, date: col.date }, '');
   save(); _ficheRender();
   toast('Synthèse retirée — Ctrl+Z la rend.');
+}
+
+// ── TOUTE LA CLASSE D'UN COUP (v1.70.0) ── l'utilisateur : « il faudrait une solution pour faire toute la classe en
+// une seule fois — avec un JSON anonymisé ». Même moteur, même relecture que pour un élève ; chaque élève reçoit un
+// repère TIRÉ AU HASARD ([Élève 14] : jamais l'ordre de la liste, qui se décoderait avec elle), le même partout, dans
+// sa section comme dans celles des autres. On relit UN texte (une section « ### [Élève 14] » par élève) ; le JSON est
+// bâti à la sortie (`_iaLotJSON` : consigne, moment, données de chaque élève, forme de la réponse attendue). Au retour,
+// une synthèse par repère (JSON, ou texte en repli : `_iaLotLire`), vrais noms remis, revue cochée, UN cran d'undo.
+// ⚠️ La table repère → élève est gardée sur CE poste (`localStorage` `suiviPP_iaLot`, le dernier lot seulement) : un
+// rechargement entre l'envoi et la réponse ne doit rien perdre. Elle ne part jamais (ni dans `S`, ni dans la sync).
+const IA_CONSIGNE_CLASSE = `Vous aidez un professeur principal de collège à préparer le moment indiqué dans « commun ».
+Pour CHAQUE élève de « eleves », à partir de ses seules données, rédigez une synthèse en huit à douze lignes : ce qui va bien, ce qui inquiète, ce qui a changé au fil de la période, et ce qu'il faudrait suivre. Traitez chaque élève pour lui-même, sans le comparer aux autres.
+N'inventez rien et dites quand une donnée manque. Ces données notent surtout des difficultés (observations, incidents, papiers non rendus) : relevez aussi ce qui est positif.
+Chaque élève est désigné par un repère entre crochets ([Élève 3]). Gardez tels quels tous les repères entre crochets et ne cherchez pas à savoir qui ils sont.
+Répondez uniquement par un objet JSON de la forme de « reponse_attendue » : une entrée par élève, son repère exact dans « eleve », la synthèse en texte simple dans « synthese ».`;
+const LS_IA_LOT = 'suiviPP_iaLot';
+const _iaLotEtats = {};   // par classe et moment, pour la séance
+let _iaLot = null, _iaLotRevueT = null;
+function _iaConsigneClasse() { const c = _prefs().iaConsigneClasse; return typeof c === 'string' && c.trim() ? c : IA_CONSIGNE_CLASSE; }
+// Les élèves d'un lot : présents pendant la période, dans l'ordre de la liste ; `seul` = ceux qui n'ont pas encore de
+// synthèse pour ce moment (redemander ceux que l'assistant a oubliés).
+function _iaLotEleves(cls, col, seul) {
+  const mode = { type: col.type, date: col.date };
+  return _fichePrintEleves(cls, col).filter(sid => S.eleves[sid] && (!seul || !_synthIACible(cls, sid, mode)));
+}
+// Un repère par élève : 1…N dans un ordre MÉLANGÉ (Fisher-Yates ; `alea` pour les tests).
+function _iaLotCodes(sids, alea) {
+  const r = alea || Math.random, n = sids.map((_, i) => i + 1);
+  for (let i = n.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [n[i], n[j]] = [n[j], n[i]]; }
+  return Object.fromEntries(sids.map((sid, i) => [sid, n[i]]));
+}
+// Le texte relu : le moment, puis une section par élève, dans l'ordre des repères. → { texte, table, ok }.
+function _iaLotTexte(cls, col, codes, blocs) {
+  const b = _ficheBornes(cls, col), ok = new Set();
+  const sids = Object.keys(codes).filter(sid => S.eleves[sid]).sort((x, y) => codes[x] - codes[y]);
+  const debut = _debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start, jm = d => _fmtDateFr(d).slice(0, 5);
+  const niv = /^\s*(\d)/.exec(cls.nom || '');
+  String(col.long).split(/[^\p{L}\p{N}]+/u).forEach(w => { if (w) ok.add(_iaPlie(w)); });
+  const parts = [`Moment : ${col.long}, du ${jm(debut)} au ${jm(b.end)}.${niv ? ` Classe de ${niv[1]}e,` : ''} ${sids.length} élève${sids.length > 1 ? 's' : ''}.`];
+  let table = null;
+  for (const sid of sids) {
+    const stu = S.eleves[sid], d = _iaDonnees(cls, stu, col, blocs, `[Élève ${codes[sid]}]`);
+    d.ok.forEach(w => ok.add(w));
+    const r = _iaPseudo(d.texte, { personnes: _iaPersonnes(cls, stu, codes) }, table);   // l'élève de la section d'abord (homonymes)
+    table = r.table;
+    parts.push(`### [Élève ${codes[sid]}]\n${r.texte}`);
+  }
+  table = table || { jetons: {}, par: {} };
+  for (const sid of sids) { const j = `[Élève ${codes[sid]}]`; table.jetons[j] = table.jetons[j] || { retour: String(S.eleves[sid].prenom || '').trim(), vus: {} }; table.par['e:' + sid] = j; }
+  return { texte: parts.join('\n\n'), table, ok };
+}
+// Le texte relu, découpé : ce qui précède la première section (« commun »), puis une entrée par « ### [repère] ».
+function _iaLotSections(texte) {
+  const commun = [], eleves = [];
+  let cur = null;
+  for (const l of String(texte ?? '').replace(/\r\n/g, '\n').split('\n')) {
+    const m = /^\s*###\s*(\[[^\[\]\n]{1,60}\])\s*$/.exec(l);
+    if (m) { cur = { eleve: m[1], donnees: [] }; eleves.push(cur); continue; }
+    if (l.trim()) (cur ? cur.donnees : commun).push(l.trim());
+  }
+  return { commun, eleves };
+}
+// Le JSON qui part : rien d'autre que le texte relu, rangé.
+function _iaLotJSON(texte, consigne) {
+  const s = _iaLotSections(texte);
+  return { consigne, commun: s.commun, eleves: s.eleves,
+    reponse_attendue: { syntheses: s.eleves.slice(0, 2).map(e => ({ eleve: e.eleve, synthese: '…' })) } };
+}
+// La réponse de l'assistant → [{ n, texte }]. JSON d'abord ({ syntheses: [{ eleve, synthese }] }, un tableau, ou
+// { "[Élève 3]": "…" } ; clés tolérées), sinon du texte : un titre par élève (« ### [Élève 3] », « **[Élève 3]** : … »).
+// ⚠️ Une phrase qui COMMENCE par le repère (« [Élève 3] progresse… ») n'est pas un titre.
+function _iaLotLire(texte) {
+  const src = String(texte ?? '').replace(/\r\n/g, '\n').replace(/^\s*```[^\n]*$/gm, '').trim(), items = [];
+  const num = v => { const m = /(\d+)/.exec(String(v ?? '')); return m ? +m[1] : null; };
+  const ajoute = (code, t) => { const n = num(code), x = typeof t === 'string' ? t.trim() : ''; if (n !== null && x) items.push({ n, texte: x }); };
+  const cle = (o, re) => Object.keys(o).find(k => re.test(_iaPlie(k)));
+  const objet = o => { if (!_isPlainObj(o)) return; const kc = cle(o, /^(eleve|code|id|repere)/), kt = cle(o, /synth|texte|text|resum|apprec/); if (kc && kt) ajoute(o[kc], o[kt]); };
+  const a = src.search(/[{[]/), z = Math.max(src.lastIndexOf('}'), src.lastIndexOf(']'));
+  if (a >= 0 && z > a) {
+    try {
+      const j = JSON.parse(src.slice(a, z + 1));
+      const liste = Array.isArray(j) ? j : _isPlainObj(j) ? Object.values(j).find(Array.isArray) : null;
+      if (liste) liste.forEach(objet);
+      else if (_isPlainObj(j)) for (const [k, v] of Object.entries(j)) { if (typeof v === 'string') ajoute(k, v); else objet(v); }
+    } catch (_) {}
+  }
+  if (!items.length) {
+    let cur = null;
+    for (const l of src.split('\n')) {
+      const m = /^\s*(?:#{1,6}\s*|[-–•*]\s+)?(?:\*\*|__)?\s*\[?\s*[ée]l[eèé]ve\s*(\d+)\s*\]?\s*(?:\*\*|__)?\s*(?::\s*(.*))?$/iu.exec(l);
+      if (m) { cur = { n: +m[1], l: m[2] ? [m[2]] : [] }; items.push(cur); continue; }
+      if (cur) cur.l.push(l);
+    }
+    for (const it of items) { it.texte = it.l.join('\n').trim(); delete it.l; }
+    return items.filter(it => it.texte);
+  }
+  return items;
+}
+// Ce que la réponse donne, élève par élève. → { lignes: [{ sid, n, texte, etat, avant }], manquants, inconnus, doubles }.
+function _iaLotRevue(st) {
+  const cls = S.classes[st.cid], col = _iaLotCol(st);
+  if (!cls || !col || !st.codes) return null;
+  const mode = { type: col.type, date: col.date }, parN = {};
+  for (const [sid, n] of Object.entries(st.codes)) parN[n] = sid;
+  const vus = new Map(), inconnus = new Set(), doubles = new Set();
+  for (const it of _iaLotLire(st.rep)) { if (!parN[it.n]) { inconnus.add(it.n); continue; } if (vus.has(it.n)) doubles.add(it.n); vus.set(it.n, it.texte); }
+  const lignes = [], manquants = [];
+  for (const sid of _fichePrintEleves(cls, col).filter(x => st.codes[x])) {
+    const n = st.codes[sid];
+    if (!vus.has(n)) { manquants.push(sid); continue; }
+    const texte = _iaRestaure(_iaNettoie(vus.get(n)), st.table).trim().slice(0, 10000), avant = _synthIACible(cls, sid, mode);
+    lignes.push({ sid, n, texte, etat: !avant ? 'nouvelle' : avant.texte === texte ? 'identique' : 'remplace', avant: avant ? avant.ts : null });
+  }
+  return { lignes, manquants, inconnus: [...inconnus], doubles: [...doubles] };
+}
+function _iaLotCol(st) { const cls = st && S.classes[st.cid]; return cls ? _chaleurMomentsTous(cls).find(c => c.key === st.colKey) || _ficheMoments(cls).find(c => c.key === st.colKey) || null : null; }
+function _iaLotSauve(cid, colKey) {
+  try { const o = JSON.parse(localStorage.getItem(LS_IA_LOT) || 'null'); return _isPlainObj(o) && o.cid === cid && o.colKey === colKey && _isPlainObj(o.codes) ? o : null; } catch (_) { return null; }
+}
+function _iaLotGarder() {
+  const st = _iaLot;
+  if (!st || !st.codes) return;
+  try { localStorage.setItem(LS_IA_LOT, JSON.stringify({ cid: st.cid, colKey: st.colKey, codes: st.codes, table: st.table, ts: Date.now() })); } catch (_) {}
+}
+
+// ── La fenêtre « toute la classe » ──
+function openSynthIAClasse(colKey) {
+  const cls = getCls();
+  if (!cls || !cls.eleves.length) return toast('⚠️ Pas d\'élève dans cette classe.', 'warn');
+  const col = (colKey && _chaleurMomentsTous(cls).find(c => c.key === colKey)) || _ficheMomentCourant(cls);
+  if (!col) return toast('⚠️ Aucun moment de bilan pour cette classe.', 'warn');
+  _iaLotOuvrir(cls, col);
+  openMod('miac');
+  _modalReturnTo['miac'] = () => { clearTimeout(_iaVerifT); clearTimeout(_iaLotRevueT); _iaActif = null; _iaLot = null; };
+}
+// Depuis la fenêtre d'un élève : toute sa classe, au même moment.
+function iaVersClasseUI() {
+  const st = _ia;
+  if (!st) return;
+  const k = st.colKey, cls = S.eleves[st.sid] && S.classes[S.eleves[st.sid].classe_id];
+  closeMod2('mia');
+  if (cls && cls.id !== S.cur) return toast('⚠️ Cet élève n\'est pas dans la classe affichée.', 'warn');
+  openSynthIAClasse(k);
+}
+function _iaLotOuvrir(cls, col) {
+  const cle = cls.id + '|' + col.key;
+  const st = _iaLot = _iaLotEtats[cle] || (_iaLotEtats[cle] = { cid: cls.id, colKey: col.key, seul: false, codes: null, txt: null, modifie: false, table: null, ok: [], ignores: [], rep: '', coches: {} });
+  st.ids = { txt: 'miac-txt', verif: 'miac-verif' };
+  st.personnes = () => _iaPersonnes(cls, null, st.codes || {});
+  st.apres = _iaLotGarder;
+  _iaActif = st;
+  document.getElementById('miac-title').textContent = `🤖 Synthèses par une IA — ${cls.nom}, toute la classe`;
+  const ms = _ficheMoments(cls).some(c => c.key === col.key) ? _ficheMoments(cls) : [..._ficheMoments(cls), col];
+  document.getElementById('miac-mom').innerHTML = ms.map(c => `<option value="${_escAttr(c.key)}"${c.key === col.key ? ' selected' : ''}>${_escName(c.long)}</option>`).join('');
+  document.getElementById('miac-seul').checked = !!st.seul;
+  document.getElementById('miac-cons').value = _iaConsigneClasse();
+  _iaConsigneRaz();
+  if (st.txt === null || !st.modifie) _iaLotGenerer(); else { _iaTexteRemplir('miac-txt', st.txt); _iaLotBlocsRender(); _iaLotCorrRender(); _iaVerifRender(); }
+  document.getElementById('miac-rep').value = st.rep;
+  _iaLotRevueRender();
+  if (_suivisAUnSuivi(cls) && !_suivisPret) _suivisPretAttendre().then(() => { if (_iaLot === st && !st.modifie) _iaLotGenerer(); });
+}
+// `nouveaux` : retirer les repères (la liste des élèves a changé). Sinon, ceux d'avant — la session, puis ce poste —
+// tant qu'ils couvrent les mêmes élèves : une réponse peut être en route.
+function _iaLotGenerer(nouveaux) {
+  const st = _iaLot, cls = st && S.classes[st.cid], col = _iaLotCol(st);
+  if (!col) return;
+  const sids = _iaLotEleves(cls, col, st.seul), sauve = _iaLotSauve(st.cid, st.colKey);
+  const garde = nouveaux ? null : st.codes || (sauve && sauve.codes);
+  const memes = garde && Object.keys(garde).length === sids.length && sids.every(s => garde[s]);
+  st.codes = memes ? garde : _iaLotCodes(sids);
+  const r = _iaLotTexte(cls, col, st.codes, _iaBlocs());
+  // Les repères posés à la main (« masquer ») au lot d'avant : la réponse peut en porter.
+  if (memes && sauve && _isPlainObj(sauve.table?.jetons)) for (const [j, e] of Object.entries(sauve.table.jetons)) if (!r.table.jetons[j]) r.table.jetons[j] = e;
+  Object.assign(st, { txt: r.texte, table: r.table, ok: [...r.ok], modifie: false });
+  _iaTexteRemplir('miac-txt', r.texte);
+  _iaLotGarder();
+  _iaLotBlocsRender(); _iaLotCorrRender(); _iaVerifRender(); _iaLotRevueRender();
+}
+function _iaLotBlocsRender() {
+  const box = document.getElementById('miac-blocs'), on = _iaBlocs();
+  if (box) box.innerHTML = IA_BLOCS.map(x => `<label class="ia-bloc"${x.t ? ` title="${_escAttr(x.t)}"` : ''}><input type="checkbox"${on.has(x.k) ? ' checked' : ''} onchange="iaLotBlocUI('${x.k}',this.checked)">${_escName(x.l)}</label>`).join('');
+  const n = document.getElementById('miac-n'), k = _iaLot && _iaLot.codes ? Object.keys(_iaLot.codes).length : 0;
+  if (n) n.textContent = `${k} élève${k > 1 ? 's' : ''}${_iaLot && _iaLot.seul ? ' sans synthèse pour ce moment' : ' présents pendant la période'}`;
+}
+// Ce qui refait le texte demande d'abord si on l'a corrigé à la main.
+function _iaLotRefaire(faire, annuler) {
+  if (!_iaLot) return;
+  if (!_iaLot.modifie) return faire();
+  _uiConfirm({ title: 'Refaire le texte à envoyer ?', message: 'Il est refait à partir des données cochées : vos corrections à la main seront perdues.', okLabel: 'Refaire', onOk: faire, onCancel: annuler });
+}
+function iaLotBlocUI(k, oui) { _iaLotRefaire(() => { if (oui) _iaBlocs().add(k); else _iaBlocs().delete(k); _iaLotGenerer(); }, _iaLotBlocsRender); }
+function iaLotSeulUI(oui) { _iaLotRefaire(() => { _iaLot.seul = oui; _iaLotGenerer(true); }, () => { document.getElementById('miac-seul').checked = !!_iaLot.seul; }); }
+function iaLotRefaireUI() { _iaLotRefaire(() => _iaLotGenerer()); }
+function iaLotMomentUI(k) {
+  const cls = _iaLot && S.classes[_iaLot.cid], col = cls && _chaleurMomentsTous(cls).find(c => c.key === k);
+  if (!col) return;
+  _iaLotRefaire(() => _iaLotOuvrir(cls, col), () => { document.getElementById('miac-mom').value = _iaLot.colKey; });
+}
+// Les correspondances, sur ce poste seulement : un clic mène à la section de l'élève.
+function _iaLotCorrRender() {
+  const box = document.getElementById('miac-corr'), st = _iaLot;
+  if (!box || !st || !st.codes) return;
+  box.innerHTML = Object.entries(st.codes).filter(([sid]) => S.eleves[sid]).sort((a, b) => a[1] - b[1])
+    .map(([sid, n]) => `<button class="ia-b" onclick="iaLotAllerUI(${n})">[Élève ${n}] ${_escName(S.eleves[sid].nom)} ${_escName(S.eleves[sid].prenom)}</button>`).join('');
+}
+function iaLotAllerUI(n) {
+  const ta = document.getElementById('miac-txt'), h = `### [Élève ${n}]`, i = ta ? ta.value.indexOf(h) : -1;
+  if (i < 0) return;
+  ta.focus(); ta.setSelectionRange(i, i + h.length);
+  ta.scrollTop = ta.value.slice(0, i).split('\n').length * (parseFloat(getComputedStyle(ta).lineHeight) || 20) - 20;
+}
+// Avant de copier ou de télécharger : relire, et demander si un nom connu est encore là.
+function _iaLotPret(suite) {
+  const st = _iaLot, ta = document.getElementById('miac-txt');
+  if (!st || !ta) return;
+  st.txt = ta.value; _iaVerifRender();
+  const s = _iaLotSections(st.txt), k = Object.keys(st.codes || {}).length;
+  if (!s.eleves.length) return toast('⚠️ Aucune section « ### [Élève n] » dans le texte : refaites-le (↺ Refaire le texte).', 'warn');
+  const aller = () => {
+    if (_iaLotSections(st.txt).eleves.length !== k) toast(`⚠️ ${_iaLotSections(st.txt).eleves.length} sections pour ${k} élèves : une ligne « ### » a-t-elle été effacée ?`, 'warn');
+    _iaLotGarder();
+    suite(JSON.stringify(_iaLotJSON(st.txt, _iaConsigneClasse()), null, 2));
+  };
+  if (st.fuites.length) return _uiConfirm({ title: 'Des noms connus sont encore dans le texte', message: `${st.fuites.map(f => f.mot).join(', ')} : ils partiraient tels quels. Les remplacer d'abord ?`, okLabel: 'Remplacer et continuer', onOk: () => { iaFuitesUI(); aller(); } });
+  aller();
+}
+function iaLotCopierUI() { _iaLotPret(j => _iaPressePapiers(j, '📋 JSON copié : collez-le dans l\'assistant (ou téléchargez le fichier pour le joindre), puis rapportez sa réponse ici (étape 3).')); }
+function iaLotTelechargerUI() {
+  _iaLotPret(j => {
+    const col = _iaLotCol(_iaLot), nom = `synthese-ia-${_iaPlie(col ? col.court : 'moment').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.json`;
+    const url = URL.createObjectURL(new Blob([j], { type: 'application/json' })), a = document.createElement('a');
+    a.href = url; a.download = nom; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast(`💾 ${nom} : à joindre à l'assistant, puis rapportez sa réponse ici (étape 3). Supprimez le fichier ensuite.`);
+  });
+}
+function iaLotReponseSaisie() {
+  const ta = document.getElementById('miac-rep');
+  if (!_iaLot || !ta) return;
+  _iaLot.rep = ta.value;
+  clearTimeout(_iaLotRevueT); _iaLotRevueT = setTimeout(_iaLotRevueRender, 300);
+}
+async function iaLotFichierUI(input) {
+  const f = input && input.files && input.files[0];
+  if (!f || !_iaLot) return;
+  try { _iaLot.rep = await f.text(); } catch (_) { return toast('⚠️ Fichier illisible.', 'warn'); }
+  finally { input.value = ''; }
+  document.getElementById('miac-rep').value = _iaLot.rep;
+  _iaLotRevueRender();
+}
+function _iaLotRevueRender() {
+  const st = _iaLot, box = document.getElementById('miac-revue'), ok = document.getElementById('miac-ok');
+  if (!st || !box) return;
+  const R = st.revue = String(st.rep || '').trim() ? _iaLotRevue(st) : null;
+  const nom = sid => `${S.eleves[sid].nom} ${S.eleves[sid].prenom}`;
+  const n = R ? R.lignes.filter(l => l.etat !== 'identique' && st.coches[l.sid] !== false).length : 0;
+  if (ok) ok.textContent = n ? `✓ Ranger ${n} synthèse${n > 1 ? 's' : ''}` : '✓ Ranger les synthèses cochées';
+  if (!R) { box.innerHTML = ''; return; }
+  const etat = l => l.etat === 'nouvelle' ? 'nouvelle' : l.etat === 'identique' ? 'déjà rangée telle quelle' : `remplace celle rangée le ${_fmtDateFr(_todayYmd(new Date(l.avant || Date.now())))}`;
+  box.innerHTML = (R.lignes.length ? `<div class="ia-vt">${R.lignes.length} synthèse${R.lignes.length > 1 ? 's' : ''} lue${R.lignes.length > 1 ? 's' : ''} sur ${Object.keys(st.codes).length} élève${Object.keys(st.codes).length > 1 ? 's' : ''} — décochez ce que vous ne voulez pas ranger</div>`
+      + R.lignes.map((l, i) => `<div class="ia-rv"><label class="ia-rv-h"><input type="checkbox"${l.etat !== 'identique' && st.coches[l.sid] !== false ? ' checked' : ''}${l.etat === 'identique' ? ' disabled' : ''} onchange="iaLotCocheUI(${i},this.checked)"><strong>${_escName(nom(l.sid))}</strong><span class="pf-mu">[Élève ${l.n}] · ${_escName(etat(l))}</span></label><div class="ia-rv-t">${_escName(l.texte)}</div></div>`).join('')
+      : '<div class="tb-hint">⚠️ Aucune synthèse reconnue : la réponse doit porter les repères ([Élève 3]), en JSON ou sous un titre par élève.</div>')
+    + (R.manquants.length ? `<div class="tb-hint">Pas de synthèse dans la réponse pour : ${_escName(R.manquants.map(nom).join(', '))}. Après avoir rangé les autres, cochez « Seulement les élèves sans synthèse » pour les redemander.</div>` : '')
+    + (R.inconnus.length ? `<div class="tb-hint">Repères inconnus dans ce lot, laissés de côté : ${_escName(R.inconnus.map(x => `[Élève ${x}]`).join(', '))}.</div>` : '')
+    + (R.doubles.length ? `<div class="tb-hint">Deux synthèses pour ${_escName(R.doubles.map(x => `[Élève ${x}]`).join(', '))} : la dernière est retenue.</div>` : '');
+}
+function iaLotCocheUI(i, oui) {
+  const l = _iaLot && _iaLot.revue && _iaLot.revue.lignes[i];
+  if (!l) return;
+  _iaLot.coches[l.sid] = oui;
+  const ok = document.getElementById('miac-ok'), n = _iaLot.revue.lignes.filter(x => x.etat !== 'identique' && _iaLot.coches[x.sid] !== false).length;
+  if (ok) ok.textContent = n ? `✓ Ranger ${n} synthèse${n > 1 ? 's' : ''}` : '✓ Ranger les synthèses cochées';
+}
+function iaLotRangerUI() {
+  const st = _iaLot, cls = st && S.classes[st.cid], col = _iaLotCol(st);
+  if (!col || !st.revue) return toast('⚠️ Collez d\'abord la réponse de l\'IA (étape 3).', 'warn');
+  const mode = { type: col.type, date: col.date }, choisies = st.revue.lignes.filter(l => l.etat !== 'identique' && st.coches[l.sid] !== false);
+  if (!choisies.length) return toast('Rien à ranger : aucune synthèse cochée, ou toutes déjà rangées telles quelles.', 'info');
+  pushUndo();
+  choisies.forEach(l => synthIASet(cls, l.sid, mode, l.texte));
+  save();
+  closeMod2('miac');
+  toast(`🤖 ${choisies.length} synthèse${choisies.length > 1 ? 's' : ''} rangée${choisies.length > 1 ? 's' : ''} dans les fiches, à côté du bilan — Ctrl+Z ${choisies.length > 1 ? 'les retire toutes' : 'la retire'}.`);
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
 }
 function ficheMotUI(m) { _ficheMot = _ficheMot === m ? null : m; _ficheRender(); }
 // Les avis en TABLEAU : une ligne par discipline, une colonne par colonne de la feuille.
