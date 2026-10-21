@@ -334,6 +334,7 @@ instances (sanctions comprises) avec, si vous les joignez, les PDF des fiches.
   vous-même** dans l'assistant autorisé par votre académie ; la réponse collée
   retrouve les vrais noms sur votre poste. Pour toute la classe d'un coup, un JSON
   où chaque élève a un repère tiré au hasard ; la table des repères reste sur le poste.
+  Une synthèse courte de la classe se prépare de la même façon, à partir de vos bilans.
   C'est une pseudonymisation relue, pas un anonymat garanti.
 - La **seule** requête réseau est la vérification de mise à jour, qui interroge
   `api.github.com` et n'envoie **aucune donnée**. Elle est désactivable en coupant

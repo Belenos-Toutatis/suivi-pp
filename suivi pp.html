@@ -673,7 +673,7 @@ button { color: inherit; font-family: inherit; }
 html[data-theme="dark"] .btn-g { background: var(--paper-deep); color: var(--ink-deep); border-color: var(--rule-line); }
 html[data-theme="dark"] .btn-g:hover { background: var(--paper-warm); }
 html[data-theme="dark"] .btn-p { background: #3b5a8c; border-color: #4a6c9e; color: var(--ink-deep); }
-html[data-theme="dark"] .btn-p:hover { background: #4a6c9e; border-color: #5a7eb0; }
+html[data-theme="dark"] .btn-p:hover { background: #2f4a75; border-color: #5a7eb0; }   /* plus SOMBRE au survol : éclairci (#4a6c9e), le texte clair tombait à 3,8:1 (v1.71.0) */
 html[data-theme="dark"] .btn-s { background: #17683b; border-color: #17683b; color: var(--ink-deep); }
 html[data-theme="dark"] .btn-s:hover { background: #125430; border-color: #125430; }
 html[data-theme="dark"] .btn-d { background: #9c3529; border-color: #9c3529; color: var(--ink-deep); }
@@ -1882,7 +1882,7 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .pf-btnp { border: 0; background: var(--g1); color: var(--g1-on); border-radius: 6px; padding: 6px 12px; font-weight: 700; }
 .pf-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-block: 8px; }
 /* 🤖 Synthèse par une IA (v1.69.0) : la réponse rangée (liseré pointillé : ce n'est pas le bilan), la fenêtre en trois étapes. */
-.pf-bil.pf-ia { border-left-style: dashed; }
+.pf-bil.pf-ia, .fi-j.pf-ia { border-left-style: dashed; }
 .ia-etape { display: flex; gap: 8px; align-items: center; margin: 16px 0 6px; font-weight: 700; color: var(--ink-blue); }
 .ia-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--g1); color: var(--g1-on); font-size: 12px; flex: none; }
 .ia-blocs { display: flex; flex-wrap: wrap; gap: 4px 14px; }
@@ -1890,7 +1890,7 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-bloc.vide, .ia-rien { color: var(--pencil); }
 .ia-cons { margin-top: 10px; font-size: 13.5px; }
 .ia-cons summary { cursor: pointer; color: var(--link-fg); }
-#mia textarea, #miac textarea { width: 100%; font: inherit; font-size: 13.5px; line-height: 1.45; margin-top: 6px; }
+#mia textarea, #miac textarea, #mias textarea { width: 100%; font: inherit; font-size: 13.5px; line-height: 1.45; margin-top: 6px; }
 .ia-verif { margin-top: 4px; font-size: 13px; }
 .ia-vl { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-block: 4px; }
 .ia-vt { font-weight: 700; color: var(--pencil); font-size: 12.5px; margin-right: 2px; }
@@ -2547,7 +2547,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <div class="mb" style="max-width:960px;width:100%">
     <h2 id="miac-title">🤖 Synthèses par une IA — toute la classe</h2>
     <div class="tb-hint">Une seule demande pour toute la classe : chaque élève reçoit un repère tiré au hasard ([Élève 14]), le même partout. Rien ne part sans votre geste « Copier » ou « Télécharger », et rien ne part du tout vers un serveur depuis l'app.</div>
-    <div class="ia-etape"><span class="ia-n">1</span>Le moment, les élèves, les données</div>
+    <div class="ia-etape"><span class="ia-n">1</span>Le moment, les élèves, les données<button class="ia-b ia-lien" onclick="iaVersSynthClasseUI()" title="Une synthèse DE la classe, courte : ambiance de travail, situation des élèves, esprit de la classe — à partir de vos bilans">Une synthèse de la classe…</button></div>
     <div class="ia-row"><label class="ia-bloc">Moment <select id="miac-mom" onchange="iaLotMomentUI(this.value)"></select></label><label class="ia-bloc"><input type="checkbox" id="miac-seul" onchange="iaLotSeulUI(this.checked)">Seulement les élèves sans synthèse pour ce moment</label><span id="miac-n" class="tb-hint"></span></div>
     <div id="miac-blocs" class="ia-blocs"></div>
     <details class="ia-cons">
@@ -2572,6 +2572,38 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('miac')">Fermer</button>
       <button class="btn btn-p" id="miac-ok" onclick="iaLotRangerUI()">✓ Ranger les synthèses cochées</button>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════ 🤖 Synthèse de la classe par une IA (v1.71.0) ═══════════════ -->
+<div id="mias" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:960px;width:100%">
+    <h2 id="mias-title">🤖 Synthèse de la classe</h2>
+    <div class="tb-hint">Une synthèse courte de la classe — ambiance de travail, situation des élèves, esprit de la classe — à partir de vos bilans, sous des repères tirés au hasard, et des chiffres de la classe. Rien ne part sans votre geste « Copier » ou « Télécharger ».</div>
+    <div class="ia-etape"><span class="ia-n">1</span>Le moment et les données</div>
+    <div class="ia-row"><label class="ia-bloc">Moment <select id="mias-mom" onchange="iaClMomentUI(this.value)"></select></label><span id="mias-n" class="tb-hint"></span></div>
+    <div id="mias-blocs" class="ia-blocs"></div>
+    <details class="ia-cons">
+      <summary>Consigne donnée à l'IA (dans le JSON)</summary>
+      <textarea id="mias-cons" rows="7" aria-label="Consigne donnée à l'IA pour la synthèse de la classe" onchange="iaConsigneUI(this.value,'synthese')"></textarea>
+      <div class="ia-row"><button class="btn btn-g btn-sm" id="mias-cons-raz" onclick="iaConsigneUI(null,'synthese')" title="Revenir à la consigne proposée">↺ Consigne proposée</button><span class="tb-hint">Elle demande cinq à huit lignes, sans citer d'élève.</span></div>
+    </details>
+    <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez</div>
+    <div class="tb-hint">La classe en tête, puis une section par élève qui a un bilan (« ### [Élève 14] » : ne touchez pas à ces lignes). Le JSON est fait de ce texte, et de rien d'autre.</div>
+    <details class="ia-cons">
+      <summary>Correspondances des repères (restent sur ce poste)</summary>
+      <div id="mias-corr" class="ia-corr"></div>
+    </details>
+    <textarea id="mias-txt" data-autofocus rows="14" spellcheck="false" aria-label="Texte qui sera envoyé pour la synthèse de la classe" oninput="iaTexteSaisi()"></textarea>
+    <div id="mias-verif" class="ia-verif"></div>
+    <div class="ia-row"><button class="btn btn-p" onclick="iaClCopierUI()">📋 Copier le JSON</button><button class="btn btn-s" onclick="iaClTelechargerUI()" title="Un fichier .json à joindre à l'assistant">💾 Télécharger le JSON</button><button class="btn btn-g btn-sm" onclick="iaClRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À donner à l'assistant que votre académie autorise.</span></div>
+    <div class="ia-etape"><span class="ia-n">3</span>La réponse de l'IA</div>
+    <label for="mias-rep" class="tb-hint">Collez la réponse : l'app remet les vrais noms si un repère y revient, ici, sans rien envoyer. Vous pouvez la raccourcir avant de la ranger.</label>
+    <textarea id="mias-rep" rows="7" oninput="iaClReponseSaisie()" placeholder="La réponse de l'assistant…"></textarea>
+    <div id="mias-rest" class="ia-rest"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mias')">Fermer</button>
+      <button class="btn btn-p" onclick="iaClRangerUI()">✓ Ranger pour la classe</button>
     </div>
   </div>
 </div>
@@ -3231,8 +3263,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.70.0';
-const APP_BUILD_DATE = '2026-10-21T22:25:09Z';
+const APP_VERSION    = '1.71.0';
+const APP_BUILD_DATE = '2026-10-21T23:44:06Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3340,6 +3372,7 @@ const DEFAULT_PREFS = {
   // (`IA_CONSIGNE`) ; seule une consigne RÉÉCRITE est gardée.
   iaConsigne: '',
   iaConsigneClasse: '',   // la même chose pour toute la classe d'un coup (v1.70.0)
+  iaConsigneSynthClasse: '',   // et pour la synthèse DE la classe (v1.71.0)
   // Les colonnes MASQUÉES de la liste des élèves (v1.41.0) — des clés ; écran et papier.
   elevesColsOff: [],
   // Les RÉGIMES D'ENTRÉE et DE SORTIE de l'établissement (v1.45.2, vus dans l'export MBN de
@@ -4225,6 +4258,8 @@ function _sanitizeCoreSections() {
     if (!_isPlainObj(c.rooms)) c.rooms = {};
     if (!Array.isArray(c.vieClasse)) c.vieClasse = [];
     c.vieClasse = c.vieClasse.filter(_isPlainObj);
+    // Synthèses de la classe par une IA (v1.71.0) : absent = aucune ; une entrée illisible est écartée.
+    if (c.synthClasse !== undefined) { if (Array.isArray(c.synthClasse)) c.synthClasse = c.synthClasse.filter(x => _isPlainObj(x) && _ymdValid(x.date) && typeof x.texte === 'string' && x.texte.trim()); else delete c.synthClasse; }
     for (const [sid, room] of Object.entries(c.rooms)) {
       if (!_isPlainObj(room)) { delete c.rooms[sid]; continue; }
       if (!_isPlainObj(room.seating)) room.seating = {};
@@ -8945,7 +8980,7 @@ const IA_MOTS_OK = new Set(('m mme mmes mlle mr me dr monsieur madame mademoisel
   + 'eps svt emc lv1 lv2 lce dnl dnb pix assr hvc cvc cvl ca ce ok rased upe2a '
   + 'francais anglais allemand espagnol italien latin grec maths mathematiques histoire geographie '
   + 'physique chimie technologie musique arts plastiques sciences education devoirs faits ulyss '
-  + 's1 s2 t1 t2 t3 td tp').split(/\s+/));
+  + 's1 s2 t1 t2 t3 td tp ia').split(/\s+/));
 
 // ── Le moteur (pur) ──
 // Plie une chaîne SANS en changer la longueur : minuscules, accents retirés, caractère par
@@ -9358,20 +9393,21 @@ async function _iaPressePapiers(t, message) {
     toast(ok ? message : 'Copie impossible ici : sélectionnez le texte à la main.', ok ? 'info' : 'warn');
   }
 }
-function iaConsigneUI(v, classe) {
-  const cle = classe ? 'iaConsigneClasse' : 'iaConsigne', defaut = classe ? IA_CONSIGNE_CLASSE : IA_CONSIGNE;
+// `sorte` : rien (un élève), true (toute la classe, une synthèse par élève), 'synthese' (la synthèse DE la classe).
+function iaConsigneUI(v, sorte) {
+  const [cle, defaut, ta] = sorte === 'synthese' ? ['iaConsigneSynthClasse', IA_CONSIGNE_SYNTH_CLASSE, 'mias-cons'] : sorte ? ['iaConsigneClasse', IA_CONSIGNE_CLASSE, 'miac-cons'] : ['iaConsigne', IA_CONSIGNE, 'mia-cons'];
   const t = v === null ? '' : String(v).replace(/\r\n/g, '\n').slice(0, 4000);
   const n = t.trim() === '' || t.trim() === defaut ? '' : t;
   if ((_prefs()[cle] || '') === n) { _iaConsigneRaz(); return; }
   pushUndo();
   _prefs()[cle] = n;
   save();
-  const cons = document.getElementById(classe ? 'miac-cons' : 'mia-cons');
+  const cons = document.getElementById(ta);
   if (cons && v === null) cons.value = defaut;
   _iaConsigneRaz();
 }
 function _iaConsigneRaz() {
-  for (const [id, cle] of [['mia-cons-raz', 'iaConsigne'], ['miac-cons-raz', 'iaConsigneClasse']]) { const b = document.getElementById(id); if (b) b.style.display = (_prefs()[cle] || '').trim() ? '' : 'none'; }
+  for (const [id, cle] of [['mia-cons-raz', 'iaConsigne'], ['miac-cons-raz', 'iaConsigneClasse'], ['mias-cons-raz', 'iaConsigneSynthClasse']]) { const b = document.getElementById(id); if (b) b.style.display = (_prefs()[cle] || '').trim() ? '' : 'none'; }
 }
 function iaReponseSaisie() {
   const ta = document.getElementById('mia-rep');
@@ -9583,7 +9619,7 @@ function _iaLotOuvrir(cls, col) {
   document.getElementById('miac-seul').checked = !!st.seul;
   document.getElementById('miac-cons').value = _iaConsigneClasse();
   _iaConsigneRaz();
-  if (st.txt === null || !st.modifie) _iaLotGenerer(); else { _iaTexteRemplir('miac-txt', st.txt); _iaLotBlocsRender(); _iaLotCorrRender(); _iaVerifRender(); }
+  if (st.txt === null || !st.modifie) _iaLotGenerer(); else { _iaTexteRemplir('miac-txt', st.txt); _iaLotBlocsRender(); _iaCorrRender('miac-corr'); _iaVerifRender(); }
   document.getElementById('miac-rep').value = st.rep;
   _iaLotRevueRender();
   if (_suivisAUnSuivi(cls) && !_suivisPret) _suivisPretAttendre().then(() => { if (_iaLot === st && !st.modifie) _iaLotGenerer(); });
@@ -9603,7 +9639,7 @@ function _iaLotGenerer(nouveaux) {
   Object.assign(st, { txt: r.texte, table: r.table, ok: [...r.ok], modifie: false });
   _iaTexteRemplir('miac-txt', r.texte);
   _iaLotGarder();
-  _iaLotBlocsRender(); _iaLotCorrRender(); _iaVerifRender(); _iaLotRevueRender();
+  _iaLotBlocsRender(); _iaCorrRender('miac-corr'); _iaVerifRender(); _iaLotRevueRender();
 }
 function _iaLotBlocsRender() {
   const box = document.getElementById('miac-blocs'), on = _iaBlocs();
@@ -9625,44 +9661,45 @@ function iaLotMomentUI(k) {
   if (!col) return;
   _iaLotRefaire(() => _iaLotOuvrir(cls, col), () => { document.getElementById('miac-mom').value = _iaLot.colKey; });
 }
-// Les correspondances, sur ce poste seulement : un clic mène à la section de l'élève.
-function _iaLotCorrRender() {
-  const box = document.getElementById('miac-corr'), st = _iaLot;
+// Les correspondances, sur ce poste seulement : un clic mène à la section de l'élève (fenêtre ouverte : `_iaActif`).
+function _iaCorrRender(id) {
+  const box = document.getElementById(id), st = _iaActif;
   if (!box || !st || !st.codes) return;
   box.innerHTML = Object.entries(st.codes).filter(([sid]) => S.eleves[sid]).sort((a, b) => a[1] - b[1])
-    .map(([sid, n]) => `<button class="ia-b" onclick="iaLotAllerUI(${n})">[Élève ${n}] ${_escName(S.eleves[sid].nom)} ${_escName(S.eleves[sid].prenom)}</button>`).join('');
+    .map(([sid, n]) => `<button class="ia-b" onclick="iaAllerUI(${n})">[Élève ${n}] ${_escName(S.eleves[sid].nom)} ${_escName(S.eleves[sid].prenom)}</button>`).join('');
 }
-function iaLotAllerUI(n) {
-  const ta = document.getElementById('miac-txt'), h = `### [Élève ${n}]`, i = ta ? ta.value.indexOf(h) : -1;
+function iaAllerUI(n) {
+  const ta = _iaActif && document.getElementById(_iaActif.ids.txt), h = `### [Élève ${n}]`, i = ta ? ta.value.indexOf(h) : -1;
   if (i < 0) return;
   ta.focus(); ta.setSelectionRange(i, i + h.length);
   ta.scrollTop = ta.value.slice(0, i).split('\n').length * (parseFloat(getComputedStyle(ta).lineHeight) || 20) - 20;
 }
-// Avant de copier ou de télécharger : relire, et demander si un nom connu est encore là.
-function _iaLotPret(suite) {
-  const st = _iaLot, ta = document.getElementById('miac-txt');
-  if (!st || !ta) return;
+// Avant de copier ou de télécharger (fenêtre ouverte : `_iaActif`) : relire, demander si un nom connu est encore là,
+// puis `construire(st)` → l'objet du JSON (null : rien ne part), et `suite(json)`.
+function _iaPret(construire, suite) {
+  const st = _iaActif, ta = st && document.getElementById(st.ids.txt);
+  if (!ta) return;
   st.txt = ta.value; _iaVerifRender();
-  const s = _iaLotSections(st.txt), k = Object.keys(st.codes || {}).length;
-  if (!s.eleves.length) return toast('⚠️ Aucune section « ### [Élève n] » dans le texte : refaites-le (↺ Refaire le texte).', 'warn');
-  const aller = () => {
-    if (_iaLotSections(st.txt).eleves.length !== k) toast(`⚠️ ${_iaLotSections(st.txt).eleves.length} sections pour ${k} élèves : une ligne « ### » a-t-elle été effacée ?`, 'warn');
-    _iaLotGarder();
-    suite(JSON.stringify(_iaLotJSON(st.txt, _iaConsigneClasse()), null, 2));
-  };
+  const aller = () => { const o = construire(st); if (o) suite(JSON.stringify(o, null, 2)); };
   if (st.fuites.length) return _uiConfirm({ title: 'Des noms connus sont encore dans le texte', message: `${st.fuites.map(f => f.mot).join(', ')} : ils partiraient tels quels. Les remplacer d'abord ?`, okLabel: 'Remplacer et continuer', onOk: () => { iaFuitesUI(); aller(); } });
   aller();
 }
-function iaLotCopierUI() { _iaLotPret(j => _iaPressePapiers(j, '📋 JSON copié : collez-le dans l\'assistant (ou téléchargez le fichier pour le joindre), puis rapportez sa réponse ici (étape 3).')); }
-function iaLotTelechargerUI() {
-  _iaLotPret(j => {
-    const col = _iaLotCol(_iaLot), nom = `synthese-ia-${_iaPlie(col ? col.court : 'moment').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.json`;
-    const url = URL.createObjectURL(new Blob([j], { type: 'application/json' })), a = document.createElement('a');
-    a.href = url; a.download = nom; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast(`💾 ${nom} : à joindre à l'assistant, puis rapportez sa réponse ici (étape 3). Supprimez le fichier ensuite.`);
-  });
+function _iaLotConstruire(st) {
+  const n = _iaLotSections(st.txt).eleves.length, k = Object.keys(st.codes || {}).length;
+  if (!n) { toast('⚠️ Aucune section « ### [Élève n] » dans le texte : refaites-le (↺ Refaire le texte).', 'warn'); return null; }
+  if (n !== k) toast(`⚠️ ${n} sections pour ${k} élèves : une ligne « ### » a-t-elle été effacée ?`, 'warn');
+  _iaLotGarder();
+  return _iaLotJSON(st.txt, _iaConsigneClasse());
 }
+function _iaTelecharger(j, base) {
+  const nom = `${_iaPlie(base).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.json`;
+  const url = URL.createObjectURL(new Blob([j], { type: 'application/json' })), a = document.createElement('a');
+  a.href = url; a.download = nom; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`💾 ${nom} : à joindre à l'assistant, puis rapportez sa réponse ici (étape 3). Supprimez le fichier ensuite.`);
+}
+function iaLotCopierUI() { _iaPret(_iaLotConstruire, j => _iaPressePapiers(j, '📋 JSON copié : collez-le dans l\'assistant (ou téléchargez le fichier pour le joindre), puis rapportez sa réponse ici (étape 3).')); }
+function iaLotTelechargerUI() { const col = _iaLotCol(_iaLot); _iaPret(_iaLotConstruire, j => _iaTelecharger(j, `synthese-ia-${col ? col.court : 'moment'}`)); }
 function iaLotReponseSaisie() {
   const ta = document.getElementById('miac-rep');
   if (!_iaLot || !ta) return;
@@ -9711,6 +9748,246 @@ function iaLotRangerUI() {
   closeMod2('miac');
   toast(`🤖 ${choisies.length} synthèse${choisies.length > 1 ? 's' : ''} rangée${choisies.length > 1 ? 's' : ''} dans les fiches, à côté du bilan — Ctrl+Z ${choisies.length > 1 ? 'les retire toutes' : 'la retire'}.`);
   if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+}
+
+// ── SYNTHÈSE DE LA CLASSE (v1.71.0) ── l'utilisateur : « un autre export en JSON, pour une période ou un bilan de
+// mi-période, qui extrait de manière anonyme tous les bilans des élèves de ce moment, et une synthèse de la classe —
+// synthétique : l'ambiance de travail, la situation des élèves, l'esprit de la classe, pas trop longue ». Même moteur,
+// même relecture : les bilans (ce que le PP a écrit) sous un repère tiré au hasard par élève, les chiffres de la classe
+// et les heures de vie de classe en tête ; la réponse est UN texte court, rangé sur la CLASSE pour ce moment
+// (`cls.synthClasse`, une par moment comme les décisions), lu dans 🏫 Vie de classe et imprimé en tête de la synthèse de
+// période. La table des repères ne vit que pour la séance : la consigne demande de ne citer aucun élève.
+const IA_CONSIGNE_SYNTH_CLASSE = `Vous aidez un professeur principal de collège à préparer le moment indiqué dans « classe ».
+À partir des seules données qui suivent — les chiffres de la classe, ses heures de vie de classe et ce que le professeur principal a écrit sur chaque élève —, rédigez une synthèse de la classe, COURTE : cinq à huit lignes, en un ou deux paragraphes, sans titre ni liste.
+Dites l'ambiance de travail, la situation d'ensemble des élèves (ce qui réussit, les difficultés, les groupes qui se dessinent) et l'esprit de la classe ; commencez par ce qui va bien.
+Parlez de la classe, jamais d'un élève : ne citez aucun repère entre crochets. N'inventez rien.
+Répondez en texte simple.`;
+const IA_BLOCS_CLASSE = [
+  { k: 'bilans', l: 'Bilans des élèves', t: 'Ce que vous avez écrit pour ce moment', on: true },
+  { k: 'decisions', l: 'Décisions', t: 'Les décisions de ce moment, élève par élève', on: true },
+  { k: 'chiffres', l: 'Chiffres de la classe', t: 'Moyennes, observations, incidents, absences — pour la classe entière', on: true },
+  { k: 'hvc', l: 'Heures de vie de classe', on: true },
+  { k: 'synthIA', l: 'Synthèses IA des élèves', t: 'Celles rangées pour ce moment, à côté des bilans', on: false },
+  { k: 'avis', l: 'Avis des collègues', t: 'Du texte long : la demande grossit beaucoup', on: false },
+];
+// ── Le modèle : une synthèse par MOMENT, sur la classe ── `cls.synthClasse = [{ id, ts, date, type, texte }]` ; absent = aucune.
+function _synthClasseOf(cls) {
+  return (cls && Array.isArray(cls.synthClasse) ? cls.synthClasse.filter(_isPlainObj) : []).slice()
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || ((b.ts || 0) - (a.ts || 0)));
+}
+function _synthClasseCible(cls, mode) { return mode ? _synthClasseOf(cls).find(e => _momentEst(cls, e, mode)) || null : null; }
+// Comme `synthIASet` : un texte vide la RETIRE. → 'ajout' | 'modif' | 'suppr' | null. Sans pushUndo ni save.
+function synthClasseSet(cls, mode, texte) {
+  if (!cls || !mode || !_ymdValid(mode.date)) return null;
+  const txt = String(texte || '').trim().slice(0, 10000), e = _synthClasseCible(cls, mode);
+  if (!txt) { if (!e) return null; cls.synthClasse = cls.synthClasse.filter(x => x !== e); return 'suppr'; }
+  if (e) { if (e.texte === txt) return null; e.texte = txt; e.ts = Date.now(); return 'modif'; }
+  if (!Array.isArray(cls.synthClasse)) cls.synthClasse = [];
+  cls.synthClasse.push({ id: uid('sc'), ts: Date.now(), date: mode.date, type: _bilanType(mode.type).key, texte: txt });
+  return 'ajout';
+}
+// Le libellé d'une synthèse rangée : le moment (« Conseil de classe S1 ») si on le retrouve, sinon sa date.
+function _synthClasseLabel(cls, e) {
+  const c = _chaleurMomentsTous(cls).find(x => _momentEst(cls, e, { type: x.type, date: x.date }));
+  return c ? c.long : `${_bilanLabel(e)} · ${_fmtDateFr(e.date)}`;
+}
+
+// ── Les données ── les chiffres de la classe sur le moment (aucun élève nommé : des totaux), en lignes.
+function _iaClasseChiffres(cls, col, sids) {
+  const b = _ficheBornes(cls, col), L = [], jm = d => _fmtDateFr(d).slice(0, 5), un = v => _fmtNote(v, 1);
+  const moy = sids.map(sid => _ficheMoy(cls, sid, col, b)).filter(Boolean);
+  const gs = moy.map(m => m.g).filter(g => typeof g === 'number');
+  if (gs.length) {
+    const last = moy.map(m => m.last && m.last.date).filter(Boolean).sort().pop();
+    L.push(`Moyenne générale de la classe${last ? ` (relevé du ${jm(last)})` : ''} : ${un(gs.reduce((a, x) => a + x, 0) / gs.length)} ; de ${un(Math.min(...gs))} à ${un(Math.max(...gs))} ; ${gs.filter(g => g < 10).length} élève${gs.filter(g => g < 10).length > 1 ? 's' : ''} sous 10 sur ${gs.length}.`);
+    const parMat = new Map();
+    for (const m of moy) for (const x of m.mats) if (typeof x.v === 'number') { const e = parMat.get(x.ab) || []; e.push(x.v); parMat.set(x.ab, e); }
+    if (parMat.size) L.push(`Moyennes de la classe par matière : ${[...parMat].map(([ab, v]) => `${ab} ${un(v.reduce((a, x) => a + x, 0) / v.length)}`).join(' ; ')}.`);
+  }
+  const obs = sids.map(sid => _obsEntre(cls.id, sid, b.start, b.end)).filter(v => v !== null);
+  const mbn = sids.reduce((n, sid) => n + _obsMbnEntre(sid, b.start, b.end).length, 0);
+  if (obs.length) L.push(`Observations au carnet sur le moment : ${obs.reduce((a, x) => a + x, 0)} au total (de ${Math.min(...obs)} à ${Math.max(...obs)} par élève ; ${obs.filter(v => v >= 10).length} élève${obs.filter(v => v >= 10).length > 1 ? 's' : ''} à 10 ou plus)${mbn ? ` ; ${mbn} notée${mbn > 1 ? 's' : ''} dans MBN` : ''}.`);
+  else if (mbn) L.push(`Observations notées dans MBN sur le moment : ${mbn}.`);
+  const inc = sids.map(sid => (S.eleves[sid].incidents || []).filter(x => _isPlainObj(x) && x.date >= b.start && x.date <= b.end));
+  const nInc = inc.reduce((n, l) => n + l.length, 0);
+  if (nInc) {
+    const par = new Map();
+    inc.flat().forEach(x => { const l = _instanceOf(x.type).label.toLowerCase(); par.set(l, (par.get(l) || 0) + 1); });
+    L.push(`Incidents sur le moment : ${nInc}, pour ${inc.filter(l => l.length).length} élève${inc.filter(l => l.length).length > 1 ? 's' : ''} (${[...par].map(([l, n]) => `${l} ${n}`).join(', ')}).`);
+  } else L.push('Aucun incident sur le moment.');
+  if (_absMbnClasseAny(cls)) {
+    const r = sids.map(sid => _absMbnResume(sid, b.start, b.end)), ab = r.reduce((n, x) => n + x.n, 0), rt = r.reduce((n, x) => n + x.ret, 0);
+    L.push(`Absences et retards sur le moment : ${ab} absence${ab > 1 ? 's' : ''}, ${rt} retard${rt > 1 ? 's' : ''}.`);
+  }
+  return L;
+}
+// Le texte relu : la classe en tête (moment, chiffres, heures de vie de classe), puis une section par élève qui a
+// quelque chose (bilan, décisions…), dans l'ordre des repères. → { texte, table, ok, nBilans }.
+function _iaClasseTexte(cls, col, codes, blocs) {
+  const b = _ficheBornes(cls, col), on = k => blocs.has(k), mode = { type: col.type, date: col.date }, ok = new Set();
+  const sids = Object.keys(codes).filter(sid => S.eleves[sid]).sort((x, y) => codes[x] - codes[y]);
+  const debut = _debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start, jm = d => _fmtDateFr(d).slice(0, 5);
+  const ligne = t => String(t ?? '').trim().replace(/\s*\n\s*/g, ' / ');
+  const st = s => { for (const re of [/[^\p{L}\p{N}]+/u, /[^\p{L}\p{N}'’-]+/u]) String(s ?? '').split(re).forEach(w => { w = w.replace(/^['’-]+|['’-]+$/g, ''); if (w) ok.add(_iaPlie(w)); }); return String(s ?? ''); };
+  const niv = /^\s*(\d)/.exec(cls.nom || '');
+  const nBilans = sids.filter(sid => _bilanCible(cls, sid, mode)).length;
+  const tete = [`Moment : ${st(col.long)}, du ${jm(debut)} au ${jm(b.end)}.${niv ? ` Classe de ${niv[1]}e,` : ''} ${sids.length} élève${sids.length > 1 ? 's' : ''} ; ${nBilans} bilan${nBilans > 1 ? 's' : ''} rédigé${nBilans > 1 ? 's' : ''} pour ce moment.`];
+  if (on('chiffres')) _iaClasseChiffres(cls, col, sids).forEach(l => tete.push(st(l)));
+  if (on('hvc')) {
+    const h = _hvcOf(cls).filter(e => e.date >= b.start && e.date <= b.end && e.date <= _todayYmd()).reverse();
+    if (h.length) tete.push('Heures de vie de classe :', ...h.map(e => `– ${jm(e.date)} : ${e.titre}${e.texte ? ` — ${ligne(e.texte)}` : ''}`));
+  }
+  let r = _iaPseudo(tete.join('\n'), { personnes: _iaPersonnes(cls, null, codes) });
+  let table = r.table;
+  const parts = [r.texte];
+  for (const sid of sids) {
+    const stu = S.eleves[sid], L = [];
+    if (on('bilans')) { const x = _bilanCible(cls, sid, mode); if (x) L.push(`Bilan : ${x.texte.trim()}`); }
+    if (on('decisions')) { const x = _decisionCible(cls, sid, mode); if (x) L.push(`Décisions : ${x.texte.trim()}`); }
+    if (on('synthIA')) { const x = _synthIACible(cls, sid, mode); if (x) L.push(`Synthèse (IA) : ${x.texte.trim()}`); }
+    if (on('avis')) {
+      const av = _ficheAvis(cls, sid, col);
+      if (av) av.items.forEach(it => { const t = av.cols.map(c => String(it[c.key] || '').trim() ? `${av.cols.length > 1 ? st(c.label) + ' : ' : ''}${ligne(it[c.key])}` : '').filter(Boolean); if (t.length) L.push(`Avis, ${st(it.disc.nom)} : ${t.join(' ; ')}`); });
+    }
+    if (!L.length) continue;
+    r = _iaPseudo(L.join('\n'), { personnes: _iaPersonnes(cls, stu, codes) }, table);
+    table = r.table;
+    parts.push(`### [Élève ${codes[sid]}]\n${r.texte}`);
+  }
+  for (const sid of sids) { const j = `[Élève ${codes[sid]}]`; table.jetons[j] = table.jetons[j] || { retour: String(S.eleves[sid].prenom || '').trim(), vus: {} }; table.par['e:' + sid] = j; }
+  return { texte: parts.join('\n\n'), table, ok, nBilans };
+}
+// Le JSON qui part : la classe, puis les élèves — rien d'autre que le texte relu.
+function _iaClasseJSON(texte, consigne) {
+  const s = _iaLotSections(texte);
+  return { consigne, classe: s.commun, eleves: s.eleves, reponse_attendue: { synthese: '…' } };
+}
+// La réponse : un texte, ou un JSON qui en porte un (« synthese », « texte »…).
+function _iaClasseLire(texte) {
+  const src = String(texte ?? '').replace(/\r\n/g, '\n').trim();
+  const a = src.indexOf('{'), z = src.lastIndexOf('}');
+  if (a >= 0 && z > a) {
+    try {
+      const j = JSON.parse(src.slice(a, z + 1));
+      const k = _isPlainObj(j) && Object.keys(j).find(x => /synth|texte|text|resum|apprec/.test(_iaPlie(x)) && typeof j[x] === 'string');
+      if (k) return j[k].trim();
+    } catch (_) {}
+  }
+  return src;
+}
+
+// ── La fenêtre ──
+let _iaClBlocsSel = null;   // pour la séance
+const _iaClEtats = {};
+let _iaCl = null;
+function _iaClBlocs() { return _iaClBlocsSel || (_iaClBlocsSel = new Set(IA_BLOCS_CLASSE.filter(x => x.on).map(x => x.k))); }
+function _iaConsigneSynthClasse() { const c = _prefs().iaConsigneSynthClasse; return typeof c === 'string' && c.trim() ? c : IA_CONSIGNE_SYNTH_CLASSE; }
+function openSynthClasse(colKey) {
+  const cls = getCls();
+  if (!cls || !cls.eleves.length) return toast('⚠️ Pas d\'élève dans cette classe.', 'warn');
+  const col = (colKey && _chaleurMomentsTous(cls).find(c => c.key === colKey)) || _ficheMomentCourant(cls);
+  if (!col) return toast('⚠️ Aucun moment de bilan pour cette classe.', 'warn');
+  _iaClOuvrir(cls, col);
+  openMod('mias');
+  _modalReturnTo['mias'] = () => { clearTimeout(_iaVerifT); _iaActif = null; _iaCl = null; if (document.querySelector('.tab.on')?.id === 'tab-delegues') renderDelegues(); };
+}
+// Depuis la fenêtre « toute la classe » : la synthèse de la classe, au même moment.
+function iaVersSynthClasseUI() { const k = _iaLot && _iaLot.colKey; closeMod2('miac'); openSynthClasse(k); }
+function _iaClOuvrir(cls, col) {
+  const cle = cls.id + '|' + col.key, mode = { type: col.type, date: col.date };
+  const st = _iaCl = _iaClEtats[cle] || (_iaClEtats[cle] = { cid: cls.id, colKey: col.key, codes: null, txt: null, modifie: false, table: null, ok: [], ignores: [], rep: null });
+  st.ids = { txt: 'mias-txt', verif: 'mias-verif' };
+  st.personnes = () => _iaPersonnes(cls, null, st.codes || {});
+  _iaActif = st;
+  document.getElementById('mias-title').textContent = `🤖 Synthèse de la classe — ${cls.nom}`;
+  const ms = _ficheMoments(cls).some(c => c.key === col.key) ? _ficheMoments(cls) : [..._ficheMoments(cls), col];
+  document.getElementById('mias-mom').innerHTML = ms.map(c => `<option value="${_escAttr(c.key)}"${c.key === col.key ? ' selected' : ''}>${_escName(c.long)}</option>`).join('');
+  document.getElementById('mias-cons').value = _iaConsigneSynthClasse();
+  _iaConsigneRaz();
+  if (st.txt === null || !st.modifie) _iaClGenerer(); else { _iaTexteRemplir('mias-txt', st.txt); _iaClBlocsRender(); _iaCorrRender('mias-corr'); _iaVerifRender(); }
+  if (st.rep === null) { const e = _synthClasseCible(cls, mode); st.rep = e ? e.texte : ''; }
+  document.getElementById('mias-rep').value = st.rep;
+  _iaClRestRender();
+  if (_suivisAUnSuivi(cls) && !_suivisPret) _suivisPretAttendre().then(() => { if (_iaCl === st && !st.modifie) _iaClGenerer(); });
+}
+function _iaClCol(st) { const cls = st && S.classes[st.cid]; return cls ? _chaleurMomentsTous(cls).find(c => c.key === st.colKey) || _ficheMoments(cls).find(c => c.key === st.colKey) || null : null; }
+function _iaClGenerer() {
+  const st = _iaCl, cls = st && S.classes[st.cid], col = _iaClCol(st);
+  if (!col) return;
+  const sids = _iaLotEleves(cls, col, false);
+  if (!st.codes || Object.keys(st.codes).length !== sids.length || !sids.every(s => st.codes[s])) st.codes = _iaLotCodes(sids);
+  const r = _iaClasseTexte(cls, col, st.codes, _iaClBlocs());
+  Object.assign(st, { txt: r.texte, table: r.table, ok: [...r.ok], modifie: false, nBilans: r.nBilans });
+  _iaTexteRemplir('mias-txt', r.texte);
+  _iaClBlocsRender(); _iaCorrRender('mias-corr'); _iaVerifRender(); _iaClRestRender();
+}
+function _iaClBlocsRender() {
+  const st = _iaCl, box = document.getElementById('mias-blocs'), on = _iaClBlocs();
+  if (box) box.innerHTML = IA_BLOCS_CLASSE.map(x => `<label class="ia-bloc"${x.t ? ` title="${_escAttr(x.t)}"` : ''}><input type="checkbox"${on.has(x.k) ? ' checked' : ''} onchange="iaClBlocUI('${x.k}',this.checked)">${_escName(x.l)}</label>`).join('');
+  const n = document.getElementById('mias-n'), k = st && st.codes ? Object.keys(st.codes).length : 0;
+  if (n) n.textContent = st ? `${st.nBilans || 0} bilan${st.nBilans > 1 ? 's' : ''} rédigé${st.nBilans > 1 ? 's' : ''} sur ${k} élève${k > 1 ? 's' : ''}` : '';
+}
+function _iaClRefaire(faire, annuler) {
+  if (!_iaCl) return;
+  if (!_iaCl.modifie) return faire();
+  _uiConfirm({ title: 'Refaire le texte à envoyer ?', message: 'Il est refait à partir des données cochées : vos corrections à la main seront perdues.', okLabel: 'Refaire', onOk: faire, onCancel: annuler });
+}
+function iaClBlocUI(k, oui) { _iaClRefaire(() => { if (oui) _iaClBlocs().add(k); else _iaClBlocs().delete(k); _iaClGenerer(); }, _iaClBlocsRender); }
+function iaClRefaireUI() { _iaClRefaire(() => _iaClGenerer()); }
+function iaClMomentUI(k) {
+  const cls = _iaCl && S.classes[_iaCl.cid], col = cls && _chaleurMomentsTous(cls).find(c => c.key === k);
+  if (!col) return;
+  _iaClRefaire(() => _iaClOuvrir(cls, col), () => { document.getElementById('mias-mom').value = _iaCl.colKey; });
+}
+function iaClCopierUI() { _iaPret(st => _iaClasseJSON(st.txt, _iaConsigneSynthClasse()), j => _iaPressePapiers(j, '📋 JSON copié : collez-le dans l\'assistant, puis rapportez sa réponse ici (étape 3).')); }
+function iaClTelechargerUI() { const col = _iaClCol(_iaCl); _iaPret(st => _iaClasseJSON(st.txt, _iaConsigneSynthClasse()), j => _iaTelecharger(j, `synthese-classe-ia-${col ? col.court : 'moment'}`)); }
+function iaClReponseSaisie() {
+  const ta = document.getElementById('mias-rep');
+  if (!_iaCl || !ta) return;
+  _iaCl.rep = ta.value;
+  _iaClRestRender();
+}
+// Ce qui sera rangé, noms remis (la consigne demande de n'en citer aucun : un repère qui revient est surligné), et sa longueur.
+function _iaClRestRender() {
+  const st = _iaCl, box = document.getElementById('mias-rest');
+  if (!st || !box) return;
+  const t = _iaNettoie(_iaClasseLire(st.rep));
+  if (!t) { box.innerHTML = ''; return; }
+  const parts = _iaRestaureParts(t, st.table), n = parts.filter(p => p.nom != null).length;
+  const lignes = t.split('\n').filter(x => x.trim()).length;
+  box.innerHTML = `<div class="ia-vt">Ce qui sera rangé pour la classe · ${t.length} caractères${n ? ` · ⚠️ ${n} élève${n > 1 ? 's' : ''} cité${n > 1 ? 's' : ''} (surligné${n > 1 ? 's' : ''})` : ''}</div>`
+    + parts.map(p => p.nom != null ? `<mark title="${_escAttr(p.t)}">${_escName(p.nom)}</mark>` : _escName(p.t)).join('')
+    + (lignes > 12 || t.length > 1500 ? '<div class="tb-hint">Plus long que demandé : vous pouvez le raccourcir ici avant de le ranger.</div>' : '');
+}
+function iaClRangerUI() {
+  const st = _iaCl, cls = st && S.classes[st.cid], col = _iaClCol(st), ta = document.getElementById('mias-rep');
+  if (!col || !ta) return;
+  const t = _iaRestaure(_iaNettoie(_iaClasseLire(ta.value)), st.table).trim();
+  if (!t) return toast('⚠️ Collez d\'abord la réponse de l\'IA (étape 3).', 'warn');
+  const mode = { type: col.type, date: col.date }, avant = _synthClasseCible(cls, mode);
+  if (!avant || avant.texte !== t.slice(0, 10000)) { pushUndo(); synthClasseSet(cls, mode, t); save(); }
+  st.rep = t;
+  closeMod2('mias');
+  toast('🤖 Synthèse de la classe rangée (🏫 Vie de classe, et en tête de la synthèse de période imprimée) — Ctrl+Z l\'annule.');
+}
+// ── Dans 🏫 Vie de classe ── les synthèses rangées, la plus récente d'abord.
+function _synthClasseSecHTML(cls) {
+  const list = _synthClasseOf(cls);
+  return `<div class="fi-sec"><h3>🤖 Synthèses de la classe${list.length ? ` <span class="fi-vide">(${list.length})</span>` : ''} <button class="fi-plus" onclick="openSynthClasse()" title="Préparer une synthèse de la classe par une IA : les bilans des élèves sous des repères, les chiffres de la classe — relus avant de partir">+</button></h3>`
+    + (list.length ? list.map(e => `<div class="fi-j pf-ia"><div class="fi-j-h">${_escName(_synthClasseLabel(cls, e))} · rangée le ${_escName(_fmtDateFr(_todayYmd(new Date(e.ts || Date.now()))))}
+      <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="synthClasseCopierUI('${_escJsAttr(e.id)}')" title="Copier le texte (pour l'appréciation générale du bulletin, par exemple)">📋 Copier</button> <button class="btn btn-d btn-sm" onclick="synthClasseRetirerUI('${_escJsAttr(e.id)}')" title="Retirer cette synthèse (Ctrl+Z la rend)">🗑 Retirer</button></span></div>
+      <div class="fi-inc-txt">${_escName(e.texte)}</div></div>`).join('')
+      : `<span class="fi-vide">Aucune. Le + prépare, pour un conseil ou une mi-période, une demande à un assistant : les bilans de vos élèves sous des repères, les chiffres de la classe ; la réponse, courte, se range ici.</span>`)
+    + '</div>';
+}
+function synthClasseCopierUI(id) { const cls = getCls(), e = cls && _synthClasseOf(cls).find(x => x.id === id); if (e) _iaPressePapiers(e.texte, '📋 Synthèse de la classe copiée.'); }
+function synthClasseRetirerUI(id) {
+  const cls = getCls(), e = cls && _synthClasseOf(cls).find(x => x.id === id);
+  if (!e) return;
+  pushUndo();
+  cls.synthClasse = cls.synthClasse.filter(x => x.id !== id);
+  save(); renderDelegues();
+  toast('Synthèse de la classe retirée — Ctrl+Z la rend.');
 }
 function ficheMotUI(m) { _ficheMot = _ficheMot === m ? null : m; _ficheRender(); }
 // Les avis en TABLEAU : une ligne par discipline, une colonne par colonne de la feuille.
@@ -15692,7 +15969,7 @@ function _renderDeleguesCore() {
   const el = _elCurrent();
   if (el) return _elRenderOne(box, el, cls);
   const list = _elList(cls.id);
-  const hvc = _hvcHTML(cls);
+  const hvc = _hvcHTML(cls) + _synthClasseSecHTML(cls);
   const tb = `<div class="fi-sec" style="margin-top:22px"><h3>🗳 Élections</h3></div><div class="tb"><button class="btn btn-p btn-sm" onclick="openElectionNew()">+ Nouvelle élection</button>
     <span class="tb-hint">Délégués de classe ou éco-délégués — une élection par an et par mandat, historisée : on garde celle de l'an dernier.</span></div>`;
   const direct = _deleguesDirectHTML(cls, list, 'delegues') + _deleguesDirectHTML(cls, list, 'eco');
@@ -20462,6 +20739,7 @@ const _PERIODE_BLOCS = [
   { key: 'bilan',     label: 'Bilan',               hint: 'Ce que j\'ai rédigé pour ce conseil (ou ce bilan de mi-période)' },
   { key: 'avis',      label: 'Avis des collègues',  hint: 'Ce que les collègues ont écrit dans la feuille d\'avis de la période — travail, participation, comportement' },
   { key: 'hvc',       label: 'Heures de vie de classe', hint: 'Les heures de vie de classe tenues pendant la période, en tête de la feuille' },
+  { key: 'classe',    label: 'Synthèse de la classe', hint: 'La synthèse de la classe rangée pour ce moment (🤖, dans Vie de classe), en tête de la feuille' },
 ];
 // Décochés par défaut : les heures de vie de classe et les avis des collègues — du texte
 // long, qui ne doit pas allonger la feuille sans qu'on le demande.
@@ -20492,6 +20770,9 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const hvc = on('hvc') ? _hvcPeriode(cls, periodIdx) : [];
   const hvcHTML = on('hvc') ? `<div class="print-hvc"><strong>Heures de vie de classe ${_escName(p.label)}</strong>${
     hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_escName(e.texte)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
+  // La synthèse de la classe (v1.71.0) : celle DE CE MOMENT, seulement si elle existe (rien à dire sinon).
+  const sc = on('classe') && o.col ? _synthClasseCible(cls, { type: o.col.type, date: o.col.date }) : null;
+  const scHTML = sc ? `<div class="print-hvc pp-pl"><strong>Synthèse de la classe</strong> ${_escName(sc.texte)}</div>` : '';
   const sub = `du ${_fmtDateFr(_debutUtile(p.start) < p.end ? _debutUtile(p.start) : p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet${
     on('moy') ? (syn.moyennes ? ` · moyennes « ${syn.moyennes.periode} » importées le ${_fmtDateFr(syn.moyennes.date)}` : ' · aucune moyenne importée pour cette période') : ''} · imprimé le ${_fmtDateFr(_todayYmd())}`;
   // Paliers du carnet (v1.38.1, demande de l'utilisateur) : le cumul de fin de période sur le
@@ -20547,7 +20828,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
     bilan: r => `<div class="pp-rem">${bilCell(r)}</div>`,
   };
   const subT = sub + (on('moy') && premier ? ` · évolution des moyennes depuis le ${_fmtDateFr(premier)}` : '');
-  return { kind: 'landscape', html: `<div class="pp-titre">${_escName(titre)}</div><p class="pp-sub">${_escName(subT)}${legHTML}</p>${hvcHTML}
+  return { kind: 'landscape', html: `<div class="pp-titre">${_escName(titre)}</div><p class="pp-sub">${_escName(subT)}${legHTML}</p>${hvcHTML}${scHTML}
     <table class="pp-t">${colgroup}<thead><tr>${cols.map(c => `<th>${titres[c[0]]}</th>`).join('')}</tr></thead><tbody>${
       rows.map(r => `<tr>${cols.map(c => `<td>${cell[c[0]](r)}</td>`).join('')}</tr>`).join('')}</tbody></table>` };
 }
@@ -20616,6 +20897,7 @@ function _periodePrintRefresh() {
   const sans = syn.rows.filter(r => !r.bilan).length;
   const bits = [`${syn.rows.length} élève${syn.rows.length > 1 ? 's' : ''} présents pendant ${syn.periode.label}`,
     o.blocs.includes('hvc') ? `${_hvcPeriode(cls, o.idx).length} heure${_hvcPeriode(cls, o.idx).length > 1 ? 's' : ''} de vie de classe` : '',
+    o.blocs.includes('classe') && o.col && _synthClasseCible(cls, { type: o.col.type, date: o.col.date }) ? 'la synthèse de la classe en tête' : '',
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
     o.blocs.includes('moy') ? (syn.moyennes ? `moyennes « ${syn.moyennes.periode} » du ${_fmtDateFr(syn.moyennes.date)}` : '⚠️ aucune moyenne importée pour cette période') : '',
     o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — à écrire par les points de la colonne Bilans, ou dans la fiche` : '✓ un bilan pour chacun') : '',
@@ -20655,7 +20937,7 @@ function periodePrintOk() {
   // « Fiches » (« fiche complète » en v1.49.0) : la fiche élève imprimée, une page par élève — les blocs
   // cochés deviennent ses parties (identité et remarque toujours, la courbe avec les observations).
   if (o.forme === 'complete' && o.col) {
-    const parts = ['identite', 'remarque', ...o.blocs.flatMap(k => k === 'obs' ? ['obs', 'courbe'] : k === 'docs' ? ['papiers'] : k === 'hvc' ? [] : [k])];
+    const parts = ['identite', 'remarque', ...o.blocs.flatMap(k => k === 'obs' ? ['obs', 'courbe'] : k === 'docs' ? ['papiers'] : k === 'hvc' || k === 'classe' ? [] : [k])];
     closeMod2('mperiode');
     return _fichePrintGo(cls, o.col, _fichePrintEleves(cls, o.col), { parts, photo: true, format: o.format });
   }
@@ -24278,6 +24560,9 @@ function createDemo(opts) {
     const s = S.eleves[sids[i]];
     if (s) (s.decisions = s.decisions || []).push({ id: `demo_d${String(k + 1).padStart(2, '0')}`, ts: Date.parse(D(md) + 'T12:00:00'), date: D(md), type, texte });
   });
+  // ── Une synthèse de la classe par une IA (v1.71.0), au conseil du S1.
+  cls.synthClasse = [{ id: 'demo_sc01', ts: Date.parse(D('01-19') + 'T12:00:00'), date: D('01-20'), type: 'conseil',
+    texte: 'Une classe vivante et plutôt agréable, qui participe volontiers à l\'oral mais dont le travail personnel reste inégal : la moyenne de la classe est correcte, avec un petit groupe en réelle difficulté que le carnet et les incidents désignent aussi.\n\nL\'esprit de la classe est bon — délégués investis, entraide visible en heure de vie de classe —, mais les bavardages pèsent sur certains cours. À suivre au second semestre : la régularité du travail à la maison et le calme en demi-groupe.' }];
   // ── Une synthèse par une IA rangée (v1.69.0), au conseil du S1 : la réponse d'un assistant, noms remis.
   { const s = E(0), p = s.prenom;
     s.synthIA = [{ id: 'demo_ia01', ts: Date.parse(D('01-18') + 'T12:00:00'), date: D('01-20'), type: 'conseil',
