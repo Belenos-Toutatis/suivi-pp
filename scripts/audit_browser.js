@@ -52,7 +52,7 @@
       const cs = getComputedStyle(el);
       // Texte tronqué : ellipse ou overflow caché qui rogne réellement, sans infobulle ni title parent. Un texte réservé aux
       // lecteurs d'écran (boîte d'un pixel, « sr-only ») n'est pas tronqué : il est caché exprès.
-      if (txt && cs.overflow !== 'visible' && el.clientWidth > 1 && el.scrollWidth > el.clientWidth + 2 && !el.title && !el.closest('[title]') && el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') {
+      if (txt && cs.overflow !== 'visible' && el.clientWidth > 1 && el.scrollWidth > el.clientWidth + 2 && !el.title && !el.closest('[title], [data-bulle]') && el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') {
         out.hidden.push({ tag: el.tagName + (el.className ? '.' + String(el.className).split(' ')[0] : ''), txt: txt.slice(0, 50), w: el.clientWidth, sw: el.scrollWidth });
       }
       if (!txt) continue;

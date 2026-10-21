@@ -168,6 +168,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
      pour que les infos secondaires (n° de position, compteurs, dates) restent lisibles. */
   --pencil-soft:     #5b6a80;
   --highlighter:     #f5d76e;
+  --bulle-bg: #1f2a36;  --bulle-fg: #f4f6fa;  --bulle-bd: #1f2a36;   /* infobulles de l'app : sombres sur la page claire */
   --highlighter-fg:  #1a252f;   /* encre SUR le surligneur : sombre dans les DEUX thèmes (--ink-blue s'éclaircit la nuit : 1,7:1) */
   /* Fond d'une puce active sans variante de couleur (onglets de jour, filtres neutres) */
   --chip-on-bg:      #263545;
@@ -307,6 +308,7 @@ html[data-theme="dark"] {
   --pencil-soft:     #8792a3;
   --highlighter:     #c9a93f;
   --highlighter-fg:  #1d2330;
+  --bulle-bg: #e9eef4;  --bulle-fg: #16202b;  --bulle-bd: #c9d3df;   /* claires sur la page sombre */
   --chip-on-bg:      #3d5a80;
   --chip-on-fg:      #eef3f8;
   --av-3-bg: #2f6b4f;  --av-3-fg: #ffffff;
@@ -403,7 +405,7 @@ html[data-theme="dark"] {
     --pencil:           #56697f;  --pencil-soft:  #5b6a80;
     --rule-line:        #c8d2e0;  --rule-line-soft: #dde4ee;
     --margin-red:       #b03d2e;  --margin-red-soft: rgba(176, 61, 46, 0.14);
-    --highlighter:      #f5d76e;  --highlighter-fg: #1a252f;  --chip-on-bg:   #263545;  --chip-on-fg: #f4f6fa;
+    --highlighter:      #f5d76e;  --highlighter-fg: #1a252f;  --bulle-bg: #1f2a36;  --bulle-fg: #f4f6fa;  --bulle-bd: #1f2a36;  --chip-on-bg:   #263545;  --chip-on-fg: #f4f6fa;
     --av-3-bg: #2f6b4f;  --av-3-fg: #ffffff;  --av-2-bg: #8fbfa6;  --av-2-fg: #0e1a26;  --av-1-bg: #dde7e1;  --av-1-fg: #0e1a26;
     --pf-card: #ffffff;  --i-obs: #c27a00;  --i-moy: #9c4a00;  --i-incid: #b03d2e;  --i-contact: #1f6fad;  --i-avis: #2f6b4f;  --i-bilan: #6d28d9;
     --i-suivi: #0f766e;  --suivi-o-bg: #fdecc8;  --suivi-o-fg: #6b3a00;
@@ -1779,6 +1781,12 @@ img.ch-ph:not([src]) { visibility: hidden; }
 .trombi-st.ok { color: var(--ok-fg); }
 .trombi-st.bad { color: var(--danger-fg); }
 @media print { .fiche-photo, .pf-ph, #photo-pop { display: none !important; } }
+/* Infobulles dessinées par l'app (v1.72.0) : les bulles natives peuvent sortir illisibles (fond transparent). */
+#bulle { position: fixed; z-index: 2147483000; pointer-events: none; max-width: min(360px, calc(100vw - 16px)); padding: 6px 9px; border-radius: 6px;
+  background: var(--bulle-bg); color: var(--bulle-fg); border: 1px solid var(--bulle-bd); box-shadow: var(--shadow-pop);
+  font-family: var(--font-sans); font-size: 12.5px; font-weight: 400; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; text-align: left; }
+#bulle[hidden] { display: none; }
+@media print { #bulle { display: none !important; } }
 .pf-p { margin: 0; }
 /* Les décisions d'un moment (v1.46.13), sous le bilan. */
 .pf-lab-dec { margin-top: 10px; }
@@ -3263,8 +3271,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.71.0';
-const APP_BUILD_DATE = '2026-10-21T23:44:06Z';
+const APP_VERSION    = '1.72.0';
+const APP_BUILD_DATE = '2026-10-21T23:58:31Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -22534,6 +22542,82 @@ document.addEventListener('mouseover', e => {
 }, { passive: true });
 document.addEventListener('mousedown', _photoPopHide, { passive: true });
 document.addEventListener('scroll', _photoPopHide, { passive: true, capture: true });
+
+// ─── Infobulles dessinées par l'app (v1.72.0) ────────────────────────────────
+// L'utilisateur : « les bulles d'aide, en thème clair, sont en blanc et illisibles ». Les bulles NATIVES (attribut
+// `title`, `<title>` d'un SVG) sont dessinées par le navigateur et le système, pas par la page : sous Linux (Wayland)
+// leur fond peut sortir transparent — texte blanc sur une page claire —, et rien dans la page n'y change rien. L'app
+// les dessine donc elle-même (`#bulle`, tokens `--bulle-*` aux trois endroits). Au survol À LA SOURIS, le texte passe
+// le temps du survol dans `data-bulle` (sinon le navigateur afficherait AUSSI la sienne), et revient en sortant.
+// Au doigt, rien (rien de natif non plus) ; au clavier, rien (comme avant). Aucun `title` à réécrire dans le code.
+const _bulle = { el: null, cible: null, svgTitre: null, texte: '', timer: null, x: 0, y: 0 };
+// Position (pure) : sous le curseur ; au-dessus s'il manque la place en bas, ou si `dessus` (la photo d'un élève
+// occupe déjà le dessous) ; poussée vers la gauche au bord droit ; jamais hors de l'écran (marge 8).
+function _bullePlace(x, y, w, h, vw, vh, dessus) {
+  let left = x + 12, top = dessus ? y - h - 14 : y + 20;
+  if (left + w > vw - 8) left = vw - 8 - w;
+  if (!dessus && top + h > vh - 8) top = y - h - 14;
+  if (top < 8) top = Math.min(y + 20, vh - 8 - h);
+  return { left: Math.max(8, left), top: Math.max(8, top) };
+}
+// Masquer seulement (clic, touche, molette, défilement) : le texte reste de côté jusqu'à la sortie du survol, sinon
+// la bulle du navigateur reviendrait sous le curseur immobile.
+function _bulleMasquer() {
+  clearTimeout(_bulle.timer); _bulle.timer = null;
+  if (_bulle.el) _bulle.el.hidden = true;
+}
+// Sortie du survol : masquer, et rendre le texte à l'élément — sauf si le code lui en a donné un autre entre-temps.
+function _bulleRendre() {
+  _bulleMasquer();
+  const c = _bulle.cible;
+  if (c) {
+    if (_bulle.svgTitre) { if (!_bulle.svgTitre.textContent) _bulle.svgTitre.textContent = _bulle.texte; }
+    else { if (!c.hasAttribute('title') && c.hasAttribute('data-bulle')) c.setAttribute('title', c.getAttribute('data-bulle')); c.removeAttribute('data-bulle'); }
+  }
+  _bulle.cible = null; _bulle.svgTitre = null; _bulle.texte = '';
+}
+function _bulleMontrer() {
+  const c = _bulle.cible;
+  if (!c || !c.isConnected) return _bulleRendre();
+  if (!_bulle.el) {
+    _bulle.el = document.createElement('div');
+    _bulle.el.id = 'bulle'; _bulle.el.setAttribute('role', 'tooltip'); _bulle.el.hidden = true;
+    document.body.appendChild(_bulle.el);
+  }
+  _bulle.el.textContent = _bulle.texte;
+  _bulle.el.hidden = false;
+  const photo = typeof _photoPop !== 'undefined' && _photoPop.el && _photoPop.el.style.display === 'block';
+  const q = _bullePlace(_bulle.x, _bulle.y, _bulle.el.offsetWidth, _bulle.el.offsetHeight, innerWidth, innerHeight, photo);
+  _bulle.el.style.left = q.left + 'px'; _bulle.el.style.top = q.top + 'px';
+}
+document.addEventListener('pointerover', e => {
+  if (e.pointerType && e.pointerType !== 'mouse') return;
+  const t = e.target;
+  if (!t || !t.closest) return;
+  let cible = t.closest('[title], [data-bulle]'), svgTitre = null;
+  if (!cible) {   // un point de courbe : `<title>` enfant direct d'un élément SVG
+    for (let n = t; n && n.namespaceURI === 'http://www.w3.org/2000/svg'; n = n.parentNode) {
+      const ti = [...n.children].find(x => x.tagName.toLowerCase() === 'title');
+      if (ti) { cible = n; svgTitre = ti; break; }
+    }
+  }
+  if (cible === _bulle.cible) return;
+  _bulleRendre();
+  if (!cible || cible.id === 'bulle') return;
+  const texte = svgTitre ? svgTitre.textContent : cible.getAttribute('title');
+  if (!texte || !texte.trim()) return;
+  if (svgTitre) svgTitre.textContent = '';
+  else { cible.setAttribute('data-bulle', texte); cible.removeAttribute('title'); }
+  Object.assign(_bulle, { cible, svgTitre, texte, x: e.clientX, y: e.clientY });
+  _bulle.timer = setTimeout(_bulleMontrer, 450);
+}, { passive: true });
+document.addEventListener('pointermove', e => { _bulle.x = e.clientX; _bulle.y = e.clientY; }, { passive: true });
+document.addEventListener('pointerout', e => {
+  if (_bulle.cible && !(e.relatedTarget && _bulle.cible.contains(e.relatedTarget))) _bulleRendre();
+}, { passive: true });
+for (const ev of ['pointerdown', 'keydown', 'wheel']) document.addEventListener(ev, _bulleMasquer, { passive: true, capture: true });
+document.addEventListener('scroll', _bulleMasquer, { passive: true, capture: true });
+window.addEventListener('blur', _bulleRendre);
 
 // ─── Fiche : la photo, et l'ajout d'une photo à la fois ──────────────────────
 // Pour l'élève absent le jour de la photo de classe, ou une photo reçue plus tard (v1.48.0,
