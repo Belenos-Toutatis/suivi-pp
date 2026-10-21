@@ -168,6 +168,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
      pour que les infos secondaires (n° de position, compteurs, dates) restent lisibles. */
   --pencil-soft:     #5b6a80;
   --highlighter:     #f5d76e;
+  --highlighter-fg:  #1a252f;   /* encre SUR le surligneur : sombre dans les DEUX thèmes (--ink-blue s'éclaircit la nuit : 1,7:1) */
   /* Fond d'une puce active sans variante de couleur (onglets de jour, filtres neutres) */
   --chip-on-bg:      #263545;
   --chip-on-fg:      #f4f6fa;   /* encre d'une puce active : claire dans les DEUX thèmes (--paper s'assombrit la nuit : 2,5:1) */
@@ -305,6 +306,7 @@ html[data-theme="dark"] {
   /* éclairci (ex-#5e6a7a, 2.9:1 sur --paper-warm) — même raison qu'en clair */
   --pencil-soft:     #8792a3;
   --highlighter:     #c9a93f;
+  --highlighter-fg:  #1d2330;
   --chip-on-bg:      #3d5a80;
   --chip-on-fg:      #eef3f8;
   --av-3-bg: #2f6b4f;  --av-3-fg: #ffffff;
@@ -401,7 +403,7 @@ html[data-theme="dark"] {
     --pencil:           #56697f;  --pencil-soft:  #5b6a80;
     --rule-line:        #c8d2e0;  --rule-line-soft: #dde4ee;
     --margin-red:       #b03d2e;  --margin-red-soft: rgba(176, 61, 46, 0.14);
-    --highlighter:      #f5d76e;  --chip-on-bg:   #263545;  --chip-on-fg: #f4f6fa;
+    --highlighter:      #f5d76e;  --highlighter-fg: #1a252f;  --chip-on-bg:   #263545;  --chip-on-fg: #f4f6fa;
     --av-3-bg: #2f6b4f;  --av-3-fg: #ffffff;  --av-2-bg: #8fbfa6;  --av-2-fg: #0e1a26;  --av-1-bg: #dde7e1;  --av-1-fg: #0e1a26;
     --pf-card: #ffffff;  --i-obs: #c27a00;  --i-moy: #9c4a00;  --i-incid: #b03d2e;  --i-contact: #1f6fad;  --i-avis: #2f6b4f;  --i-bilan: #6d28d9;
     --i-suivi: #0f766e;  --suivi-o-bg: #fdecc8;  --suivi-o-fg: #6b3a00;
@@ -1873,12 +1875,35 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .pf-mx thead th { background: var(--paper-warm); font-size: 12px; color: var(--ink-deep); font-weight: 400; }
 .pf-mx th.pf-dn { width: 118px; font-weight: 700; color: var(--ink-deep); font-size: 12.5px; background: var(--paper); }
 .pf-mx td.pf-e { background: var(--paper); }
-.pf-mx mark { background: var(--highlighter); color: var(--ink-blue); padding: 0 1px; border-radius: 2px; }
+.pf-mx mark { background: var(--highlighter); color: var(--highlighter-fg); padding: 0 1px; border-radius: 2px; }
 .pf-words { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 4px 8px; align-items: center; }
 .pf-words button { border: 1px solid var(--rule-line); background: var(--paper); border-radius: 999px; padding: 2px 9px; font-size: 12.5px; }
-.pf-words button.on { background: var(--highlighter); border-color: var(--highlighter); color: var(--ink-blue); }
+.pf-words button.on { background: var(--highlighter); border-color: var(--highlighter); color: var(--highlighter-fg); }
 .pf-btnp { border: 0; background: var(--g1); color: var(--g1-on); border-radius: 6px; padding: 6px 12px; font-weight: 700; }
 .pf-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-block: 8px; }
+/* 🤖 Synthèse par une IA (v1.69.0) : la réponse rangée (liseré pointillé : ce n'est pas le bilan), la fenêtre en trois étapes. */
+.pf-bil.pf-ia { border-left-style: dashed; }
+.ia-etape { display: flex; gap: 8px; align-items: center; margin: 16px 0 6px; font-weight: 700; color: var(--ink-blue); }
+.ia-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--g1); color: var(--g1-on); font-size: 12px; flex: none; }
+.ia-blocs { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.ia-bloc { display: inline-flex; gap: 5px; align-items: center; font-size: 13.5px; }
+.ia-bloc.vide, .ia-rien { color: var(--pencil); }
+.ia-cons { margin-top: 10px; font-size: 13.5px; }
+.ia-cons summary { cursor: pointer; color: var(--link-fg); }
+#mia textarea { width: 100%; font: inherit; font-size: 13.5px; line-height: 1.45; margin-top: 6px; }
+.ia-verif { margin-top: 4px; font-size: 13px; }
+.ia-vl { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-block: 4px; }
+.ia-vt { font-weight: 700; color: var(--pencil); font-size: 12.5px; margin-right: 2px; }
+.ia-ok { color: var(--pencil); font-style: italic; }
+.ia-chip { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; border: 1px solid var(--rule-line); border-radius: 12px; padding: 1px 8px; background: var(--paper); max-width: 100%; }
+.ia-chip.s { background: var(--don-warn-bg); border-color: var(--don-warn-bd); color: var(--don-warn-fg); }
+.ia-chip.f { background: var(--alert-bg); border-color: var(--alert-bd); color: var(--alert-fg); }
+.ia-b { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 10px; font-size: 12px; padding: 0 7px; }
+.ia-b.ia-bp { color: var(--alert-fg); background: var(--alert-bg); font-weight: 700; }
+.ia-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.ia-rest { margin-top: 8px; padding: 6px 10px; border-left: 3px dashed var(--i-bilan); white-space: pre-line; font-size: 13.5px; }
+.ia-rest:empty { display: none; }
+.ia-rest mark { background: var(--highlighter); color: var(--highlighter-fg); padding: 0 1px; border-radius: 2px; }
 /* Fiche refondue (v1.44.0) : plein écran, ou ancrée à droite de la liste. */
 #mfiche.plein { padding: 0; }
 #mfiche.plein .fi-mb { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; padding: 0 22px 14px; }
@@ -2177,7 +2202,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     à qui a le lien que vous leur envoyez. Les photos des élèves, si vous les importez, sont rangées dans
     le sous-dossier <code>photos/</code> du dossier des PDF, jamais dans le navigateur.
     En cadre professionnel, déclarez-la à votre DPO d'établissement (souvent <code>dpo@ac-&lt;votre-académie&gt;.fr</code>).
-    Rien ne sort de votre navigateur : aucun serveur, aucune télémétrie.
+    Rien ne sort de votre navigateur : aucun serveur, aucune télémétrie. Seul ce que vous copiez vous-même en sort :
+  pour une synthèse par une IA, un texte où les noms sont remplacés, que vous relisez avant de le copier —
+  à ne coller que dans un outil autorisé par votre académie.
   </span>
   <button id="rgpd-banner-ok" onclick="dismissRgpdBanner()">J'ai compris</button>
 </div>
@@ -2479,6 +2506,33 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <button class="btn btn-g" onclick="bilanNav(-1)" title="Enregistrer et passer à l'élève précédent">◀</button>
       <button class="btn btn-p" onclick="bilanSaveUI()">✓ Enregistrer</button>
       <button class="btn btn-p" onclick="bilanNav(1)" title="Enregistrer et passer à l'élève suivant (Ctrl+Entrée)">Suivant ▶</button>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════ 🤖 Synthèse par une IA (v1.69.0) ═══════════════ -->
+<div id="mia" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:880px;width:100%">
+    <h2 id="mia-title">🤖 Synthèse par une IA</h2>
+    <div class="tb-hint" id="mia-sous"></div>
+    <div class="ia-etape"><span class="ia-n">1</span>Ce que l'IA doit savoir</div>
+    <div id="mia-blocs" class="ia-blocs"></div>
+    <details class="ia-cons">
+      <summary>Consigne donnée à l'IA (copiée avant le texte)</summary>
+      <textarea id="mia-cons" rows="7" aria-label="Consigne donnée à l'IA" onchange="iaConsigneUI(this.value)"></textarea>
+      <div class="ia-row"><button class="btn btn-g btn-sm" id="mia-cons-raz" onclick="iaConsigneUI(null)" title="Revenir à la consigne proposée">↺ Consigne proposée</button><span class="tb-hint">La même pour tous les élèves, gardée dans vos réglages.</span></div>
+    </details>
+    <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez</div>
+    <div class="tb-hint">Les noms que l'app connaît sont déjà remplacés par des repères entre crochets. Corrigez tout ce qui pourrait encore faire reconnaître l'élève : ce texte est exactement ce qui sera copié, après la consigne.</div>
+    <textarea id="mia-txt" data-autofocus rows="14" spellcheck="false" aria-label="Texte qui sera copié pour l'IA" oninput="iaTexteSaisi()"></textarea>
+    <div id="mia-verif" class="ia-verif"></div>
+    <div class="ia-row"><button class="btn btn-p" onclick="iaCopierUI()">📋 Copier pour l'IA</button><button class="btn btn-g btn-sm" onclick="iaRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À coller dans l'assistant que votre académie autorise (par exemple l'assistant IA de l'État).</span></div>
+    <div class="ia-etape"><span class="ia-n">3</span>La réponse de l'IA</div>
+    <label for="mia-rep" class="tb-hint">Collez la réponse : l'app remet les vrais noms à la place des repères, ici, sans rien envoyer.</label>
+    <textarea id="mia-rep" rows="8" oninput="iaReponseSaisie()" placeholder="La réponse de l'assistant…"></textarea>
+    <div id="mia-rest" class="ia-rest"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mia')">Fermer</button>
+      <button class="btn btn-p" onclick="iaRangerUI()">✓ Ranger dans la fiche</button>
     </div>
   </div>
 </div>
@@ -3138,8 +3192,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.68.0';
-const APP_BUILD_DATE = '2026-10-14T21:01:21Z';
+const APP_VERSION    = '1.69.0';
+const APP_BUILD_DATE = '2026-10-21T22:03:57Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3243,6 +3297,9 @@ const DEFAULT_PREFS = {
   // La signature de la messagerie de l'utilisateur, collée en HTML (v1.40.13) — FILTRÉE à
   // l'enregistrement et au rendu (`_htmlSur`) : elle finit dans innerHTML et dans le courriel.
   avisSignatureHtml: '',
+  // La consigne donnée à l'IA pour la synthèse d'un élève (v1.69.0) : '' = le texte proposé
+  // (`IA_CONSIGNE`) ; seule une consigne RÉÉCRITE est gardée.
+  iaConsigne: '',
   // Les colonnes MASQUÉES de la liste des élèves (v1.41.0) — des clés ; écran et papier.
   elevesColsOff: [],
   // Les RÉGIMES D'ENTRÉE et DE SORTIE de l'établissement (v1.45.2, vus dans l'export MBN de
@@ -3999,7 +4056,7 @@ function _sanitizeImbrique() {
     for (const f of ['nom', 'prenom', 'remarque']) chaine(e, f);
     // Sans nom ni prénom (audit du 2026-10-14) : les tris `localeCompare` de Vie de classe tombaient.
     for (const f of ['nom', 'prenom']) if (typeof e[f] !== 'string') e[f] = '';
-    for (const f of ['journal', 'incidents', 'bilans', 'decisions', 'obsMbn']) if (Array.isArray(e[f])) {
+    for (const f of ['journal', 'incidents', 'bilans', 'decisions', 'synthIA', 'obsMbn']) if (Array.isArray(e[f])) {
       e[f] = e[f].filter(_isPlainObj);
       for (const x of e[f]) { date(x, 'date'); for (const t of ['texte', 'objet', 'motif', 'type', 'par', 'info']) if (typeof x[t] === 'number') x[t] = String(x[t]); }
     }
@@ -4150,6 +4207,8 @@ function _sanitizeCoreSections() {
     e.bilans = e.bilans.filter(_isPlainObj);
     // Décisions d'un moment de bilan (v1.46.13) : absent = aucune.
     if (e.decisions !== undefined) { if (Array.isArray(e.decisions)) e.decisions = e.decisions.filter(x => _isPlainObj(x) && _ymdValid(x.date)); else delete e.decisions; }
+    // Synthèses par une IA (v1.69.0) : même règle ; un texte qui n'est pas une chaîne n'est pas une synthèse.
+    if (e.synthIA !== undefined) { if (Array.isArray(e.synthIA)) e.synthIA = e.synthIA.filter(x => _isPlainObj(x) && _ymdValid(x.date) && typeof x.texte === 'string' && x.texte.trim()); else delete e.synthIA; }
     // Observations notées dans MBN (v1.46.0) : absent = aucune ; jamais créé d'office.
     if (e.obsMbn !== undefined) { if (Array.isArray(e.obsMbn)) e.obsMbn = e.obsMbn.filter(x => _isPlainObj(x) && _ymdValid(x.date)); else delete e.obsMbn; }
     // Absences et retards relevés dans MBN (v1.58.0) : absent = aucun ; jamais créé d'office.
@@ -5741,6 +5800,31 @@ function decisionSet(cls, sid, mode, texte) {
   if (e) { if (e.texte === txt) return null; e.texte = txt; return 'modif'; }
   if (!Array.isArray(stu.decisions)) stu.decisions = [];
   stu.decisions.push({ id: uid('d'), ts: Date.now(), date: mode.date, type: _bilanType(mode.type).key, texte: txt });
+  return 'ajout';
+}
+// ── SYNTHÈSE PAR UNE IA d'un moment (v1.69.0) ── la réponse rapportée de l'assistant, une par
+// élève et par MOMENT (même règle que les décisions), À CÔTÉ du bilan et non dedans (arbitré :
+// le bilan reste le texte du PP, la synthèse une aide à la lecture). `ts` = le jour où elle
+// a été rangée. `stu.synthIA = [{ id, ts, date, type, texte }]` ; absent = aucune.
+function _synthIAOf(sid) {
+  const stu = S.eleves[sid];
+  return (stu && Array.isArray(stu.synthIA) ? stu.synthIA.filter(_isPlainObj) : []).slice()
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || ((b.ts || 0) - (a.ts || 0)));
+}
+function _synthIACible(cls, sid, mode) {
+  if (!mode) return null;
+  return _synthIAOf(sid).find(e => _momentEst(cls, e, mode)) || null;
+}
+// Comme `decisionSet` : un texte vide la RETIRE. → 'ajout' | 'modif' | 'suppr' | null.
+// Sans pushUndo ni save : l'appelant s'en charge.
+function synthIASet(cls, sid, mode, texte) {
+  const stu = S.eleves[sid];
+  if (!stu || !mode || !_ymdValid(mode.date)) return null;
+  const txt = String(texte || '').trim().slice(0, 10000), e = _synthIACible(cls, sid, mode);
+  if (!txt) { if (!e) return null; stu.synthIA = stu.synthIA.filter(x => x !== e); return 'suppr'; }
+  if (e) { if (e.texte === txt) return null; e.texte = txt; e.ts = Date.now(); return 'modif'; }
+  if (!Array.isArray(stu.synthIA)) stu.synthIA = [];
+  stu.synthIA.push({ id: uid('ia'), ts: Date.now(), date: mode.date, type: _bilanType(mode.type).key, texte: txt });
   return 'ajout';
 }
 // Le bilan d'UNE période : le plus récent dont la date tombe dedans — du type demandé
@@ -8655,12 +8739,17 @@ function _ficheFaits(cls, stu, col) {
     phrase: `famille contactée (${ct.map(x => `${_journalType(x.type).label.toLowerCase()} le ${_fmtDateFr(x.date).slice(0, 5)}`).join(', ')})` });
   // Les MÊMES papiers que la liste, la carte de chaleur et la synthèse (audit du 2026-10-10) : non
   // archivés, distribués avant la fin du moment ET déjà distribués (`_papierDistribue`), et pas rendus aujourd'hui.
-  const nr = _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cid) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= b.end) && _papierDistribue(d) && _docExpected(d).some(x => x.id === sid))
-    .filter(d => !_retour(d, sid).rendu);
+  const nr = _ficheNonRendus(cls, sid, b);
   if (nr.length) F.push({ k: 'papier', n: nr.length, html: `Papier${nr.length > 1 ? 's' : ''} à rendre : ${nr.map(d => e(d.titre)).join(', ')}.`, phrase: '' });
   const prec = _bilansOf(sid).filter(x => x.date < col.date && !(x.type === col.type && _bilanCible(cls, sid, { type: col.type, date: col.date }) === x))[0];
   if (prec) F.push({ k: 'bilan', html: `${e(_bilanLabel(prec))} (${e(_fmtDateFr(prec.date).slice(0, 5))}) : « ${e(prec.texte)} »`, phrase: '' });
   return F;
+}
+// Les papiers pas rendus d'un moment (faits de la fiche, synthèse par une IA) : non archivés,
+// distribués avant la fin du moment ET déjà distribués, attendus de l'élève, pas rendus aujourd'hui.
+function _ficheNonRendus(cls, sid, b) {
+  return _docsOfCurrent().filter(d => !d.archive && (d.classIds || []).includes(cls.id) && d.suiviRetour !== false && (!d.dateDistribution || d.dateDistribution <= b.end) && _papierDistribue(d) && _docExpected(d).some(x => x.id === sid))
+    .filter(d => !_retour(d, sid).rendu);
 }
 // Un BROUILLON assemblé à partir des faits — à réécrire : l'app rassemble, elle ne juge pas.
 function _ficheBrouillon(cls, stu, col) {
@@ -8689,7 +8778,7 @@ function _ficheBarHTML(cls, stu, col) {
 function _ficheRedacHTML(cls, stu, col, extra) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
   const d = _decisionCible(cls, stu.id, { type: col.type, date: col.date });
-  return `<label for="fi-bil" class="pf-lab">${_escName(col.long)} · ce que je dirai</label>
+  return `${_ficheSynthIAHTML(cls, stu, col)}<label for="fi-bil" class="pf-lab">${_escName(col.long)} · ce que je dirai</label>
     <textarea id="fi-bil" class="pf-ta" onchange="ficheBilanSave()" oninput="_autoTaille(this)" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
     ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>
     <label for="fi-dec" class="pf-lab pf-lab-dec">Décisions · à mettre en place</label>
@@ -8762,6 +8851,513 @@ function ficheBrouillonUI() {
   const poser = () => { ta.value = br; ficheBilanSave(); ta.focus(); };
   if (ta.value.trim()) _uiConfirm({ title: 'Remplacer le texte du bilan ?', message: 'Le brouillon remplace ce qui est écrit. Ctrl+Z le récupère.', okLabel: 'Remplacer', onOk: poser });
   else poser();
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// 🤖 SYNTHÈSE PAR UNE IA (v1.69.0) — l'utilisateur : « on sélectionne les données à extraire,
+// elles sont extraites de manière anonyme, une IA fait une synthèse sur l'élève, et on réimporte
+// le résultat ». AUCUN réseau : l'app prépare un texte qu'on COPIE dans l'assistant de son choix
+// (celui que l'académie autorise), puis on COLLE sa réponse.
+//  · Les noms que l'app connaît (élèves de toutes ses classes, professeurs des disciplines et
+//    des imports de moyennes, demandeurs MBN, professeur principal, établissement, classes) sont
+//    remplacés par des REPÈRES entre crochets ; civilité + nom (« Mme [Adulte 1] »), téléphones
+//    et courriels aussi. Arbitré : « les prénoms des élèves de la classe suffisent » — aucune
+//    liste de prénoms venue d'ailleurs.
+//  · Le reste — un mot à majuscule en milieu de phrase, en français presque toujours un nom
+//    propre — est signalé « à vérifier » ; l'enseignant relit et corrige le texte, qui est
+//    EXACTEMENT ce qui sera copié (après la consigne).
+//  · La table repère → nom ne quitte jamais l'app (séance seulement) : elle remet les vrais
+//    noms dans la réponse, rangée à côté du bilan du moment (`stu.synthIA`).
+// ⚠️ Pseudonymisé, pas anonyme : un prénom INCONNU en début de phrase passe (la majuscule y est
+// normale), d'où la relecture obligatoire. Le moteur est PUR et testé (test/synthese-ia.test.js).
+// ═══════════════════════════════════════════════════════════════════════════
+const IA_CONSIGNE = `Vous aidez un professeur principal de collège à préparer le moment indiqué ci-dessous.
+À partir des seules données qui suivent, rédigez une synthèse sur l'élève, en huit à douze lignes : ce qui va bien, ce qui inquiète, ce qui a changé au fil de la période, et ce qu'il faudrait suivre.
+N'inventez rien et dites quand une donnée manque. Ces données notent surtout des difficultés (observations, incidents, papiers non rendus) : relevez aussi ce qui est positif.
+L'élève est désigné par [Élève]. Gardez tels quels les autres repères entre crochets ([Camarade 1], [Professeur de SVT]…) et ne cherchez pas à savoir qui ils sont.
+Répondez en texte simple, sans titre ni mise en forme.`;
+// Ce qu'on peut joindre. Décochés d'office : l'âge, les options et les aménagements (PAI, PPS :
+// des données de santé), qui disent peu pour une synthèse et beaucoup pour reconnaître un élève.
+const IA_BLOCS = [
+  { k: 'genre', l: 'Fille ou garçon', t: 'Pour que la synthèse s\'accorde', on: true },
+  { k: 'age', l: 'Âge', on: false },
+  { k: 'options', l: 'Groupe et options', on: false },
+  { k: 'amen', l: 'Aménagements', t: 'PPRE, PAP, PPS, PAI… : souvent des données de santé', on: false },
+  { k: 'role', l: 'Délégué', on: true },
+  { k: 'obs', l: 'Observations', t: 'Carnet et MBN', on: true },
+  { k: 'abs', l: 'Absences et retards', on: true },
+  { k: 'moy', l: 'Moyennes', on: true },
+  { k: 'papiers', l: 'Papiers à rendre', on: true },
+  { k: 'incid', l: 'Incidents', on: true },
+  { k: 'contact', l: 'Contacts avec la famille', on: true },
+  { k: 'remarque', l: 'Remarque', on: true },
+  { k: 'avis', l: 'Avis des collègues', on: true },
+  { k: 'suivis', l: 'Fiches de suivi', on: true },
+  { k: 'bilans', l: 'Bilans d\'avant', t: 'Les bilans et décisions des moments précédents', on: true },
+];
+const _IA_AMEN = [['ppre', 'PPRE'], ['pap', 'PAP'], ['gevasco', 'PPS'], ['ulis', 'ULIS'], ['ulis_incl', 'ULIS (inclusion)'],
+  ['upe2a', 'UPE2A'], ['upe2a_incl', 'UPE2A (inclusion)'], ['pai', 'PAI'], ['agrandissement', 'documents agrandis'], ['tiers_temps', 'tiers temps']];
+// Jamais « à vérifier » (repliés : minuscules, sans accents). Complété, à chaque texte, par les
+// mots des libellés que l'app y écrit elle-même (disciplines, matières, instances, papiers…).
+const IA_MOTS_OK = new Set(('m mme mmes mlle mr me dr monsieur madame mademoiselle docteur '
+  + 'janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre '
+  + 'lundi mardi mercredi jeudi vendredi samedi dimanche toussaint noel paques '
+  + 'mbn pronote ent cdi cpe aed aesh pp ulis segpa ppre pap pai pps gevasco mdph ess gpds '
+  + 'eps svt emc lv1 lv2 lce dnl dnb pix assr hvc cvc cvl ca ce ok rased upe2a '
+  + 'francais anglais allemand espagnol italien latin grec maths mathematiques histoire geographie '
+  + 'physique chimie technologie musique arts plastiques sciences education devoirs faits ulyss '
+  + 's1 s2 t1 t2 t3 td tp').split(/\s+/));
+
+// ── Le moteur (pur) ──
+// Plie une chaîne SANS en changer la longueur : minuscules, accents retirés, caractère par
+// caractère (une position trouvée dans le texte plié vaut dans le texte d'origine).
+function _iaPlie(s) {
+  let r = '';
+  for (const c of String(s ?? '')) {
+    let x = c;
+    if (c.length === 1) { const b = c.normalize('NFD')[0]; if (/[A-Za-z]/.test(b)) x = b; }
+    const l = x.toLowerCase();
+    r += l.length === x.length ? l : x;
+  }
+  return r;
+}
+const _IA_LETTRE = /[\p{L}\p{N}]/u;
+const _IA_REPERE = /\[[^\[\]\n]{1,60}\]/g;
+// Un mot d'un nom composé n'est une forme à lui seul qu'au-delà de deux lettres et hors des particules.
+const _IA_PARTICULES = new Set(['de', 'du', 'des', 'le', 'la', 'les', 'van', 'von', 'der', 'den', 'ben', 'bin', 'el', 'al', 'da', 'di', 'do', 'dos', 'das', 'del', 'della', 'mac', 'mc', 'et', 'y']);
+const _IA_CIV = /^(M\.|Mr\.?|MM\.|Mme\.?|Mmes|Mlle\.?|Madame|Monsieur|Mademoiselle|Dr\.?)\s+/i;
+// Les formes d'un nom : tel quel, trait d'union ↔ espace, et chaque mot d'un nom composé.
+function _iaFormesNom(s) {
+  const t = String(s ?? '').trim().replace(/\s+/g, ' ');
+  if (!t) return [];
+  const f = new Set([t, t.replace(/-/g, ' '), t.replace(/ /g, '-')]);
+  t.split(/[\s-]+/).forEach(w => { if (w.length >= 3 && !_IA_PARTICULES.has(_iaPlie(w))) f.add(w); });
+  return [...f];
+}
+// Un adulte (« Mme Zoé DURAND ») : la chaîne entière, puis le nom sans civilité et ses mots.
+function _iaFormesAdulte(s) {
+  const t = String(s ?? '').trim();
+  return t ? [...new Set([t, ..._iaFormesNom(t.replace(_IA_CIV, ''))])] : [];
+}
+// Remplace dans `texte` les formes des personnes de `ctx.personnes` ({ id, jeton | famille,
+// formes, retour }) — la plus longue d'abord, entre deux non-lettres, sans casse ni accents —,
+// puis civilité + nom à majuscule, téléphones et courriels. Un repère déjà présent n'est jamais
+// touché ; une forme repliée de `ctx.ignores` est laissée. `avant` (la table d'un passage
+// précédent) garde les numéros. → { texte, table : { jetons: { jeton: { retour, vus } }, par: { id: jeton } } }.
+function _iaPseudo(texte, ctx, avant) {
+  const src = String(texte ?? ''), plie = _iaPlie(src), ign = (ctx && ctx.ignores) || new Set();
+  const table = { jetons: {}, par: {} };
+  if (avant) { for (const [k, v] of Object.entries(avant.jetons || {})) table.jetons[k] = { retour: v.retour, defaut: v.defaut, vus: { ...v.vus } }; Object.assign(table.par, avant.par || {}); }
+  const pris = [...src.matchAll(_IA_REPERE)].map(m => [m.index, m.index + m[0].length]);
+  const libre = (a, b) => !pris.some(([x, y]) => a < y && b > x);
+  const trouves = [];
+  const formes = [];
+  ((ctx && ctx.personnes) || []).forEach((p, rang) => (p.formes || []).forEach(f => { const pf = _iaPlie(f).trim(); if (pf.length >= 2) formes.push({ pf, p, rang }); }));
+  formes.sort((x, y) => y.pf.length - x.pf.length || x.rang - y.rang);
+  for (const { pf, p } of formes) {
+    if (ign.has(pf)) continue;
+    for (let i = plie.indexOf(pf); i >= 0; i = plie.indexOf(pf, i + 1)) {
+      const j = i + pf.length;
+      if ((i === 0 || !_IA_LETTRE.test(plie[i - 1])) && (j >= plie.length || !_IA_LETTRE.test(plie[j])) && libre(i, j)) { pris.push([i, j]); trouves.push({ a: i, b: j, id: p.id, original: src.slice(i, j) }); }
+    }
+  }
+  const reCiv = /(?<![\p{L}])(M\.|Mr\.?|MM\.|Mme\.?|Mmes|Mlle\.?|Madame|Monsieur|Mademoiselle|Dr\.?|Docteur|Maître)\s+((?:\p{Lu}[\p{L}'’-]*)(?:\s+\p{Lu}[\p{L}'’-]*){0,2})/gu;
+  for (const m of src.matchAll(reCiv)) {
+    const a = m.index + m[0].length - m[2].length, b = m.index + m[0].length;
+    if (libre(a, b) && !ign.has(_iaPlie(m[2]))) { pris.push([a, b]); trouves.push({ a, b, id: 'adulte:' + _iaPlie(m[2]), famille: '[Adulte {n}]', original: m[2] }); }
+  }
+  for (const [re, jeton] of [[/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '[courriel]'], [/(?<!\d)(?:\+33\s?(?:\(0\)\s?)?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)/g, '[téléphone]']])
+    for (const m of src.matchAll(re)) { const a = m.index, b = a + m[0].length; if (libre(a, b)) { pris.push([a, b]); trouves.push({ a, b, id: jeton, fixe: jeton, original: m[0] }); } }
+  trouves.sort((x, y) => x.a - y.a);
+  const pers = Object.fromEntries(((ctx && ctx.personnes) || []).map(p => [p.id, p]));
+  const prochain = (fam, n0) => { let n = n0 || 1; while (table.jetons[fam.replace('{n}', n)]) n++; return fam.replace('{n}', n); };
+  for (const t of trouves) {
+    let jeton = table.par[t.id];
+    if (!jeton) {
+      const p = pers[t.id];
+      jeton = t.fixe || (p && p.jeton) || prochain((p && p.famille) || t.famille || '[Nom {n}]');
+      // Un repère fixe déjà tenu par une AUTRE personne (deux professeurs de SVT) : numéroté.
+      if (!t.fixe && Object.entries(table.par).some(([id, j]) => j === jeton && id !== t.id)) jeton = prochain(jeton.replace(/\]$/, ' {n}]'), 2);
+      table.par[t.id] = jeton;
+    }
+    const e = table.jetons[jeton] || (table.jetons[jeton] = { retour: (pers[t.id] && pers[t.id].retour) || '', defaut: (pers[t.id] && pers[t.id].defaut) || '', vus: {} });
+    e.vus[t.original] = (e.vus[t.original] || 0) + 1;
+    t.jeton = jeton;
+  }
+  let out = '', k = 0;
+  for (const t of trouves) { out += src.slice(k, t.a) + t.jeton; k = t.b; }
+  return { texte: out + src.slice(k), table };
+}
+// Le nom à remettre pour un repère : son `retour` (le prénom de l'élève, d'un camarade), sinon la forme
+// la plus vue dans le texte (« Guérin », pas « GUÉRIN »), sinon son `defaut`.
+function _iaRetourDe(e) {
+  if (!e) return '';
+  return e.retour || Object.entries(e.vus || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || e.defaut || '';
+}
+// La réponse de l'IA, en morceaux : [{ t }] du texte, [{ t, nom }] un repère qu'on sait rendre.
+// Tolérant : « [élève] », « [ Eleve ] ». Un repère inconnu reste tel quel.
+function _iaRestaureParts(texte, table) {
+  const par = {};
+  for (const [j, e] of Object.entries((table && table.jetons) || {})) par[_iaPlie(j.slice(1, -1)).replace(/\s+/g, ' ').trim()] = _iaRetourDe(e);
+  const out = [], src = String(texte ?? '');
+  let k = 0;
+  for (const m of src.matchAll(/\[\s*([^\[\]\n]{1,60}?)\s*\]/g)) {
+    const c = _iaPlie(m[1]).replace(/\s+/g, ' ').trim();
+    if (!Object.prototype.hasOwnProperty.call(par, c) || !par[c]) continue;
+    if (m.index > k) out.push({ t: src.slice(k, m.index) });
+    out.push({ t: m[0], nom: par[c] });
+    k = m.index + m[0].length;
+  }
+  if (k < src.length) out.push({ t: src.slice(k) });
+  return out;
+}
+function _iaRestaure(texte, table) { return _iaRestaureParts(texte, table).map(p => p.nom ?? p.t).join(''); }
+// Ce qu'un assistant ajoute volontiers (blocs de code, gras, titres) : la fiche lit du texte simple.
+function _iaNettoie(t) {
+  return String(t ?? '').replace(/\r\n/g, '\n').replace(/^\s*```[^\n]*\n?/gm, '').replace(/\*\*|__/g, '')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '').replace(/^(\s*)[*•]\s+/gm, '$1– ').replace(/\n{3,}/g, '\n\n').trim();
+}
+// Les noms connus ENCORE présents (après une correction à la main) : [{ mot, n }], hors `ignores`.
+function _iaFuites(texte, personnes, ignores) {
+  const r = _iaPseudo(texte, { personnes, ignores });
+  const out = new Map();
+  for (const e of Object.values(r.table.jetons)) for (const [o, n] of Object.entries(e.vus)) {
+    const k = _iaPlie(o), x = out.get(k) || { mot: o, n: 0 };
+    x.n += n; out.set(k, x);
+  }
+  return [...out.values()];
+}
+// Mots à vérifier : une majuscule en milieu de phrase, ou un mot TOUT EN CAPITALES, hors repères,
+// mots autorisés et mots écartés (repliés). → [{ mot, n }] dans l'ordre du texte.
+function _iaSuspects(texte, autorises, ignores) {
+  const src = String(texte ?? ''), out = new Map();
+  const reperes = [...src.matchAll(_IA_REPERE)].map(m => [m.index, m.index + m[0].length]);
+  for (const m of src.matchAll(/\p{L}[\p{L}\p{N}'’-]*/gu)) {   // « S1 », « LV2 » : un seul mot
+    const w = m[0].replace(/['’-]+$/, ''), i = m.index;
+    if (!/^\p{Lu}/u.test(w) || reperes.some(([a, b]) => i >= a && i < b)) continue;
+    const caps = w.length >= 2 && w === w.toUpperCase() && /\p{Lu}.*\p{Lu}/u.test(w);
+    const avant = src.slice(0, i).replace(/[ \t ]+$/, '');
+    if (!caps && (!avant || /[\n.!?:;«"(—–•…-]$/.test(avant))) continue;   // début de phrase : la majuscule y est normale
+    const k = _iaPlie(w);
+    if ((autorises && autorises.has(k)) || (ignores && ignores.has(k))) continue;
+    const x = out.get(k) || { mot: w, n: 0 };
+    x.n++; out.set(k, x);
+  }
+  return [...out.values()];
+}
+
+// ── Les personnes que l'app connaît, dans l'ordre de priorité (à forme égale, la première gagne) ──
+function _iaFormesClasse(c) {
+  const f = new Set([c.nom, c.id].map(x => String(x || '').trim()).filter(x => x.length >= 2));
+  const m = /^(\d)\s*(?:e|è|ème|eme)?\s*([A-Za-z])$/i.exec(String(c.nom || c.id || '').trim());
+  if (m) [`${m[1]}${m[2]}`, `${m[1]} ${m[2]}`, `${m[1]}e ${m[2]}`, `${m[1]}e${m[2]}`, `${m[1]}ème ${m[2]}`].forEach(x => f.add(x));
+  return [...f];
+}
+function _iaPersonnes(cls, stu) {
+  const P = [], vus = new Set();
+  const eleve = (s, jeton, famille) => {
+    const full = [`${s.prenom || ''} ${s.nom || ''}`, `${s.nom || ''} ${s.prenom || ''}`].map(x => x.trim()).filter(x => x.includes(' '));
+    return { id: 'e:' + s.id, jeton, famille, retour: String(s.prenom || '').trim(), formes: [...new Set([...full.flatMap(_iaFormesNom).filter(x => x.includes(' ') || x.includes('-')), ..._iaFormesNom(s.prenom)])] };
+  };
+  P.push(eleve(stu, '[Élève]'));
+  P.push({ id: 'n:' + stu.id, jeton: '[Nom de l\'élève]', defaut: String(stu.nom || '').trim(), formes: _iaFormesNom(stu.nom) });
+  const autres = Object.values(S.eleves || {}).filter(s => _isPlainObj(s) && s.id !== stu.id)
+    .sort((a, b) => (b.classe_id === cls.id) - (a.classe_id === cls.id));
+  for (const s of autres) { const p = eleve(s, null, '[Camarade {n}]'); p.formes.push(..._iaFormesNom(s.nom)); P.push(p); }
+  const adulte = (s, jeton, famille) => {
+    const sans = _iaPlie(String(s || '').replace(_IA_CIV, '')).replace(/\s+/g, ' ').trim();
+    if (sans.length < 2 || vus.has(sans)) return;
+    vus.add(sans);
+    P.push({ id: 'a:' + sans, jeton, famille, formes: _iaFormesAdulte(s) });
+  };
+  const pp = typeof _prefs().avisNom === 'string' ? _prefs().avisNom.trim() : '';
+  if (pp) adulte(pp, '[Professeur principal]');
+  const coupe = s => String(s || '').split(/\s*(?:,|;|\/|\set\s)\s*/).map(x => x.trim()).filter(Boolean);
+  for (const d of _disciplinesAll()) coupe(_discProfs(cls.id, d.id)).forEach(x => adulte(x, `[Professeur de ${d.nom}]`));
+  for (const rel of _moyReleves(cls.id)) for (const [mid, ps] of Object.entries(rel.profs || {})) {
+    const did = _matiereDisc(mid), nom = (did && S.disciplines?.[did]?.nom) || S.matieres?.[mid]?.nom || '';
+    coupe(ps).forEach(x => adulte(x, nom ? `[Professeur de ${nom}]` : null, '[Professeur {n}]'));
+  }
+  for (const c of _avisCampagnes(cls.id)) for (const d of c.disciplines || []) coupe(d.profs).forEach(x => adulte(x, `[Professeur de ${d.nom}]`));
+  for (const sid of cls.eleves || []) for (const o of _obsMbnOf(sid)) if (o.par) coupe(o.par).forEach(x => adulte(x, null, '[Adulte {n}]'));
+  const etab = typeof _prefs().etablissement === 'string' ? _prefs().etablissement.trim() : '';
+  if (etab) { const reste = etab.replace(/^(coll[eè]ge|lyc[eé]e|[eé]cole)\s+/i, '').trim(); P.push({ id: 'etab', jeton: '[Établissement]', formes: [etab, ...(reste !== etab && reste.length >= 4 ? [reste] : [])] }); }
+  for (const c of Object.values(S.classes || {})) if (_isPlainObj(c)) P.push({ id: 'c:' + c.id, jeton: c.id === cls.id ? '[Classe]' : null, famille: '[Autre classe {n}]', formes: _iaFormesClasse(c) });
+  return P;
+}
+
+// ── Les données d'un moment, en texte (avec les vrais noms dans les textes libres : le moteur passe ensuite) ──
+// → { texte, ok } ; `ok` = les mots des libellés écrits par l'app, jamais « à vérifier ».
+function _iaDonnees(cls, stu, col, blocs) {
+  const b = _ficheBornes(cls, col);
+  if (!b) return { texte: '', ok: new Set() };
+  const on = k => blocs.has(k), cid = cls.id, sid = stu.id, civ = _civOf(sid), ok = new Set(), parts = [];
+  // Les mots, et les mots composés entiers (« Physique-Chimie » est un seul mot pour `_iaSuspects`).
+  const st = s => { for (const re of [/[^\p{L}\p{N}]+/u, /[^\p{L}\p{N}'’-]+/u]) String(s ?? '').split(re).forEach(w => { w = w.replace(/^['’-]+|['’-]+$/g, ''); if (w) ok.add(_iaPlie(w)); }); return String(s ?? ''); };
+  const jm = d => _fmtDateFr(d).slice(0, 5);
+  const ligne = t => String(t ?? '').trim().replace(/\s*\n\s*/g, ' / ');
+  const id = ['[Élève]'];
+  if (on('genre') && civ) id.push(civ === 'F' ? 'une fille' : 'un garçon');
+  const niv = /^\s*(\d)/.exec(cls.nom || '');
+  if (niv) id.push(`en ${niv[1]}e`);
+  if (on('age')) { const a = _ficheAge(stu.naissance, b.end); if (a !== null) id.push(`${a} ans`); }
+  if (on('role')) {
+    const d = _delegueOf(sid), e = _ecoDelegueOf(sid);
+    if (d) id.push(`${_delMot(civ)} de classe ${d === 'titulaire' ? 'titulaire' : _supMot(civ)}`);
+    if (e) id.push(`${_delMot(civ, true)}${e === 'titulaire' ? '' : ' ' + _supMot(civ)}`);
+  }
+  const debut = _debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start;   // rien ne se passe en août
+  const tete = [`Élève : ${id.join(', ')}.`, `Moment : ${st(col.long)}, du ${jm(debut)} au ${jm(b.end)}.`];
+  if (on('options')) {
+    const t = [stu.groupe ? `groupe ${stu.groupe}` : '', ...(stu.tags || []).map(x => tagById(x)).filter(Boolean).map(x => st(x.name || x.abbr))].filter(Boolean);
+    if (t.length) tete.push(`Groupe et options : ${t.join(', ')}.`);
+  }
+  if (on('amen')) { const t = _IA_AMEN.filter(([k]) => stu[k]).map(([, l]) => st(l)); if (t.length) tete.push(`Aménagements : ${t.join(', ')}.`); }
+  parts.push(tete);
+  if (on('obs')) {
+    const L = [], o = _obsEntre(cid, sid, b.start, b.end), m = _relMap(cid) || {};
+    if (o !== null) {
+      const autres = cls.eleves.map(x => _obsEntre(cid, x, b.start, b.end)).filter(v => v !== null), rang = autres.filter(v => v > o).length + 1;
+      const rel = _relDates(cid).filter(d => d >= b.start && d <= b.end).map(d => { const v = _relValue(m[d], sid); return typeof v === 'number' ? `${v} le ${jm(d)}` : v === REL_ABSENT ? `absent le ${jm(d)}` : ''; }).filter(Boolean);
+      L.push(`Observations au carnet de correspondance : ${o} sur le moment (${rang === 1 ? 'le plus haut de la classe' : `${rang}e de la classe sur ${autres.length}`})${rel.length ? ` ; cumuls relevés : ${rel.join(', ')}` : ''}.`);
+    }
+    const mb = _obsMbnEntre(sid, b.start, b.end);
+    if (mb.length) { L.push(`Observations notées dans MBN : ${mb.length}.`); mb.forEach(x => L.push(`– ${jm(x.date)} : ${st(x.motif || x.type || 'observation')}${x.motif && x.type ? ` (${st(x.type).toLowerCase()})` : ''}${x.info ? ` — ${ligne(x.info)}` : ''}`)); }
+    else if (_obsMbnClasseAny(cls)) L.push('Aucune observation notée dans MBN sur le moment.');
+    if (L.length) parts.push(L);
+  }
+  if (on('abs') && _absMbnClasseAny(cls)) parts.push([`Absences et retards : ${st(_absResumeTexte(_absMbnResume(sid, b.start, b.end)))}.`]);
+  if (on('moy')) {
+    const m = _ficheMoy(cls, sid, col, b), nb = v => typeof v === 'number' ? _fmtNote(v, 1) : st(String(v));   // un code (« Disp ») est écrit par l'app
+    if (m && (m.g !== null || m.mats.length)) {
+      const L = [`Moyennes au ${jm(m.last.date)}${m.g !== null ? ` : générale ${nb(m.g)}${m.delta !== null ? ` (${_fmtDelta(m.delta)} depuis le ${jm(m.depuis)})` : ''}` : ''}.`];
+      const mats = m.mats.filter(x => x.v !== undefined && x.v !== null && x.v !== '').map(x => `${st(x.ab)} ${nb(x.v)}`);
+      if (mats.length) L.push(`Par matière : ${mats.join(' ; ')}.`);
+      parts.push(L);
+    }
+  }
+  if (on('papiers')) { const nr = _ficheNonRendus(cls, sid, b); if (nr.length) parts.push([`Papiers à rendre : ${nr.map(d => st(d.titre) + (d.dateDistribution ? ` (distribué le ${jm(d.dateDistribution)})` : '')).join(', ')}.`]); }
+  const dans = l => (l || []).filter(x => _isPlainObj(x) && x.date >= b.start && x.date <= b.end).sort((x, y) => x.date.localeCompare(y.date));
+  if (on('incid')) {
+    const inc = dans(stu.incidents);
+    parts.push(inc.length ? [`Incidents : ${inc.length}.`, ...inc.map(x => `– ${jm(x.date)}, ${st(_instanceOf(x.type).label).toLowerCase()}${x.objet ? ` : ${ligne(x.objet)}` : ''}${x.texte ? `. ${ligne(x.texte)}` : ''}`)] : ['Aucun incident sur le moment.']);
+  }
+  if (on('contact')) { const ct = dans(stu.journal); if (ct.length) parts.push([`Contacts avec la famille : ${ct.length}.`, ...ct.map(x => `– ${jm(x.date)}, ${st(_journalType(x.type).label).toLowerCase()}${x.texte ? ` : ${ligne(x.texte)}` : ''}`)]); }
+  if (on('remarque') && String(stu.remarque || '').trim()) parts.push(['Remarque du professeur principal (sans date) :', String(stu.remarque).trim()]);
+  if (on('avis')) {
+    const av = _ficheAvis(cls, sid, col);
+    if (av) {
+      const o = st(_avisObjectif(cls, av.camp).long);
+      av.cols.forEach(c => st(c.label));
+      const L = av.items.map(it => { const t = av.cols.map(c => String(it[c.key] || '').trim() ? `${av.cols.length > 1 ? c.label + ' : ' : ''}${ligne(it[c.key])}` : '').filter(Boolean); return t.length ? `– ${st(it.disc.nom)} : ${t.join(' ; ')}` : ''; }).filter(Boolean);
+      parts.push(L.length ? [`Avis des collègues (${o}) :`, ...L] : [`Avis des collègues (${o}) : aucun pour cet élève.`]);
+    }
+  }
+  if (on('suivis')) { const F = _suivisFaits(cls, stu, b).map(f => f.phrase).filter(Boolean); if (F.length) parts.push([`Fiches de suivi : ${st(F.join(' ; '))}.`]); }
+  if (on('bilans')) {
+    const mode = { type: col.type, date: col.date }, avant = x => x.date < col.date && !_momentEst(cls, x, mode);
+    const L = [..._bilansOf(sid).filter(avant).reverse().map(x => `– ${st(_bilanLabel(x))} (${jm(x.date)}) : ${ligne(x.texte)}`),
+      ..._decisionsOf(sid).filter(avant).reverse().map(x => `– Décisions, ${st(_bilanLabel(x)).toLowerCase()} (${jm(x.date)}) : ${ligne(x.texte)}`)];
+    if (L.length) parts.push(['Bilans des moments précédents :', ...L]);
+  }
+  return { texte: parts.map(p => p.join('\n')).join('\n\n'), ok };
+}
+// Les blocs qui n'ajoutent rien pour cet élève et ce moment (grisés dans la fenêtre).
+function _iaBlocsVides(cls, stu, col) {
+  const base = _iaDonnees(cls, stu, col, new Set()).texte;
+  return new Set(IA_BLOCS.filter(x => _iaDonnees(cls, stu, col, new Set([x.k])).texte === base).map(x => x.k));
+}
+function _iaConsigne() { const c = _prefs().iaConsigne; return typeof c === 'string' && c.trim() ? c : IA_CONSIGNE; }
+
+// ── La fenêtre ──
+let _iaBlocsSel = null;   // les blocs cochés, pour la séance (comme les réglages d'impression), rien dans `S`
+const _iaEtats = {};      // par élève et moment : texte relu, table, mots écartés, réponse collée — séance seulement
+let _ia = null, _iaVerifT = null;
+function _iaBlocs() { return _iaBlocsSel || (_iaBlocsSel = new Set(IA_BLOCS.filter(x => x.on).map(x => x.k))); }
+function _iaCtx() {
+  const stu = _ia && S.eleves[_ia.sid], cls = stu && S.classes[stu.classe_id];
+  const col = cls && (_chaleurMomentsTous(cls).find(c => c.key === _ia.colKey) || _ficheMoments(cls).find(c => c.key === _ia.colKey));
+  return col ? { stu, cls, col, mode: { type: col.type, date: col.date } } : null;
+}
+function openSynthIA() {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id], col = cls && _ficheMomentCourant(cls);
+  if (!col) return toast('⚠️ Choisissez d\'abord un moment dans la fiche (Synthèse pour).', 'warn');
+  const cle = stu.id + '|' + col.key;
+  _ia = _iaEtats[cle] || (_iaEtats[cle] = { sid: stu.id, colKey: col.key, txt: null, modifie: false, table: null, ok: [], ignores: [], rep: null });
+  const c = _iaCtx();
+  document.getElementById('mia-title').textContent = `🤖 Synthèse par une IA — ${stu.prenom} ${stu.nom}`;
+  document.getElementById('mia-sous').textContent = `${col.long} · rien ne part sans votre geste « Copier », et rien ne part du tout vers un serveur depuis l'app.`;
+  const cons = document.getElementById('mia-cons');
+  cons.value = _iaConsigne();
+  _iaConsigneRaz();
+  // Refait à neuf (les données ont pu changer), sauf un texte corrigé à la main ou une réponse collée qui porte
+  // encore des repères : la table d'aujourd'hui doit rester celle de ce texte-là.
+  if (_ia.txt === null || (!_ia.modifie && !String(_ia.rep || '').match(_IA_REPERE))) _iaGenerer(); else { document.getElementById('mia-txt').value = _ia.txt; _iaBlocsRender(); _iaVerifRender(); }
+  if (_ia.rep === null) { const si = _synthIACible(c.cls, c.stu.id, c.mode); _ia.rep = si ? si.texte : ''; }
+  document.getElementById('mia-rep').value = _ia.rep;
+  _iaRestRender();
+  openMod('mia');
+  _modalReturnTo['mia'] = () => { clearTimeout(_iaVerifT); _ia = null; _ficheRedessine(); };
+  if (_suivisAUnSuivi(c.cls) && !_suivisPret) { const ici = _ia; _suivisPretAttendre().then(() => { if (_ia === ici && !_ia.modifie) _iaGenerer(); }); }
+}
+function _iaGenerer() {
+  const c = _iaCtx();
+  if (!c) return;
+  const d = _iaDonnees(c.cls, c.stu, c.col, _iaBlocs());
+  const r = _iaPseudo(d.texte, { personnes: _iaPersonnes(c.cls, c.stu) });
+  // L'en-tête écrit déjà « [Élève] » : la table doit le connaître même si son prénom n'est dans aucun texte.
+  r.table.jetons['[Élève]'] = r.table.jetons['[Élève]'] || { retour: String(c.stu.prenom || '').trim(), vus: {} };
+  r.table.par['e:' + c.stu.id] = '[Élève]';
+  Object.assign(_ia, { txt: r.texte, table: r.table, ok: [...d.ok], modifie: false });
+  document.getElementById('mia-txt').value = r.texte;
+  _iaBlocsRender(); _iaVerifRender();
+}
+function _iaBlocsRender() {
+  const c = _iaCtx(), box = document.getElementById('mia-blocs');
+  if (!c || !box) return;
+  const on = _iaBlocs(), vides = _iaBlocsVides(c.cls, c.stu, c.col);
+  box.innerHTML = IA_BLOCS.map(x => `<label class="ia-bloc${vides.has(x.k) ? ' vide' : ''}"${x.t ? ` title="${_escAttr(x.t)}"` : ''}><input type="checkbox"${on.has(x.k) ? ' checked' : ''} onchange="iaBlocUI('${x.k}',this.checked)">${_escName(x.l)}${vides.has(x.k) ? ' <span class="ia-rien">(rien)</span>' : ''}</label>`).join('');
+}
+// Cocher ou décocher REFAIT le texte : les corrections à la main se perdraient, on demande d'abord.
+function iaBlocUI(k, oui) {
+  if (!_ia) return;
+  const appliquer = () => { if (oui) _iaBlocs().add(k); else _iaBlocs().delete(k); _iaGenerer(); };
+  if (!_ia.modifie) return appliquer();
+  _uiConfirm({ title: 'Refaire le texte à copier ?', message: 'Il est refait à partir des données cochées : vos corrections à la main seront perdues.', okLabel: 'Refaire', onOk: appliquer, onCancel: _iaBlocsRender });
+}
+function iaRefaireUI() {
+  if (!_ia) return;
+  if (!_ia.modifie) return _iaGenerer();
+  _uiConfirm({ title: 'Refaire le texte à copier ?', message: 'Vos corrections à la main seront perdues.', okLabel: 'Refaire', onOk: _iaGenerer });
+}
+function iaTexteSaisi() {
+  const ta = document.getElementById('mia-txt');
+  if (!_ia || !ta) return;
+  _ia.txt = ta.value; _ia.modifie = true;
+  clearTimeout(_iaVerifT); _iaVerifT = setTimeout(_iaVerifRender, 250);
+}
+function _iaVerifRender() {
+  const c = _iaCtx(), box = document.getElementById('mia-verif');
+  if (!c || !box) return;
+  const txt = _ia.txt || '', ign = new Set(_ia.ignores);
+  _ia.fuites = _iaFuites(txt, _iaPersonnes(c.cls, c.stu), ign);
+  _ia.suspects = _iaSuspects(txt, new Set([...IA_MOTS_OK, ..._ia.ok, ..._ia.fuites.map(f => _iaPlie(f.mot))]), ign);   // un nom connu n'est dit qu'une fois
+  const n = x => x.n > 1 ? ` ×${x.n}` : '';
+  const rempl = Object.entries(_ia.table?.jetons || {}).filter(([j, e]) => txt.includes(j) && Object.keys(e.vus).length)
+    .map(([j, e]) => `<span class="ia-chip">${_escName(Object.keys(e.vus).join(', '))} → <strong>${_escName(j)}</strong></span>`);
+  box.innerHTML = (_ia.fuites.length ? `<div class="ia-vl"><span class="ia-vt">⚠ Noms connus encore là</span>${_ia.fuites.map((f, i) => `<span class="ia-chip f">${_escName(f.mot)}${n(f)}<button class="ia-b" onclick="iaIgnorerUI('f',${i})" title="Ce mot n'est pas le nom d'une personne ici : le laisser">ce n'est pas un nom</button></span>`).join('')}<button class="ia-b ia-bp" onclick="iaFuitesUI()">Remplacer</button></div>` : '')
+    + `<div class="ia-vl"><span class="ia-vt">À vérifier</span>${_ia.suspects.length ? _ia.suspects.map((s, i) => `<span class="ia-chip s">${_escName(s.mot)}${n(s)}<button class="ia-b" onclick="iaMasquerUI(${i})" title="Le remplacer partout par un repère [Nom n]">masquer</button><button class="ia-b" onclick="iaIgnorerUI('s',${i})" title="Il ne fait reconnaître personne : le laisser">laisser</button></span>`).join('') : '<span class="ia-ok">aucun mot à majuscule inconnu en milieu de phrase</span>'}</div>`
+    + (rempl.length ? `<div class="ia-vl"><span class="ia-vt">Remplacés</span>${rempl.join('')}</div>` : '')
+    + `<div class="tb-hint">⚠️ Un prénom que l'app ne connaît pas, placé en début de phrase, n'est pas repéré : relisez tout le texte.</div>`;
+}
+function _iaTexteMaj(r) {
+  _ia.txt = r.texte; _ia.table = r.table; _ia.modifie = true;
+  document.getElementById('mia-txt').value = r.texte;
+  _iaVerifRender();
+}
+// Les noms connus revenus dans le texte (correction à la main) : remplacés, numéros gardés.
+function iaFuitesUI() {
+  const c = _iaCtx();
+  if (!c) return;
+  _iaTexteMaj(_iaPseudo(document.getElementById('mia-txt').value, { personnes: _iaPersonnes(c.cls, c.stu), ignores: new Set(_ia.ignores) }, _ia.table));
+}
+function iaMasquerUI(i) {
+  const s = _ia && _ia.suspects && _ia.suspects[i];
+  if (!s) return;
+  _iaTexteMaj(_iaPseudo(document.getElementById('mia-txt').value, { personnes: [{ id: 'm:' + _iaPlie(s.mot), famille: '[Nom {n}]', retour: s.mot, formes: [s.mot] }] }, _ia.table));
+}
+function iaIgnorerUI(sorte, i) {
+  const x = _ia && (sorte === 'f' ? _ia.fuites : _ia.suspects)?.[i];
+  if (!x) return;
+  _ia.ignores.push(_iaPlie(x.mot));
+  _iaVerifRender();
+}
+// Copier : la consigne, puis le texte relu. Un nom connu encore là → on demande avant.
+function iaCopierUI() {
+  const ta = document.getElementById('mia-txt');
+  if (!_ia || !ta) return;
+  _ia.txt = ta.value; _iaVerifRender();
+  if (!_ia.txt.trim()) return toast('⚠️ Rien à copier : cochez des données (étape 1).', 'warn');
+  if (_ia.fuites.length) return _uiConfirm({ title: 'Des noms connus sont encore dans le texte', message: `${_ia.fuites.map(f => f.mot).join(', ')} : ils partiraient tels quels. Les remplacer avant de copier ?`, okLabel: 'Remplacer et copier', onOk: () => { iaFuitesUI(); _iaCopier(); } });
+  _iaCopier();
+}
+async function _iaCopier() {
+  const t = _iaConsigne().trim() + '\n\n' + String(_ia.txt || '').trim() + '\n';
+  try { await navigator.clipboard.writeText(t); toast('📋 Copié : la consigne et le texte relu. Collez-les dans l\'assistant, puis rapportez sa réponse ici (étape 3).'); }
+  catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.getElementById('mia').appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    ta.remove();
+    toast(ok ? '📋 Copié : la consigne et le texte relu.' : 'Copie impossible ici : sélectionnez la consigne puis le texte à la main.', ok ? 'info' : 'warn');
+  }
+}
+function iaConsigneUI(v) {
+  const t = v === null ? '' : String(v).replace(/\r\n/g, '\n').slice(0, 4000);
+  const n = t.trim() === '' || t.trim() === IA_CONSIGNE ? '' : t;
+  if ((_prefs().iaConsigne || '') === n) { _iaConsigneRaz(); return; }
+  pushUndo();
+  _prefs().iaConsigne = n;
+  save();
+  const cons = document.getElementById('mia-cons');
+  if (cons && v === null) cons.value = IA_CONSIGNE;
+  _iaConsigneRaz();
+}
+function _iaConsigneRaz() { const b = document.getElementById('mia-cons-raz'); if (b) b.style.display = (_prefs().iaConsigne || '').trim() ? '' : 'none'; }
+function iaReponseSaisie() {
+  const ta = document.getElementById('mia-rep');
+  if (!_ia || !ta) return;
+  _ia.rep = ta.value;
+  _iaRestRender();
+}
+function _iaRestRender() {
+  const box = document.getElementById('mia-rest');
+  if (!box || !_ia) return;
+  const parts = _iaRestaureParts(_iaNettoie(_ia.rep), _ia.table);
+  const reste = parts.filter(p => p.nom == null).map(p => p.t).join('').match(_IA_REPERE) || [];
+  box.innerHTML = !parts.some(p => p.nom != null) && !reste.length ? '' : `<div class="ia-vt">Ce qui sera rangé dans la fiche</div>${parts.map(p => p.nom != null ? `<mark title="${_escAttr(p.t)}">${_escName(p.nom)}</mark>` : _escName(p.t)).join('')}`
+    + (reste.length ? `<div class="tb-hint">Repères sans correspondance, laissés tels quels : ${_escName([...new Set(reste)].join(', '))}.</div>` : '');
+}
+function iaRangerUI() {
+  const c = _iaCtx(), ta = document.getElementById('mia-rep');
+  if (!c || !ta) return;
+  const t = _iaRestaure(_iaNettoie(ta.value), _ia.table).trim();
+  if (!t) return toast('⚠️ Collez d\'abord la réponse de l\'IA (étape 3).', 'warn');
+  const avant = _synthIACible(c.cls, c.stu.id, c.mode);
+  if (!avant || avant.texte !== t.slice(0, 10000)) { pushUndo(); synthIASet(c.cls, c.stu.id, c.mode, t); save(); }
+  _ia.rep = t;
+  closeMod2('mia');
+  toast('🤖 Synthèse rangée dans la fiche, à côté du bilan — Ctrl+Z l\'annule.');
+}
+// ── Dans la fiche ── la synthèse du moment, au-dessus de la rédaction du bilan.
+function _ficheSynthIAHTML(cls, stu, col) {
+  const si = _synthIACible(cls, stu.id, { type: col.type, date: col.date });
+  if (!si) return `<div class="pf-row"><button class="pf-ins" onclick="openSynthIA()">🤖 Synthèse par une IA…</button><span class="pf-mu">Les noms sont remplacés, et vous relisez tout avant de copier.</span></div>`;
+  return `<div class="pf-bil pf-ia"><div class="pf-bil-l">🤖 Synthèse par une IA · rangée le ${_escName(_fmtDateFr(_todayYmd(new Date(si.ts || Date.now()))))} · à relire, pas à recopier</div><div id="fi-ia-t">${_escName(si.texte)}</div><div class="pf-row"><button class="pf-ins" onmousedown="ficheSynthIASel()" onclick="ficheSynthIAInserer()" title="Ajouter la synthèse à la fin du bilan — ou seulement le passage que vous y avez sélectionné">＋ insérer dans le bilan</button><button class="pf-ins" onclick="openSynthIA()">🤖 Refaire…</button><button class="pf-ins" onclick="ficheSynthIARetirer()">🗑 Retirer</button></div></div>`;
+}
+let _ficheIASel = '';
+// Le passage sélectionné dans la synthèse, lu AVANT le clic (qui peut défaire la sélection).
+function ficheSynthIASel() {
+  const s = window.getSelection && window.getSelection(), box = document.getElementById('fi-ia-t');
+  _ficheIASel = s && box && !s.isCollapsed && box.contains(s.anchorNode) && box.contains(s.focusNode) ? String(s).trim() : '';
+}
+function ficheSynthIAInserer() {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id], ta = document.getElementById('fi-bil');
+  const col = cls && _ficheMomentCourant(cls), si = col && _synthIACible(cls, stu.id, { type: col.type, date: col.date });
+  if (!si || !ta) return;
+  const t = _ficheIASel || si.texte;
+  _ficheIASel = '';
+  ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + t;
+  ficheBilanSave(); _autoTaille(ta); ta.focus();
+}
+function ficheSynthIARetirer() {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id], col = cls && _ficheMomentCourant(cls);
+  if (!col || !_synthIACible(cls, stu.id, { type: col.type, date: col.date })) return;
+  pushUndo();
+  synthIASet(cls, stu.id, { type: col.type, date: col.date }, '');
+  save(); _ficheRender();
+  toast('Synthèse retirée — Ctrl+Z la rend.');
 }
 function ficheMotUI(m) { _ficheMot = _ficheMot === m ? null : m; _ficheRender(); }
 // Les avis en TABLEAU : une ligne par discipline, une colonne par colonne de la feuille.
@@ -23210,7 +23806,7 @@ function createDemo(opts) {
   // quoi on croirait que le journal remplace la remarque.
   E(0).remarque = 'Peu d\'apprentissage des leçons. Très volontaire à l\'oral, tout passe par là.';
   const contacts = [
-    [0, '10-11', 'appel',     'Mère jointe : promet de faire signer le carnet chaque semaine.'],
+    [0, '10-11', 'appel',     `Mère jointe (Mme ${_maj(E(0).nom.toLowerCase())}) : promet de faire signer le carnet chaque semaine.`],   // un nom dans un texte libre : la synthèse par une IA le remplace
     [0, '11-29', 'appel',     'Rappel — la signature du carnet a tenu trois semaines puis s\'est arrêtée.'],
     [0, '03-12', 'rencontre', 'Reçue avec le PP et la CPE. Cadre posé, point à refaire en mai.'],
     [5, '01-15', 'courriel',  'Père informé des aménagements du tiers-temps pour le brevet blanc.'],
@@ -23241,7 +23837,7 @@ function createDemo(opts) {
     [0, '02-05', 'commission_educative', 'Convocation après trois rapports d\'incident', 'Présents : principale, CPE, PP, la mère. Décision : contrat de comportement sur six semaines, point le 20 mars. L\'élève reconnaît les faits, la famille s\'engage sur le suivi du carnet.'],
     [0, '02-12', 'engagement',           'Contrat de comportement — six semaines', 'Signé par l\'élève, la mère et la principale. Trois engagements : carnet signé chaque semaine, matériel, pas de remarque en cours. Point le 20 mars.'],
     [9, '01-22', 'exclusion_cours',      'Exclu du cours de SVT — bavardages incessants', 'Pris en charge en vie scolaire avec un travail. Rapport écrit remis.'],
-    [9, '11-06', 'demo_inst_rappel',     'Rappel à l\'ordre — bousculade dans le couloir', 'Entretien de dix minutes avec la CPE. Pas de suite si rien ne se reproduit.'],
+    [9, '11-06', 'demo_inst_rappel',     'Rappel à l\'ordre — bousculade dans le couloir', `Entretien de dix minutes avec la CPE, ${E(1).prenom} aussi. Pas de suite si rien ne se reproduit.`],
     [12, '12-09', 'equipe_educative',    'Équipe éducative — difficultés d\'apprentissage', 'Demande d\'un PAP en cours ; la famille prendra rendez-vous avec l\'orthophoniste.'],
   ];
   incidents.forEach(([i, md, type, objet, texte], k) => {
@@ -23329,6 +23925,10 @@ function createDemo(opts) {
     const s = S.eleves[sids[i]];
     if (s) (s.decisions = s.decisions || []).push({ id: `demo_d${String(k + 1).padStart(2, '0')}`, ts: Date.parse(D(md) + 'T12:00:00'), date: D(md), type, texte });
   });
+  // ── Une synthèse par une IA rangée (v1.69.0), au conseil du S1 : la réponse d'un assistant, noms remis.
+  { const s = E(0), p = s.prenom;
+    s.synthIA = [{ id: 'demo_ia01', ts: Date.parse(D('01-18') + 'T12:00:00'), date: D('01-20'), type: 'conseil',
+      texte: `${p} a un premier semestre difficile, surtout pour le comportement et le travail personnel : un rapport d'incident en octobre, une retenue en novembre pour du travail non fait, et des observations au carnet qui ne cessent d'augmenter. La famille est en contact (deux appels), mais la signature du carnet n'a tenu que trois semaines.\n\nCe qui va bien : ${p} est très volontaire à l'oral, et sa participation est relevée.\n\nÀ suivre : le travail à la maison et la signature du carnet ; un point avec la famille avant les vacances d'hiver paraît utile.` }]; }
   E(5).remarque = 'Tiers-temps : prévoir une salle à part pour les évaluations longues.';
   E(9).remarque = 'Changé de place en février (devant, côté fenêtre) : ça a tout changé.\nÀ garder l\'an prochain.';
   E(19).remarque = `Arrivée le ${_fmtDateFr(D('11-03'))}, venant d'un autre collège.`;

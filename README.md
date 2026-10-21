@@ -328,6 +328,12 @@ instances (sanctions comprises) avec, si vous les joignez, les PDF des fiches.
 
 - Tout est stocké dans le **`localStorage` de votre navigateur** et dans les fichiers
   JSON que vous exportez. Rien ne part sur un serveur.
+- **Synthèse par une IA** (fiche d'un élève) : l'app ne contacte aucun service. Elle
+  prépare un texte où les noms qu'elle connaît sont remplacés par des repères
+  (`[Élève]`, `[Camarade 1]`…), que vous relisez et corrigez avant de le **copier
+  vous-même** dans l'assistant autorisé par votre académie ; la réponse collée
+  retrouve les vrais noms sur votre poste. C'est une pseudonymisation relue, pas un
+  anonymat garanti.
 - La **seule** requête réseau est la vérification de mise à jour, qui interroge
   `api.github.com` et n'envoie **aucune donnée**. Elle est désactivable en coupant
   simplement la connexion : l'app fonctionne intégralement hors-ligne.
