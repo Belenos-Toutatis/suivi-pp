@@ -278,6 +278,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
      lumière dans le bleu nuit, et l'encre de jour n'y tiendrait pas. */
   --del-t-bg: #cdf5d9;  --del-t-fg: #12351f;
   --del-s-bg: #fbeea0;  --del-s-fg: #3b2f00;
+  --eco-t-fill: #3aa856;  --eco-t-line: #1d5e30;  --eco-s-fill: #f2c94c;  --eco-s-line: #7a5a00;   /* pousse de l'éco-délégué : verte, jaune pour le suppléant (contour sombre : le jaune se voit sur la page claire) */
   --margin-w: 56px;
   /* Hauteur du bandeau collant — valeur de repli, REMESURÉE par _topbarMeasure() au
      chargement et à chaque changement de taille. Dimensionne les cadres figés. */
@@ -383,6 +384,7 @@ html[data-theme="dark"] {
   --mail-bg: #ffffff;  --mail-fg: #222222;  --mail-link: #1a4fa0;  --mail-rule: #c9cfd8;
   --del-t-bg: #1f4a2e;  --del-t-fg: #d5f0dc;
   --del-s-bg: #4d4212;  --del-s-fg: #f6e9a8;
+  --eco-t-fill: #5fcf7d;  --eco-t-line: #2f8a4a;  --eco-s-fill: #f5d44a;  --eco-s-line: #b8930f;
   --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
 }
 
@@ -446,6 +448,7 @@ html[data-theme="dark"] {
     --mail-bg: #ffffff;  --mail-fg: #222222;  --mail-link: #1a4fa0;  --mail-rule: #c9cfd8;
     --del-t-bg: #cdf5d9;  --del-t-fg: #12351f;
     --del-s-bg: #fbeea0;  --del-s-fg: #3b2f00;
+    --eco-t-fill: #3aa856;  --eco-t-line: #1d5e30;  --eco-s-fill: #f2c94c;  --eco-s-line: #7a5a00;
     --rgpd-btn-bg: #1a252f;  --rgpd-btn-fg: #f4f6fa;
     --shadow-card: 0 1px 0 rgba(11, 22, 32, 0.04), 0 2px 8px rgba(11, 22, 32, 0.05);
     --shadow-pop:  0 4px 16px rgba(11, 22, 32, 0.12), 0 1px 2px rgba(11, 22, 32, 0.06);
@@ -853,7 +856,13 @@ html[data-theme="dark"] #toast { background: var(--paper-deep); color: var(--ink
 .nom { border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .nom.del-t { background: var(--del-t-bg); color: var(--del-t-fg); padding: 1px 4px; }
 .nom.del-s { background: var(--del-s-bg); color: var(--del-s-fg); padding: 1px 4px; }
-.eco-bdg { font-size: .9em; cursor: help; }
+.eco-bdg { font-size: .9em; cursor: help; white-space: nowrap; }
+.eco-ic { width: 1.05em; height: 1.05em; vertical-align: -0.16em; }
+.eco-ic path { stroke-width: 1; stroke-linejoin: round; }
+.eco-ic .eco-tige { fill: none; stroke-width: 1.6; stroke-linecap: round; }
+.eco-bdg.t .eco-ic path { fill: var(--eco-t-fill); stroke: var(--eco-t-line); }
+.eco-bdg.s .eco-ic path { fill: var(--eco-s-fill); stroke: var(--eco-s-line); }
+
 .el-textes { flex-basis: 100%; }
 .el-textes a { color: var(--ink-blue); }
 .fi-j.hvc-avenir { border-left-color: var(--warn-fg); }
@@ -3271,8 +3280,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.72.0';
-const APP_BUILD_DATE = '2026-10-21T23:58:31Z';
+const APP_VERSION    = '1.72.1';
+const APP_BUILD_DATE = '2026-10-22T00:02:32Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -5521,14 +5530,22 @@ function _nomFicheHTML(sid, nom, prenom) {
 function _delMot(civ, eco) { return _acc(civ, eco ? 'éco-délégué' : 'délégué', eco ? 'éco-déléguée' : 'déléguée', eco ? 'éco-délégué(e)' : 'délégué(e)'); }
 function _supMot(civ) { return _acc(civ, 'suppléant', 'suppléante', 'suppléant(e)'); }
 function _maj(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+// La pousse de l'éco-délégué (v1.72.1) — l'utilisateur : « une différence d'icônes entre l'éco-délégué et le
+// suppléant : en vert pour l'éco-délégué, en jaune pour le suppléant », comme le surlignage des délégués. Un émoji ne
+// se recolore pas : une pousse DESSINÉE, aux tokens --eco-t-* / --eco-s-* (trois endroits), avec un contour sombre
+// pour que le jaune se voie sur la page claire. Le mandat en clair dans l'infobulle et pour les lecteurs d'écran.
+function _ecoIconeHTML(eco, civ) {
+  const mot = `${_maj(_delMot(civ, true))} ${eco === 'titulaire' ? 'titulaire' : _supMot(civ)}`;
+  return `<span class="eco-bdg ${eco === 'titulaire' ? 't' : 's'}" title="${_escAttr(mot)}" role="img" aria-label="${_escAttr(mot)}"><svg class="eco-ic" viewBox="0 0 16 16" aria-hidden="true"><path class="eco-tige" d="M8 15V8.6"/><path d="M8 9.2C8 5.6 5.6 3.2 1.8 3.2c0 3.6 2.4 6 6.2 6Z"/><path d="M8 7.6C8 4.4 10.4 1.8 14.2 1.8c0 3.3-2.4 5.8-6.2 5.8Z"/></svg></span>`;
+}
 function _nomHTML(sid, nom, prenom) {
   const del = _delegueOf(sid);
   const cls = del === 'titulaire' ? ' del-t' : del === 'suppleant' ? ' del-s' : '';
   const civ = _civOf(sid);
   const tip = del ? ` title="${_maj(_delMot(civ))} ${del === 'titulaire' ? 'titulaire' : _supMot(civ)} — élection close la plus récente"` : '';
-  // Éco-délégué : une feuille après le nom, pas un second surlignage (les deux mandats se cumulent).
+  // Éco-délégué : une pousse après le nom, pas un second surlignage (les deux mandats se cumulent).
   const eco = _ecoDelegueOf(sid);
-  const feuille = eco ? ` <span class="eco-bdg" title="${_maj(_delMot(civ, true))} ${eco === 'titulaire' ? 'titulaire' : _supMot(civ)}">🌱</span>` : '';
+  const feuille = eco ? ' ' + _ecoIconeHTML(eco, civ) : '';
   return `<span class="nom${cls}"${tip}><strong>${_escName(nom)}</strong> ${_escName(prenom)}</span>${feuille}`;
 }
 // Aménagements d'un élève en lecture : les seuls actifs, chacun dans son encre (les
@@ -8420,7 +8437,7 @@ function _ficheRender() {
     [`Aménagements`, `<button class="fi-val" onclick="ficheEdit('amen')" title="Régler les aménagements">${amen ? _escName(amen) : vide('aucun')}</button>${edAmen}`],
     [`Présence`, `${_ficheePresence(stu)}<div class="fi-editor"><label class="tb-hint">arrivée ${dateInp('arrivalDate', stu.arrivalDate)}</label><label class="tb-hint">départ ${dateInp('departureDate', stu.departureDate)}</label></div>`],
     del ? [`Délégué`, `<span class="badge ok" title="Dérivé de l'élection close la plus récente — se change dans 🗳 Délégués">${del === 'titulaire' ? '🏅 titulaire' : '🎗 suppléant'}</span>`] : null,
-    eco ? [`Éco-délégué`, `<span class="badge ok" title="Dérivé de l'élection d'éco-délégués close la plus récente — se change dans 🗳 Délégués">${eco === 'titulaire' ? '🌱 titulaire' : '🌱 suppléant'}</span>`] : null,
+    eco ? [`Éco-délégué`, `<span class="badge ok" title="Dérivé de l'élection d'éco-délégués close la plus récente — se change dans 🗳 Délégués">${_ecoIconeHTML(eco, _civOf(stu.id))} ${eco === 'titulaire' ? 'titulaire' : _supMot(_civOf(stu.id))}</span>`] : null,
     [`Place`, `<button class="fi-val" onclick="ficheEdit('place')" title="Changer de place">${places.length
       ? places.map(p => `${_escName(p.salleNom)} <span class="fi-vide">rang ${p.rang}, place ${p.colonne}</span>`).join('<br>')
       : vide('aucune place')}</button>${edPlace}`],
@@ -24998,6 +25015,9 @@ function createDemo(opts) {
   el3.tours[0].votantsAnnonces = 24;
   const b4 = _demoBulletins({ [c3[0].id]: 13, [c3[1].id]: 7, [c3[2].id]: 4 }, 0, 24);
   if (b4) { poser(el3, b4.map(v => [v, null]), 0); electionCloreTour(el3, 0); }
+  // L'établissement veut aussi un éco-délégué SUPPLÉANT (v1.72.1) : désigné sans vote en novembre, avec la titulaire
+  // élue — la désignation, plus récente, fait foi —, pour que la pousse JAUNE du suppléant se rencontre dans les listes.
+  if (b4) cls.ecoDelegues = { date: D('11-20'), titulaires: [sids[7]], suppleants: [sids[11]], note: 'Suppléant voulu par l\'établissement : le deuxième du scrutin, volontaire.' };
 
   // 2) Une élection EN COURS DE DÉPOUILLEMENT, pour régler la projection sans avoir à
   //    ressaisir des bulletins à chaque essai. 18 bulletins ouverts sur 25 annoncés :

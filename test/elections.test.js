@@ -392,8 +392,8 @@ test('éco-délégué élu : scrutin uninominal, un élu au premier tour, AUCUN 
   // Et l'inverse : clore l'élection des délégués ne fait pas d'éco-délégués.
   ev(`B(['c1','c2'],['c1','c2'],['c1','c2'],['c1','c2']); electionCloreTour(EL, 0);`);
   assert.deepStrictEqual(evObj(`[_delegueOf('s1'), _ecoDelegueOf('s1')]`), ['titulaire', null]);
-  assert.ok(ev(`_nomHTML('s20', 'A', 'B')`).includes('🌱') && !ev(`_nomHTML('s20', 'A', 'B')`).includes('del-t'));
-  assert.ok(ev(`_nomHTML('s1', 'A', 'B')`).includes('del-t') && !ev(`_nomHTML('s1', 'A', 'B')`).includes('🌱'));
+  assert.ok(ev(`_nomHTML('s20', 'A', 'B')`).includes('eco-bdg t') && !ev(`_nomHTML('s20', 'A', 'B')`).includes('del-t'));
+  assert.ok(ev(`_nomHTML('s1', 'A', 'B')`).includes('del-t') && !ev(`_nomHTML('s1', 'A', 'B')`).includes('eco-bdg'));
 });
 
 test('éco-délégués désignés sans vote : cls.ecoDelegues, même arbitrage par la date, purge', () => {

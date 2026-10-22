@@ -385,7 +385,11 @@ test('la démo porte une élection d’éco-délégué close : un élu au premie
   const delegues = evObj(`Object.keys(S.eleves).filter(sid => _delegueOf(sid) === 'titulaire')`);
   assert.strictEqual(delegues.length, 2, 'toujours deux délégués de classe titulaires');
   assert.ok(!delegues.some(sid => ecos.includes(sid)) || true, 'un cumul est possible mais non requis');
-  assert.ok(ev(`_nomHTML('${ecos[0]}', 'X', 'Y')`).includes('🌱'));
+  // La pousse : verte pour l'éco-délégué titulaire, jaune pour le suppléant (désigné sans vote en novembre).
+  assert.match(ev(`_nomHTML('${ecos[0]}', 'X', 'Y')`), /class="eco-bdg t"[^>]*aria-label="Éco-délégué(e)? titulaire"/);
+  const sup = evObj(`Object.keys(S.eleves).filter(sid => _ecoDelegueOf(sid) === 'suppleant')`);
+  assert.strictEqual(sup.length, 1);
+  assert.match(ev(`_nomHTML('${sup[0]}', 'X', 'Y')`), /class="eco-bdg s"[^>]*aria-label="Éco-délégué(e)? suppléant(e)?"/);
 });
 
 test('la démo couvre les nouveautés v1.24 → v1.28 : catalogue réglé, engagement, désignation remplacée, HVC à venir, marqueur Plan de classe', () => {
