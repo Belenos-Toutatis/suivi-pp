@@ -160,6 +160,9 @@ Chaque texte (infobulle, titre, message) dit de quelle famille il parle.
 - ⚠️ **Pas de commentaire `//` en fin de ligne si du code suit** : `/* */` (un `//` a déjà « avalé » du code deux fois).
 - **Infobulles** (`title`) : première ligne = titre ; `\n` sépare les lignes, `• ` fait une puce, `**gras**` met en gras ; jamais un
   paragraphe dense ; dans `head.html`, retour à la ligne = `&#10;`.
+  Elles sont dessinées par l'appli (`#bulle`, ui.js : le `title` passe dans `data-tip`), jamais par le navigateur — sous Linux
+  (Wayland) sa bulle sort parfois sur fond transparent, illisible. Les `<title>` des graphiques SVG (barres, points de courbe) aussi :
+  `cibleInfobulle` les trouve, `preparerBulle` les passe dans `data-tip` (le nom accessible devient `aria-label`). Test `e2e_bulles_graphes`.
 - **Typographie française** : espaces fines insécables ajoutées **à l'affichage seulement** (`typoFr`, `typoNoeuds`,
   MutationObserver), jamais dans les sources ni les données.
 - **Pluriels** : `nbMot(n, "élève")`, `nbMot(n, "créneau", "créneaux")`, jamais « (s) ».

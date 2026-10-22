@@ -196,12 +196,23 @@ function cacherBulle() {
   if (cibleBulle) cibleBulle.removeAttribute("aria-describedby");
   cibleBulle = null; bulle.classList.remove("on");
 }
+/* L'élément dont on montre l'infobulle : un title (ou un data-tip déjà préparé), ou — barre, point de courbe — un élément
+   SVG qui porte un <title> enfant. Celui-là, c'est le navigateur qui l'affichait, et son fond peut sortir transparent sous
+   Linux (texte blanc sur page claire, signalé dans Suivi PP le 22/10/2026) : il passe lui aussi par notre bulle. */
+const titreSvg = n => n.namespaceURI === "http://www.w3.org/2000/svg" && [...n.children].find(x => x.tagName.toLowerCase() === "title");
+function cibleInfobulle(t) {
+  if (!t || !t.closest) return null;
+  for (let n = t; n && n.namespaceURI === "http://www.w3.org/2000/svg"; n = n.parentNode) if (n.dataset.tip || titreSvg(n)) return n;
+  return t.closest("[title], [data-tip]");
+}
 function preparerBulle(el) {
   // le title est déplacé dans data-tip : l'infobulle du navigateur ne s'affiche plus en double
   if (el.hasAttribute("title")) {
     const t = el.getAttribute("title"); el.dataset.tip = t; el.removeAttribute("title");
     if (!el.hasAttribute("aria-label") && !el.textContent.trim()) el.setAttribute("aria-label", t.split("\n")[0]);
   }
+  const ts = !el.dataset.tip && titreSvg(el);   /* <title> d'un élément SVG : même chose, le nom accessible devient aria-label */
+  if (ts) { el.dataset.tip = ts.textContent; ts.remove(); if (!el.hasAttribute("aria-label")) el.setAttribute("aria-label", el.dataset.tip.split("\n")[0]); }
   return el.dataset.tip;
 }
 function montrerBulle(el) {
@@ -219,9 +230,9 @@ function viserBulle(el, delai) {
   if (!el || !preparerBulle(el) || document.body.classList.contains("tracage")) return;
   cibleBulle = el; minuterieBulle = setTimeout(() => montrerBulle(el), delai);
 }
-document.addEventListener("mouseover", e => { if (dernierPointeur === "touch") return; viserBulle(e.target.closest && e.target.closest("[title], [data-tip]"), 350); });
+document.addEventListener("mouseover", e => { if (dernierPointeur === "touch") return; viserBulle(cibleInfobulle(e.target), 350); });
 document.addEventListener("mouseout", e => { if (cibleBulle && !(e.relatedTarget && cibleBulle.contains(e.relatedTarget))) cacherBulle(); });
-document.addEventListener("focusin", e => { const el = e.target.closest && e.target.closest("[title], [data-tip]"); if (el && el.matches(":focus-visible")) viserBulle(el, 600); else cacherBulle(); });
+document.addEventListener("focusin", e => { const el = cibleInfobulle(e.target); if (el && el.matches(":focus-visible")) viserBulle(el, 600); else cacherBulle(); });
 document.addEventListener("focusout", () => cacherBulle());
 /* Champ de date en cours de frappe : au passage du jour au mois, Chrome envoie « change » alors que document.activeElement
    ne désigne plus le champ ; on suit donc nous-mêmes le focus des champs de date. */
