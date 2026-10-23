@@ -180,3 +180,18 @@ test('un envoi refusé par l’API : rien n’est posé à l’étape 3, l’err
   assert.strictEqual(ev(`_iaEnvoi.encours`), false);
   ev(FIN_ELS);
 });
+
+test('le pas-à-pas : ouvert sans clé, replié avec ; l’espace de travail et son plafond AVANT la clé', () => {
+  ev(DEMO);
+  const sans = ev(`_iaReglagesHTML()`);
+  assert.match(sans, /<details class="ia-guide" open>/, 'ouvert tant qu’il n’y a pas de clé');
+  const i = k => sans.indexOf(k);
+  assert.ok(i('settings/workspaces') > 0 && i('plafond de dépense mensuel') > i('settings/workspaces') && i('settings/keys') > i('plafond de dépense mensuel'),
+    'espace de travail, puis plafond, puis clé');
+  assert.match(sans, /<em>Portée<\/em> : l'espace <strong>Suivi PP<\/strong>/);
+  assert.match(sans, /support\.claude\.com\/en\/articles\/17154008/, 'le crédit mensuel de l’abonnement Max');
+  assert.match(sans, /31\/07\/20\d\d/, 'une expiration proposée : la fin de l’année scolaire');
+  ev(`localStorage.setItem(LS_IA_CLE, ${JSON.stringify(CLE)})`);
+  assert.match(ev(`_iaReglagesHTML()`), /<details class="ia-guide">/, 'replié une fois la clé enregistrée');
+  ev(`localStorage.removeItem(LS_IA_CLE)`);
+});

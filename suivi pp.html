@@ -941,7 +941,9 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
 /* 💾 Données et réglages : sommaire à gauche, une rubrique à la fois (v1.65.0, maquette A) */
 .don-cadre { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
 .don-nav { flex: 0 1 270px; min-width: 220px; display: flex; flex-direction: column; gap: 10px; }
-@media (min-width: 700px) { .don-nav { position: sticky; top: calc(var(--topbar-h, 100px) + 12px); } }
+/* Collé seulement quand le sommaire est À CÔTÉ de la rubrique (270 + 28 + 640 px de rubrique, plus les marges de la page) :
+   en dessous, il passe au-dessus d'elle, et collé il recouvrait le texte qu'on fait défiler (v1.73.1 — vu à 1 024 px). */
+@media (min-width: 1060px) { .don-nav { position: sticky; top: calc(var(--topbar-h, 100px) + 12px); } }
 .don-cherche { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--pencil); }
 .don-cherche input { width: 100%; box-sizing: border-box; }
 .don-liste { background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; overflow: hidden; }
@@ -1937,6 +1939,12 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-api-etat:empty { display: none; }
 .ia-api-etat.err { color: var(--alert-fg); background: var(--alert-bg); border: 1px solid var(--alert-bd); padding: 6px 10px; border-radius: 6px; }
 .ia-jt td, .ia-jt th { white-space: nowrap; }
+.ia-guide { margin: 0 0 14px; padding: 8px 12px; border: 1px solid var(--rule-line); border-left: 4px solid var(--ink-blue); border-radius: 6px; background: var(--paper); font-size: 13.5px; max-width: 860px; }
+/* ⚠️ Fond --paper, pas --paper-warm : les liens (--link-fg) y tombaient à 4,45:1 en thème clair (audit v1.73.1). */
+.ia-guide summary { cursor: pointer; font-weight: 700; color: var(--ink-blue); }
+.ia-guide ol { margin: 8px 0 6px; padding-left: 22px; }
+.ia-guide li { margin-block: 5px; }
+.ia-guide ul { margin: 4px 0; padding-left: 18px; }
 .ia-jt td.n, .ia-jt th.n { text-align: right; font-family: var(--font-mono); }
 .ia-rv { border-left: 3px dashed var(--i-bilan); padding: 4px 10px; margin-block: 8px; }
 .ia-rv-h { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
@@ -3317,8 +3325,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.73.0';
-const APP_BUILD_DATE = '2026-10-23T12:49:01Z';
+const APP_VERSION    = '1.73.1';
+const APP_BUILD_DATE = '2026-10-23T12:59:31Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -10090,6 +10098,8 @@ const IA_LIENS = {
   espaces: 'https://platform.claude.com/settings/workspaces',
   credit: 'https://platform.claude.com/settings/billing',
   usage: 'https://platform.claude.com/usage',
+  console: 'https://platform.claude.com/',
+  creditMax: 'https://support.claude.com/en/articles/17154008-monthly-api-credits-for-max-and-team-plans',
 };
 // Dollars par million de jetons, relevés le 2026-10-06 (Haiku : jusqu'à 100 000 jetons envoyés, bien au-delà de
 // nos demandes). `secours` : le modèle accepte `fallbacks` — pas Haiku.
@@ -10253,7 +10263,7 @@ function iaEnvoyerUI() {
 function iaLotEnvoyerUI() { _iaPret(_iaLotConstruire, j => _iaEnvoiOuvrir('lot', j, 'miac', Object.keys(_iaLot.codes || {}).length)); }
 function iaClEnvoyerUI() { _iaPret(st => _iaClasseJSON(st.txt, _iaConsigneSynthClasse()), j => _iaEnvoiOuvrir('synthese', j, 'mias', 1)); }
 function _iaEnvoiOuvrir(sorte, contenu, origine, n) {
-  if (!_iaCle()) return _uiConfirm({ title: 'Aucune clé d\'API sur ce poste', message: 'Pour envoyer directement à Claude, collez d\'abord une clé d\'API dans 💾 Données ▸ 🤖 Envoi à une IA — le lien pour en créer une y est. Le texte relu est gardé : vous le retrouverez en revenant ici. Sans clé, « Copier » reste possible.', okLabel: 'Ouvrir le réglage', onOk: iaVersReglageUI });
+  if (!_iaCle()) return _uiConfirm({ title: 'Aucune clé d\'API sur ce poste', message: 'Pour envoyer directement à Claude, il faut d\'abord une clé d\'API, collée dans 💾 Données ▸ 🤖 Envoi à une IA : la rubrique explique, étape par étape, comment la créer (une fois, quelques minutes). Le texte relu est gardé : vous le retrouverez en revenant ici. Sans clé, « Copier » reste possible.', okLabel: 'Ouvrir le réglage', onOk: iaVersReglageUI });
   const reg = _iaApiReglages(), m = _iaModele(reg.modele), est = _iaEstime(sorte, contenu, reg.modele, n), mois = _iaJournalMois(_iaJournal());
   _iaEnvoi = { sorte, contenu, origine, n, ctrl: null, encours: false };
   document.getElementById('miaenv-sous').textContent = `${m.nom} (Anthropic) · ${IA_SORTES[sorte]} · clé ${_iaCleMasquee(_iaCle())}`;
@@ -10341,19 +10351,44 @@ function iaVersReglageUI() {
   openDonnees('ia');
 }
 // ── 💾 Données ▸ 🤖 Envoi à une IA ──
+// Le pas-à-pas pour obtenir une clé (v1.73.1, l'utilisateur : « ce n'est pas indiqué dans le logiciel, ce serait bien
+// que ce soit fait et expliqué ») — ouvert tant qu'aucune clé n'est enregistrée. ⚠️ L'ESPACE DE TRAVAIL vient AVANT la
+// clé : la fenêtre « Créer une clé API » demande sa portée, et c'est l'espace qui porte le plafond de dépense.
+// `fin` : la fin de l'année scolaire en cours (31 juillet), proposée comme expiration.
+function _iaGuideHTML(ouvert, fin) {
+  const lien = (k, t) => `<a href="${IA_LIENS[k]}" target="_blank" rel="noopener noreferrer">${t} ↗</a>`;
+  return `<details class="ia-guide"${ouvert ? ' open' : ''}>
+    <summary>Obtenir une clé d'API : six étapes, une seule fois</summary>
+    <ol>
+      <li><strong>Ouvrez la Console d'Anthropic</strong> (${lien('console', 'platform.claude.com')}) et connectez-vous avec le compte de votre abonnement Claude. Avec un abonnement Max, 100 $ de crédit d'API arrivent chaque mois, perdus s'ils ne servent pas, une fois l'organisation de la Console reliée à l'abonnement (sur claude.ai, Réglages ▸ Facturation : ${lien('creditMax', 'comment faire')}) ; le crédit se voit ensuite dans ${lien('credit', 'Facturation')}.</li>
+      <li><strong>Créez d'abord un espace de travail</strong> nommé « Suivi PP » (${lien('espaces', 'Espaces de travail')}). La clé y sera rangée : c'est lui qui porte le plafond de dépense.</li>
+      <li><strong>Donnez-lui un plafond de dépense mensuel</strong>, dans les limites de l'espace : <strong>5 $</strong> suffisent largement (une synthèse de toute la classe coûte quelques dizaines de centimes). Une clé volée ou une erreur ne pourra jamais coûter plus.</li>
+      <li><strong>Créez la clé</strong> (${lien('cle', 'Clés d\'API')} ▸ Créer une clé) :
+        <ul><li><em>Nom</em> : Suivi PP ;</li>
+          <li><em>Expire</em> : la fin de l'année scolaire${fin ? ` (par exemple le ${_escName(_fmtDateFr(fin))})` : ''} — une nouvelle clé à la rentrée ;</li>
+          <li><em>Compte lié</em> : vous-même ;</li>
+          <li><em>Portée</em> : l'espace <strong>Suivi PP</strong>, pas « tous les espaces » (sinon il faudrait aussi régler l'espace de travail ci-dessous).</li></ul></li>
+      <li><strong>Copiez la clé tout de suite</strong> : la Console ne la montre qu'une fois. Collez-la ci-dessous, dans <em>Clé d'API</em>, puis <em>Enregistrer</em>. Laissez <em>Espace de travail</em> vide.</li>
+      <li><strong>Essayez avec un seul élève</strong> : fiche ▸ Rédaction ▸ 🤖 Synthèse par une IA ▸ 📤 Envoyer à Claude. Le coût de l'envoi s'affiche à la réponse.</li>
+    </ol>
+    <div class="pref-help">Sur l'autre poste : collez la même clé (gardez-la dans votre gestionnaire de mots de passe), ou créez-en une seconde dans le même espace — le plafond vaut pour les deux.</div>
+  </details>`;
+}
 function _iaReglagesHTML() {
   const cle = _iaCle(), reg = _iaApiReglages(), j = _iaJournal(), mois = _iaJournalMois(j);
   const lien = (k, t) => `<a href="${IA_LIENS[k]}" target="_blank" rel="noopener noreferrer">${t} ↗</a>`;
+  const auj = new Date(), fin = `${auj.getMonth() >= 7 ? auj.getFullYear() + 1 : auj.getFullYear()}-07-31`;
   const prix = m => `${String(m.entree).replace('.', ',')} $ / ${String(m.sortie).replace('.', ',')} $`;
   const etat = x => ({ max_tokens: 'coupée', refusal: 'refusée', arrete: 'arrêtée', erreur: 'erreur' })[x.stop] || '';
   const lignes = j.slice(-12).reverse().map(x => { const d = new Date(x.ts);
     return `<tr><td>${_escName(_fmtDateFr(_todayYmd(d)).slice(0, 5))} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</td><td>${_escName(IA_SORTES_COURT[x.sorte] || '')}</td><td>${_escName((_iaModele(x.modele) || { nom: String(x.modele || '') }).nom.replace(/^Claude /, ''))}</td><td class="n">${_iaJetons(x.entree)}</td><td class="n">${_iaJetons(x.sortie)}</td><td class="n">${_iaDollars(+x.cout)}</td><td>${etat(x)}</td></tr>`; }).join('');
   return `<div class="pref-help" style="margin-bottom:10px">Deux façons de demander une synthèse à une IA, au choix dans chaque fenêtre 🤖 : <strong>📋 Copier</strong>, pour la coller dans un assistant — rien ne part de l'app —, ou <strong>📤 Envoyer à Claude</strong>, directement, par l'API d'Anthropic. C'est le même texte relu qui part, et l'envoi direct le montre une dernière fois en entier : il ne part qu'une fois « J'ai relu » coché.</div>
+  ${_iaGuideHTML(!cle, fin)}
   <div class="prefs">
     <label for="ia-cle">Clé d'API</label>
     <div><div class="prefs-row"><input type="password" id="ia-cle" autocomplete="off" spellcheck="false" placeholder="${cle ? 'remplacer par une autre clé' : 'sk-ant-…'}" style="max-width:300px;font-family:var(--font-mono)" onkeydown="if(event.key==='Enter'){event.preventDefault();iaApiCleUI(this.value)}" aria-label="Clé d'API d'Anthropic"><button class="btn btn-p btn-sm" onclick="iaApiCleUI(document.getElementById('ia-cle').value)">Enregistrer</button>${cle ? `<span class="don-chip ok" title="La clé enregistrée sur ce poste">${_escName(_iaCleMasquee(cle))}</span><button class="btn btn-g btn-sm" onclick="iaApiCleUI('')">🗑 Effacer de ce poste</button>` : ''}</div>
       <div style="margin-top:4px">${lien('cle', '🔑 Créer une clé dans la Console')}</div></div>
-    <div class="pref-help">Gardée <strong>dans ce navigateur seulement</strong> : jamais dans vos données, ni dans la synchronisation, ni dans un export — sur l'autre poste, collez-la une seconde fois. En la créant, limitez-la à un espace de travail réservé à Suivi PP (${lien('espaces', 'espaces de travail')}) et donnez à cet espace un <strong>plafond de dépense</strong> : 5 $ par mois suffisent largement, et une clé volée ou une erreur ne coûtera jamais plus. Effacez-la d'un poste que vous ne contrôlez pas.</div>
+    <div class="pref-help">Gardée <strong>dans ce navigateur seulement</strong> : jamais dans vos données, ni dans la synchronisation, ni dans un export — sur l'autre poste, collez-la une seconde fois. Elle doit être rangée dans un espace de travail qui a un <strong>plafond de dépense</strong> (cf. <em>Obtenir une clé d'API</em>, ci-dessus). Effacez-la d'un poste que vous ne contrôlez pas.</div>
     <label for="ia-modele">Modèle</label>
     <select id="ia-modele" onchange="iaApiModeleUI(this.value)" style="max-width:460px">${IA_MODELES.map(m => `<option value="${m.id}"${m.id === reg.modele ? ' selected' : ''}>${_escName(m.nom)} — ${prix(m)} · ${_escName(m.note)}</option>`).join('')}</select>
     <div class="pref-help">Dollars par million de jetons envoyés / rendus, relevés le ${_escName(_fmtDateFr(IA_TARIFS_DATE))} ; la réflexion du modèle compte dans les jetons rendus. Avec Opus 5.5, la synthèse d'un élève coûte quelques centimes, celle de toute la classe quelques dizaines de centimes.</div>

@@ -803,6 +803,18 @@ d'API, un pour voir où on en est dans son usage — et savoir à chaque fois ce
   (`platform.claude.com/settings/keys`), modèle (`IA_MODELES` : Opus 5.5 par défaut, Sonnet 5.5, Haiku 5.5, Fable 5.1,
   avec leurs tarifs relevés le 2026-10-06), espace de travail, fournisseur. Conseil écrit : une clé limitée à un espace
   « Suivi PP » avec un plafond de dépense.
+- **Le pas-à-pas pour obtenir une clé** (v1.73.1, l'utilisateur : *« ce n'est pas indiqué dans le logiciel, ce serait
+  bien que ce soit fait et expliqué »*) : en tête de la rubrique, `_iaGuideHTML` — **ouvert tant qu'aucune clé n'est
+  enregistrée**, replié ensuite. Six étapes, dans CET ordre : la Console (et le crédit mensuel de l'abonnement Max,
+  lien vers l'article d'aide), ⚠️ **l'espace de travail « Suivi PP » D'ABORD** (la fenêtre « Créer une clé API » de la
+  Console demande une *Portée*, et c'est l'espace qui porte le plafond), son plafond de dépense mensuel (5 $), la clé
+  (Nom, Expire : la fin de l'année scolaire proposée, Compte lié : vous, Portée : l'espace — intitulés de la Console
+  en français, relevés sur une capture de l'utilisateur), la copier tout de suite et la coller, essayer avec un élève.
+  La question « Aucune clé d'API » des fenêtres 🤖 y renvoie. Fond `--paper` : sur `--paper-warm`, les liens
+  tombaient à 4,45:1 en clair.
+- ⚠️ **Le sommaire de 💾 Données n'est collé qu'à partir de 1 060 px** (v1.73.1 ; avant : 700 px) : entre les deux, il
+  passe AU-DESSUS de la rubrique (270 + 28 + 640 px ne tiennent pas), et collé il recouvrait le texte qu'on faisait
+  défiler — depuis la v1.65.0, vu à 1 024 px sur la longue rubrique 🤖.
 - **Le coût de chaque envoi** : calculé des jetons que l'API renvoie (`_iaCout` : entrée, sortie, cache), noté dans
   un journal du POSTE (`suiviPP_iaJournal`, 300 entrées, **des chiffres, aucune donnée d'élève** — testé), dit dans le
   toast (« Cet envoi : 9 123 jetons envoyés, 4 321 rendus ≈ 0,12 $ · ce mois-ci sur ce poste : 0,12 $ »), sous les
@@ -1386,6 +1398,7 @@ Familles à couvrir dès le début :
 - Tests statiques du design system (`test/design-system.test.js`, avec méta-tests) : symétrie des tokens entre les trois blocs dans les deux sens, tout token *utilisé* a une valeur en thème clair, aucune encre figée derrière un fond dynamique, pose ET retrait des orientations d'impression, boîte focalisable dans chaque modale, règles responsive.
 - ⚠️ Rendu papier non vérifié sur du vrai papier : `window.print` est mocké. Orientation : `@page` anonyme injecté le temps de l'impression puis retiré à `afterprint` (les pages nommées sont ignorées par Firefox) ; une page de chaque est à vérifier à la main sur Chromium et Firefox.
 - ⚠️ Non vérifiés à la main : vidéoprojecteur réel (1024 × 768 et 1920 × 1080, lisibilité du fond de la salle), clavier virtuel d'une vraie tablette, dossier Nextcloud réel pour les PDF.
+- **Audit ciblé** (v1.73.1, 2026-10-23, pas-à-pas de la clé) : rubrique 🤖 guide ouvert (sans clé) et déplié avec clé, deux thèmes, 1 024 et 320 px : 0 défaut après correction (liens à 4,45:1 sur `--paper-warm`) ; sommaire de 💾 Données qui recouvrait le texte entre 700 et 1 060 px, corrigé.
 - **Audit ciblé** (v1.73.0, 2026-10-23, envoi direct à Claude) : rubrique 🤖 de 💾 Données (avec et sans clé, journal rempli), fenêtres `miac` (ligne sous les boutons, avec et sans clé) et `miaenv` (vide, en erreur), deux thèmes, 1 400 et 320 px : 0 défaut ; envoi complet sur un flux simulé, appel réel avec une fausse clé (401 lisible) ; `npm test` 836/836.
 - **Audit ciblé** (v1.71.0, 2026-10-22, synthèse de la classe) : 🏫 Vie de classe (états du parcours, section des synthèses), feuille imprimée de la synthèse de période (bloc en tête), fenêtre `mias` remplie, deux thèmes, grand écran et 320 px : 0 défaut après correction du défaut 40 ; gestes réels (+, réponse tapée, Ranger).
 - **Audit ciblé** (v1.70.0, 2026-10-22, toute la classe d'un coup) : liste (nouveau bouton) et fenêtre `miac` remplie (vérification, revue, correspondances), deux thèmes, grand écran et 320 px : 0 défaut ; gestes réels (bouton, Copier, réponse tapée, décocher, Ranger).
