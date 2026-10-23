@@ -1123,6 +1123,44 @@ l'appréciation du bulletin** (*« sinon le bilan de la période ne servira à r
   fiche ; audit fiche, fenêtre de bilan, `miac`, Données, deux thèmes : 0 défaut. ✅ La vraie fenêtre détachée,
   vérifiée par l'utilisateur le 2026-10-23.
 
+#### Vers MBN : le bilan du conseil devient l'appréciation générale (v1.77.0)
+
+Demandé le 2026-10-23 : *« comment Suivi PP peut saisir les remarques dans les bulletins sans que je t'y donne accès —
+ça doit être similaire aux remarques disciplinaires »*. Réponse de la session Plan de classe : son favori
+**« MBN · Bulletin »** (bloc `mbn-bul-src` de `plan de classe.html`), **COPIÉ et adapté** (bloc
+`<script type="text/plain" id="mbn-cc-src">`, devant le bloc d'octets de la fiche de suivi autonome). ⚠️ **Suivi PP ne
+parle jamais à MBN, et Claude n'y a aucun accès** : l'utilisateur copie un JSON (presse-papiers de ce poste), ouvre le
+conseil de classe dans SA session MBN, clique sur le favori, colle, relit l'aperçu, ▶ Remplir.
+- **La page** (rapports anonymisés de l'outil d'analyse de Plan de classe, fournis par l'utilisateur) : tableau YUI des
+  élèves dans `#js-ongletCCEleves`, « NOM Prénom » dans `.bulletin-notes-eleve` (attribut `title`), cellule
+  `td.yui-dt-col-appreciation` (vide : son `[class*=placeholderToComplete]`) → éditeur `.yui-dt-editor` (textarea +
+  `button.yui-dt-default`) → UNE requête, cellule redessinée. Le reste est celui de Plan de classe : panneau, frappe
+  imitée, suivi des requêtes (`XMLHttpRequest.prototype.send`), ligne retrouvée par le nom à chaque élève, relecture de
+  la cellule après l'enregistrement, ⏹ Arrêter. ⚠️ MBN charge Prototype.js : aucune méthode d'Array sur une collection
+  DOM, aucune sérialisation JSON dans le favori ; commentaires `/* */` seulement (une adresse `javascript:` tient sur
+  une ligne).
+- **La règle, arbitrée par l'utilisateur (« la même règle »)** : l'appréciation déjà dans MBN est **remplacée**, un
+  texte identique n'est pas réécrit (« déjà identique »), un élève sans bilan ici ne touche pas à MBN, un élève de MBN
+  non retrouvé (ou deux candidats) est laissé tel quel. ⚠️ **En plus de Plan de classe : un texte trop long n'est
+  JAMAIS coupé** — signalé dans l'aperçu (au-delà de `max`, la limite de Suivi PP) et, si la case de MBN est plus
+  courte (`maxlength` du textarea), à l'écriture : l'éditeur est annulé et l'élève passe dans « À vérifier ».
+- **Côté Suivi PP** : *🏫 Vers MBN…* (barre de 👥 Élèves) et *🏫 Appréciations vers MBN…* (💾 Données ▸ Exporter) → fenêtre
+  `mmbncc` (`openMbnConseil`, `_mbnCcRender`, dans `_MODAL_RERENDER`) : le **moment** (les conseils seulement,
+  `_mbnCcMoments` ; d'office celui de la fiche ou de la période courante), les comptes, les élèves sans bilan (repliés),
+  les bilans trop longs nommés ; le lien à glisser dans la barre de favoris (`_mbnCcCode`, `MBN_CC_NOM`), ⧉ Copier le
+  code du favori, ⧉ Copier les appréciations. Charge utile (`_mbnCcPayload`) : `{ app: 'suivi-pp', type: 'mbn-conseil',
+  v: 1, contexte: { classe, periode }, max, eleves: [{ nom, prenom, appr }] }` — les élèves présents pendant la période
+  (`_fichePrintEleves`), `appr` = le bilan du conseil de ce moment (`_bilanCible`). Le favori refuse un JSON de Plan de
+  classe, et réciproquement.
+- **Pas encore** : l'appréciation générale de la CLASSE (`#content-appreciationGenClasse`, onglet Classe) — son
+  enregistrement n'a pas été observé ; il faudra un rapport de l'outil d'observation sur cet onglet.
+- Tests : `test/mbn-conseil.test.js` (syntaxe et contraintes du bloc, charge utile, fenêtre et Ctrl+Z). **Fausse page**
+  `test/fixtures/mbn/fake-mbn-conseil.html` (noms inventés). Vérifié dans le navigateur : aperçu (nouvelle, remplace,
+  identique, rien à écrire, trop long, introuvable), remplissage (2 écrits, retours à la ligne gardés, l'identique et le
+  trop long intacts), case de MBN plus courte que la limite → annulé et signalé ; lien `javascript:` décodé = code
+  valide ; audit `mmbncc` deux thèmes, 1 400 et 320 px, Données : 0 défaut. ⚠️ **À essayer sur le vrai MBN** : glisser le
+  favori, puis un premier remplissage sur un conseil de classe ouvert.
+
 ## 📷 Photos des élèves (v1.48.0)
 
 **Code COPIÉ de Plan de classe** (v2.64.0 → v2.64.2, commit `ace7234`, section *📷 Photos des élèves* de son CLAUDE.md) : lecteur PDF minimal (`_pdfOpen`, `_PdfLexer`, `_pdfStreamBytes`, `_pdfFont`, `_pdfScanPage`), lecture du trombinoscope (`_trombiParsePdf`, `_trombiParseHeader`, `_trombiDedupNames`), appariement (`_trombiSplitName`, `_trombiScore`, `_trombiMatch` — rien n'est deviné à égalité —, `_trombiResolveClass`). Les pièges de format MBN et d'appariement sont documentés là-bas ; à relire avant d'y toucher.
