@@ -1029,6 +1029,10 @@ avis, fenêtre de bilan, feuilles imprimées (synthèse de période et fiche). B
   réponse rangée avec un extrait perdu et un passage à la main gardé, Ctrl+Z, palette, purge). Vérifié dans le navigateur :
   sélection réelle à la souris puis palette, clic sur un passage puis *Retirer*, Ctrl+Z, analyse sur un flux simulé ;
   audit lecture, palette, onglet, fiche (trois vues), deux thèmes, et fiche et synthèse imprimées : 0 défaut.
+- ⚠️ **Arbitré le 2026-10-23 : pas d'appréciation de bulletin par l'API.** L'utilisateur les fignole dans une
+  conversation avec Claude, par allers-retours, ce qu'un envoi unique ne permet pas. Proposés et refusés pour l'instant
+  dans la même réponse : reformuler un bilan, brouillon de message aux familles, compte rendu de réunion. Écartés par
+  principe : un repérage automatique d'« élèves à risque », la lecture des imports par une IA.
 - ✅ Une vraie analyse par Claude vérifiée par l'utilisateur le 2026-10-23. ⚠️ Non vérifié : la sélection au doigt sur une tablette.
 
 ## 📷 Photos des élèves (v1.48.0)
