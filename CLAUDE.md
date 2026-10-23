@@ -1114,8 +1114,8 @@ l'appréciation du bulletin** (*« sinon le bilan de la période ne servira à r
 - Tests : `test/bulletin-retour.test.js` ; tests adaptés (le brouillon dans les cases d'office ; le test de la synthèse
   IA d'un conseil range explicitement en synthèse). Vérifié dans le navigateur : revue vers le bilan (trop long décoché),
   fenêtre des correspondances (dans un cadre : le navigateur de test bloque les fenêtres), recherche, clic → la bonne
-  fiche ; audit fiche, fenêtre de bilan, `miac`, Données, deux thèmes : 0 défaut. ⚠️ À essayer : la vraie fenêtre
-  détachée à côté de la conversation.
+  fiche ; audit fiche, fenêtre de bilan, `miac`, Données, deux thèmes : 0 défaut. ✅ La vraie fenêtre détachée,
+  vérifiée par l'utilisateur le 2026-10-23.
 
 ## 📷 Photos des élèves (v1.48.0)
 
