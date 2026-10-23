@@ -68,7 +68,8 @@ test('fenêtre : repères gardés sur le poste (un rechargement ne perd rien), r
   ev(DEMO);
   ev(ELS);
   try {
-    ev(`_ficheMoment = 'bil:conseil:0'; openSynthIAClasse();`);
+    // Les contacts (la mère, « Mme Guérin ») sont décochés d'office depuis la v1.73.2 : on les coche, c'est eux que ce test exerce.
+    ev(`_iaBlocsSel = new Set(IA_BLOCS.map(x => x.k)); _ficheMoment = 'bil:conseil:0'; openSynthIAClasse();`);
     const codes = evObj(`_iaLot.codes`), cls = evObj(`(() => { const c = getCls(); return { e: c.eleves, p: c.eleves.map(s => S.eleves[s].prenom) }; })()`);
     assert.strictEqual(Object.keys(codes).length, 25);
     assert.match(ev(`__els.get('miac-txt').value`), /^Moment : Conseil de classe S1/);

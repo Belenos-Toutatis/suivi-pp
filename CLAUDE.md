@@ -830,8 +830,36 @@ d'API, un pour voir où on en est dans son usage — et savoir à chaque fois ce
   appel RÉEL avec une fausse clé rend un 401 lisible (CSP, en-tête et CORS passent) ; un envoi complet sur un flux
   simulé (réponse à l'étape 3, revue, coût) ; audit 12 états × 2 thèmes et 320 px, 0 défaut.
 - ✅ **Vérifié en vrai par l'utilisateur le 2026-10-23** : espace de travail et clé créés en suivant le pas-à-pas,
-  un envoi réel qui marche. ⚠️ Reste à voir : la réponse de toute la classe (forme imposée `IA_SCHEMA_LOT`) si elle
-  n'a pas été celle de l'essai, et les liens `settings/billing` et `usage` de la Console.
+  un envoi réel pour un élève, puis pour toute la classe (forme imposée `IA_SCHEMA_LOT`) : les deux marchent.
+  ⚠️ Reste à voir : les liens `settings/billing` et `usage` de la Console.
+
+#### Longueur, chiffres, plein écran, cases d'office (v1.73.2)
+
+Demandé le 2026-10-23, après l'essai réel de toute la classe :
+- **Les cases cochées d'office** (`IA_BLOCS[].on`, choisies par l'utilisateur) : fille ou garçon, observations,
+  absences et retards, moyennes, incidents, avis des collègues, bilans d'avant. Décochées : âge, groupe et options,
+  aménagements, délégué, papiers à rendre, contacts avec la famille, remarque, fiches de suivi. ⚠️ Les tests qui
+  exercent le remplacement de « Mme Guérin » (un contact) cochent eux-mêmes tous les blocs (`_iaBlocsSel`).
+- **La longueur de la synthèse** (*« des fois une ou deux lignes au maximum, d'autres fois plus développée »*) : un
+  menu sous les données, dans les trois fenêtres (`IA_LONGUEURS` : très courte — une ou deux lignes, courte — trois
+  ou quatre, moyenne — cinq à huit (d'office), développée — huit à douze). Les consignes proposées ne disent plus de
+  longueur (« de la longueur demandée à la fin ») ; ⚠️ la longueur est une phrase AJOUTÉE après la consigne, même
+  réécrite (`_iaAvecForme`, « cette longueur prime sur toute autre indiquée plus haut »), dans ce qui est copié,
+  téléchargé et envoyé (`_iaContenuEleve`, `_iaLotConstruire`, `_iaClConstruire`). L'avertissement « plus long que
+  demandé » de la synthèse de la classe suit la longueur choisie (`max`).
+- **Pas de valeurs chiffrées** (*« il a tendance à mettre des valeurs chiffrées des notes ; on les a dans un tableau à
+  part ; il peut parler du niveau atteint, de la progression, de résultats satisfaisants, très bons, médiocres, d'un
+  élève en grande difficulté »*) : case *Sans notes ni chiffres — le niveau et la progression, en mots*, cochée
+  d'office, qui ajoute la phrase correspondante (`_iaFormeTexte`). Les DONNÉES envoyées gardent leurs chiffres : c'est
+  la rédaction qui n'en met pas.
+- Longueur et chiffres : réglages du POSTE, par fenêtre (`suiviPP_iaForme` : `{ eleve, lot, synthese }`), rien dans `S`.
+- **Plein écran pour relire** (*« pour que la vérification que les données envoyées sont bien anonymes soit plus
+  facile »*) : *⛶ Plein écran* à l'étape 2 des trois fenêtres et dans la dernière vérification (`iaPleinUI`, classe
+  `.mo.plein`) — la fenêtre prend tout l'écran, le texte à relire (`textarea.ia-lit`) presque toute la hauteur, l'étape
+  remonte en haut pour que *🗗 Réduire* reste visible ; dans `miaenv`, le coût, la case « J'ai relu » et les boutons
+  restent à l'écran. Retenu sur le poste (`suiviPP_iaPlein`), pour les quatre fenêtres.
+- Tests : `test/ia-api.test.js` (cases d'office, forme dans la consigne, une consigne réécrite la garde à la fin,
+  plein écran). Audit : `mia`, `miac`, `mias`, `miaenv`, plein écran ou non, deux thèmes : 0 défaut.
 
 ### Synthèse de période imprimable
 

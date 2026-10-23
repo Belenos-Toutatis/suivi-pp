@@ -159,7 +159,8 @@ test('fenêtre : texte relu sans nom, nom revenu à la main signalé puis rempla
   try {
     const sid = ev(`getCls().eleves[0]`), J = JSON.stringify(sid);
     const prenom = ev(`S.eleves[${J}].prenom`), autre = ev(`S.eleves[getCls().eleves[1]].prenom`);
-    ev(`_ficheSid = ${J}; _ficheMoment = 'bil:conseil:0'; undoStack.length = 0; openSynthIA();`);
+    // Les contacts (la mère, « Mme Guérin ») sont décochés d'office depuis la v1.73.2 : on les coche, c'est eux que ce test exerce.
+    ev(`_iaBlocsSel = new Set(IA_BLOCS.map(x => x.k)); _ficheSid = ${J}; _ficheMoment = 'bil:conseil:0'; undoStack.length = 0; openSynthIA();`);
     const txt = ev(`__els.get('mia-txt').value`);
     assert.match(txt, /^Élève : \[Élève\]/);
     assert.match(txt, /Mère jointe \(Mme \[Nom de l'élève\]\)/);

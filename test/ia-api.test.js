@@ -195,3 +195,43 @@ test('le pas-à-pas : ouvert sans clé, replié avec ; l’espace de travail et 
   assert.match(ev(`_iaReglagesHTML()`), /<details class="ia-guide">/, 'replié une fois la clé enregistrée');
   ev(`localStorage.removeItem(LS_IA_CLE)`);
 });
+
+test('les cases cochées d’office : celles choisies par l’utilisateur (v1.73.2)', () => {
+  ev(DEMO);
+  assert.deepStrictEqual(evObj(`IA_BLOCS.filter(x => x.on).map(x => x.k)`), ['genre', 'obs', 'abs', 'moy', 'incid', 'avis', 'bilans']);
+});
+
+test('la forme : longueur choisie et « sans chiffres » ajoutés après la consigne, dans ce qui est copié comme envoyé', () => {
+  ev(DEMO);
+  ev(`localStorage.removeItem(LS_IA_FORME)`);
+  // D'office : moyenne, sans chiffres — pour les trois fenêtres.
+  for (const s of ['eleve', 'lot', 'synthese']) assert.deepStrictEqual(evObj(`_iaForme('${s}')`), { longueur: 'moyenne', sansChiffres: true }, s);
+  assert.match(ev(`_iaFormeTexte('eleve')`), /cinq à huit lignes[^]*N'écrivez aucune note ni valeur chiffrée[^]*niveau atteint et la progression/);
+  // Une ou deux lignes, pour toute la classe ; chiffres permis pour la synthèse de la classe.
+  ev(`iaFormeUI('lot', 'longueur', 'tres-courte'); iaFormeUI('synthese', 'sansChiffres', false); iaFormeUI('eleve', 'longueur', 'n-importe-quoi');`);
+  assert.match(ev(`_iaFormeTexte('lot')`), /chaque synthèse tient en une ou deux lignes au plus/);
+  assert.ok(!/chiffrée/.test(ev(`_iaFormeTexte('synthese')`)), 'chiffres permis : la phrase disparaît');
+  assert.strictEqual(evObj(`_iaForme('eleve')`).longueur, 'moyenne', 'une valeur inconnue ne s’écrit pas');
+  // Dans le JSON de toute la classe (copié, téléchargé, envoyé : la même construction).
+  ev(ELS);
+  ev(`(() => { const cls = getCls(), col = _ficheMoments(cls).find(c => c.key === 'bil:conseil:0'); _iaLotOuvrir(cls, col); })()`);
+  const j = JSON.parse(JSON.stringify(ev(`_iaLotConstruire(_iaLot)`)));
+  assert.ok(j.consigne.startsWith(ev(`_iaConsigneClasse().trim()`)), 'la consigne d’abord');
+  assert.match(j.consigne, /une ou deux lignes au plus[^]*aucune note ni valeur chiffrée/);
+  // Une consigne RÉÉCRITE garde la forme à la fin.
+  ev(`_prefs().iaConsigne = 'Ma consigne à moi, en vingt lignes.'`);
+  ev(`(() => { _ia = { txt: 'TEXTE' }; })()`);
+  assert.match(ev(`_iaContenuEleve()`), /^Ma consigne à moi, en vingt lignes\.\nLongueur : la synthèse tient en cinq à huit lignes \(cette longueur prime[^]*\n\nTEXTE\n$/);
+  ev(`_prefs().iaConsigne = ''; _ia = null; localStorage.removeItem(LS_IA_FORME);`);
+  ev(FIN_ELS);
+});
+
+test('plein écran : un choix retenu sur le poste, le bouton le dit', () => {
+  ev(DEMO);
+  ev(`localStorage.removeItem(LS_IA_PLEIN)`);
+  assert.strictEqual(ev(`_iaPlein()`), false);
+  ev(`iaPleinUI()`); assert.strictEqual(ev(`_iaPlein()`), true);
+  ev(`iaPleinUI()`); assert.strictEqual(ev(`_iaPlein()`), false);
+  assert.strictEqual((html.match(/class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI\(this\)"/g) || []).length, 4, 'les trois relectures et la dernière vérification');
+  assert.strictEqual((html.match(/<textarea id="(mia|miac|mias|miaenv)-txt" class="ia-lit"/g) || []).length, 4);
+});
