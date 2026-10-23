@@ -2650,6 +2650,13 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
   </div>
 </div>
+<!-- ═══════════════ 📄 Import des bulletins (v1.75.0) ═══════════════ -->
+<div id="mbull" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:860px;width:100%">
+    <h2>📄 Importer les bulletins</h2>
+    <div id="mbull-body"></div>
+  </div>
+</div>
 <!-- ═══════════════ 📤 Envoi direct à Claude : la dernière vérification (v1.73.0) ═══════════════ -->
 <div id="miaenv" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:820px;width:100%">
@@ -3358,8 +3365,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.74.0';
-const APP_BUILD_DATE = '2026-10-23T13:48:11Z';
+const APP_VERSION    = '1.75.0';
+const APP_BUILD_DATE = '2026-10-23T15:45:57Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4784,7 +4791,7 @@ const DON_RUBS = [
   { k: 'ia', ic: '🤖', t: 'Envoi à une IA', sous: 'la clé d\'API de ce poste, le modèle, et ce que chaque envoi a coûté',
     mots: 'ia intelligence artificielle claude anthropic api cle modele opus sonnet haiku fable cout credit envoi synthese jetons console' },
   { k: 'imports', ic: '📥', t: 'Importer · exporter', grp: 'Données', sous: 'faire entrer des données d\'ailleurs, les sortir, ou tout recommencer',
-    mots: 'import importer exporter export json sauvegarde complete pronote siecle mbn bureau numerique plan de classe moyennes photos trombinoscope recapitulatif observations regimes demo demonstration effacer decrire fichier recuperer dates' },
+    mots: 'import importer exporter export json sauvegarde complete pronote siecle mbn bureau numerique plan de classe moyennes photos trombinoscope recapitulatif observations regimes demo demonstration effacer decrire fichier recuperer dates bulletins bulletin appreciations' },
   { k: 'sauvegarde', ic: '🔄', t: 'Sauvegarde et synchronisation', grp: 'Données', sous: 'le dossier synchronisé, ses versions et ses copies',
     mots: 'sauvegarde synchronisation sync dossier nextcloud versions historique backups copies dernier fichier' },
   { k: 'fichiers', ic: '📎', t: 'Fichiers joints et photos', grp: 'Données', sous: 'le dossier des PDF joints et des photos des élèves',
@@ -4846,7 +4853,7 @@ function _donChip(k) {
     case 'ia': { const m = _iaJournalMois(_iaJournal());
       return _iaCle() ? { txt: m.n ? `${_iaDollars(m.cout)} ce mois` : 'clé ✓', cl: 'ok', titre: 'Une clé d\'API sur ce poste ; ce que les envois ont coûté ce mois-ci' }
         : { txt: 'sans clé', titre: 'Facultatif : sans clé, les fenêtres 🤖 copient le texte au lieu de l\'envoyer' }; }
-    case 'imports': return { txt: '11 imports' };
+    case 'imports': return { txt: '12 imports' };
     case 'sauvegarde': {
       if (!dirHandle) return { txt: 'aucun dossier', cl: 'warn', titre: 'Sans dossier, pas de sauvegarde automatique' };
       if (!autoSyncEnabled) return { txt: 'désactivée', cl: 'warn', titre: 'La sauvegarde automatique est coupée' };
@@ -4959,6 +4966,7 @@ function _donRubHTML(k) {
       ${imp('📄', 'Récapitulatif vie scolaire (Mon Bureau Numérique)', 'le PDF de la classe : observations, punitions, absences et retards, naissance, régimes, groupes', 'dans Observations ▸ Observations MBN', b('openRecapImport()', '📥 Importer…'))}
       ${imp('📷', 'Photos (Mon Bureau Numérique)', 'le trombinoscope de la classe (.pdf), lu dans le navigateur', 'une à la fois dans la fiche', b('openTrombiImport()', '📥 Importer…'))}
       ${imp('📈', 'Moyennes (bureau numérique)', 'export des moyennes (.csv)', 'dans Moyennes', b('openMoyImport()', '📥 Importer…'))}
+      ${imp('📄', 'Bulletins (Mon Bureau Numérique)', 'le PDF des bulletins de la classe : les appréciations des professeurs deviennent des avis des collègues', 'dans Avis des collègues', b('openBullImport()', '📥 Importer…'))}
       ${imp('🗣', 'Avis des collègues', 'la feuille .ods du Nuage, relue', 'dans Avis des collègues', b('openAvis()', 'Ouvrir l\'onglet'))}
       ${imp('⬆', 'Sauvegarde complète', 'fichier .json exporté par l\'app : REMPLACE tout après confirmation (Ctrl+Z annule)', '', b("document.getElementById('imp-file').click()", '📥 Importer…'))}
       ${imp('🔍', 'Décrire un fichier sans ses données', 'un PDF ou un tableau collé : la mise en page reste, les lettres deviennent X et les chiffres 9 — pour faire connaître un format sans le montrer', '', b('openStructure()', '🔍 Ouvrir…'))}
@@ -7263,6 +7271,239 @@ function recapAppliquerUI() {
     n.fiche && `${n.fiche} complément(s) de fiche`, (n.retObs + n.retAbs) && `${n.retObs + n.retAbs} retiré(s)`].filter(Boolean).join(', ')} — Ctrl+Z pour annuler.`);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 📄 LES BULLETINS (v1.75.0) — l'utilisateur : « que Suivi PP puisse lui-même extraire les informations utiles du
+// bulletin : chaque remarque d'un collègue deviendrait un avis des collègues pour le bilan de la période — ce qui
+// permettrait de faire l'analyse des points positifs et négatifs avec les couleurs ». Le PDF de la classe, exporté de
+// Mon Bureau Numérique (mise en page relevée par 🔍 le 2026-10-23, sans aucune donnée) :
+//  · chaque page s'ouvre sur « NOM Prénom (5C) - Premier semestre (2025 - 2026) » (8 pt, à 8 mm du haut) — c'est lui
+//    qui dit l'élève, d'une page à l'autre ; une page « Année scolaire » / « Suivi des acquis scolaires » commence un
+//    bulletin (un même élève peut en avoir deux exemplaires, un par responsable légal : ils sont fondus) ;
+//  · le tableau, sous la ligne « Acquisitions, progrès et difficultés éventuelles » : la matière en CAPITALES à 9 mm
+//    (8 pt), le professeur et sa classe dessous (6 pt, parfois sur deux lignes) ; l'appréciation à 95 mm (7 pt), sur
+//    plusieurs lignes, qui peut continuer en haut de la page suivante ; « Non renseigné » = vide ; les rangées « Pôle… »
+//    et « Autres matières » ne sont pas des matières ; « Principaux éléments du programme » (52 mm) et les moyennes
+//    (au-delà de 175 mm) sont ignorés (arbitré : les moyennes viennent de leur import) ; « Communication avec la
+//    famille » finit le tableau.
+// Le résultat : une feuille d'avis « Appréciation de bulletin » (`camp.source = 'bulletin'`), une par période, lue,
+// surlignée et imprimée comme les autres. Rien n'est appliqué sans la revue, rien n'est retiré.
+// ═══════════════════════════════════════════════════════════════════════════
+function _bullEntete(t) {
+  const m = /^(.*?)\s*\(([^()]+)\)\s*[-–]\s*(.+?)\s*\((\d{4})\s*[-–]\s*(\d{4})\)\s*$/.exec(String(t || ''));
+  return m && m[1].trim() ? { nom: m[1].trim(), classe: m[2].trim(), periode: m[3].trim(), annee: `${m[4]}-${m[5]}` } : null;
+}
+// PUR : les pages (`_recapPages`) → { periode, annee, eleves: [{ nom, classe, page, matieres: [{ nom, profs, groupe, texte }] }], doublons }.
+function _bullLire(pages) {
+  const mm = v => v * 25.4 / 72, eleves = [];
+  let cur = null, periode = null, annee = null;
+  (pages || []).forEach((p, pi) => {
+    const L = p.lines.map(l => ({ x: mm(l.x - p.x0), x2: mm((l.x2 ?? l.x) - p.x0), y: mm(p.y1 - l.y), size: l.size, text: String(l.text || '').trim() }))
+      .filter(l => l.text).sort((a, b) => a.y - b.y || a.x - b.x);
+    const tl = L.find(l => l.y < 12 && _bullEntete(l.text));
+    if (!tl) return;   // pas un bulletin d'élève (page blanche, couverture)
+    const e = _bullEntete(tl.text);
+    periode = periode || e.periode; annee = annee || e.annee;
+    const debut = L.some(l => /^(Année scolaire|Suivi des acquis scolaires)/i.test(l.text));
+    if (!cur || debut || _moyNameKey(e.nom) !== _moyNameKey(cur.nom)) { cur = { nom: e.nom, classe: e.classe, page: pi + 1, matieres: [] }; eleves.push(cur); }
+    const th = L.find(l => /^Acquisitions, progr/i.test(l.text));
+    const y0 = th ? th.y + 7.5 : 14;
+    // En haut d'une page de SUITE, une appréciation commencée sur la page d'avant.
+    let m = null, suite = !debut && cur.matieres.length ? cur.matieres[cur.matieres.length - 1] : null;
+    for (const l of L) {
+      if (l.y <= y0) continue;
+      if (l.y >= 286 || l.size >= 9.5 || /^Communication avec la famille/i.test(l.text)) break;
+      if (l.x < 40) {
+        if (l.size >= 7.5) {
+          m = null; suite = null;
+          if (/^(Pôles?\b|Autres matières)/i.test(l.text)) continue;
+          // Le nom de la matière : les mots en CAPITALES du début — si la case du programme s'est collée à la ligne
+          // (« HISTOIRE-GEOGRAPHIE EMC - Les débuts de… »), elle reste dehors.
+          const tete = [];
+          for (const w of l.text.split(' ')) { if (/\p{Ll}/u.test(w)) break; tete.push(w); }
+          const nomM = tete.join(' ').replace(/[\s\-–:]+$/, '').trim();
+          if ((nomM.match(/\p{Lu}/gu) || []).length < 2) continue;
+          m = { nom: nomM, profs: '', lignes: [] };
+          cur.matieres.push(m);
+        } else if (m) m.profs = `${m.profs} ${l.text}`.trim();
+        continue;
+      }
+      // Une moyenne collée au bout de la ligne (au-delà de 178 mm) n'est pas de l'appréciation.
+      if (l.x >= 88 && l.x < 176) { const c = m || suite; if (c) c.lignes.push(l.x2 > 178 ? l.text.replace(/(\s+(\d{1,2},\d{1,2}|Abs|Disp|NN))+\s*$/i, '') : l.text); }
+    }
+  });
+  for (const e of eleves) for (const m of e.matieres) {
+    const t = m.lignes.join(' ').replace(/\s+/g, ' ').trim();
+    m.texte = /^non renseign[ée]+$/i.test(t) ? '' : t;
+    const i = m.profs.indexOf('(');
+    m.groupe = i >= 0 ? m.profs.slice(i + 1).replace(/\)\s*$/, '').trim() : '';
+    m.profs = (i >= 0 ? m.profs.slice(0, i) : m.profs).replace(/[,\s]+$/, '').trim();
+    delete m.lignes;
+  }
+  // Deux exemplaires IDENTIQUES du même bulletin : un seul. Deux bulletins différents sous le même nom : deux élèves
+  // (homonymes) — le rattachement le demandera.
+  const vus = new Set(), out = [];
+  let doublons = 0;
+  for (const e of eleves) {
+    const sig = _moyNameKey(e.nom) + '|' + JSON.stringify(e.matieres.map(m => [m.nom, m.texte]));
+    if (vus.has(sig)) { doublons++; continue; }
+    vus.add(sig); out.push(e);
+  }
+  return { periode, annee, eleves: out, doublons };
+}
+// « Premier semestre » → l'indice de la période de l'app (0 à défaut), et si le découpage concorde.
+function _bullPeriode(cls, periode) {
+  const t = _iaPlie(periode || ''), n = /\b(premier|1er|1e)\b/.test(t) ? 0 : /\b(second|seconde|deuxieme|2e|2eme)\b/.test(t) ? 1 : /\b(troisieme|3e|3eme)\b/.test(t) ? 2 : -1;
+  const sorte = /semestre/.test(t) ? 'semestre' : /trimestre/.test(t) ? 'trimestre' : null;
+  const per = _periods(cls);
+  return { idx: n >= 0 && n < per.length ? n : 0, connu: n >= 0, accord: !sorte || sorte === _periodMode() };
+}
+function _bullCamp(cls, pIdx) {
+  const p = _periods(cls)[pIdx];
+  return p ? _avisCampagnes(cls.id).find(c => c.source === 'bulletin' && c.cible >= p.start && c.cible <= p.end) || null : null;
+}
+function _bullMatLabel(nom) { const t = String(nom || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); }
+function _bullRattache(cls, lu, manuel) {
+  return _mbnRapprocher(cls, lu.eleves.map((e, i) => ({ ...e, cle: String(i) }))).map(l => manuel && manuel[l.cle] !== undefined ? { ...l, sid: manuel[l.cle] || null } : l);
+}
+// PUR (sauf la lecture de S) : ce que l'import rangerait, avis par avis.
+// → { L, camp, lignes: [{ sid, did, avant, apres, etat: 'ajout' | 'modif' | 'identique', cle }], vides, sansDisc, profs }
+// Deux matières de la même discipline (ALLEMAND et ALLEMAND BILINGUE) : un avis, chaque appréciation sous son nom.
+function _bullBilan(cls, lu, manuel, pIdx) {
+  const L = _bullRattache(cls, lu, manuel), camp = _bullCamp(cls, pIdx), sansDisc = new Set(), profs = {}, lignes = [], vus = new Set();
+  let vides = 0;
+  for (const e of L) {
+    if (!e.sid || !S.eleves[e.sid] || vus.has(e.sid)) continue;
+    vus.add(e.sid);
+    const parDid = new Map();
+    for (const m of e.matieres) {
+      const did = _ficheMatDisc(m.nom);
+      if (did === null) { sansDisc.add(m.nom); continue; }
+      if (!did || !S.disciplines[did]) continue;
+      if (m.profs && !profs[did]) profs[did] = m.profs;
+      if (!m.texte) { vides++; continue; }
+      parDid.set(did, [...(parDid.get(did) || []), m]);
+    }
+    for (const [did, ms] of parDid) {
+      const apres = ms.length > 1 ? ms.map(m => `${_bullMatLabel(m.nom)} : ${m.texte}`).join('\n') : ms[0].texte;
+      const avant = String(camp?.avis?.[e.sid]?.[did]?.appreciation || '');
+      lignes.push({ sid: e.sid, did, avant, apres, etat: !avant ? 'ajout' : avant === apres ? 'identique' : 'modif', cle: `${e.sid}|${did}` });
+    }
+  }
+  return { L, camp, lignes, vides, sansDisc: [...sansDisc], profs };
+}
+// Rangé : la feuille « bulletin » de la période (créée au besoin), les avis cochés. → { camp, n } | null.
+function _bullAppliquer(cls, bil, pIdx, coches, fichier) {
+  const choisis = bil.lignes.filter(l => l.etat !== 'identique' && coches.has(l.cle));
+  const dids = [...new Set(bil.lignes.map(l => l.did))];
+  let camp = bil.camp;
+  if (!camp) {
+    if (!dids.length) return null;
+    camp = avisCampagneCreer(cls, { pIdx, disciplines: dids, objectif: 'conseil', colonnes: AVIS_MODELES.find(m => m.key === 'bulletin').colonnes });
+    if (!camp) return null;
+    camp.source = 'bulletin';
+    camp.label = `Appréciations du bulletin — ${_periods(cls)[pIdx].label}`;
+  } else if (dids.some(d => !camp.disciplines.some(x => x.id === d))) avisCampagneDisciplines(cls, camp.id, [...new Set([...camp.disciplines.map(d => d.id), ...dids])]);
+  camp.fichier = String(fichier || '').slice(0, 200);
+  camp.lu = Date.now();
+  for (const d of camp.disciplines) if (bil.profs[d.id]) d.profs = bil.profs[d.id];
+  for (const l of choisis) (camp.avis[l.sid] = camp.avis[l.sid] || {})[l.did] = { appreciation: l.apres };
+  return { camp, n: choisis.length };
+}
+// ── La fenêtre d'import ──
+let _bull = null;   // { fichier, lu, manuel, pIdx, off: Set (décochés), err } — de séance
+function openBullImport() {
+  if (!getCls()) return toast('⚠️ Sélectionnez d\'abord une classe.', 'warn');
+  _bull = null;
+  _bullRender();
+  openMod('mbull');
+  _modalReturnTo['mbull'] = () => { _bull = null; };
+}
+async function bullFichierUI(input) {
+  const f = input?.files?.[0], cls = getCls();
+  if (!f || !cls) return;
+  input.value = '';
+  try {
+    const lu = _bullLire(await _recapPages(new Uint8Array(await f.arrayBuffer())));
+    _bull = !lu.eleves.length ? { fichier: f.name, err: 'Aucun bulletin d\'élève trouvé : est-ce bien le PDF des bulletins de la classe, exporté de Mon Bureau Numérique (un PDF avec du texte, pas une page scannée) ?' }
+      : { fichier: f.name, lu, manuel: {}, pIdx: _bullPeriode(cls, lu.periode).idx, off: new Set() };
+  } catch (e) { _bull = { fichier: f.name, err: 'Lecture impossible : ' + (e && e.message || e) }; }
+  _bullRender();
+}
+function bullUI(quoi, cle, v) {
+  if (!_bull?.lu) return;
+  if (quoi === 'rattacher') _bull.manuel[cle] = v || '';
+  else if (quoi === 'periode') _bull.pIdx = +v || 0;
+  else if (quoi === 'coche') { if (v) _bull.off.delete(cle); else _bull.off.add(cle); }
+  else if (quoi === 'matiere') { const val = v === 'ignorer' ? '' : v; if (val === '' || S.disciplines[val]) { pushUndo(); if (ficheMatSetDisc(cle, val)) save(); else undoStack.pop(); } }
+  _bullRender();
+}
+function _bullCoches(bil) { return new Set(bil.lignes.filter(l => l.etat !== 'identique' && !_bull.off.has(l.cle)).map(l => l.cle)); }
+function _bullRender() {
+  const box = document.getElementById('mbull-body'), cls = getCls();
+  if (!box || !cls) return;
+  const B = _bull;
+  const choix = `<label class="btn btn-p" style="cursor:pointer">📂 Choisir le PDF des bulletins… <input type="file" accept="application/pdf,.pdf" style="display:none" onchange="bullFichierUI(this)"></label>`;
+  const intro = `<div class="tb-hint" style="margin-bottom:10px">Dans Mon Bureau Numérique, le PDF des <strong>bulletins de la classe</strong>. Chaque appréciation d'un professeur (colonne « Acquisitions, progrès et difficultés éventuelles ») devient un <strong>avis de sa discipline</strong> pour la période : lu dans la fiche, la lecture des avis et la fenêtre de bilan, surligné par 🎨, envoyé avec les synthèses. Les moyennes et le programme sont ignorés. Le fichier est lu sur cet ordinateur ; rien n'est rangé avant que vous ne validiez, et réimporter un bulletin plus complet ajoute et met à jour sans rien retirer.</div>`;
+  const fermer = `<div class="ma"><button class="btn btn-g" onclick="closeMod2('mbull')">Fermer</button></div>`;
+  if (!B) { box.innerHTML = intro + `<div class="ma" style="justify-content:flex-start">${choix}</div>` + fermer; return; }
+  if (B.err) { box.innerHTML = intro + `<div class="al al-w">⚠️ ${_escName(B.err)}</div><div class="ma" style="justify-content:flex-start">${choix}</div>` + fermer; return; }
+  const bil = _bullBilan(cls, B.lu, B.manuel, B.pIdx), C = _bullCoches(bil), per = _periods(cls), pp = _bullPeriode(cls, B.lu.periode);
+  const nom = sid => { const x = S.eleves[sid]; return x ? `${x.nom} ${x.prenom}` : sid; };
+  const blocs = [];
+  if (!pp.accord || !pp.connu) blocs.push(`<div class="al al-w">⚠️ Le bulletin dit « ${_escName(B.lu.periode || '?')} » ; l'app découpe l'année en ${_periodMode() === 'trimestre' ? 'trimestres' : 'semestres'} : vérifiez la période ci-dessus.</div>`);
+  if (B.lu.annee && cls.annee && !String(cls.annee).startsWith(B.lu.annee.slice(0, 4))) blocs.push(`<div class="al al-w">⚠️ Bulletin de l'année ${_escName(B.lu.annee)}, classe de l'année ${_escName(cls.annee)} : est-ce la bonne classe ?</div>`);
+  const sans = bil.L.filter(l => !l.sid);
+  const opts = l => `<option value="">— ignorer —</option>${cls.eleves.map(id => S.eleves[id]).filter(Boolean).map(x => `<option value="${_escAttr(x.id)}"${l.sid === x.id ? ' selected' : ''}>${_escName(x.nom + ' ' + x.prenom)}</option>`).join('')}`;
+  if (sans.length) blocs.push(`<div class="al al-w"><strong>${_pl(sans.length, 'nom')} à rattacher</strong> (introuvable${sans.some(l => l.homonyme) ? ' ou homonymes' : ''}) — choisissez l'élève, ou laissez « ignorer » :
+    <div class="rc-grid">${sans.map(l => `<span>${_escName(l.nom)} · page ${l.page}</span><select onchange="bullUI('rattacher', '${_escJsAttr(l.cle)}', this.value)" style="max-width:100%">${opts(l)}</select>`).join('')}</div></div>`);
+  if (bil.sansDisc.length) {
+    const dopts = `<option value="">— à rattacher —</option>${_disciplinesAll().filter(d => d.actif).map(d => `<option value="${_escAttr(d.id)}">${_escName(d.nom)}</option>`).join('')}<option value="ignorer">— ignorer cette matière —</option>`;
+    blocs.push(`<div class="al al-w"><strong>${_pl(bil.sansDisc.length, 'matière')} que l'app ne sait pas ranger</strong> — à quelle discipline ? (gardé pour les prochains imports, et réglable dans 💾 Données ▸ Disciplines et matières)
+      <div class="rc-grid">${bil.sansDisc.map(m => `<span>${_escName(m)}</span><select onchange="bullUI('matiere', '${_escJsAttr(m)}', this.value)" style="max-width:100%">${dopts}</select>`).join('')}</div></div>`);
+  }
+  const vusE = new Set(bil.L.filter(l => l.sid).map(l => l.sid));
+  const absents = cls.eleves.filter(id => S.eleves[id] && _isStudentActive(S.eleves[id]) && !vusE.has(id));
+  if (absents.length) blocs.push(`<div class="tb-hint">Élèves de la classe absents du fichier : ${absents.map(id => _escName(nom(id))).join(', ')}.</div>`);
+  const aj = bil.lignes.filter(l => l.etat === 'ajout'), mo = bil.lignes.filter(l => l.etat === 'modif'), id = bil.lignes.filter(l => l.etat === 'identique').length;
+  const ck = l => `<label class="rc-l"><input type="checkbox"${C.has(l.cle) ? ' checked' : ''} onchange="bullUI('coche', '${_escJsAttr(l.cle)}', this.checked)"> <span><strong>${_escName(nom(l.sid))}</strong> · ${_escName(S.disciplines[l.did]?.nom || l.did)}${l.etat === 'modif'
+    ? `<br><span class="tb-hint">dans l'app :</span> ${_escName(l.avant)}<br><span class="tb-hint">dans le bulletin :</span> <strong>${_escName(l.apres)}</strong>` : ` — ${_escName(l.apres.length > 140 ? l.apres.slice(0, 140) + '…' : l.apres)}`}</span></label>`;
+  blocs.push(`<section class="rc-sec"><h3>🗣 Appréciations</h3>${aj.length ? `<p><strong>${_pl(aj.length, 'appréciation')} nouvelle${aj.length > 1 ? 's' : ''}</strong></p><div class="rc-list">${aj.map(ck).join('')}</div>` : ''}${mo.length
+    ? `<p style="margin-top:8px"><strong>${mo.length} modifiée${mo.length > 1 ? 's' : ''}</strong> depuis le dernier import — cochez celles à remplacer :</p><div class="rc-list">${mo.map(ck).join('')}</div>` : ''}${!aj.length && !mo.length ? '<p class="tb-hint">Rien de nouveau.</p>' : ''}
+    <p class="tb-hint" style="margin-top:6px">${[id && `${id} déjà dans l'app telle${id > 1 ? 's' : ''} quelle${id > 1 ? 's' : ''}`, bil.vides && `${_pl(bil.vides, 'case')} « Non renseigné » laissée${bil.vides > 1 ? 's' : ''} de côté`].filter(Boolean).join(' · ') || ''}</p></section>`);
+  const haut = box.querySelector('.rc-body')?.scrollTop || 0;
+  box.innerHTML = intro + `<div class="tb-hint" style="margin-bottom:8px">📄 ${_escName(B.fichier)} · ${_pl(B.lu.eleves.length, 'élève')} · « ${_escName(B.lu.periode || '?')} »${B.lu.annee ? ` (${_escName(B.lu.annee)})` : ''}${B.lu.doublons ? ` · ${B.lu.doublons} exemplaire${B.lu.doublons > 1 ? 's' : ''} en double écarté${B.lu.doublons > 1 ? 's' : ''}` : ''}</div>
+    <div class="ia-row" style="margin-bottom:8px"><label class="ia-bloc">Pour la période <select onchange="bullUI('periode', '', this.value)">${per.map((x, i) => `<option value="${i}"${i === B.pIdx ? ' selected' : ''}>${_escName(x.label)}</option>`).join('')}</select></label>${bil.camp ? `<span class="tb-hint">met à jour les appréciations déjà importées pour ${_escName(per[B.pIdx].label)}</span>` : ''}</div>
+    <div class="rc-body">${blocs.join('')}</div>
+    <div class="ma" style="flex-wrap:wrap"><span style="margin-right:auto">${choix.replace('btn-p', 'btn-g').replace('Choisir le PDF des bulletins…', 'Un autre fichier…')}</span>
+      <button class="btn btn-g" onclick="closeMod2('mbull')">Annuler</button>
+      <button class="btn btn-p" onclick="bullAppliquerUI()"${C.size ? '' : ' disabled'}>${C.size ? `✓ Ranger ${_pl(C.size, 'appréciation')}` : 'Rien à ranger'}</button></div>`;
+  const rb = box.querySelector('.rc-body'); if (rb && haut) rb.scrollTop = haut;
+}
+function bullAppliquerUI() {
+  const cls = getCls();
+  if (!_bull?.lu || !cls) return;
+  const bil = _bullBilan(cls, _bull.lu, _bull.manuel, _bull.pIdx), C = _bullCoches(bil);
+  if (!C.size) return toast('Rien à ranger.', 'info');
+  pushUndo();
+  const r = _bullAppliquer(cls, bil, _bull.pIdx, C, _bull.fichier);
+  if (!r) { undoStack.pop(); return toast('⚠️ Rien n\'a pu être rangé : aucune matière rattachée à une discipline.', 'warn'); }
+  save();
+  closeMod2('mbull');
+  openAvis(r.camp.id);
+  toast(`✓ ${_pl(r.n, 'appréciation')} du bulletin rangée${r.n > 1 ? 's' : ''} comme avis des collègues (${_periods(cls)[_avisPeriode(cls, r.camp) ? _avisPeriode(cls, r.camp).n - 1 : 0]?.label || ''}) — Ctrl+Z l'annule. 🎨 Le ton des avis peut maintenant les surligner.`);
+}
+// ── Dans l'onglet Avis : le panneau d'une feuille venue du bulletin ── (rien à partager, rien à relire dans le Nuage)
+function _bullCampHTML(cls, camp) {
+  const elevesF = _avisEleves(cls, camp), cpt = _avisCompte(camp, elevesF.map(s => s.id)), p = _avisPeriode(cls, camp);
+  const lignes = camp.disciplines.map(d => `<tr><td>${cpt.parDisc[d.id] ? `<button class="av-dlien" onclick="openAvisLire({ did: '${_escJsAttr(d.id)}' })" title="Lire les appréciations de ${_escAttr(d.nom)}, élève par élève">${_escName(d.nom)}</button>` : `<strong>${_escName(d.nom)}</strong>`}${d.profs ? ` <span class="fi-vide">${_escName(d.profs)}</span>` : ''}</td>
+      <td style="font-family:var(--font-mono);text-align:right">${cpt.parDisc[d.id] ? `<strong>${cpt.parDisc[d.id]}</strong>` : '<span class="tb-hint">0</span>'} / ${elevesF.length}</td></tr>`).join('');
+  return `<div class="tb-hint" style="margin-bottom:8px">📄 Les appréciations du bulletin${p ? ` de la période <strong>${_escName(p.label)}</strong>` : ''} · importées le ${_escName(_fmtDateFr(_todayYmd(new Date(camp.lu || camp.ts || Date.now()))))}${camp.fichier ? ` de <strong>${_escName(camp.fichier)}</strong>` : ''} · ${cpt.n} appréciation${cpt.n > 1 ? 's' : ''}</div>
+    <div class="rel-wrap" style="margin-bottom:8px"><table class="dt"><thead><tr><th>Discipline</th><th style="text-align:right">Élèves avec une appréciation</th></tr></thead><tbody>${lignes}</tbody></table></div>
+    <div class="ma" style="flex-wrap:wrap;justify-content:flex-start;margin-top:8px"><button class="btn btn-p" onclick="openBullImport()" title="Un bulletin plus complet : les appréciations nouvelles s'ajoutent, celles qui ont changé se proposent">📥 Réimporter les bulletins…</button></div>
+    ${_tonsAvisHTML(cls, camp)}
+    <div style="margin:10px 0 2px"><button class="btn btn-s" onclick="avisBilansUI('${_escJsAttr(camp.id)}')" title="Un bilan par élève pour le conseil, les appréciations sous les yeux — ◀ ▶ ou Ctrl+Entrée pour passer d'un élève à l'autre">✍️ Noter mes bilans pour ${_escName(_avisObjectif(cls, camp).long)}</button></div>
+    <div class="ma"><button class="btn btn-d btn-sm" onclick="avisSupprimerUI('${_escJsAttr(camp.id)}')" title="Oublier ces appréciations (le bulletin, lui, reste dans Mon Bureau Numérique)">🗑 Supprimer</button></div>`;
+}
 // Les pages d'un PDF, lues comme l'outil 🔍 les lit. Navigateur ET harnais.
 async function _recapPages(u8) {
   const doc = await _pdfOpen(u8), fc = new Map(), out = [];
@@ -8856,6 +9097,16 @@ function _avisFeuilleDuMoment(cls, col) {
   const campsP = _avisCampagnes(cls.id).filter(c => c.cible >= p0.start && c.cible <= p0.end);
   return campsP.find(c => _avisMsgReglages(c).moment === col.type) || _avisDeLaPeriode(cls, col.pIdx);
 }
+// Toutes les feuilles du moment (du même objectif dans sa période), la plus récente d'abord ; à défaut, celle que
+// la fiche montre (`_avisFeuilleDuMoment`).
+function _avisFeuillesDuMoment(cls, col) {
+  const p0 = _periods(cls)[col.pIdx];
+  if (!p0) return [];
+  const l = _avisCampagnes(cls.id).filter(c => c.cible >= p0.start && c.cible <= p0.end && _avisMsgReglages(c).moment === col.type);
+  if (l.length) return l;
+  const c = _avisFeuilleDuMoment(cls, col);
+  return c ? [c] : [];
+}
 function _ficheAvis(cls, sid, col) {
   const camp = _avisFeuilleDuMoment(cls, col);
   if (!camp) return null;
@@ -9344,12 +9595,14 @@ function _iaDonnees(cls, stu, col, blocs, repere) {
   if (on('contact')) { const ct = dans(stu.journal); if (ct.length) parts.push([`Contacts avec la famille : ${ct.length}.`, ...ct.map(x => `– ${jm(x.date)}, ${st(_journalType(x.type).label).toLowerCase()}${x.texte ? ` : ${ligne(x.texte)}` : ''}`)]); }
   if (on('remarque') && String(stu.remarque || '').trim()) parts.push(['Remarque du professeur principal (sans date) :', String(stu.remarque).trim()]);
   if (on('avis')) {
-    const av = _ficheAvis(cls, sid, col);
-    if (av) {
-      const o = st(_avisObjectif(cls, av.camp).long);
-      av.cols.forEach(c => st(c.label));
-      const L = av.items.map(it => { const t = av.cols.map(c => String(it[c.key] || '').trim() ? `${av.cols.length > 1 ? c.label + ' : ' : ''}${ligne(it[c.key])}` : '').filter(Boolean); return t.length ? `– ${st(it.disc.nom)} : ${t.join(' ; ')}` : ''; }).filter(Boolean);
-      parts.push(L.length ? [`Avis des collègues (${o}) :`, ...L] : [`Avis des collègues (${o}) : aucun pour cet élève.`]);
+    // Toutes les feuilles du moment (v1.75.0) : les appréciations du bulletin ET la feuille d'avis des collègues.
+    for (const camp of _avisFeuillesDuMoment(cls, col)) {
+      const cols = _avisCols(camp), parDisc = camp.avis?.[sid] || {};
+      const items = camp.disciplines.filter(d => parDisc[d.id]).map(d => ({ disc: d, ...parDisc[d.id] }));
+      const o = st(_avisObjectif(cls, camp).long), titre = camp.source === 'bulletin' ? 'Appréciations des professeurs au bulletin' : 'Avis des collègues';
+      cols.forEach(c => st(c.label));
+      const L = items.map(it => { const t = cols.map(c => String(it[c.key] || '').trim() ? `${cols.length > 1 ? c.label + ' : ' : ''}${ligne(it[c.key])}` : '').filter(Boolean); return t.length ? `– ${st(it.disc.nom)} : ${t.join(' ; ')}` : ''; }).filter(Boolean);
+      parts.push(L.length ? [`${titre} (${o}) :`, ...L] : [`${titre} (${o}) : aucun pour cet élève.`]);
     }
   }
   if (on('suivis')) { const F = _suivisFaits(cls, stu, b).map(f => f.phrase).filter(Boolean); if (F.length) parts.push([`Fiches de suivi : ${st(F.join(' ; '))}.`]); }
@@ -19554,7 +19807,7 @@ const DISCIPLINES_DEFAUT = [
   ['anglais',            'Anglais',                             'Anglais',          /\bANGLAIS\b/],
   ['francais',           'Français',                            'Français',         /\bFRANCAIS\b/],
   ['histoire_geo',       'Histoire-géographie',                 'Hist.-géo.',       /\bHISTOIRE\b|\bGEOGRAPHIE\b|\bEMC\b/],
-  ['religions',          'Enseignement des religions',          'Religions',        /RELIGI|CATECH|PASTORAL|CULTURE CHRETIENNE/],
+  ['religions',          'Enseignement des religions',          'Religions',        /RELIGI|RELIG\b|CATECH|PASTORAL|CULTURE CHRETIENNE/],   // « ENS.RELIG.CATHOLIQUE » : l'intitulé des bulletins de MBN
   ['maths',              'Mathématiques',                       'Maths',            /\bMATH/],
   ['physique_chimie',    'Physique-chimie',                     'Physique-chimie',  /\bCHIMIE\b|\bSCIENCES? PHYSIQUES?\b/],
   ['svt',                'Sciences de la vie et de la Terre',   'SVT',              /\bSVT\b|\bSCIENCES? (DE LA )?VIE\b/],
@@ -20286,19 +20539,20 @@ function _avisNouvelleRemettre(box, g) {
 // « Conseil de classe · S1 » : le nom d'une récolte, dans la liste et en tête.
 function _avisTitreFeuille(cls, c) {
   const p = _avisPeriode(cls, c), o = _avisObjectif(cls, c).court;
+  if (c.source === 'bulletin') return `📄 Bulletin${p ? ' · ' + p.label : ''}`;
   return `${o.charAt(0).toUpperCase() + o.slice(1)}${p ? ' · ' + p.label : ''}`;
 }
 // Les récoltes, de la plus récente à la plus ancienne : objectif, période, date, fichier,
 // combien d'avis, combien de disciplines ont répondu (un trait par discipline), les ⭐.
 function _avisListeHTML(cls, camps) {
-  const nouv = `<button class="av-fcard av-nouv${!_avisCampId ? ' on' : ''}" onclick="avisChoisirFeuille(null)">＋ Nouvelle feuille d'avis</button>`;
+  const nouv = `<button class="av-fcard av-nouv${!_avisCampId ? ' on' : ''}" onclick="avisChoisirFeuille(null)">＋ Nouvelle feuille d'avis</button><button class="av-fcard av-nouv" onclick="openBullImport()" title="Les appréciations des professeurs, lues dans le PDF des bulletins de Mon Bureau Numérique">📄 Importer les bulletins…</button>`;
   if (!camps.length) return nouv + '<p class="tb-hint">Aucune feuille encore. Une feuille = une récolte : avant un conseil, un point du mois, une rencontre avec une famille.</p>';
   return nouv + camps.map(c => {
     const cpt = _avisCompte(c, _avisEleves(cls, c).map(s => s.id)), nD = c.disciplines.length, rep = c.disciplines.filter(d => cpt.parDisc[d.id]).length;
     const nc = _avisCibles(cls, c).length;
     return `<button class="av-fcard${c.id === _avisCampId ? ' on' : ''}" onclick="avisChoisirFeuille('${_escJsAttr(c.id)}')" aria-pressed="${c.id === _avisCampId}">
       <strong>${_escName(_avisTitreFeuille(cls, c))}</strong>
-      <span class="tb-hint">préparée le ${_escName(_fmtDateFr(c.date))}${c.fichier ? ' · ' + _escName(c.fichier) : ''}</span>
+      <span class="tb-hint">${c.source === 'bulletin' ? 'importée' : 'préparée'} le ${_escName(_fmtDateFr(c.date))}${c.fichier ? ' · ' + _escName(c.fichier) : ''}</span>
       <span><span class="el-avbar" aria-hidden="true">${c.disciplines.map(d => `<i class="${cpt.parDisc[d.id] ? 'f' : ''}"></i>`).join('')}</span> ${rep}/${nD} disciplines · ${cpt.n} avis${nc ? ` · ${nc} ⭐` : ''}</span>
       <span class="tb-hint">${_escName(_avisCols(c).map(x => x.label).join(' · '))}</span></button>`;
   }).join('');
@@ -20524,6 +20778,7 @@ function _avisPartageHTML(camp) {
         onchange="avisLienUI('${id}',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"></div>`;
 }
 function _avisCampHTML(cls, camp) {
+  if (camp.source === 'bulletin') return _bullCampHTML(cls, camp);
   const p = _avisPeriode(cls, camp);
   const elevesF = _avisEleves(cls, camp);
   // Compté sur les élèves de la feuille, comme le total et la fenêtre de lecture : un élève parti
@@ -21262,7 +21517,7 @@ function avisTelecharger(campId) {
 async function avisRelire(campId, { demander = true, silencieux = false } = {}) {
   const cls = getCls();
   const camp = _avisMap(cls?.id)?.[campId];
-  if (!camp) return;
+  if (!camp || camp.source === 'bulletin') return;   // une feuille venue du bulletin ne se relit pas dans le Nuage
   const h = await _avisHandle(campId);
   if (!h) { if (!silencieux) toast('📂 Choisissez d\'abord la feuille (sa copie dans votre dossier Nextcloud).', 'warn'); return; }
   if (!await _avisPermission(h, 'read', demander)) { if (!silencieux) toast('⚠️ Lecture refusée par le navigateur.', 'warn'); return; }

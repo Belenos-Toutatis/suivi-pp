@@ -1044,6 +1044,51 @@ avis, fenêtre de bilan, feuilles imprimées (synthèse de période et fiche). B
   bulletins (à décrire par *🔍 Décrire un fichier sans ses données*) et la limite de caractères.
 - ✅ Une vraie analyse par Claude vérifiée par l'utilisateur le 2026-10-23. ⚠️ Non vérifié : la sélection au doigt sur une tablette.
 
+### 📄 Les bulletins (v1.75.0)
+
+Demandé le 2026-10-23 : *« que Suivi PP puisse lui-même extraire les informations utiles du bulletin : chaque remarque
+d'un collègue deviendrait un avis des collègues pour le bilan de la période, ce qui permettrait de faire l'analyse des
+points positifs et négatifs avec les couleurs »*. **Un seul PDF pour la classe, exporté de MBN** ; les moyennes du
+bulletin sont **ignorées** (arbitré : elles viennent de leur import) ; limite de l'appréciation générale : **600
+caractères**. Bloc « 📄 LES BULLETINS » du script, fenêtre `mbull` (`openBullImport` : onglet Avis — *📄 Importer les
+bulletins…* sous *＋ Nouvelle feuille d'avis* —, 💾 Données ▸ Importer, et *📥 Réimporter les bulletins…* du panneau).
+
+- **Mise en page** (relevée par *🔍 Décrire un fichier sans ses données*, aucune donnée vue) : chaque page s'ouvre sur
+  « NOM Prénom (5C) - Premier semestre (2025 - 2026) » (8 pt, à 8 mm) — **c'est lui qui dit l'élève**, d'une page à
+  l'autre (`_bullEntete`) ; une page « Année scolaire » / « Suivi des acquis scolaires » commence un bulletin. Le
+  tableau, sous « Acquisitions, progrès et difficultés éventuelles » : la matière en CAPITALES à 9 mm (8 pt), le
+  professeur et sa classe dessous (6 pt, parfois sur deux lignes : « Mme A, Mme B, Mme » / « C (5C) »), l'appréciation
+  à 95 mm (7 pt) sur plusieurs lignes, qui peut **continuer en haut de la page suivante** ; « Non renseigné » = vide ;
+  « Pôle… » et « Autres matières » ne sont pas des matières ; le programme (52 mm) et les moyennes (au-delà de 175 mm)
+  sont ignorés ; « Communication avec la famille » finit le tableau.
+- **Lecture** (`_bullLire`, pur, sur `_recapPages`) : ⚠️ le nom de la matière = les mots en CAPITALES du début de la
+  ligne (une case du programme collée à la ligne reste dehors) ; une moyenne collée au bout d'une ligne d'appréciation
+  est retirée. **Deux exemplaires identiques** du même bulletin (un par responsable légal) sont fondus (`doublons`) ;
+  deux bulletins DIFFÉRENTS sous le même nom restent deux (homonymes : le rattachement les demande).
+- **Période** (`_bullPeriode`) : « Premier / Second semestre », « Premier / Deuxième / Troisième trimestre » → la
+  période de l'app, réglable dans la fenêtre ; un découpage qui ne concorde pas, ou une autre année, est signalé.
+- **La revue** (`_bullBilan`, pur sauf la lecture de S) : l'élève par son nom (`_mbnRapprocher`, rien de deviné,
+  rattachement manuel, « ignorer » d'office) ; la matière par sa discipline (`_ficheMatDisc` — le MÊME réglage que les
+  fiches de suivi, `prefs.matieresFiche` : une matière rattachée dans la fenêtre l'est pour les prochains imports et se
+  corrige dans 💾 Données) ; ⚠️ **deux matières d'une discipline** (ALLEMAND, ALLEMAND BILINGUE) = UN avis, chaque
+  appréciation sous son nom (« Allemand bilingue : … ») ; nouvelles, modifiées (avant / après, à cocher), déjà là,
+  « Non renseigné » laissées de côté ; les élèves de la classe absents du fichier sont nommés.
+- **Rangé** (`_bullAppliquer`, un cran d'undo) : UNE feuille d'avis par période, `camp.source = 'bulletin'`, colonne
+  « Appréciation » (modèle *Appréciation de bulletin*), objectif **conseil** ; le professeur de chaque discipline vient du
+  bulletin. Réimporter met à jour la même feuille, **ne retire rien**. Tout ce qui existe pour les avis s'applique :
+  fiche, lecture des avis, fenêtre de bilan, synthèse imprimée, **🎨 le ton des avis** (un texte réimporté changé perd
+  ses couleurs, cf. l'empreinte). Panneau propre dans l'onglet Avis (`_bullCampHTML` : pas de partage, de message ni de
+  relecture du Nuage — `avisRelire` l'écarte) ; titre « 📄 Bulletin · S1 ».
+- **Les synthèses par une IA** reçoivent **toutes les feuilles du moment** (`_avisFeuillesDuMoment`) : « Appréciations
+  des professeurs au bulletin (…) » ET « Avis des collègues (…) ».
+- Disciplines : « ENS.RELIG.CATHOLIQUE » (l'intitulé des bulletins) reconnu comme l'enseignement des religions.
+- Tests : `test/bulletins.test.js` sur `test/fixtures/bulletin-mbn-invente.pdf` (`scripts/gen_bulletin_fixture.py`, un
+  PDF minimal écrit à la main — pas de bibliothèque : noms inventés). Vérifié dans le navigateur : la fixture lue,
+  revue, rangée, panneau et lecture ; audit deux thèmes : 0 défaut. ⚠️ Non vérifié : le vrai PDF de l'utilisateur.
+- 🗓 **À suivre** (même demande) : réimporter les appréciations retravaillées dans le bilan du conseil (arbitré : le
+  bilan du conseil EST l'appréciation du bulletin), avec la limite de 600 caractères ; la correspondance repère → élève
+  dans l'app pendant la conversation.
+
 ## 📷 Photos des élèves (v1.48.0)
 
 **Code COPIÉ de Plan de classe** (v2.64.0 → v2.64.2, commit `ace7234`, section *📷 Photos des élèves* de son CLAUDE.md) : lecteur PDF minimal (`_pdfOpen`, `_PdfLexer`, `_pdfStreamBytes`, `_pdfFont`, `_pdfScanPage`), lecture du trombinoscope (`_trombiParsePdf`, `_trombiParseHeader`, `_trombiDedupNames`), appariement (`_trombiSplitName`, `_trombiScore`, `_trombiMatch` — rien n'est deviné à égalité —, `_trombiResolveClass`). Les pièges de format MBN et d'appariement sont documentés là-bas ; à relire avant d'y toucher.
