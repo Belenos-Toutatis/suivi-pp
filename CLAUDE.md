@@ -829,8 +829,9 @@ d'API, un pour voir où on en est dans son usage — et savoir à chaque fois ce
   clé hors de `S`, CSP, un envoi complet et un envoi refusé sur un `fetch` simulé). Vérifié dans le navigateur : un
   appel RÉEL avec une fausse clé rend un 401 lisible (CSP, en-tête et CORS passent) ; un envoi complet sur un flux
   simulé (réponse à l'étape 3, revue, coût) ; audit 12 états × 2 thèmes et 320 px, 0 défaut.
-- ⚠️ **Non vérifié** : un envoi réel avec une vraie clé (réponse d'Opus 5.5 en flux, forme imposée, `fallbacks`) ;
-  les liens de la Console (chemins `settings/billing` et `usage`) — à cliquer une fois.
+- ✅ **Vérifié en vrai par l'utilisateur le 2026-10-23** : espace de travail et clé créés en suivant le pas-à-pas,
+  un envoi réel qui marche. ⚠️ Reste à voir : la réponse de toute la classe (forme imposée `IA_SCHEMA_LOT`) si elle
+  n'a pas été celle de l'essai, et les liens `settings/billing` et `usage` de la Console.
 
 ### Synthèse de période imprimable
 
