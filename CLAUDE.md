@@ -1104,8 +1104,8 @@ l'appréciation du bulletin** (*« sinon le bilan de la période ne servira à r
   ou à cocher quand même. Rangé : `bilanSet` (le même bilan, sa date gardée) ou `bilanAdd` (daté du moment), **un cran
   d'undo** ; la synthèse IA n'est pas touchée. La réponse peut porter « appreciation » au lieu de « synthese » (clés
   tolérées de `_iaLotLire`).
-- **Savoir de qui on parle** : *🖥 Fenêtre des correspondances* (dans le volet *Correspondances des repères*,
-  `iaCorrFenetreUI`) — une fenêtre ordinaire à poser à côté de la conversation : repère en grand, photo (ou initiales),
+- **Savoir de qui on parle** : *🖥 Fenêtre des correspondances* (dans le titre de l'étape 2 des fenêtres `miac` et `mias`
+  depuis la v1.76.1 — l'utilisateur ne la trouvait pas dans le volet replié —, et dans le volet ; `iaCorrFenetreUI`) — une fenêtre ordinaire à poser à côté de la conversation : repère en grand, photo (ou initiales),
   nom ; **recherche par numéro** ; un clic ouvre la fiche dans Suivi PP. ⚠️ **Rien à copier** (aucun bouton, texte non
   sélectionnable) : la table ne doit jamais finir collée dans la conversation. Elle suit le lot ouvert
   (`_iaCorrWinMaj`, appelée par `_iaCorrRender`), se ferme avec la page ; bloquée par le navigateur, elle le dit (le volet

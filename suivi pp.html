@@ -2635,7 +2635,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <textarea id="miac-cons" rows="8" aria-label="Consigne donnée à l'IA pour toute la classe" onchange="iaConsigneUI(this.value,true)"></textarea>
       <div class="ia-row"><button class="btn btn-g btn-sm" id="miac-cons-raz" onclick="iaConsigneUI(null,true)" title="Revenir à la consigne proposée">↺ Consigne proposée</button><span class="tb-hint">Elle demande une réponse en JSON, une synthèse par repère.</span></div>
     </details>
-    <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez<button type="button" class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI(this)" aria-pressed="false" title="Afficher le texte à relire sur tout l'écran">⛶ Plein écran</button></div>
+    <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez<button type="button" class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI(this)" aria-pressed="false" title="Afficher le texte à relire sur tout l'écran">⛶ Plein écran</button><button type="button" class="ia-b" onclick="iaCorrFenetreUI()" title="Une fenêtre à poser à côté de la conversation : repère → photo et nom, recherche par numéro, un clic ouvre la fiche. Rien à copier.">🖥 Fenêtre des correspondances</button></div>
     <div class="tb-hint">Une section par élève, sous son repère (« ### [Élève 14] » : ne touchez pas à ces lignes, elles séparent les élèves). Le JSON est fait de ce texte, et de rien d'autre.</div>
     <details class="ia-cons">
       <summary>Correspondances des repères (restent sur ce poste)</summary>
@@ -2696,7 +2696,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <textarea id="mias-cons" rows="7" aria-label="Consigne donnée à l'IA pour la synthèse de la classe" onchange="iaConsigneUI(this.value,'synthese')"></textarea>
       <div class="ia-row"><button class="btn btn-g btn-sm" id="mias-cons-raz" onclick="iaConsigneUI(null,'synthese')" title="Revenir à la consigne proposée">↺ Consigne proposée</button><span class="tb-hint">Elle demande de ne citer aucun élève ; la longueur se règle au-dessus.</span></div>
     </details>
-    <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez<button type="button" class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI(this)" aria-pressed="false" title="Afficher le texte à relire sur tout l'écran">⛶ Plein écran</button></div>
+    <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez<button type="button" class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI(this)" aria-pressed="false" title="Afficher le texte à relire sur tout l'écran">⛶ Plein écran</button><button type="button" class="ia-b" onclick="iaCorrFenetreUI()" title="Une fenêtre à poser à côté de la conversation : repère → photo et nom, recherche par numéro, un clic ouvre la fiche. Rien à copier.">🖥 Fenêtre des correspondances</button></div>
     <div class="tb-hint">La classe en tête, puis une section par élève qui a un bilan (« ### [Élève 14] » : ne touchez pas à ces lignes). Le JSON est fait de ce texte, et de rien d'autre.</div>
     <details class="ia-cons">
       <summary>Correspondances des repères (restent sur ce poste)</summary>
@@ -3372,8 +3372,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.76.0';
-const APP_BUILD_DATE = '2026-10-23T16:17:38Z';
+const APP_VERSION    = '1.76.1';
+const APP_BUILD_DATE = '2026-10-23T16:30:27Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
