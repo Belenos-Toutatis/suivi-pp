@@ -1033,6 +1033,15 @@ avis, fenêtre de bilan, feuilles imprimées (synthèse de période et fiche). B
   conversation avec Claude, par allers-retours, ce qu'un envoi unique ne permet pas. Proposés et refusés pour l'instant
   dans la même réponse : reformuler un bilan, brouillon de message aux familles, compte rendu de réunion. Écartés par
   principe : un repérage automatique d'« élèves à risque », la lecture des imports par une IA.
+- 🗓 **Projet en attente (2026-10-23) : les bulletins.** Importer les bulletins de la période — chaque appréciation d'un
+  collègue devient un avis de la discipline, sur une feuille d'avis « Appréciation du bulletin » (source : le bulletin),
+  donc lue, surlignée et imprimée comme les autres ; exporter le JSON de toute la classe pour le projet de conversation
+  de l'utilisateur (`directive.md`, `exemple de remarques.md`) ; la correspondance repère → élève RESTE dans l'app
+  (fenêtre détachée à côté du chat, recherche par repère, jamais copiable) ; réimporter les appréciations retravaillées.
+  ⚠️ **Arbitré par l'utilisateur : le bilan du conseil EST l'appréciation du bulletin** (*« sinon le bilan de la période
+  ne servira à rien »*) — le réimport écrit dans le bilan du conseil de la période (revue avant / après, rien
+  d'écrasé sans être coché, un cran d'undo), avec la limite de caractères du bulletin. En attente : le format des
+  bulletins (à décrire par *🔍 Décrire un fichier sans ses données*) et la limite de caractères.
 - ✅ Une vraie analyse par Claude vérifiée par l'utilisateur le 2026-10-23. ⚠️ Non vérifié : la sélection au doigt sur une tablette.
 
 ## 📷 Photos des élèves (v1.48.0)
