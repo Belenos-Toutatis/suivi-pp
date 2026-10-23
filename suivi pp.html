@@ -183,6 +183,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
   /* Fiche (prototype, v1.44.3) : la carte blanche sur le papier, une couleur par sujet. */
   --pf-card: #ffffff;
   --i-obs: #c27a00;  --i-moy: #9c4a00;  --i-incid: #b03d2e;  --i-contact: #1f6fad;  --i-avis: #2f6b4f;  --i-bilan: #6d28d9;
+  --ton-p1: #e4f3df;  --ton-p2: #c5e7bc;  --ton-p3: #9fd693;  --ton-n1: #fbe7e3;  --ton-n2: #f6c8bd;  --ton-n3: #efa594;  --ton-fg: #1d2530;  --ton-p-line: #2e7d32;  --ton-n-line: #c0392b;
   --i-suivi: #0f766e;  --suivi-o-bg: #fdecc8;  --suivi-o-fg: #6b3a00;   /* 📋 fiches de suivi : la carte, une réussite « orange » */
   /* Accents sémantiques utilisés en TEXTE — déclinés par thème, car les valeurs vives
      historiques (#3498db, #e91e63, #00838f, #92400e) descendaient sous 4,5:1 sur le
@@ -320,6 +321,7 @@ html[data-theme="dark"] {
   --av-1-bg: #26352d;  --av-1-fg: #d4e0ee;
   --pf-card: #191f27;
   --i-obs: #e6b450;  --i-moy: #f0a35c;  --i-incid: #e88576;  --i-contact: #7cb8e0;  --i-avis: #5fb08a;  --i-bilan: #b79cf0;
+  --ton-p1: #1f3b25;  --ton-p2: #295231;  --ton-p3: #346b3e;  --ton-n1: #3f2320;  --ton-n2: #582c27;  --ton-n3: #75362e;  --ton-fg: #f3efe6;  --ton-p-line: #7fd08a;  --ton-n-line: #ff8f80;
   --i-suivi: #5eb8ad;  --suivi-o-bg: #4a3412;  --suivi-o-fg: #f3d29b;
   /* Accent « discipline » : le violet clair #5b21b6 n'avait pas de variante sombre — ses
      12 usages en `color:` tombaient à ~1,6:1 sur le fond nuit. */
@@ -413,6 +415,7 @@ html[data-theme="dark"] {
     --highlighter:      #f5d76e;  --highlighter-fg: #1a252f;  --bulle-bg: #1f2a36;  --bulle-fg: #f4f6fa;  --bulle-bd: #1f2a36;  --chip-on-bg:   #263545;  --chip-on-fg: #f4f6fa;
     --av-3-bg: #2f6b4f;  --av-3-fg: #ffffff;  --av-2-bg: #8fbfa6;  --av-2-fg: #0e1a26;  --av-1-bg: #dde7e1;  --av-1-fg: #0e1a26;
     --pf-card: #ffffff;  --i-obs: #c27a00;  --i-moy: #9c4a00;  --i-incid: #b03d2e;  --i-contact: #1f6fad;  --i-avis: #2f6b4f;  --i-bilan: #6d28d9;
+    --ton-p1: #e4f3df;  --ton-p2: #c5e7bc;  --ton-p3: #9fd693;  --ton-n1: #fbe7e3;  --ton-n2: #f6c8bd;  --ton-n3: #efa594;  --ton-fg: #1d2530;  --ton-p-line: #2e7d32;  --ton-n-line: #c0392b;
     --i-suivi: #0f766e;  --suivi-o-bg: #fdecc8;  --suivi-o-fg: #6b3a00;
     --civ-m:            #1c6ea4;  --civ-f:        #b3123f;
     --agr-fg:           #00707d;  --tt-fg:        #6d28d9;  --warn-fg:      #92400e;
@@ -1939,6 +1942,24 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-api-etat:empty { display: none; }
 .ia-api-etat.err { color: var(--alert-fg); background: var(--alert-bg); border: 1px solid var(--alert-bd); padding: 6px 10px; border-radius: 6px; }
 .ia-jt td, .ia-jt th { white-space: nowrap; }
+/* 🎨 Le ton des avis (v1.74.0) : un fond par sens et par intensité, et un trait dessous — plein pour le positif,
+   tireté pour le négatif, plus épais avec l'intensité — pour que le sens se lise sans les couleurs (papier en noir et
+   blanc, daltonisme). Sur le papier, les fonds s'impriment (print-color-adjust). */
+.ton { color: var(--ton-fg); border-radius: 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ton.tp1 { background: var(--ton-p1); border-bottom: 1px solid var(--ton-p-line); }
+.ton.tp2 { background: var(--ton-p2); border-bottom: 2px solid var(--ton-p-line); }
+.ton.tp3 { background: var(--ton-p3); border-bottom: 3px solid var(--ton-p-line); }
+.ton.tn1 { background: var(--ton-n1); border-bottom: 1px dashed var(--ton-n-line); }
+.ton.tn2 { background: var(--ton-n2); border-bottom: 2px dashed var(--ton-n-line); }
+.ton.tn3 { background: var(--ton-n3); border-bottom: 3px dashed var(--ton-n-line); }
+.av-tx .ton { cursor: pointer; }
+.ton-leg { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; font-size: 12px; }
+.ton-leg .ton { padding: 0 4px; }
+.ton-pal { position: fixed; z-index: 5000; display: none; flex-wrap: wrap; gap: 4px; padding: 5px; background: var(--paper); border: 1px solid var(--rule-line); border-radius: 8px; box-shadow: var(--shadow-pop); }
+.ton-pal button { min-width: 36px; height: 30px; padding: 0 6px; border-radius: 6px; font: inherit; font-weight: 700; cursor: pointer; }
+.ton-pal button.ton { border-top: 0; border-left: 0; border-right: 0; }
+.ton-pal .ton-eff { background: var(--paper-warm); border: 1px solid var(--rule-line); color: var(--ink-deep); font-weight: 400; }
+.ton-bloc { margin: 10px 0; padding: 8px 12px; border: 1px solid var(--rule-line); border-left: 4px solid var(--i-avis); border-radius: 6px; font-size: 13.5px; }
 /* Longueur et chiffres de la synthèse ; plein écran pour relire (v1.73.2). */
 .ia-forme { margin-top: 10px; }
 .ia-forme select { max-width: 100%; }
@@ -2637,6 +2658,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="ia-etape"><span class="ia-n">✓</span>Dernière vérification : voici exactement ce qui part<button type="button" class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI(this)" aria-pressed="false" title="Afficher le texte à relire sur tout l'écran">⛶ Plein écran</button></div>
     <div class="tb-hint">Rien d'autre que ce texte n'est envoyé — ni nom, ni table des repères, qui restent sur ce poste. Pour le corriger, annulez et revenez à l'étape 2.</div>
     <textarea id="miaenv-txt" class="ia-lit" rows="14" readonly spellcheck="false" aria-label="Le texte exact qui sera envoyé à Claude"></textarea>
+    <div id="miaenv-verif" class="ia-verif"></div>
     <div id="miaenv-cout" class="ia-api-cout"></div>
     <label class="ia-bloc ia-relu"><input type="checkbox" id="miaenv-ok" data-autofocus onchange="iaEnvoiCocheUI()">J'ai relu ce texte : rien ne permet de reconnaître un élève, sa famille ou un collègue.</label>
     <div id="miaenv-etat" class="ia-api-etat" aria-live="polite"></div>
@@ -3336,8 +3358,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.73.2';
-const APP_BUILD_DATE = '2026-10-23T13:28:51Z';
+const APP_VERSION    = '1.74.0';
+const APP_BUILD_DATE = '2026-10-23T13:48:11Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4405,6 +4427,11 @@ function _sanitizeCoreSections() {
         }
       }
       if (c.msg !== undefined && !_isPlainObj(c.msg)) delete c.msg;
+      // Le ton des avis (v1.74.0) : chaque entrée se vérifie à la lecture (`_tonSegs`) ; ici, seulement la forme.
+      if (c.tons !== undefined) {
+        if (!_isPlainObj(c.tons)) delete c.tons;
+        else for (const [sid, o] of Object.entries(c.tons)) if (!_isPlainObj(o)) delete c.tons[sid];
+      }
       // Les colonnes de la feuille (v1.42.0) : absentes = les trois d'origine.
       if (c.colonnes !== undefined) {
         const vus = new Set();
@@ -4571,6 +4598,7 @@ function _purgeStudentRefs(sid) {
   for (const byId of Object.values(_isPlainObj(S.avis) ? S.avis : {})) {
     for (const camp of Object.values(byId || {})) {
       if (_isPlainObj(camp?.avis)) delete camp.avis[sid];
+      if (_isPlainObj(camp?.tons)) delete camp.tons[sid];
       if (Array.isArray(camp?.cibles)) camp.cibles = camp.cibles.filter(x => x !== sid);
     }
   }
@@ -8618,7 +8646,7 @@ function _ficheRender() {
   const avisFiche = cls ? _avisCampagnes(cls.id).filter(c => c.avis?.[stu.id]).map(c => ({ c, p: _avisPeriode(cls, c),
     items: c.disciplines.filter(d => c.avis[stu.id][d.id]).map(d => ({ disc: d, ...c.avis[stu.id][d.id] })) })).filter(x => x.items.length) : [];
   const avisFicheHTML = avisFiche.length
-    ? avisFiche.map(x => `<div class="fi-j"><div class="fi-j-h">${_escName(x.p ? x.p.label : '?')} · ${_escName(_avisObjectif(cls, x.c).court)} · feuille du ${_escName(_fmtDateFr(x.c.date))}</div>${_avisItemsHTML(x.items, _avisCols(x.c))}</div>`).join('')
+    ? avisFiche.map(x => `<div class="fi-j"><div class="fi-j-h">${_escName(x.p ? x.p.label : '?')} · ${_escName(_avisObjectif(cls, x.c).court)} · feuille du ${_escName(_fmtDateFr(x.c.date))}</div>${_avisItemsHTML(x.items, _avisCols(x.c), x.c, stu.id)}</div>`).join('')
     : vide('Aucun avis de collègue — 🗣 Avis des collègues, dans la liste des élèves, pour en demander.');
   const remHTML = _ficheEdit === 'remarque'
     ? `<textarea id="fi-rem-edit" data-fi-focus rows="4" style="width:100%" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral.">${_escName(stu.remarque || '')}</textarea>
@@ -10193,8 +10221,8 @@ const IA_MODELES = [
   { id: 'claude-haiku-5-5', nom: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, secours: false, note: 'le moins cher, moins nuancé' },
   { id: 'claude-fable-5-1', nom: 'Claude Fable 5.1', entree: 10, sortie: 50, secours: true, note: 'le plus capable, le plus cher' },
 ];
-const IA_SORTES = { eleve: 'un élève', lot: 'toute la classe', synthese: 'la synthèse de la classe' };
-const IA_SORTES_COURT = { eleve: 'un élève', lot: 'la classe', synthese: 'synthèse classe' };
+const IA_SORTES = { eleve: 'un élève', lot: 'toute la classe', synthese: 'la synthèse de la classe', tons: 'le ton des avis des collègues' };
+const IA_SORTES_COURT = { eleve: 'un élève', lot: 'la classe', synthese: 'synthèse classe', tons: 'ton des avis' };
 // La réponse de toute la classe est IMPOSÉE dans la forme que `_iaLotLire` lit déjà.
 const IA_SCHEMA_LOT = { type: 'object', additionalProperties: false, required: ['syntheses'], properties: {
   syntheses: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['eleve', 'synthese'],
@@ -10218,7 +10246,8 @@ function _iaRequete(sorte, contenu, reg, cle) {
   if (reg && reg.espace) headers['anthropic-workspace-id'] = reg.espace;
   const output_config = { effort: 'medium' };
   if (sorte === 'lot') output_config.format = { type: 'json_schema', schema: IA_SCHEMA_LOT };
-  const body = { model: m.id, max_tokens: sorte === 'lot' ? 32000 : 16000, stream: true, output_config,
+  if (sorte === 'tons') output_config.format = { type: 'json_schema', schema: IA_SCHEMA_TONS };
+  const body = { model: m.id, max_tokens: sorte === 'lot' || sorte === 'tons' ? 32000 : 16000, stream: true, output_config,
     messages: [{ role: 'user', content: String(contenu) }] };
   if (m.secours) body.fallbacks = 'default';
   return { url: IA_API_URL, headers, body };
@@ -10231,7 +10260,8 @@ function _iaCout(modele, u) {
 // Avant l'envoi, sans rien envoyer : ~3,2 caractères par jeton (du français et du JSON), et une réponse moyenne,
 // réflexion comprise. Une estimation qu'on annonce comme telle.
 function _iaEstime(sorte, contenu, modele, n) {
-  const entree = Math.ceil(String(contenu).length / 3.2), sortie = sorte === 'lot' ? 2000 + 500 * Math.max(1, n || 1) : 2500;
+  const entree = Math.ceil(String(contenu).length / 3.2);
+  const sortie = sorte === 'lot' ? 2000 + 500 * Math.max(1, n || 1) : sorte === 'tons' ? 2000 + Math.ceil(entree * 0.7) : 2500;
   return { entree, sortie, cout: _iaCout(modele, { entree, sortie }) };
 }
 function _iaDollars(x) { return !(x > 0) ? '0 $' : x < 0.01 ? 'moins de 0,01 $' : `${x.toFixed(2).replace('.', ',')} $`; }
@@ -10353,6 +10383,7 @@ function _iaEnvoiOuvrir(sorte, contenu, origine, n) {
   document.getElementById('miaenv-txt').value = contenu;
   document.getElementById('miaenv-cout').innerHTML = `Environ <strong>${_iaJetons(est.entree)}</strong> jetons envoyés et ${_iaJetons(est.sortie)} rendus (réflexion comprise) : <strong>≈ ${_iaDollars(est.cout)}</strong>, une estimation — le coût réel s'affichera après la réponse. Ce mois-ci sur ce poste : ${_iaDollars(mois.cout)} (${_pl(mois.n, 'envoi')}). <a href="${IA_LIENS.credit}" target="_blank" rel="noopener noreferrer">Crédit restant ↗</a>`;
   document.getElementById('miaenv-ok').checked = false;
+  _iaEnvoiVerifRender();
   _iaEnvoiEtat('');
   _iaEnvoiBoutons();
   _iaPleinApplique();
@@ -10409,6 +10440,11 @@ async function iaEnvoiGoUI() {
     return;
   }
   if (ouvert) closeMod2('miaenv');
+  if (st.sorte === 'tons') {
+    const r = _tonsAppliquer(_tonsLot, e.texte.trim());
+    toast(r.avis ? `🎨 ${_pl(r.passages, 'passage')} surligné${r.passages > 1 ? 's' : ''} dans ${r.avis} avis${r.perdus ? ` (${r.perdus} extrait${r.perdus > 1 ? 's' : ''} non retrouvé${r.perdus > 1 ? 's' : ''} dans le texte)` : ''} — Ctrl+Z l'annule. ${prix}` : `⚠️ Réponse illisible : rien n'est surligné. ${prix}`, r.avis ? 'info' : 'warn');
+    return;
+  }
   _iaReponseVers(st.origine, e.texte.trim());
   toast(`🤖 Réponse reçue${e.stop === 'max_tokens' ? ' — COUPÉE (trop longue) : redemandez, ou complétez à la main' : ''} : relisez-la (étape 3) avant de la ranger. ${prix}`, e.stop === 'max_tokens' ? 'warn' : 'info');
 }
@@ -10507,6 +10543,301 @@ function iaJournalEffacerUI() {
   _uiConfirm({ title: 'Effacer le journal des envois ?', message: 'Les coûts comptés sur ce poste disparaîtront de l\'app. Le crédit, dans la Console, ne change pas.', okLabel: 'Effacer', okClass: 'btn-d',
     onOk: () => { _iaLsEcrire(LS_IA_JOURNAL, null); renderDonnees(); _iaApiLigneMaj(); } });
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎨 LE TON DES AVIS DES COLLÈGUES (v1.74.0) — l'utilisateur : « surligner les parties des avis des collègues selon
+// que c'est positif ou négatif, pour repérer plus facilement quand on examine soi-même ; un code couleur selon
+// l'intensité — dans une même remarque, il peut y avoir du négatif et du positif » ; et « il faut un moyen de surligner
+// à la main, ou de corriger ce qui a été mal interprété ou oublié ».
+//  · Claude découpe et juge, par l'API, une fois par feuille (seulement les avis nouveaux ou changés) : les textes
+//    partent pseudonymisés, mélangés, sans dire de quel élève ils parlent, avec la même dernière vérification que les
+//    synthèses (`miaenv`) ; il rend des EXTRAITS recopiés, que l'app retrouve dans le texte d'origine (`_tonTrouve`).
+//  · Rangé sur la feuille : `camp.tons[sid][did][colonne] = { h, seg: [{ d, f, v, m? }] }` — d, f : positions dans le
+//    texte, v : de −3 (très négatif) à 3 (très positif), m : corrigé à la main. ⚠️ `h` (empreinte du texte) : un avis
+//    réécrit par son auteur (relecture de la feuille) n'a plus de ton — il redevient « à analyser » — plutôt qu'un
+//    surlignage décalé sur un autre texte.
+//  · À la main : sélectionner un passage (ou cliquer un passage coloré) là où un avis s'affiche, puis choisir son ton
+//    dans la palette (`#ton-pal`) — un cran d'undo. Une nouvelle analyse garde les passages corrigés à la main.
+// ═══════════════════════════════════════════════════════════════════════════
+const TONS = [{ v: 3, l: 'très positif' }, { v: 2, l: 'positif' }, { v: 1, l: 'plutôt positif' }, { v: -1, l: 'plutôt négatif' }, { v: -2, l: 'négatif' }, { v: -3, l: 'très négatif' }];
+const TONS_V = TONS.map(t => t.v);
+const LS_TONS_VUS = 'suiviPP_tonsVus';
+function _tonsVus() { try { return localStorage.getItem(LS_TONS_VUS) !== '0'; } catch (_) { return true; } }
+function tonsVusUI(on) { try { localStorage.setItem(LS_TONS_VUS, on ? '1' : '0'); } catch (_) {} _tonsRedessine(); }
+function _tonHash(t) { const s = String(t ?? ''); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + '.' + s.length.toString(36); }
+function _tonLabel(v) { return (TONS.find(x => x.v === v) || {}).l || ''; }
+function _tonCls(v) { return `ton ${v > 0 ? 'tp' : 'tn'}${Math.abs(v)}`; }
+// Les passages d'un texte — seulement si le texte n'a pas changé depuis.
+function _tonSegs(camp, sid, did, k, texte) {
+  const e = camp && _isPlainObj(camp.tons) ? camp.tons[sid]?.[did]?.[k] : null;
+  if (!_isPlainObj(e) || !Array.isArray(e.seg) || e.h !== _tonHash(texte)) return null;
+  const n = String(texte ?? '').length;
+  return e.seg.filter(x => _isPlainObj(x) && Number.isInteger(x.d) && Number.isInteger(x.f) && x.d >= 0 && x.f <= n && x.f > x.d && TONS_V.includes(x.v));
+}
+function _tonEcrire(camp, sid, did, k, texte, segs) {
+  if (!_isPlainObj(camp.tons)) camp.tons = {};
+  const a = camp.tons[sid] = _isPlainObj(camp.tons[sid]) ? camp.tons[sid] : {};
+  const b = a[did] = _isPlainObj(a[did]) ? a[did] : {};
+  b[k] = { h: _tonHash(texte), seg: segs.map(x => x.m ? { d: x.d, f: x.f, v: x.v, m: 1 } : { d: x.d, f: x.f, v: x.v }) };
+}
+// Pur : un passage [d, f) posé (v ≠ 0) ou effacé (v = 0) ; ce qu'il recouvre est coupé, le reste garde son ton.
+function _tonAvecPassage(segs, d, f, v, manuel) {
+  const r = [];
+  for (const x of segs || []) {
+    if (x.f <= d || x.d >= f) { r.push({ ...x }); continue; }
+    if (x.d < d) r.push({ ...x, f: d });
+    if (x.f > f) r.push({ ...x, d: f });
+  }
+  if (v) r.push(manuel ? { d, f, v, m: 1 } : { d, f, v });
+  return r.filter(x => x.f > x.d).sort((a, b) => a.d - b.d);
+}
+// Pur : le texte en morceaux { t, s } (s : le passage, ou null).
+function _tonMorceaux(texte, segs) {
+  const t = String(texte ?? ''), out = [];
+  let i = 0;
+  for (const x of (segs || []).slice().sort((a, b) => a.d - b.d)) {
+    if (x.d < i) continue;
+    if (x.d > i) out.push({ t: t.slice(i, x.d), s: null });
+    out.push({ t: t.slice(x.d, x.f), s: x });
+    i = x.f;
+  }
+  if (i < t.length) out.push({ t: t.slice(i), s: null });
+  return out;
+}
+function _campCid(camp) { for (const [cid, m] of Object.entries(_isPlainObj(S.avis) ? S.avis : {})) if (m && m[camp.id] === camp) return cid; return ''; }
+// Le texte d'un avis, surligné. `o.esc` : l'échappement d'un morceau (les mots surlignés de la fiche) ; `o.papier` :
+// sans rien pour corriger. ⚠️ Le contenu de `.av-tx` doit rester EXACTEMENT le texte : la correction à la main y
+// mesure la sélection en caractères.
+function _tonHTML(camp, sid, did, k, texte, o = {}) {
+  const esc = o.esc || _escName, segs = _tonsVus() && camp ? _tonSegs(camp, sid, did, k, texte) : null;
+  const corps = _tonMorceaux(texte, segs).map(x => x.s
+    ? `<span class="${_tonCls(x.s.v)}"${o.papier ? '' : ` title="${_escAttr(`${_maj(_tonLabel(x.s.v))} — ${x.s.m ? 'corrigé à la main' : 'selon Claude'} · cliquez pour corriger`)}"`}>${esc(x.t)}</span>`
+    : esc(x.t)).join('');
+  if (o.papier || !camp) return corps;
+  return `<span class="av-tx" data-ton-ref="${_escAttr([_campCid(camp), camp.id, sid, did, k].join('|'))}">${corps}</span>`;
+}
+function _tonLegendeHTML() { return `<span class="ton-leg">${TONS.map(t => `<span class="${_tonCls(t.v)}">${_escName(t.l)}</span>`).join('')}</span>`; }
+// Le bilan d'une feuille : avis écrits, avis surlignés, à analyser, passages corrigés à la main — pur.
+function _tonsBilan(camp) {
+  const cols = _avisCols(camp);
+  let avis = 0, faits = 0, manuels = 0;
+  for (const [sid, parDisc] of Object.entries(camp.avis || {})) for (const [did, a] of Object.entries(parDisc || {})) for (const c of cols) {
+    const t = a && a[c.key];
+    if (typeof t !== 'string' || !t.trim() || !S.eleves[sid]) continue;
+    avis++;
+    const g = _tonSegs(camp, sid, did, c.key, t);
+    if (g) { faits++; manuels += g.filter(x => x.m).length; }
+  }
+  return { avis, faits, aFaire: avis - faits, manuels };
+}
+function _tonsAvisHTML(cls, camp) {
+  const b = _tonsBilan(camp), id = _escJsAttr(camp.id);
+  return `<div class="ton-bloc"><strong>🎨 Le ton des avis</strong> <span class="tb-hint">${b.avis ? `${b.faits} avis surlignés sur ${b.avis}${b.aFaire ? ` · ${b.aFaire} à analyser` : ''}${b.manuels ? ` · ${_pl(b.manuels, 'passage')} corrigé${b.manuels > 1 ? 's' : ''} à la main` : ''}` : 'aucun avis pour l\'instant'}</span>
+    <div class="ia-row"><button class="btn btn-s btn-sm" onclick="tonsAnalyserUI('${id}', false)"${b.aFaire ? '' : ' disabled'} title="Claude repère, dans chaque avis, les passages positifs et négatifs et leur intensité — vous verrez une dernière fois tout ce qui part">🎨 Surligner avec Claude${b.aFaire ? ` (${b.aFaire} avis)` : ''}…</button>${b.faits ? `<button class="btn btn-g btn-sm" onclick="tonsAnalyserUI('${id}', true)" title="Refaire l'analyse de tous les avis ; les passages corrigés à la main sont gardés">↺ Tout refaire…</button>` : ''}
+      <label class="ia-bloc"><input type="checkbox"${_tonsVus() ? ' checked' : ''} onchange="tonsVusUI(this.checked)">Afficher les couleurs</label></div>
+    <div class="tb-hint" style="margin-top:6px">${_tonLegendeHTML()} — trait plein : positif, tireté : négatif. <strong>Pour corriger</strong> : là où un avis s'affiche (fiche, lecture des avis, fenêtre de bilan), sélectionnez un passage — ou cliquez sur un passage coloré — puis choisissez son ton.</div></div>`;
+}
+// ── À la main : la palette ──
+let _tonPal = null;   // { ref, d, f } — le passage qu'on corrige
+function _tonRef(ref) {
+  const [cid, campId, sid, did, k] = String(ref || '').split('|');
+  const camp = _avisMap(cid)?.[campId], texte = camp?.avis?.[sid]?.[did]?.[k];
+  return camp && typeof texte === 'string' ? { camp, sid, did, k, texte } : null;
+}
+function _tonPalCacher() { const p = document.getElementById('ton-pal'); if (p) p.style.display = 'none'; _tonPal = null; }
+function _tonPalMontrer(x, y, existant) {
+  let p = document.getElementById('ton-pal');
+  if (!p) { p = document.createElement('div'); p.id = 'ton-pal'; p.className = 'ton-pal'; p.setAttribute('role', 'toolbar'); p.setAttribute('aria-label', 'Ton du passage'); document.body.appendChild(p); }
+  p.innerHTML = TONS.map(t => `<button type="button" class="${_tonCls(t.v)}" onmousedown="event.preventDefault()" onclick="tonPoserUI(${t.v})" title="${_escAttr(_maj(t.l))}">${t.v > 0 ? '+'.repeat(t.v) : '−'.repeat(-t.v)}</button>`).join('')
+    + `<button type="button" class="ton-eff" onmousedown="event.preventDefault()" onclick="tonPoserUI(0)" title="Ni positif ni négatif : retirer le surlignage">${existant ? 'Retirer' : 'Neutre'}</button>`;
+  p.style.display = 'flex';
+  const w = p.offsetWidth || 300, h = p.offsetHeight || 40;
+  p.style.left = `${Math.max(6, Math.min(window.innerWidth - w - 6, x - w / 2))}px`;
+  p.style.top = `${y + 8 + h > window.innerHeight ? Math.max(6, y - h - 30) : y + 8}px`;
+}
+function _tonOffset(el, node, off) { const r = document.createRange(); r.setStart(el, 0); r.setEnd(node, off); return r.toString().length; }
+function _tonSurSelection(ev) {
+  if (ev && ev.target && ev.target.closest && ev.target.closest('#ton-pal')) return;
+  setTimeout(() => {
+    const sel = window.getSelection ? window.getSelection() : null;
+    const noeud = sel && sel.rangeCount ? sel.anchorNode : null, parent = noeud && (noeud.nodeType === 3 ? noeud.parentElement : noeud);
+    const el = parent && parent.closest ? parent.closest('.av-tx[data-ton-ref]') : null;
+    if (sel && !sel.isCollapsed && el && el.contains(sel.focusNode)) {
+      const a = _tonOffset(el, sel.anchorNode, sel.anchorOffset), b = _tonOffset(el, sel.focusNode, sel.focusOffset), t = el.textContent;
+      let d = Math.min(a, b), f = Math.max(a, b);
+      while (d < f && /\s/.test(t[d])) d++;
+      while (f > d && /\s/.test(t[f - 1])) f--;
+      if (f > d) { _tonPal = { ref: el.dataset.tonRef, d, f }; const r = sel.getRangeAt(0).getBoundingClientRect(); _tonPalMontrer(r.left + r.width / 2, r.bottom, false); return; }
+    }
+    const span = ev && ev.target && ev.target.closest ? ev.target.closest('.av-tx[data-ton-ref] .ton') : null;
+    if (span && (!sel || sel.isCollapsed)) {
+      const tx = span.closest('.av-tx'), d = _tonOffset(tx, span, 0);
+      _tonPal = { ref: tx.dataset.tonRef, d, f: d + span.textContent.length };
+      const r = span.getBoundingClientRect();
+      _tonPalMontrer(r.left + r.width / 2, r.bottom, true);
+      return;
+    }
+    _tonPalCacher();
+  }, 0);
+}
+document.addEventListener('mouseup', _tonSurSelection);
+document.addEventListener('touchend', _tonSurSelection);
+// Échap ferme la palette d'abord (la fenêtre derrière reste ouverte).
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && _tonPal) { e.preventDefault(); e.stopPropagation(); _tonPalCacher(); } }, true);
+function tonPoserUI(v) {
+  const p = _tonPal, x = p && _tonRef(p.ref);
+  _tonPalCacher();
+  try { window.getSelection().removeAllRanges(); } catch (_) {}
+  if (!x || !(p.f > p.d) || p.f > x.texte.length || (v && !TONS_V.includes(v))) return;
+  const avant = _tonSegs(x.camp, x.sid, x.did, x.k, x.texte) || [], neuf = _tonAvecPassage(avant, p.d, p.f, v, true);
+  if (JSON.stringify(neuf) === JSON.stringify(avant) && _tonSegs(x.camp, x.sid, x.did, x.k, x.texte)) return;
+  pushUndo();
+  _tonEcrire(x.camp, x.sid, x.did, x.k, x.texte, neuf);
+  save();
+  _tonsRedessine();
+  toast(v ? `🎨 Passage marqué « ${_tonLabel(v)} » — Ctrl+Z l'annule.` : 'Surlignage retiré — Ctrl+Z le rend.');
+}
+function _tonsRedessine() {
+  const on = id => document.getElementById(id)?.classList.contains('on');
+  if (on('mfiche')) try { _ficheRender(); } catch (_) {}
+  if (on('mavislire')) try { _avisLireRender(); } catch (_) {}
+  if (on('mbilan')) try { _bilanHint(); } catch (_) {}
+  if (document.getElementById('tab-avis')?.classList.contains('on')) try { renderAvisTab(); } catch (_) {}
+}
+// ── L'analyse par Claude ──
+const IA_CONSIGNE_TONS = `Vous aidez un professeur principal de collège à relire les avis que ses collègues ont écrits sur ses élèves.
+Pour CHAQUE avis de « avis », repérez les passages qui disent quelque chose de positif ou de négatif sur l'élève (travail, résultats, attitude, comportement, participation). Un même avis peut contenir des passages des deux sens.
+Pour chaque passage, recopiez-le dans « extrait » EXACTEMENT tel qu'il est écrit, caractère pour caractère (un morceau de phrase, une phrase ou plusieurs), et donnez son ton dans « ton » : 3 très positif, 2 positif, 1 plutôt positif, -1 plutôt négatif, -2 négatif, -3 très négatif.
+Laissez de côté ce qui est neutre (une simple information, « rien à signaler »). Vous qualifiez ce que dit le collègue, sans juger l'élève vous-même. N'inventez rien.
+Gardez tels quels les repères entre crochets ([Camarade 3]…) et ne cherchez pas à savoir qui ils sont.
+Répondez uniquement par un objet JSON de la forme de « reponse_attendue » : une entrée par avis, son identifiant exact dans « id », ses passages dans « passages » (une liste vide si l'avis est neutre).`;
+const IA_SCHEMA_TONS = { type: 'object', additionalProperties: false, required: ['resultats'], properties: {
+  resultats: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'passages'], properties: {
+    id: { type: 'string' },
+    passages: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['extrait', 'ton'],
+      properties: { extrait: { type: 'string' }, ton: { type: 'integer', enum: TONS_V } } } } } } } } };
+let _tonsLot = null;   // l'analyse en route : { cid, campId, items: [{ id, sid, did, k, texte }], table, json, ok }
+// Les avis à analyser : sans ton, ou dont le texte a changé ; tous avec `tout` — pur.
+function _tonsAFaire(camp, tout) {
+  const r = [], cols = _avisCols(camp);
+  for (const [sid, parDisc] of Object.entries(camp.avis || {})) {
+    if (!S.eleves[sid]) continue;
+    for (const [did, a] of Object.entries(parDisc || {})) {
+      if (!camp.disciplines.some(d => d.id === did)) continue;
+      for (const c of cols) {
+        const t = a && a[c.key];
+        if (typeof t !== 'string' || !t.trim() || (!tout && _tonSegs(camp, sid, did, c.key, t))) continue;
+        r.push({ sid, did, k: c.key, rubrique: c.label, texte: t });
+      }
+    }
+  }
+  return r;
+}
+// Ce qui part : les textes pseudonymisés, dans un ordre MÉLANGÉ (`alea` pour les tests), sans dire de quel élève
+// ni de quelle discipline ils parlent — seulement la rubrique (« Comportement »).
+function _tonsPreparer(cls, camp, tout, alea) {
+  const items = _tonsAFaire(camp, tout), r = alea || Math.random;
+  for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
+  const personnes = _iaPersonnes(cls, null, {});
+  let table = null;
+  const avis = items.map((it, i) => { it.id = 't' + (i + 1); const x = _iaPseudo(it.texte, { personnes }, table); table = x.table; return { id: it.id, rubrique: it.rubrique, texte: x.texte }; });
+  const ok = new Set(IA_MOTS_OK);
+  for (const c of _avisCols(camp)) String(c.label).split(/[^\p{L}\p{N}]+/u).forEach(w => { if (w) ok.add(_iaPlie(w)); });
+  return { cid: cls.id, campId: camp.id, items, table: table || { jetons: {}, par: {} }, ok: [...ok], ignores: [],
+    json: { consigne: IA_CONSIGNE_TONS, avis, reponse_attendue: { resultats: [{ id: 't1', passages: [{ extrait: '…', ton: 2 }] }] } } };
+}
+function tonsAnalyserUI(campId, tout) {
+  const cls = _avisCls(), camp = cls && _avisMap(cls.id)?.[campId];
+  if (!camp) return;
+  const st = _tonsPreparer(cls, camp, tout);
+  if (!st.items.length) return toast('Tous les avis de cette feuille sont déjà surlignés.');
+  _tonsLot = st;
+  _iaEnvoiOuvrir('tons', JSON.stringify(st.json, null, 2), 'tons', st.items.length);
+}
+// La vérification de la fenêtre d'envoi, pour les avis : un mot à majuscule que l'app ne connaît pas, à masquer.
+function _iaEnvoiVerifRender() {
+  const b = document.getElementById('miaenv-verif'), st = _tonsLot;
+  if (!b) return;
+  if (!_iaEnvoi || _iaEnvoi.sorte !== 'tons' || !st) { b.innerHTML = ''; return; }
+  const ign = new Set(st.ignores), sus = _iaSuspects(st.json.avis.map(a => a.texte).join('\n'), new Set([...st.ok, ...ign]));
+  st.suspects = sus;
+  b.innerHTML = `<div class="ia-vl"><span class="ia-vt">À vérifier</span>${sus.length ? sus.map((x, i) => `<span class="ia-chip s">${_escName(x.mot)} <button type="button" class="ia-b ia-bp" onclick="iaEnvoiMasquerUI(${i})">masquer</button> <button type="button" class="ia-b" onclick="iaEnvoiIgnorerUI(${i})">laisser</button></span>`).join('') : '<span class="ia-ok">aucun mot à majuscule inconnu en milieu de phrase</span>'}</div>`;
+}
+function _iaEnvoiTonsMaj() {
+  const st = _tonsLot;
+  _iaEnvoi.contenu = JSON.stringify(st.json, null, 2);
+  document.getElementById('miaenv-txt').value = _iaEnvoi.contenu;
+  document.getElementById('miaenv-ok').checked = false;   // le texte a changé : on le relit
+  _iaEnvoiBoutons(); _iaEnvoiVerifRender();
+}
+function iaEnvoiMasquerUI(i) {
+  const st = _tonsLot, x = st && st.suspects && st.suspects[i];
+  if (!x || !_iaEnvoi || _iaEnvoi.encours) return;
+  const pers = [{ id: 'm:' + _iaPlie(x.mot), famille: '[Nom {n}]', retour: x.mot, formes: [x.mot] }];
+  for (const a of st.json.avis) { const r = _iaPseudo(a.texte, { personnes: pers }, st.table); a.texte = r.texte; st.table = r.table; }
+  _iaEnvoiTonsMaj();
+}
+function iaEnvoiIgnorerUI(i) { const st = _tonsLot, x = st && st.suspects && st.suspects[i]; if (!x) return; st.ignores.push(_iaPlie(x.mot)); _iaEnvoiVerifRender(); }
+// La réponse → [{ id, passages }] — pur, tolérant (préambule, bloc de code).
+function _tonsLire(t) {
+  let x = String(t ?? '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+  const i = x.indexOf('{'), j = x.indexOf('[');
+  if (i < 0 && j < 0) return [];
+  x = x.slice(i < 0 ? j : j < 0 ? i : Math.min(i, j));
+  let o = null; try { o = JSON.parse(x); } catch (_) { return []; }
+  const r = Array.isArray(o) ? o : _isPlainObj(o) ? o.resultats : null;
+  return Array.isArray(r) ? r.filter(e => _isPlainObj(e) && Array.isArray(e.passages)) : [];
+}
+// Pur : un extrait retrouvé dans le texte d'origine (à partir de `depuis`, sinon n'importe où) → [d, f] ou null.
+// Souple sur les espaces, les apostrophes et la casse (un nom remis peut différer d'écriture).
+function _tonTrouve(texte, extrait, depuis) {
+  const x = String(extrait ?? '').trim(), t = String(texte ?? '');
+  if (!x) return null;
+  let i = t.indexOf(x, depuis || 0);
+  if (i < 0) i = t.indexOf(x);
+  if (i >= 0) return [i, i + x.length];
+  const motif = x.split(/\s+/).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/['’]/g, "['’]")).join('\\s+');
+  try {
+    const re = new RegExp(motif, 'giu');
+    re.lastIndex = depuis || 0;
+    let m = re.exec(t);
+    if (!m) { re.lastIndex = 0; m = re.exec(t); }
+    if (m) return [m.index, m.index + m[0].length];
+  } catch (_) {}
+  return null;
+}
+// La réponse rangée : un cran d'undo ; les passages corrigés à la main sont gardés (l'analyse ne s'écrit pas
+// dessus) ; un avis réécrit entre-temps est laissé de côté. → { avis, passages, perdus }.
+function _tonsAppliquer(st, reponse) {
+  const out = { avis: 0, passages: 0, perdus: 0 };
+  const camp = st && _avisMap(st.cid)?.[st.campId];
+  if (!camp) return out;
+  const parId = new Map(st.items.map(it => [it.id, it])), ecrits = [];
+  for (const r of _tonsLire(reponse)) {
+    const it = parId.get(String(r.id));
+    if (!it || camp.avis?.[it.sid]?.[it.did]?.[it.k] !== it.texte) continue;
+    parId.delete(String(r.id));
+    const manuels = (_tonSegs(camp, it.sid, it.did, it.k, it.texte) || []).filter(x => x.m), auto = [];
+    let cur = 0;
+    for (const q of r.passages) {
+      const v = +(_isPlainObj(q) ? q.ton : NaN);
+      if (!TONS_V.includes(v)) continue;
+      const pos = _tonTrouve(it.texte, _iaRestaure(String(q.extrait ?? ''), st.table), cur);
+      if (!pos) { out.perdus++; continue; }
+      cur = pos[1];
+      auto.push({ d: pos[0], f: pos[1], v });
+    }
+    const res = manuels.slice();
+    for (const a of auto.sort((x, y) => x.d - y.d)) if (!res.some(x => x.d < a.f && a.d < x.f)) { res.push(a); out.passages++; }
+    ecrits.push([it, res.sort((x, y) => x.d - y.d)]);
+  }
+  if (!ecrits.length) return out;
+  pushUndo();
+  for (const [it, segs] of ecrits) _tonEcrire(camp, it.sid, it.did, it.k, it.texte, segs);
+  save();
+  out.avis = ecrits.length;
+  _tonsRedessine();
+  return out;
+}
 function ficheMotUI(m) { _ficheMot = _ficheMot === m ? null : m; _ficheRender(); }
 // Les avis en TABLEAU : une ligne par discipline, une colonne par colonne de la feuille.
 function _ficheAvisTableHTML(av) {
@@ -10519,7 +10850,7 @@ function _ficheAvisTableHTML(av) {
   const sans = av.camp.disciplines.filter(d => !av.items.some(it => it.disc.id === d.id) && (!av.sid || _discSuit(d.id, av.sid)));
   return `${mots.length ? `<div class="pf-words"><span class="pf-mu">Mots qui reviennent :</span>${mots.map(x => `<button class="${_ficheMot === x.mot ? 'on' : ''}" aria-pressed="${_ficheMot === x.mot}" onclick="ficheMotUI('${_escJsAttr(x.mot)}')">${_escName(x.mot)} ×${x.n}</button>`).join('')}</div>` : ''}
     ${av.items.length ? `<div class="rel-wrap"><table class="pf-mx"><thead><tr><th class="pf-dn">Discipline</th>${av.cols.map(c => `<th>${_escName(c.label)}</th>`).join('')}</tr></thead><tbody>${
-      av.items.map(it => `<tr><th class="pf-dn">${_escName(it.disc.nom)}</th>${av.cols.map(c => it[c.key] ? `<td>${cell(it[c.key])}</td>` : '<td class="pf-e"></td>').join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="pf-empty">Aucune réponse.</p>'}
+      av.items.map(it => `<tr><th class="pf-dn">${_escName(it.disc.nom)}</th>${av.cols.map(c => it[c.key] ? `<td>${_tonHTML(av.camp, av.sid, it.disc.id, c.key, it[c.key], { esc: cell })}</td>` : '<td class="pf-e"></td>').join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="pf-empty">Aucune réponse.</p>'}
     ${sans.length ? `<p class="pf-mu pf-sans">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : ''}`;
 }
 // Les avis en BLOCS (carte du tableau de bord) : une discipline, son professeur, ses colonnes.
@@ -10527,8 +10858,8 @@ function _ficheAvisBlocsHTML(camp, sid) {
   const cols = _avisCols(camp), a = camp.avis?.[sid] || {};
   const ks = camp.disciplines.filter(d => a[d.id]), sans = camp.disciplines.filter(d => !a[d.id] && _discSuit(d.id, sid));
   return (ks.length ? ks.map(d => `<div class="pf-avd"><div class="pf-dnm">${_escName(d.nom)} <span class="pf-pr">${_escName(d.profs || '')}</span></div>${
-      cols.length > 1 ? `<div class="pf-cr">${cols.map(c => `<span>${_escName(c.label)}</span><span>${a[d.id][c.key] ? _escName(a[d.id][c.key]) : '<span class="pf-mu">–</span>'}</span>`).join('')}</div>`
-        : `<div>${_escName(a[d.id][cols[0].key] || '')}</div>`}</div>`).join('') : '<p class="pf-empty">Aucune réponse.</p>')
+      cols.length > 1 ? `<div class="pf-cr">${cols.map(c => `<span>${_escName(c.label)}</span><span>${a[d.id][c.key] ? _tonHTML(camp, sid, d.id, c.key, a[d.id][c.key]) : '<span class="pf-mu">–</span>'}</span>`).join('')}</div>`
+        : `<div>${_tonHTML(camp, sid, d.id, cols[0].key, a[d.id][cols[0].key] || '')}</div>`}</div>`).join('') : '<p class="pf-empty">Aucune réponse.</p>')
     + (sans.length ? `<p class="pf-mu pf-sans">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : '');
 }
 function ficheFeuilleUI(id) { _ficheFeuille = id; _ficheRender(); }
@@ -10698,7 +11029,7 @@ function _ficheEvenements(cls, stu, col) {
   const mp = _moyPourPeriode(cid, b.p);
   (mp ? mp.list : []).filter(r => dans(r.date)).forEach(r => { const g = _moyGen(r, sid); if (g !== null) E.push({ date: r.date, k: 'moy', html: `Moyennes : générale ${_escName(typeof g === 'number' ? _fmtNote(g, 1) : g)}${_moySous10(r, sid) ? `, ${_moySous10(r, sid)} matière(s) sous 10` : ''}` }); });
   _avisCampagnes(cid).filter(c => dans(c.date) && c.avis?.[sid]).forEach(c => { const items = c.disciplines.filter(d => c.avis[sid][d.id]).map(d => ({ disc: d, ...c.avis[sid][d.id] }));
-    if (items.length) E.push({ date: c.date, k: 'avis', html: `Avis des collègues — ${_escName(_avisObjectif(cls, c).long)} : ${items.length} discipline(s)${(c.cibles || []).includes(sid) ? ' ⭐' : ''}`, detail: _avisItemsHTML(items, _avisCols(c)) }); });
+    if (items.length) E.push({ date: c.date, k: 'avis', html: `Avis des collègues — ${_escName(_avisObjectif(cls, c).long)} : ${items.length} discipline(s)${(c.cibles || []).includes(sid) ? ' ⭐' : ''}`, detail: _avisItemsHTML(items, _avisCols(c), c, sid) }); });
   (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'incid', html: `<strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<div class="fi-vide">${_escName(x.texte)}</div>` : ''}` }));
   (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'contact', html: `<strong>${_escName(_journalType(x.type).label)}</strong> — ${_escName(x.texte || '')}` }));
   _bilansOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
@@ -11127,7 +11458,7 @@ function _bilanHint() {
     const items = camp && camp.avis?.[_bilanSid] ? camp.disciplines.filter(x => camp.avis[_bilanSid][x.id]).map(x => ({ disc: x, ...camp.avis[_bilanSid][x.id] })) : [];
     const a = items.length ? { camp, items } : (camp ? null : (p ? _avisEleve(cls, _bilanSid, p.n - 1, document.getElementById('mbilan-type')?.value) : null));
     av.innerHTML = a ? `<details class="av-det av-bil" open><summary><strong>🗣 Avis des collègues — ${_escName(_avisObjectif(cls, a.camp).long)}</strong> <span class="tb-hint">${a.items.length} discipline${a.items.length > 1 ? 's' : ''}</span></summary>
-      <div class="av-scroll">${_avisItemsHTML(a.items, _avisCols(a.camp))}</div></details>` : '';
+      <div class="av-scroll">${_avisItemsHTML(a.items, _avisCols(a.camp), a.camp, _bilanSid)}</div></details>` : '';
   }
 }
 // L'ordre de la liste des élèves à l'écran (tri et filtre compris) — celui qu'on avait
@@ -19803,11 +20134,12 @@ function _avisEleve(cls, sid, pIdx, prefere) {
 }
 
 // ── Affichage partagé : les avis d'un élève, en blocs (fiche, bilan, feuilles) ──
-function _avisItemsHTML(items, cols) {
+// `camp`, `sid` (v1.74.0) : pour surligner le ton des avis, et le corriger à la main.
+function _avisItemsHTML(items, cols, camp, sid) {
   const cs = cols || AVIS_CRITERES;
   // Une seule colonne : son titre n'apprend rien, on montre l'appréciation telle quelle.
   return items.map(it => `<div class="av-it"><div class="av-d">${_escName(it.disc.nom)}${it.disc.profs ? ` <span class="fi-vide">${_escName(it.disc.profs)}</span>` : ''}</div>${
-    cs.filter(c => it[c.key]).map(c => `<div class="av-c">${cs.length > 1 ? `<span class="av-k">${_escName(c.label)}</span> ` : ''}${_escName(it[c.key])}</div>`).join('')}</div>`).join('');
+    cs.filter(c => it[c.key]).map(c => `<div class="av-c">${cs.length > 1 ? `<span class="av-k">${_escName(c.label)}</span> ` : ''}${camp ? _tonHTML(camp, sid, it.disc.id, c.key, it[c.key]) : _escName(it[c.key])}</div>`).join('')}</div>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -20012,16 +20344,21 @@ let _avisLireVue = null;   // { campId, did?, sid? } — de séance
 function _avisALavis(camp, sid, did) { const a = camp.avis?.[sid]?.[did]; return !!a && _avisCols(camp).some(c => a[c.key]); }
 // Pur : { titre, html, prev, next } (prev / next : la vue voisine, ou null).
 function _avisLectureHTML(cls, camp, vue) {
+  const r = _avisLectureCorps(cls, camp, vue);
+  if (_tonsVus() && _tonsBilan(camp).faits) r.html = `<p class="av-lh">${_tonLegendeHTML()} <span class="tb-hint">sélectionnez un passage pour corriger son ton</span></p>` + r.html;
+  return r;
+}
+function _avisLectureCorps(cls, camp, vue) {
   const cols = _avisCols(camp), eleves = _avisEleves(cls, camp), cibles = new Set(_avisCibles(cls, camp));
   const disc = camp.disciplines.find(d => d.id === vue.did) || null, stu = vue.sid ? S.eleves[vue.sid] : null;
   const nomE = s => `${s.prenom} ${s.nom}`;
   const etoile = sid => cibles.has(sid) ? ' <span title="Demandé en particulier">⭐</span>' : '';
-  const td = t => t ? `<td>${_escName(t)}</td>` : '<td class="pf-e"></td>';
+  const td = (sid, did, k, t) => t ? `<td>${_tonHTML(camp, sid, did, k, t)}</td>` : '<td class="pf-e"></td>';
   const voisin = (liste, i, f) => ({ prev: i > 0 ? f(liste[i - 1]) : null, next: i >= 0 && i < liste.length - 1 ? f(liste[i + 1]) : null });
   if (disc && stu) {
     const a = camp.avis?.[stu.id]?.[disc.id] || {};
     const avec = eleves.filter(s => _avisALavis(camp, s.id, disc.id));
-    const rows = cols.map(c => `<tr><th class="pf-dn">${_escName(c.label)}</th>${td(a[c.key])}</tr>`).join('');
+    const rows = cols.map(c => `<tr><th class="pf-dn">${_escName(c.label)}</th>${td(stu.id, disc.id, c.key, a[c.key])}</tr>`).join('');
     return { titre: `🗣 ${disc.nom} — ${nomE(stu)}`,
       html: `<p class="av-lh">${disc.profs ? _escName(disc.profs) + ' · ' : ''}<button class="av-dlien" onclick="openAvisLire({ did: '${_escJsAttr(disc.id)}' })">tous les avis de ${_escName(disc.nom)}</button> · <button class="av-dlien" onclick="openAvisLire({ sid: '${_escJsAttr(stu.id)}' })">tous les avis sur ${_escName(nomE(stu))}</button>${etoile(stu.id)}</p>
         <div class="rel-wrap"><table class="pf-mx"><tbody>${rows}</tbody></table></div>`,
@@ -20031,7 +20368,7 @@ function _avisLectureHTML(cls, camp, vue) {
     const suivent = eleves.filter(s => _discSuit(disc.id, s.id) || _avisALavis(camp, s.id, disc.id));
     const avec = suivent.filter(s => _avisALavis(camp, s.id, disc.id)), sans = suivent.filter(s => !_avisALavis(camp, s.id, disc.id));
     const rows = avec.map(s => { const a = camp.avis[s.id][disc.id];
-      return `<tr><th class="pf-dn"><button class="av-dlien" onclick="openAvisLire({ sid: '${_escJsAttr(s.id)}' })" title="Tous les avis sur cet élève">${_escName(s.nom)} ${_escName(s.prenom)}</button>${etoile(s.id)}</th>${cols.map(c => td(a[c.key])).join('')}</tr>`; }).join('');
+      return `<tr><th class="pf-dn"><button class="av-dlien" onclick="openAvisLire({ sid: '${_escJsAttr(s.id)}' })" title="Tous les avis sur cet élève">${_escName(s.nom)} ${_escName(s.prenom)}</button>${etoile(s.id)}</th>${cols.map(c => td(s.id, disc.id, c.key, a[c.key])).join('')}</tr>`; }).join('');
     // ◀ ▶ saute les disciplines sans avis, comme il saute les élèves sans avis (audit du 2026-10-06,
     // défaut 5) — celle qu'on lit reste dans le parcours, même vide, pour avoir ses voisines.
     const parcours = camp.disciplines.filter(d => d.id === disc.id || eleves.some(s => _avisALavis(camp, s.id, d.id)));
@@ -20046,7 +20383,7 @@ function _avisLectureHTML(cls, camp, vue) {
   if (stu) {
     const avec = camp.disciplines.filter(d => _avisALavis(camp, stu.id, d.id)), sans = camp.disciplines.filter(d => !_avisALavis(camp, stu.id, d.id) && _discSuit(d.id, stu.id));
     const rows = avec.map(d => { const a = camp.avis[stu.id][d.id];
-      return `<tr><th class="pf-dn"><button class="av-dlien" onclick="openAvisLire({ did: '${_escJsAttr(d.id)}' })" title="Tous les avis de cette discipline">${_escName(d.nom)}</button>${d.profs ? `<small>${_escName(d.profs)}</small>` : ''}</th>${cols.map(c => td(a[c.key])).join('')}</tr>`; }).join('');
+      return `<tr><th class="pf-dn"><button class="av-dlien" onclick="openAvisLire({ did: '${_escJsAttr(d.id)}' })" title="Tous les avis de cette discipline">${_escName(d.nom)}</button>${d.profs ? `<small>${_escName(d.profs)}</small>` : ''}</th>${cols.map(c => td(stu.id, d.id, c.key, a[c.key])).join('')}</tr>`; }).join('');
     const parcours = eleves.filter(s => camp.disciplines.some(d => _avisALavis(camp, s.id, d.id)));
     return { titre: `🗣 ${nomE(stu)} — ${_pl(avec.length, 'discipline')} sur ${avec.length + sans.length}`,
       html: `<p class="av-lh">${etoile(stu.id) ? '⭐ demandé en particulier · ' : ''}<button class="av-dlien" onclick="closeMod2('mavislire');openFiche('${_escJsAttr(stu.id)}')">ouvrir la fiche</button></p>${avec.length
@@ -20213,6 +20550,7 @@ function _avisCampHTML(cls, camp) {
         <button class="btn btn-g btn-sm" onclick="avisChoisirUI('${_escJsAttr(camp.id)}')" title="Désigner la copie locale de la feuille (à refaire une fois sur chaque ordinateur)">📂 ${choisirLbl}</button>`
       : `<label class="btn btn-p" style="cursor:pointer">📥 Lire la feuille… <input type="file" accept=".ods" style="display:none" onchange="avisLireFichierUI('${_escJsAttr(camp.id)}',this)"></label>`}
     </div>
+    ${_tonsAvisHTML(cls, camp)}
     <div style="margin:10px 0 2px"><button class="btn btn-s" onclick="avisBilansUI('${_escJsAttr(camp.id)}')" title="Un bilan par élève pour ${_escAttr(obj.long)}, les avis de cette feuille sous les yeux — ◀ ▶ ou Ctrl+Entrée pour passer d'un élève à l'autre">✍️ Noter mes bilans pour ${_escName(obj.long)}</button></div>
     ${_avisDetails('cibles', `<strong>⭐ Élèves sur qui je veux un avis en particulier</strong> <span class="tb-hint">— ${_avisCibles(cls, camp).length || 'aucun'}${_avisCibles(cls, camp).length ? ' · surlignés en jaune dans la feuille' : ''}</span>`,
       `<div class="tb-hint" style="margin:6px 0">Par exemple avant une rencontre avec la famille. Leur nom est surligné en jaune dans chaque onglet, et le message aux collègues les cite. ⚠️ Pour que le surlignage arrive dans la feuille : <strong>📝 Mettre la feuille à jour</strong>, plus bas.</div>
@@ -21239,7 +21577,7 @@ function _periodeSynthese(cls, periodIdx, opts) {
       // Avis des collègues (v1.39.0) : la dernière feuille de CETTE période.
       avis: (() => { const a = _avisEleve(cls, stu.id, periodIdx, o.type || 'conseil'); if (!a) return [];
         const cols = _avisCols(a.camp);
-        return a.items.map(it => ({ nom: it.disc.nom, onglet: it.disc.onglet, cols: cols.map(c => ({ key: c.key, label: c.label })),
+        return a.items.map(it => ({ nom: it.disc.nom, onglet: it.disc.onglet, campId: a.camp.id, sid: stu.id, did: it.disc.id, cols: cols.map(c => ({ key: c.key, label: c.label })),
           ...Object.fromEntries(cols.map(c => [c.key, it[c.key] || ''])) })); })(),
     };
   });
@@ -21297,8 +21635,10 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   // fond de son cran, comme dans la grille — et la légende au sous-titre. Suit le réglage
   // `obsPalier` ; à 0, ni couleur ni légende.
   const cumulHTML = n => _obsBande(n) ? `<span class="ob-chip${_obsBandeCls(n)}">${n}</span>` : String(n);
-  const legHTML = on('obs') && _obsPalier() && rows.some(r => _obsBande(r.cumulFin))
-    ? `<br>Cumuls du carnet : une couleur par tranche de ${_obsPalier()} observation${_obsPalier() > 1 ? 's' : ''} ${_obsLegendeHTML(Math.max(0, ...rows.map(r => typeof r.cumulFin === 'number' ? r.cumulFin : 0)))}` : '';
+  const tonLeg = on('avis') && _tonsVus() && rows.some(r => (r.avis || []).some(a => (a.cols || []).some(c => _tonSegs(_avisMap(cls.id)?.[a.campId], a.sid, a.did, c.key, a[c.key] || '')?.length)))
+    ? `<br>Avis des collègues — ${_tonLegendeHTML()} (trait plein : positif, tireté : négatif)` : '';
+  const legHTML = tonLeg + (on('obs') && _obsPalier() && rows.some(r => _obsBande(r.cumulFin))
+    ? `<br>Cumuls du carnet : une couleur par tranche de ${_obsPalier()} observation${_obsPalier() > 1 ? 's' : ''} ${_obsLegendeHTML(Math.max(0, ...rows.map(r => typeof r.cumulFin === 'number' ? r.cumulFin : 0)))}` : '');
   const identCell = r => [r.groupe ? 'G' + r.groupe : '', r.options.join(' '), r.amenagements].filter(Boolean).map(_escName).join(' · ');
   // Moyennes : sur le papier, « sous 10 » en GRAS, jamais en couleur (feuille en noir et blanc).
   const noteHTML = x => { const t = `${_escName(x.nom)} ${typeof x.v === 'number' ? _escName(_fmtNote(x.v)) : `<em>${_escName(x.v)}</em>`}`;
@@ -21308,7 +21648,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   // illisible : « À trava. ») ; une colonne seule ne s'annonce pas.
   const abr = c => AV_ABR[c.key] || c.label;
   // Les paragraphes d'un avis (Ctrl+Entrée dans la feuille) se voient aussi sur le papier (v1.46.11).
-  const avisLigne = a => { const cs = a.cols || AVIS_CRITERES; return cs.filter(c => a[c.key]).map(c => `${cs.length > 1 ? `<em>${_escName(abr(c))}</em> ` : ''}<span class="pp-pl">${_escName(a[c.key])}</span>`).join(' · '); };
+  const avisLigne = a => { const cs = a.cols || AVIS_CRITERES; return cs.filter(c => a[c.key]).map(c => `${cs.length > 1 ? `<em>${_escName(abr(c))}</em> ` : ''}<span class="pp-pl">${_tonHTML(_avisMap(cls.id)?.[a.campId] || null, a.sid, a.did, c.key, a[c.key], { papier: true })}</span>`).join(' · '); };
   const decTxt = r => r.decisions ? `<br><strong>Décisions :</strong> ${_escName(r.decisions)}` : '';
   const bilCell = r => (r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanLabel(r.bilan))} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '') + decTxt(r);
   // ── TABLEAU : une page paysage, lisible d'un bout à l'autre ──
@@ -21566,7 +21906,8 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
     const cols = _avisCols(av.camp), a = av.camp.avis?.[sid] || {};
     const ds = av.camp.disciplines.filter(d => a[d.id]), sans = av.camp.disciplines.filter(d => !a[d.id]);
     avisH = (ds.length ? ds.map(d => `<div class="fp-av"><strong>${_escName(d.nom)}</strong>${d.profs ? ` <span class="fp-mu">${_escName(d.profs)}</span>` : ''} — ${
-      cols.filter(c => a[d.id][c.key]).map(c => `${cols.length > 1 ? `<em>${_escName(c.label)}</em> ` : ''}${pl(a[d.id][c.key])}`).join(' · ')}</div>`).join('') : vide('Aucune réponse.'))
+      cols.filter(c => a[d.id][c.key]).map(c => `${cols.length > 1 ? `<em>${_escName(c.label)}</em> ` : ''}<span class="fp-pl">${_tonHTML(av.camp, sid, d.id, c.key, a[d.id][c.key], { papier: true })}</span>`).join(' · ')}</div>`).join('') : vide('Aucune réponse.'))
+      + (_tonsVus() && ds.some(d => cols.some(c => _tonSegs(av.camp, sid, d.id, c.key, a[d.id][c.key] || '')?.length)) ? `<p class="fp-mu fp-small">${_tonLegendeHTML()} — trait plein : positif, tireté : négatif.</p>` : '')
       + (sans.length ? `<p class="fp-mu fp-small">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : '');
   }
   // ── Incidents, contacts, papiers ──
@@ -25418,6 +25759,20 @@ function createDemo(opts) {
       A(6, 'physique_chimie', 'Gros progrès depuis octobre, le travail paie.', 'Agréable.', 'Pose de bonnes questions.');
       A(6, 'histoire_geo', 'En progrès.', '', 'Prend des notes avec soin.');
       A(16, 'maths', 'Excellent travail.', 'Exemplaire.', 'Aide spontanément ses camarades.');
+      // Le ton des avis (v1.74.0) : quelques avis surlignés — du négatif et du positif dans le même avis, un passage
+      // corrigé à la main (EPS) ; les autres restent « à analyser ».
+      const T = (i, did, k, passages, manuel) => {
+        const t = sids[i] && camp.avis[sids[i]]?.[did]?.[k];
+        if (!t) return;
+        _tonEcrire(camp, sids[i], did, k, t, passages.map(([x, v]) => { const d = t.indexOf(x); return d < 0 ? null : { d, f: d + x.length, v, m: manuel ? 1 : 0 }; }).filter(Boolean));
+      };
+      T(0, 'maths', 'travail', [['Travail personnel inexistant depuis novembre.', -3]]);
+      T(0, 'maths', 'comportement', [['Insolent quand on le reprend', -3], ['deux rapports ce semestre', -2]]);
+      T(0, 'francais', 'comportement', [['Calme en classe entière', 1], ['difficile en demi-groupe', -2]]);
+      T(0, 'eps', 'comportement', [["Très bon esprit d'équipe en sports collectifs.", 3]], true);
+      T(0, 'eps', 'participation', [["S'implique quand l'activité lui plaît.", 1]]);
+      T(6, 'physique_chimie', 'travail', [['Gros progrès depuis octobre', 3], ['le travail paie', 2]]);
+      T(6, 'physique_chimie', 'participation', [['Pose de bonnes questions.', 2]]);
       A(16, 'francais', 'Très sérieux.', '', 'Lectures personnelles nombreuses.');
       if (lat) { A(16, lat.id, 'Excellentes versions.', '', 'Moteur du groupe.'); A(4, lat.id, 'Vocabulaire à revoir.', 'Bavardages fréquents.', ''); }
       A(5, 'technologie', 'Sérieux.', '', 'Le tiers-temps est bien utilisé en évaluation.');

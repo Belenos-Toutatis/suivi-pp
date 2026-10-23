@@ -984,6 +984,53 @@ Module (`_zipStore`, `_zipRead`, `_odsBuild`, `_odsRead`) : ZIP « stored » à 
 
 `camp.avis[sid]` dans `_purgeStudentRefs`, `S.avis[classId]` dans `_purgeClassRefs` ; liste blanche de `_validateImport` (deux niveaux) ; état maximal du balayage. RGPD : le bandeau dit que la feuille (noms compris) vit dans le Nuage, ouverte à qui a le lien. Démo : une feuille du S1 relue (13 avis, 7 disciplines), « ESPAGNOL LV2 » laissée sans discipline pour que la question se voie.
 
+### 🎨 Le ton des avis (v1.74.0)
+
+Demandé le 2026-10-23 : *« surligner les parties des avis des collègues selon que c'est positif ou négatif, pour
+repérer plus facilement quand on examine soi-même ; un code couleur selon l'intensité — dans une même remarque, il peut
+y avoir du négatif et du positif »*. Arbitré : **Claude découpe et juge, par l'API** (plutôt qu'une liste de mots,
+trop grossière pour « pas sérieux », « peu d'efforts »), et *« il faut un moyen de surligner à la main ou de corriger ce
+qui a été mal interprété ou oublié »*. Partout : fiche (tableau de bord, chronologie, faits et rédaction), lecture des
+avis, fenêtre de bilan, feuilles imprimées (synthèse de période et fiche). Bloc « 🎨 LE TON DES AVIS » du script.
+
+- **Six tons** (`TONS`) : 3 très positif, 2 positif, 1 plutôt positif, −1 plutôt négatif, −2 négatif, −3 très négatif ;
+  un fond par ton (`--ton-p1…3`, `--ton-n1…3`, encre `--ton-fg`, aux trois endroits) et un **trait dessous — plein
+  pour le positif, tireté pour le négatif, plus épais avec l'intensité** (`--ton-p-line`, `--ton-n-line`) : le sens se
+  lit sans les couleurs (papier en noir et blanc, daltonisme). Sur le papier, les fonds s'impriment
+  (`print-color-adjust`), une légende accompagne les avis.
+- **Rangé sur la feuille** : `camp.tons[sid][did][colonne] = { h, seg: [{ d, f, v, m? }] }` (positions dans le texte,
+  ton, `m` = corrigé à la main). ⚠️ `h` = l'empreinte du texte (`_tonHash`) : un avis réécrit par son auteur (relecture de
+  la feuille) n'a plus de ton et redevient « à analyser », plutôt qu'un surlignage décalé sur un autre texte
+  (`_tonSegs` vérifie aussi chaque passage). Purgé avec l'élève (`_purgeStudentRefs`) ; une section illisible est
+  écartée au chargement.
+- **Le rendu** (`_tonHTML`, un seul pour tous les endroits) : `<span class="av-tx" data-ton-ref="cid|feuille|sid|did|
+  colonne">` dont le contenu est EXACTEMENT le texte (la correction mesure la sélection en caractères) ; `o.esc` garde
+  les mots surlignés de la fiche ; `o.papier` : sans de quoi corriger. *Afficher les couleurs* (onglet Avis) : réglage du
+  poste (`suiviPP_tonsVus`), écran et papier.
+- **L'analyse** : bloc *🎨 Le ton des avis* du panneau d'une feuille (onglet Avis) — combien d'avis surlignés, à
+  analyser, corrigés à la main ; *🎨 Surligner avec Claude (n avis)…* (seulement les avis sans ton ou changés), *↺ Tout
+  refaire…*. `_tonsPreparer` : les textes pseudonymisés (le moteur des synthèses, `_iaPseudo` avec tous les élèves en
+  `[Camarade n]`), **mélangés**, sans élève ni discipline — `{ id, rubrique, texte }` seulement. Même fenêtre de dernière
+  vérification (`miaenv`, sorte `tons`), avec en plus **« À vérifier »** : un mot à majuscule que l'app ne connaît pas,
+  *masquer* (`[Nom n]`) ou *laisser* — le texte change, la case « J'ai relu » se décoche. Forme imposée (`IA_SCHEMA_TONS` :
+  `{ resultats: [{ id, passages: [{ extrait, ton }] }] }`).
+- **La réponse** (`_tonsAppliquer`, un cran d'undo) : chaque extrait, noms remis (`_iaRestaure`), est retrouvé dans le
+  texte d'origine (`_tonTrouve` : exact, sinon souple sur les espaces, apostrophes et casse) ; un extrait introuvable est
+  compté et dit ; ⚠️ **les passages corrigés à la main sont gardés**, l'analyse ne s'écrit pas dessus ; un avis réécrit
+  entre l'envoi et la réponse est laissé de côté.
+- **À la main** : sélectionner un passage d'un avis (souris ou doigt) — ou cliquer un passage coloré — ouvre la palette
+  `#ton-pal` (`_tonSurSelection` sur `mouseup` / `touchend`) : six tons, *Neutre* / *Retirer* ; `tonPoserUI` (un cran
+  d'undo, `_tonAvecPassage` coupe ce que le passage recouvre). Échap ferme la palette d'abord. ⚠️ La fenêtre de bilan
+  n'est PAS dans `_MODAL_RERENDER` (règle des fenêtres de formulaire, testée) : après Ctrl+Z, ses avis se redessinent au
+  prochain élève.
+- Démo : sept avis surlignés sur la feuille du conseil du S1 (positif et négatif dans le même avis, un passage corrigé à
+  la main), les autres « à analyser ».
+- Tests : `test/tons.test.js` (découpe, rendu échappé et texte intact, empreinte, démo, ce qui part sans aucun nom,
+  réponse rangée avec un extrait perdu et un passage à la main gardé, Ctrl+Z, palette, purge). Vérifié dans le navigateur :
+  sélection réelle à la souris puis palette, clic sur un passage puis *Retirer*, Ctrl+Z, analyse sur un flux simulé ;
+  audit lecture, palette, onglet, fiche (trois vues), deux thèmes, et fiche et synthèse imprimées : 0 défaut.
+- ⚠️ Non vérifié : une vraie analyse par Claude (qualité des extraits recopiés), la sélection au doigt sur une tablette.
+
 ## 📷 Photos des élèves (v1.48.0)
 
 **Code COPIÉ de Plan de classe** (v2.64.0 → v2.64.2, commit `ace7234`, section *📷 Photos des élèves* de son CLAUDE.md) : lecteur PDF minimal (`_pdfOpen`, `_PdfLexer`, `_pdfStreamBytes`, `_pdfFont`, `_pdfScanPage`), lecture du trombinoscope (`_trombiParsePdf`, `_trombiParseHeader`, `_trombiDedupNames`), appariement (`_trombiSplitName`, `_trombiScore`, `_trombiMatch` — rien n'est deviné à égalité —, `_trombiResolveClass`). Les pièges de format MBN et d'appariement sont documentés là-bas ; à relire avant d'y toucher.
