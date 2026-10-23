@@ -758,6 +758,12 @@ Demandé : « un autre export en JSON, pour une période ou un bilan de mi-péri
 - **Consigne** (`IA_CONSIGNE_SYNTH_CLASSE`, réécrite = `S.prefs.iaConsigneSynthClasse`, `iaConsigneUI(v, 'synthese')`) : **cinq à huit lignes**, un ou deux paragraphes, l'ambiance de travail, la situation d'ensemble, l'esprit de la classe, ce qui va bien d'abord ; **ne citer aucun élève**.
 - **La réponse** (`_iaClasseLire` : un texte, ou un JSON qui en porte un) : aperçu avec sa longueur, les élèves cités malgré la consigne surlignés (noms remis), « plus long que demandé » au-delà de douze lignes ou 1 500 caractères — on peut la raccourcir avant de ranger. La table des repères ne vit que pour la séance (`_iaClEtats`).
 - **Rangée sur la classe** : `cls.synthClasse = [{ id, ts, date, type, texte }]`, une par MOMENT (`_synthClasseCible`, `synthClasseSet` : vide = retirée), `iaClRangerUI` (un cran d'undo, rien si la même). Lue dans 🏫 Vie de classe (`_synthClasseSecHTML`, après les heures de vie de classe : moment, date où elle a été rangée, *📋 Copier* — pour l'appréciation générale du bulletin —, 🗑, Ctrl+Z la rend) et **imprimée en tête de la synthèse de période** (bloc `classe` de `_PERIODE_BLOCS`, coché d'office car court ; rien s'il n'y en a pas pour ce moment ; pas sur les fiches). Normalisée au chargement avec les classes ; part avec la classe.
+- **À la main, sans IA** (v1.76.2, l'utilisateur : *« ajoute les boutons Modifier et Écrire »*) : *✏️ Écrire* dans le titre
+  de la section (`synthClasseEcrireUI` : un moment — la liste de « Synthèse pour », d'office le moment courant —, un
+  champ ; une synthèse déjà rangée pour ce moment y revient, et l'enregistrer la remplace ; changer de moment garde un
+  texte tapé) et *✏️ Modifier* sur chaque synthèse (`synthClasseModifierUI`, sur place). Ctrl+Entrée enregistre, Échap
+  annule ; un cran d'undo, rien si rien ne change ; vider le texte la retire (Ctrl+Z la rend). `_scEdit` (de séance,
+  oublié au rechargement de la sync).
 - Démo : une synthèse de la classe au conseil du S1 (`demo_sc01`). Tests : `test/synthese-ia-classe-synthese.test.js`.
 
 #### 📤 Envoi direct à Claude, par l'API (v1.73.0)

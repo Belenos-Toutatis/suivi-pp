@@ -84,3 +84,36 @@ test('fenêtre : réponse rangée sur la classe (un cran d’undo), lue dans Vie
     ev(`undoLast(); undoLast();`);
   } finally { ev(FIN_ELS); }
 });
+
+test('✏️ Écrire et ✏️ Modifier : la synthèse de la classe à la main, sans IA ; un cran d’undo ; vider la retire', () => {
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); undoStack.length = 0; _scEdit = null; renderDelegues = () => {};`);
+  ev(`window.__gidSc = document.getElementById; document.getElementById = id => { if (!window.__scEls) window.__scEls = new Map(); if (!__scEls.has(id)) __scEls.set(id, document.createElement('div')); return __scEls.get(id); };`);
+  try {
+    const mi = `_ficheMoments(getCls()).find(c => c.key === 'bil:miperiode:0')`;
+    assert.strictEqual(ev(`!!_synthClasseCible(getCls(), { type: ${mi}.type, date: ${mi}.date })`), false, 'la démo n’en a pas à la mi-S1');
+    ev(`synthClasseEcrireUI(); _scEdit.colKey = 'bil:miperiode:0';`);
+    const h = ev(`_synthClasseSecHTML(getCls())`);
+    assert.match(h, /id="sc-mom"/); assert.match(h, /id="sc-txt"/); assert.match(h, /✏️ Écrire/);
+    ev(`document.getElementById('sc-mom').value = 'bil:miperiode:0'; document.getElementById('sc-txt').value = '  Une classe agréable, au travail inégal.  '; synthClasseEcrireOkUI();`);
+    assert.strictEqual(ev(`_synthClasseCible(getCls(), { type: ${mi}.type, date: ${mi}.date }).texte`), 'Une classe agréable, au travail inégal.');
+    assert.strictEqual(ev(`undoStack.length`), 1);
+    // Modifier : sur place, le même moment.
+    const id = ev(`_synthClasseCible(getCls(), { type: ${mi}.type, date: ${mi}.date }).id`);
+    ev(`synthClasseModifierUI(${JSON.stringify(id)})`);
+    assert.match(ev(`_synthClasseSecHTML(getCls())`), /<textarea id="sc-txt"[^>]*>Une classe agréable, au travail inégal\.<\/textarea>/);
+    ev(`document.getElementById('sc-txt').value = 'Une classe agréable.'; synthClasseEcrireOkUI();`);
+    assert.strictEqual(ev(`_synthClasseCible(getCls(), { type: ${mi}.type, date: ${mi}.date }).texte`), 'Une classe agréable.');
+    // Rien de changé : pas de cran d'undo. Vidé : retirée.
+    const n = ev(`undoStack.length`);
+    ev(`synthClasseModifierUI(${JSON.stringify(id)}); document.getElementById('sc-txt').value = 'Une classe agréable.'; synthClasseEcrireOkUI();`);
+    assert.strictEqual(ev(`undoStack.length`), n);
+    ev(`synthClasseModifierUI(${JSON.stringify(id)}); document.getElementById('sc-txt').value = '   '; synthClasseEcrireOkUI();`);
+    assert.strictEqual(ev(`_synthClasseCible(getCls(), { type: ${mi}.type, date: ${mi}.date })`), null);
+    ev(`undoLast()`);
+    assert.strictEqual(ev(`_synthClasseCible(getCls(), { type: ${mi}.type, date: ${mi}.date }).texte`), 'Une classe agréable.', 'Ctrl+Z la rend');
+    // Écrire sur un moment qui a déjà la sienne : elle revient dans le champ.
+    ev(`synthClasseEcrireUI(); _scEdit.colKey = 'bil:conseil:0';`);
+    const c0 = ev(`_synthClasseCible(getCls(), { type: 'conseil', date: _periods(getCls())[0].end }).texte`);
+    assert.ok(ev(`_synthClasseSecHTML(getCls())`).includes(ev(`_escName(${JSON.stringify(c0)})`)), 'la synthèse rangée revient dans le champ');
+  } finally { ev(`document.getElementById = __gidSc;`); }
+});

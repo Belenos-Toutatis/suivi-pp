@@ -3372,8 +3372,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.76.1';
-const APP_BUILD_DATE = '2026-10-23T16:30:27Z';
+const APP_VERSION    = '1.76.2';
+const APP_BUILD_DATE = '2026-10-23T17:30:31Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -10517,14 +10517,66 @@ function iaClRangerUI() {
   toast('🤖 Synthèse de la classe rangée (🏫 Vie de classe, et en tête de la synthèse de période imprimée) — Ctrl+Z l\'annule.');
 }
 // ── Dans 🏫 Vie de classe ── les synthèses rangées, la plus récente d'abord.
+// ✏️ Écrire / ✏️ Modifier (v1.76.2, l'utilisateur : « ajoute les boutons Modifier et Écrire ») : la synthèse de la classe
+// s'écrit aussi à la main, sans passer par la fenêtre IA. `_scEdit` (de séance) : null, { id } (en modifier une) ou
+// { nouveau: true, colKey, txt } (en écrire une : le moment choisi ; une synthèse déjà rangée pour lui y revient, et
+// l'enregistrer la remplace). Vider le texte la retire (Ctrl+Z la rend), comme dans la fenêtre IA.
+let _scEdit = null;
 function _synthClasseSecHTML(cls) {
-  const list = _synthClasseOf(cls);
-  return `<div class="fi-sec"><h3>🤖 Synthèses de la classe${list.length ? ` <span class="fi-vide">(${list.length})</span>` : ''} <button class="fi-plus" onclick="openSynthClasse()" title="Préparer une synthèse de la classe par une IA : les bilans des élèves sous des repères, les chiffres de la classe — relus avant de partir">+</button></h3>`
-    + (list.length ? list.map(e => `<div class="fi-j pf-ia"><div class="fi-j-h">${_escName(_synthClasseLabel(cls, e))} · rangée le ${_escName(_fmtDateFr(_todayYmd(new Date(e.ts || Date.now()))))}
-      <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="synthClasseCopierUI('${_escJsAttr(e.id)}')" title="Copier le texte (pour l'appréciation générale du bulletin, par exemple)">📋 Copier</button> <button class="btn btn-d btn-sm" onclick="synthClasseRetirerUI('${_escJsAttr(e.id)}')" title="Retirer cette synthèse (Ctrl+Z la rend)">🗑 Retirer</button></span></div>
-      <div class="fi-inc-txt">${_escName(e.texte)}</div></div>`).join('')
-      : `<span class="fi-vide">Aucune. Le + prépare, pour un conseil ou une mi-période, une demande à un assistant : les bilans de vos élèves sous des repères, les chiffres de la classe ; la réponse, courte, se range ici.</span>`)
+  const list = _synthClasseOf(cls), E = _scEdit;
+  const zone = (id, txt) => `<textarea id="${id}" class="pf-ta" rows="4" data-sc-focus style="width:100%" oninput="_autoTaille(this)" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();synthClasseEcrireOkUI()}else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();synthClasseEcrireAnnulerUI()}" placeholder="L'ambiance de travail, la situation d'ensemble des élèves, l'esprit de la classe — ce qui va bien d'abord.">${_escName(txt || '')}</textarea>`;
+  const boutons = `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn btn-p btn-sm" onclick="synthClasseEcrireOkUI()">✓ Enregistrer</button><button class="btn btn-g btn-sm" onclick="synthClasseEcrireAnnulerUI()">Annuler</button><span class="tb-hint">Ctrl+Entrée enregistre · vider le texte retire la synthèse</span></div>`;
+  let nouveau = '';
+  if (E && E.nouveau) {
+    const ms = _ficheMoments(cls), col = ms.find(c => c.key === E.colKey) || _ficheMomentCourant(cls) || ms[0];
+    const deja = col ? _synthClasseCible(cls, { type: col.type, date: col.date }) : null;
+    nouveau = `<div class="fi-form" id="sc-form"><label>Moment <select id="sc-mom" onchange="synthClasseMomentUI(this.value)">${ms.map(c => `<option value="${_escAttr(c.key)}"${col && c.key === col.key ? ' selected' : ''}>${_escName(c.long)}</option>`).join('')}</select></label>
+      ${deja ? `<span class="tb-hint">Une synthèse est déjà rangée pour ce moment : la voici, à modifier.</span>` : ''}
+      <div style="flex-basis:100%">${zone('sc-txt', E.txt !== undefined ? E.txt : deja ? deja.texte : '')}</div>${boutons}</div>`;
+  }
+  const ligne = e => E && E.id === e.id
+    ? `<div class="fi-j pf-ia"><div class="fi-j-h">${_escName(_synthClasseLabel(cls, e))}</div>${zone('sc-txt', e.texte)}${boutons}</div>`
+    : `<div class="fi-j pf-ia"><div class="fi-j-h">${_escName(_synthClasseLabel(cls, e))} · rangée le ${_escName(_fmtDateFr(_todayYmd(new Date(e.ts || Date.now()))))}
+      <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="synthClasseModifierUI('${_escJsAttr(e.id)}')" title="Corriger ce texte ici">✏️ Modifier</button> <button class="btn btn-g btn-sm" onclick="synthClasseCopierUI('${_escJsAttr(e.id)}')" title="Copier le texte (pour l'appréciation générale du bulletin, par exemple)">📋 Copier</button> <button class="btn btn-d btn-sm" onclick="synthClasseRetirerUI('${_escJsAttr(e.id)}')" title="Retirer cette synthèse (Ctrl+Z la rend)">🗑 Retirer</button></span></div>
+      <div class="fi-inc-txt">${_escName(e.texte)}</div></div>`;
+  return `<div class="fi-sec"><h3>🤖 Synthèses de la classe${list.length ? ` <span class="fi-vide">(${list.length})</span>` : ''} <button class="fi-plus" onclick="openSynthClasse()" title="Préparer une synthèse de la classe par une IA : les bilans des élèves sous des repères, les chiffres de la classe — relus avant de partir">+</button> <button class="btn btn-g btn-sm" onclick="synthClasseEcrireUI()" title="Écrire vous-même la synthèse de la classe pour un moment, sans IA">✏️ Écrire</button></h3>`
+    + nouveau
+    + (list.length ? list.map(ligne).join('')
+      : (nouveau ? '' : `<span class="fi-vide">Aucune. ✏️ Écrire la rédige vous-même ; le + prépare, pour un conseil ou une mi-période, une demande à un assistant : les bilans de vos élèves sous des repères, les chiffres de la classe ; la réponse, courte, se range ici.</span>`))
     + '</div>';
+}
+function _scRedessine() {
+  renderDelegues();
+  const t = document.getElementById('sc-txt');
+  if (t) { _autoTaille(t); try { t.focus({ preventScroll: false }); const n = t.value.length; t.setSelectionRange(n, n); } catch (_) {} }
+}
+function synthClasseEcrireUI() { const cls = getCls(); if (!cls) return; const c = _ficheMomentCourant(cls); _scEdit = { nouveau: true, colKey: c ? c.key : null }; _scRedessine(); }
+function synthClasseModifierUI(id) { _scEdit = { id }; _scRedessine(); }
+function synthClasseMomentUI(k) {
+  if (!_scEdit || !_scEdit.nouveau) return;
+  const t = document.getElementById('sc-txt'), cls = getCls(), ancien = _ficheMoments(cls).find(c => c.key === _scEdit.colKey);
+  const dejaAncien = ancien ? _synthClasseCible(cls, { type: ancien.type, date: ancien.date }) : null;
+  // Un texte tapé passe au nouveau moment ; celui qui n'était que la synthèse rangée de l'ancien moment, non.
+  const v = t ? t.value : '';
+  _scEdit = { nouveau: true, colKey: k, ...(v.trim() && (!dejaAncien || v.trim() !== dejaAncien.texte) ? { txt: v } : {}) };
+  _scRedessine();
+}
+function synthClasseEcrireAnnulerUI() { _scEdit = null; renderDelegues(); }
+function synthClasseEcrireOkUI() {
+  const cls = getCls(), t = document.getElementById('sc-txt'), E = _scEdit;
+  if (!cls || !t || !E) return;
+  let mode = null;
+  if (E.nouveau) { const c = _ficheMoments(cls).find(x => x.key === (document.getElementById('sc-mom')?.value || E.colKey)); if (c) mode = { type: c.type, date: c.date }; }
+  else { const e = _synthClasseOf(cls).find(x => x.id === E.id); if (e) mode = { type: e.type, date: e.date }; }
+  if (!mode) return toast('⚠️ Choisissez un moment.', 'warn');
+  const avant = _synthClasseCible(cls, mode), v = String(t.value || '').trim();
+  if ((avant ? avant.texte : '') === v) { _scEdit = null; renderDelegues(); return; }
+  pushUndo();
+  const r = synthClasseSet(cls, mode, v);
+  save();
+  _scEdit = null;
+  renderDelegues();
+  toast(r === 'suppr' ? 'Synthèse de la classe retirée — Ctrl+Z la rend.' : '✓ Synthèse de la classe enregistrée (imprimée en tête de la synthèse de période) — Ctrl+Z l\'annule.');
 }
 function synthClasseCopierUI(id) { const cls = getCls(), e = cls && _synthClasseOf(cls).find(x => x.id === id); if (e) _iaPressePapiers(e.texte, '📋 Synthèse de la classe copiée.'); }
 function synthClasseRetirerUI(id) {
@@ -24287,7 +24339,7 @@ function _applyReloadedData(data, f) {
     // 2026-09-11 : la leçon du verrou du ramassage, une troisième fois. Tous dans `_salvesDesarmer`
     // (v1.58.3), appelée aussi par Ctrl+Z / Ctrl+Y.
     _salvesDesarmer();
-    _hvcEdit = null; _bilanOrdreFige = null; _bilanMode = null; _elRemplOpen = false;
+    _hvcEdit = null; _scEdit = null; _bilanOrdreFige = null; _bilanMode = null; _elRemplOpen = false;
     document.body.classList.remove('el-projecting');
   } catch (_) {}
   S = data;
