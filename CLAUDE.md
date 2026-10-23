@@ -1152,8 +1152,9 @@ conseil de classe dans SA session MBN, clique sur le favori, colle, relit l'aper
   v: 1, contexte: { classe, periode }, max, eleves: [{ nom, prenom, appr }] }` — les élèves présents pendant la période
   (`_fichePrintEleves`), `appr` = le bilan du conseil de ce moment (`_bilanCible`). Le favori refuse un JSON de Plan de
   classe, et réciproquement.
-- **Pas encore** : l'appréciation générale de la CLASSE (`#content-appreciationGenClasse`, onglet Classe) — son
-  enregistrement n'a pas été observé ; il faudra un rapport de l'outil d'observation sur cet onglet.
+- ⚠️ **Pas de favori pour la synthèse de la CLASSE** (arbitré le 2026-10-23 : *« l'appréciation générale est pour moi,
+  c'est pour la dire lors du conseil, il n'y a pas d'emplacement dans MBN »*) : elle reste dans 🏫 Vie de classe
+  (*Synthèses de la classe*) et sur la synthèse de période imprimée. Ne pas la proposer vers MBN.
 - Tests : `test/mbn-conseil.test.js` (syntaxe et contraintes du bloc, charge utile, fenêtre et Ctrl+Z). **Fausse page**
   `test/fixtures/mbn/fake-mbn-conseil.html` (noms inventés). Vérifié dans le navigateur : aperçu (nouvelle, remplace,
   identique, rien à écrire, trop long, introuvable), remplissage (2 écrits, retours à la ligne gardés, l'identique et le
