@@ -198,7 +198,7 @@ test('le pas-à-pas : ouvert sans clé, replié avec ; l’espace de travail et 
 
 test('les cases cochées d’office : celles choisies par l’utilisateur (v1.73.2)', () => {
   ev(DEMO);
-  assert.deepStrictEqual(evObj(`IA_BLOCS.filter(x => x.on).map(x => x.k)`), ['genre', 'obs', 'abs', 'moy', 'incid', 'avis', 'bilans']);
+  assert.deepStrictEqual(evObj(`IA_BLOCS.filter(x => x.on).map(x => x.k)`), ['genre', 'obs', 'abs', 'moy', 'incid', 'avis', 'brouillon', 'bilans']);
 });
 
 test('la forme : longueur choisie et « sans chiffres » ajoutés après la consigne, dans ce qui est copié comme envoyé', () => {

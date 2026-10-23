@@ -1942,6 +1942,11 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-api-etat:empty { display: none; }
 .ia-api-etat.err { color: var(--alert-fg); background: var(--alert-bg); border: 1px solid var(--alert-bd); padding: 6px 10px; border-radius: 6px; }
 .ia-jt td, .ia-jt th { white-space: nowrap; }
+/* Le compteur de l'appréciation du bulletin (v1.76.0) ; le bilan remplacé, dans la revue. */
+.bil-n { font-size: 12px; color: var(--pencil); margin-top: 2px; }
+.bil-n:empty { display: none; }
+.bil-n.trop { color: var(--alert-fg); background: var(--alert-bg); border-radius: 4px; padding: 0 5px; font-weight: 700; display: inline-block; }
+.ia-rv-a { font-size: 13px; margin: 2px 0 4px; padding-left: 8px; border-left: 2px solid var(--rule-line); }
 /* 🎨 Le ton des avis (v1.74.0) : un fond par sens et par intensité, et un trait dessous — plein pour le positif,
    tireté pour le négatif, plus épais avec l'intensité — pour que le sens se lise sans les couleurs (papier en noir et
    blanc, daltonisme). Sur le papier, les fonds s'impriment (print-color-adjust). */
@@ -2571,7 +2576,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
     <div id="mbilan-avis"></div>
     <div class="fg">
-      <textarea id="mbilan-txt" data-autofocus rows="6" placeholder="Élève sérieux, en progrès à l'oral. Le carnet reste chargé (+6 ce semestre) : rappeler le cadre. Encourager à demander de l'aide en maths." onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
+      <textarea id="mbilan-txt" data-autofocus rows="6" placeholder="Élève sérieux, en progrès à l'oral. Le carnet reste chargé (+6 ce semestre) : rappeler le cadre. Encourager à demander de l'aide en maths." oninput="_bilanCompte(this, 'mbilan-n', document.getElementById('mbilan-type')?.value === 'conseil')" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
+      <div class="bil-n" id="mbilan-n"></div>
     </div>
     <div class="fg">
       <label for="mbilan-dec">Décisions · à mettre en place</label>
@@ -2643,6 +2649,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <label for="miac-rep" class="tb-hint">Collez la réponse (le JSON, ou un texte avec un titre par élève), ou ouvrez le fichier qu'elle a produit (l'envoi direct la pose ici) : l'app remet les vrais noms, sur ce poste.</label>
     <div class="ia-row"><input type="file" id="miac-fic" accept=".json,.txt,.md,application/json,text/plain" style="display:none" onchange="iaLotFichierUI(this)"><button class="btn btn-g btn-sm" onclick="document.getElementById('miac-fic').click()">📂 Ouvrir un fichier…</button></div>
     <textarea id="miac-rep" rows="6" oninput="iaLotReponseSaisie()" placeholder="La réponse de l'assistant…"></textarea>
+    <div class="ia-row"><label class="ia-bloc">Ranger dans <select id="miac-dest" onchange="iaLotDestUI(this.value)"></select></label><span class="tb-hint">Les appréciations retravaillées dans une conversation : demandez-y le JSON final (un texte par repère), collez-le ou ouvrez-le ici.</span></div>
     <div id="miac-revue"></div>
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('miac')">Fermer</button>
@@ -3365,8 +3372,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.75.0';
-const APP_BUILD_DATE = '2026-10-23T15:45:57Z';
+const APP_VERSION    = '1.76.0';
+const APP_BUILD_DATE = '2026-10-23T16:17:38Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3461,6 +3468,8 @@ const DEFAULT_PREFS = {
   // Paliers de couleur du carnet (2026-09-30) : le fond d'un cumul change à chaque multiple
   // de cette valeur — 0–4, 5–9, 10–14… 0 = sans couleur.
   obsPalier: 5,
+  // L'appréciation du bulletin (v1.76.0) : le bilan du CONSEIL l'est (arbitré par l'utilisateur) ; sa longueur maximale.
+  appreciationMax: 600,
   // Les textes du message aux collègues RÉÉCRITS par l'utilisateur (les autres restent ceux
   // proposés) — { [partie]: texte }. Remplacé, jamais modifié en place.
   avisMsg: {},
@@ -4926,6 +4935,9 @@ function _donRubHTML(k) {
         <label for="pref-codea">Code « absent »</label>
         <input id="pref-codea" value="${_escAttr(_codeA())}" maxlength="3" style="max-width:80px;font-family:var(--font-mono);text-transform:uppercase" onchange="setPref('codeAbsent', this.value.toUpperCase())">
         <div class="pref-help">Ce qu'on tape dans un relevé quand l'élève était absent : rien à relever ce jour-là, ce n'est ni un zéro ni un vide.</div>
+        <label for="pref-app-max">Appréciation du bulletin</label>
+        <div class="prefs-row"><input id="pref-app-max" type="number" min="100" max="5000" step="10" value="${_appreciationMax()}" style="max-width:90px;font-family:var(--font-mono)" onchange="setPref('appreciationMax', this.value)"> <span>caractères au plus</span></div>
+        <div class="pref-help">Le bilan du <strong>conseil de classe</strong> est l'appréciation portée au bulletin : un compteur s'affiche pendant qu'on le rédige (fiche, fenêtre de bilan), et un texte rapporté d'une conversation au-delà de cette longueur est signalé.</div>
         <label for="pref-obs-palier">Couleurs du carnet</label>
         <div class="prefs-row"><span>tous les</span> <input id="pref-obs-palier" type="number" min="0" max="100" step="1" value="${_obsPalier()}" style="max-width:80px;font-family:var(--font-mono)" onchange="setPref('obsPalier', this.value)"> <span>observations</span></div>
         <div class="pref-help">Le fond d'un cumul change de couleur à chaque multiple de cette valeur — dans la grille des observations, sa feuille imprimée, la liste des élèves et la fiche. ${_obsPalier() ? _obsLegendeHTML(_obsPalier() * OBS_BANDES) : '<strong>0 : sans couleurs.</strong>'} ${_obsPalier() ? '· 0 = sans couleurs.' : ''}</div>
@@ -9216,11 +9228,24 @@ function _ficheBarHTML(cls, stu, col) {
 // Enregistré en quittant le champ (pas de re-rendu : un clic sur « insérer » ou ▶ ne doit
 // pas tomber sur un bouton remplacé sous le doigt). Il reprend le bilan existant de ce
 // moment (`_bilanCible`) plutôt que d'en créer un second.
+// L'appréciation du bulletin (v1.76.0) : le bilan du conseil, et sa limite de caractères.
+function _appreciationMax() { const v = +_prefs().appreciationMax; return Number.isInteger(v) && v >= 100 && v <= 5000 ? v : 600; }
+function _bilanCompteHTML(n) { const m = _appreciationMax(); return `${n} / ${m} caractères${n > m ? ` — ${n - m} de trop pour le bulletin` : ''}`; }
+// Le compteur sous un champ de bilan : seulement pour un conseil (l'appréciation du bulletin).
+function _bilanCompte(ta, id, conseil) {
+  const b = document.getElementById(id);
+  if (!b) return;
+  if (!conseil) { b.textContent = ''; b.classList.remove('trop'); return; }
+  const n = String(ta && ta.value || '').trim().length;
+  b.textContent = _bilanCompteHTML(n);
+  b.classList.toggle('trop', n > _appreciationMax());
+}
 function _ficheRedacHTML(cls, stu, col, extra) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
   const d = _decisionCible(cls, stu.id, { type: col.type, date: col.date });
   return `${_ficheSynthIAHTML(cls, stu, col)}<label for="fi-bil" class="pf-lab">${_escName(col.long)} · ce que je dirai</label>
-    <textarea id="fi-bil" class="pf-ta" onchange="ficheBilanSave()" oninput="_autoTaille(this)" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
+    <textarea id="fi-bil" class="pf-ta" onchange="ficheBilanSave()" oninput="_autoTaille(this);_bilanCompte(this, 'fi-bil-n', ${col.type === 'conseil'})" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
+    ${col.type === 'conseil' ? `<div class="bil-n${b && b.texte.length > _appreciationMax() ? ' trop' : ''}" id="fi-bil-n" title="Le bilan du conseil est l'appréciation du bulletin (réglage dans 💾 Données ▸ Année et périodes)">${_bilanCompteHTML(b ? b.texte.length : 0)}</div>` : ''}${_iaRepereHTML(cls, stu, col)}
     ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>
     <label for="fi-dec" class="pf-lab pf-lab-dec">Décisions · à mettre en place</label>
     <textarea id="fi-dec" class="pf-ta pf-ta-dec" onchange="ficheDecisionSave()" oninput="_autoTaille(this)" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
@@ -9335,6 +9360,7 @@ const IA_BLOCS = [
   { k: 'remarque', l: 'Remarque', on: false },
   { k: 'avis', l: 'Avis des collègues', on: true },
   { k: 'suivis', l: 'Fiches de suivi', on: false },
+  { k: 'brouillon', l: 'Mon bilan de ce moment', t: 'Le bilan déjà écrit pour ce moment, à retravailler — pour un conseil, l\'appréciation du bulletin (v1.76.0)', on: true },
   { k: 'bilans', l: 'Bilans d\'avant', t: 'Les bilans et décisions des moments précédents', on: true },
 ];
 const _IA_AMEN = [['ppre', 'PPRE'], ['pap', 'PAP'], ['gevasco', 'PPS'], ['ulis', 'ULIS'], ['ulis_incl', 'ULIS (inclusion)'],
@@ -9606,6 +9632,10 @@ function _iaDonnees(cls, stu, col, blocs, repere) {
     }
   }
   if (on('suivis')) { const F = _suivisFaits(cls, stu, b).map(f => f.phrase).filter(Boolean); if (F.length) parts.push([`Fiches de suivi : ${st(F.join(' ; '))}.`]); }
+  if (on('brouillon')) {
+    const x = _bilanCible(cls, sid, { type: col.type, date: col.date });
+    if (x && String(x.texte || '').trim()) parts.push([`Mon brouillon pour ce moment, à retravailler${col.type === 'conseil' ? ` (c'est l'appréciation du bulletin : ${_appreciationMax()} caractères au plus)` : ''} :`, String(x.texte).trim()]);
+  }
   if (on('bilans')) {
     const mode = { type: col.type, date: col.date }, avant = x => x.date < col.date && !_momentEst(cls, x, mode);
     const L = [..._bilansOf(sid).filter(avant).reverse().map(x => `– ${st(_bilanLabel(x))} (${jm(x.date)}) : ${ligne(x.texte)}`),
@@ -10012,11 +10042,19 @@ function _iaLotRevue(st) {
   for (const sid of _fichePrintEleves(cls, col).filter(x => st.codes[x])) {
     const n = st.codes[sid];
     if (!vus.has(n)) { manquants.push(sid); continue; }
-    const texte = _iaRestaure(_iaNettoie(vus.get(n)), st.table).trim().slice(0, 10000), avant = _synthIACible(cls, sid, mode);
-    lignes.push({ sid, n, texte, etat: !avant ? 'nouvelle' : avant.texte === texte ? 'identique' : 'remplace', avant: avant ? avant.ts : null });
+    const texte = _iaRestaure(_iaNettoie(vus.get(n)), st.table).trim().slice(0, 10000);
+    // Le bilan du moment (v1.76.0 — pour un conseil, l'appréciation du bulletin), ou la synthèse IA (au-dessus du bilan).
+    const avant = _iaLotDest(st, col) === 'bilan' ? _bilanCible(cls, sid, mode) : _synthIACible(cls, sid, mode);
+    lignes.push({ sid, n, texte, etat: !avant ? 'nouvelle' : avant.texte === texte ? 'identique' : 'remplace', avant: avant ? (avant.ts || null) : null, avantTexte: avant ? avant.texte : '',
+      trop: col.type === 'conseil' && _iaLotDest(st, col) === 'bilan' && texte.length > _appreciationMax() });
   }
   return { lignes, manquants, inconnus: [...inconnus], doubles: [...doubles] };
 }
+// Où se range la réponse : 'bilan' (d'office pour un conseil : c'est l'appréciation du bulletin) ou 'synthese'.
+function _iaLotDest(st, col) { return st && (st.dest === 'bilan' || st.dest === 'synthese') ? st.dest : col && col.type === 'conseil' ? 'bilan' : 'synthese'; }
+// Cochée d'office : tout ce qui change, sauf un texte trop long pour le bulletin (on le raccourcit d'abord).
+function _iaLotCoche(st, l) { return l.etat !== 'identique' && (st.coches[l.sid] !== undefined ? st.coches[l.sid] !== false : !l.trop); }
+function iaLotDestUI(v) { if (!_iaLot) return; _iaLot.dest = v === 'bilan' ? 'bilan' : 'synthese'; _iaLot.coches = {}; _iaLotRevueRender(); }
 function _iaLotCol(st) { const cls = st && S.classes[st.cid]; return cls ? _chaleurMomentsTous(cls).find(c => c.key === st.colKey) || _ficheMoments(cls).find(c => c.key === st.colKey) || null : null; }
 function _iaLotSauve(cid, colKey) {
   try { const o = JSON.parse(localStorage.getItem(LS_IA_LOT) || 'null'); return _isPlainObj(o) && o.cid === cid && o.colKey === colKey && _isPlainObj(o.codes) ? o : null; } catch (_) { return null; }
@@ -10106,8 +10144,62 @@ function iaLotMomentUI(k) {
 function _iaCorrRender(id) {
   const box = document.getElementById(id), st = _iaActif;
   if (!box || !st || !st.codes) return;
-  box.innerHTML = Object.entries(st.codes).filter(([sid]) => S.eleves[sid]).sort((a, b) => a[1] - b[1])
+  box.innerHTML = `<div style="width:100%;margin-bottom:4px"><button type="button" class="btn btn-g btn-sm" onclick="iaCorrFenetreUI()" title="Une fenêtre à poser à côté de la conversation : repère → photo et nom, recherche par numéro, un clic ouvre la fiche">🖥 Fenêtre des correspondances</button></div>`
+    + Object.entries(st.codes).filter(([sid]) => S.eleves[sid]).sort((a, b) => a[1] - b[1])
     .map(([sid, n]) => `<button class="ia-b" onclick="iaAllerUI(${n})">[Élève ${n}] ${_escName(S.eleves[sid].nom)} ${_escName(S.eleves[sid].prenom)}</button>`).join('');
+  _iaCorrWinMaj();
+}
+// ── La fenêtre des correspondances (v1.76.0) — l'utilisateur : « l'élève sera anonymé ; pour examiner et dialoguer
+// de la remarque, il faudra que je sache de quel élève je parle ». Une fenêtre ordinaire (comme la projection des
+// élections), à poser à côté de la conversation : repère → photo, nom ; une recherche par numéro ; un clic ouvre la
+// fiche dans Suivi PP. ⚠️ Rien à copier (pas de bouton, texte non sélectionnable) : la table ne doit jamais finir
+// collée dans la conversation. Elle suit le lot ouvert (`_iaActif`) et se ferme avec la page.
+let _iaCorrWin = null;
+function iaCorrFenetreUI() {
+  const st = _iaActif;
+  if (!st || !st.codes) return toast('⚠️ Pas de repères pour ce texte.', 'warn');
+  if (_iaCorrWin && !_iaCorrWin.closed) { _iaCorrWin.focus(); _iaCorrWinMaj(); return; }
+  let w = null;
+  try { w = typeof window.open === 'function' ? window.open('', 'suivipp-correspondances', 'popup=yes,width=460,height=820') : null; } catch (_) { w = null; }
+  if (!w) return toast('⚠️ Le navigateur a bloqué la fenêtre : autorisez les fenêtres surgissantes pour ce site. Les correspondances restent dans le volet, à l\'étape 2.', 'warn');
+  _iaCorrWin = w;
+  const d = w.document;
+  d.open();
+  d.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Correspondances des repères</title></head><body><div id="cw"></div></body></html>');
+  d.close();
+  for (const x of document.querySelectorAll('style')) d.head.appendChild(d.importNode(x, true));
+  const pr = d.createElement('style');
+  pr.textContent = 'body::before{display:none!important} body{margin:0;padding:12px 14px;background:var(--paper);color:var(--ink-deep)} #cw{user-select:none;-webkit-user-select:none} .cw-t{font-weight:700;color:var(--ink-blue);margin:0 0 4px} .cw-l{display:flex;gap:10px;align-items:center;width:100%;padding:5px 6px;margin:2px 0;border:1px solid var(--rule-line);border-radius:8px;background:var(--paper);color:inherit;font:inherit;text-align:left;cursor:pointer} .cw-l:hover{background:var(--paper-warm)} .cw-n{min-width:44px;font-family:var(--font-mono);font-weight:700;font-size:18px;color:var(--ink-blue)} .cw-ph{width:40px;height:48px;object-fit:cover;border-radius:4px;flex:none;background:var(--paper-deep)} .cw-ph.vide{display:inline-grid;place-items:center;border:1px dashed var(--rule-line);color:var(--pencil);font-size:13px} .cw-nom{font-weight:600} .cw-q{width:100%;margin:6px 0 8px;font-size:16px}';
+  d.head.appendChild(pr);
+  for (const a of ['data-theme', 'data-police', 'data-police-papier']) { const v = document.documentElement.getAttribute(a); if (v !== null) d.documentElement.setAttribute(a, v); }
+  _iaCorrWinMaj();
+}
+function _iaCorrWinMaj() {
+  const w = _iaCorrWin;
+  if (!w) return;
+  if (w.closed) { _iaCorrWin = null; return; }
+  const box = w.document.getElementById('cw'), st = _iaActif;
+  if (!box) return;
+  const cls = st && S.classes[st.cid], col = st && (st === _iaLot ? _iaLotCol(st) : st === _iaCl ? _iaClCol(st) : null);
+  const L = st && st.codes ? Object.entries(st.codes).filter(([sid]) => S.eleves[sid]).sort((a, b) => a[1] - b[1]) : [];
+  const q = w.document.getElementById('cw-q')?.value || '';
+  box.innerHTML = !L.length ? '<p class="tb-hint">Ouvrez « Toute la classe d\'un coup » ou « Synthèse de la classe » dans Suivi PP : les repères de ce texte s\'afficheront ici.</p>'
+    : `<p class="cw-t">🔑 Correspondances des repères</p><p class="tb-hint">${_escName(cls ? cls.nom : '')}${col ? ' · ' + _escName(col.long) : ''} — restent sur ce poste. <strong>Ne recopiez rien d'ici dans la conversation.</strong> Un clic ouvre la fiche.</p>
+      <input id="cw-q" class="cw-q" type="search" inputmode="numeric" placeholder="Repère n° (ex. 14)" value="${_escAttr(q)}" aria-label="Chercher un repère par son numéro">
+      <div id="cw-l">${L.map(([sid, n]) => { const x = S.eleves[sid];
+        return `<button type="button" class="cw-l" data-n="${n}" data-sid="${_escAttr(sid)}"><span class="cw-n">${n}</span><span class="cw-ph vide" data-ph="${_escAttr(sid)}">${_escName((String(x.prenom || '')[0] || '') + (String(x.nom || '')[0] || ''))}</span><span><span class="cw-nom">${_escName(x.nom)} ${_escName(x.prenom)}</span><br><span class="tb-hint">[Élève ${n}]</span></span></button>`; }).join('')}</div>`;
+  const filtre = () => { const v = String(w.document.getElementById('cw-q')?.value || '').replace(/\D/g, ''); w.document.querySelectorAll('.cw-l').forEach(b => { b.style.display = !v || b.dataset.n === v || b.dataset.n.startsWith(v) ? '' : 'none'; }); };
+  const inp = w.document.getElementById('cw-q');
+  if (inp) { inp.addEventListener('input', filtre); filtre(); }
+  w.document.querySelectorAll('.cw-l').forEach(b => b.addEventListener('click', () => { try { window.focus(); } catch (_) {} openFiche(b.dataset.sid); }));
+  // Les photos (le dossier des pièces jointes, s'il est accessible) : posées après coup.
+  w.document.querySelectorAll('[data-ph]').forEach(async el => { const u = await _photoUrl(el.dataset.ph).catch(() => null); if (u && el.isConnected) { const im = w.document.createElement('img'); im.className = 'cw-ph'; im.alt = ''; im.src = u; el.replaceWith(im); } });
+}
+window.addEventListener('pagehide', () => { try { if (_iaCorrWin && !_iaCorrWin.closed) _iaCorrWin.close(); } catch (_) {} });
+// Dans la fiche, sous la rédaction : le repère de l'élève dans le dernier lot préparé pour ce moment (gardé sur le poste).
+function _iaRepereHTML(cls, stu, col) {
+  const sv = cls && col ? _iaLotSauve(cls.id, col.key) : null, n = sv && sv.codes[stu.id];
+  return n ? `<div class="tb-hint" title="Le repère de cet élève dans le dernier texte préparé pour toute la classe, pour ce moment — gardé sur ce poste">🤖 Dans la conversation : <strong>[Élève ${n}]</strong></div>` : '';
 }
 function iaAllerUI(n) {
   const ta = _iaActif && document.getElementById(_iaActif.ids.txt), h = `### [Élève ${n}]`, i = ta ? ta.value.indexOf(h) : -1;
@@ -10160,12 +10252,20 @@ function _iaLotRevueRender() {
   if (!st || !box) return;
   const R = st.revue = String(st.rep || '').trim() ? _iaLotRevue(st) : null;
   const nom = sid => `${S.eleves[sid].nom} ${S.eleves[sid].prenom}`;
-  const n = R ? R.lignes.filter(l => l.etat !== 'identique' && st.coches[l.sid] !== false).length : 0;
-  if (ok) ok.textContent = n ? `✓ Ranger ${n} synthèse${n > 1 ? 's' : ''}` : '✓ Ranger les synthèses cochées';
+  const col = _iaLotCol(st), dest = _iaLotDest(st, col), conseil = col && col.type === 'conseil';
+  const dsel = document.getElementById('miac-dest');
+  if (dsel) dsel.innerHTML = `<option value="bilan"${dest === 'bilan' ? ' selected' : ''}>le bilan de ce moment${conseil ? ` — l'appréciation du bulletin (${_appreciationMax()} caractères)` : ''}</option><option value="synthese"${dest === 'synthese' ? ' selected' : ''}>la synthèse IA de l'élève (au-dessus du bilan)</option>`;
+  const n = R ? R.lignes.filter(l => _iaLotCoche(st, l)).length : 0;
+  const quoi = dest === 'bilan' ? 'bilan' : 'synthèse';
+  if (ok) ok.textContent = n ? `✓ Ranger ${n} ${quoi}${n > 1 ? 's' : ''}` : `✓ Ranger les ${quoi}s cochés`.replace('synthèses cochés', 'synthèses cochées');
   if (!R) { box.innerHTML = ''; return; }
-  const etat = l => l.etat === 'nouvelle' ? 'nouvelle' : l.etat === 'identique' ? 'déjà rangée telle quelle' : `remplace celle rangée le ${_fmtDateFr(_todayYmd(new Date(l.avant || Date.now())))}`;
-  box.innerHTML = (R.lignes.length ? `<div class="ia-vt">${R.lignes.length} synthèse${R.lignes.length > 1 ? 's' : ''} lue${R.lignes.length > 1 ? 's' : ''} sur ${Object.keys(st.codes).length} élève${Object.keys(st.codes).length > 1 ? 's' : ''} — décochez ce que vous ne voulez pas ranger</div>`
-      + R.lignes.map((l, i) => `<div class="ia-rv"><label class="ia-rv-h"><input type="checkbox"${l.etat !== 'identique' && st.coches[l.sid] !== false ? ' checked' : ''}${l.etat === 'identique' ? ' disabled' : ''} onchange="iaLotCocheUI(${i},this.checked)"><strong>${_escName(nom(l.sid))}</strong><span class="pf-mu">[Élève ${l.n}] · ${_escName(etat(l))}</span></label><div class="ia-rv-t">${_escName(l.texte)}</div></div>`).join('')
+  const etat = l => dest === 'bilan'
+    ? (l.etat === 'nouvelle' ? 'aucun bilan encore' : l.etat === 'identique' ? 'déjà le bilan, tel quel' : 'remplace le bilan écrit')
+    : (l.etat === 'nouvelle' ? 'nouvelle' : l.etat === 'identique' ? 'déjà rangée telle quelle' : `remplace celle rangée le ${_fmtDateFr(_todayYmd(new Date(l.avant || Date.now())))}`);
+  const long = l => conseil && dest === 'bilan' ? ` · <span class="bil-n${l.trop ? ' trop' : ''}">${_escName(_bilanCompteHTML(l.texte.length))}</span>` : '';
+  const trop = R.lignes.filter(l => l.trop).length;
+  box.innerHTML = (R.lignes.length ? `<div class="ia-vt">${R.lignes.length} texte${R.lignes.length > 1 ? 's' : ''} lu${R.lignes.length > 1 ? 's' : ''} sur ${Object.keys(st.codes).length} élève${Object.keys(st.codes).length > 1 ? 's' : ''} — décochez ce que vous ne voulez pas ranger${trop ? ` · ⚠️ ${trop} trop long${trop > 1 ? 's' : ''} pour le bulletin, décoché${trop > 1 ? 's' : ''} : raccourcissez-le${trop > 1 ? 's' : ''} dans la conversation, ou cochez pour ranger quand même` : ''}</div>`
+      + R.lignes.map((l, i) => `<div class="ia-rv"><label class="ia-rv-h"><input type="checkbox"${_iaLotCoche(st, l) ? ' checked' : ''}${l.etat === 'identique' ? ' disabled' : ''} onchange="iaLotCocheUI(${i},this.checked)"><strong>${_escName(nom(l.sid))}</strong><span class="pf-mu">[Élève ${l.n}] · ${_escName(etat(l))}</span>${long(l)}</label>${l.etat === 'remplace' && dest === 'bilan' ? `<div class="ia-rv-a"><span class="pf-mu">Bilan écrit :</span> ${_escName(l.avantTexte)}</div>` : ''}<div class="ia-rv-t">${_escName(l.texte)}</div></div>`).join('')
       : '<div class="tb-hint">⚠️ Aucune synthèse reconnue : la réponse doit porter les repères ([Élève 3]), en JSON ou sous un titre par élève.</div>')
     + (R.manquants.length ? `<div class="tb-hint">Pas de synthèse dans la réponse pour : ${_escName(R.manquants.map(nom).join(', '))}. Après avoir rangé les autres, cochez « Seulement les élèves sans synthèse » pour les redemander.</div>` : '')
     + (R.inconnus.length ? `<div class="tb-hint">Repères inconnus dans ce lot, laissés de côté : ${_escName(R.inconnus.map(x => `[Élève ${x}]`).join(', '))}.</div>` : '')
@@ -10175,19 +10275,22 @@ function iaLotCocheUI(i, oui) {
   const l = _iaLot && _iaLot.revue && _iaLot.revue.lignes[i];
   if (!l) return;
   _iaLot.coches[l.sid] = oui;
-  const ok = document.getElementById('miac-ok'), n = _iaLot.revue.lignes.filter(x => x.etat !== 'identique' && _iaLot.coches[x.sid] !== false).length;
-  if (ok) ok.textContent = n ? `✓ Ranger ${n} synthèse${n > 1 ? 's' : ''}` : '✓ Ranger les synthèses cochées';
+  _iaLotRevueRender();
 }
 function iaLotRangerUI() {
   const st = _iaLot, cls = st && S.classes[st.cid], col = _iaLotCol(st);
   if (!col || !st.revue) return toast('⚠️ Collez d\'abord la réponse de l\'IA (étape 3).', 'warn');
-  const mode = { type: col.type, date: col.date }, choisies = st.revue.lignes.filter(l => l.etat !== 'identique' && st.coches[l.sid] !== false);
-  if (!choisies.length) return toast('Rien à ranger : aucune synthèse cochée, ou toutes déjà rangées telles quelles.', 'info');
+  st.revue = _iaLotRevue(st);   // relu : la destination ou un bilan ont pu changer depuis l'affichage
+  const mode = { type: col.type, date: col.date }, choisies = st.revue.lignes.filter(l => _iaLotCoche(st, l)), dest = _iaLotDest(st, col);
+  if (!choisies.length) return toast('Rien à ranger : rien de coché, ou tout est déjà rangé tel quel.', 'info');
   pushUndo();
-  choisies.forEach(l => synthIASet(cls, l.sid, mode, l.texte));
+  if (dest === 'bilan') choisies.forEach(l => { const b = _bilanCible(cls, l.sid, mode); if (b) bilanSet(l.sid, b.id, { date: b.date, type: b.type, texte: l.texte }); else bilanAdd(l.sid, { date: col.date, type: col.type, texte: l.texte }); });
+  else choisies.forEach(l => synthIASet(cls, l.sid, mode, l.texte));
   save();
   closeMod2('miac');
-  toast(`🤖 ${choisies.length} synthèse${choisies.length > 1 ? 's' : ''} rangée${choisies.length > 1 ? 's' : ''} dans les fiches, à côté du bilan — Ctrl+Z ${choisies.length > 1 ? 'les retire toutes' : 'la retire'}.`);
+  const n = choisies.length;
+  toast(dest === 'bilan' ? `✓ ${n} bilan${n > 1 ? 's' : ''} « ${col.long} » rangé${n > 1 ? 's' : ''}${col.type === 'conseil' ? ' (l\'appréciation du bulletin)' : ''} — Ctrl+Z ${n > 1 ? 'les rend tous' : 'le rend'} tel${n > 1 ? 's' : ''} qu'avant.`
+    : `🤖 ${n} synthèse${n > 1 ? 's' : ''} rangée${n > 1 ? 's' : ''} dans les fiches, à côté du bilan — Ctrl+Z ${n > 1 ? 'les retire toutes' : 'la retire'}.`);
   if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
 }
 
@@ -11700,6 +11803,7 @@ function _bilanHint() {
   const el = document.getElementById('mbilan-per');
   if (!cls || !d || !el) return;
   const p = _periodOf(cls, d.value);
+  _bilanCompte(document.getElementById('mbilan-txt'), 'mbilan-n', document.getElementById('mbilan-type')?.value === 'conseil');
   const pos = _bilanOrdre().indexOf(_bilanSid);
   const ty = document.getElementById('mbilan-type')?.value;
   const moment = ty === 'mois' && d.value ? `${_bilanLabel({ type: 'mois', date: d.value }).toLowerCase()}, ` : '';
@@ -13670,6 +13774,10 @@ function setPref(key, value) {
   if (key === 'codeAbsent' && !v) { toast('⚠️ Le code « absent » ne peut pas être vide.', 'warn'); renderDonnees(); return; }
   // Un code qui est un NOMBRE (« 5 ») est un cumul : saisir 5 noterait « absent ». Le code d'avant reste.
   if (key === 'codeAbsent' && /^[+-]?\d+(?:[.,]\d+)?$/.test(v)) { toast('⚠️ Le code « absent » ne peut pas être un nombre : il se confondrait avec un cumul.', 'warn'); renderDonnees(); return; }
+  if (key === 'appreciationMax') {
+    v = String(value ?? '').trim() === '' ? NaN : Number(value);
+    if (!Number.isInteger(v) || v < 100 || v > 5000) { toast('⚠️ Appréciation du bulletin : un nombre entier de caractères, de 100 à 5 000.', 'warn'); renderDonnees(); return; }
+  }
   if (key === 'obsPalier') {
     v = String(value ?? '').trim() === '' ? NaN : Number(value);
     if (!Number.isInteger(v) || v < 0 || v > 100) { toast('⚠️ Palier du carnet : un nombre entier de 0 à 100 (0 = sans couleurs).', 'warn'); renderDonnees(); return; }
@@ -13679,6 +13787,7 @@ function setPref(key, value) {
   _prefs()[key] = v;
   save();
   renderDonnees();
+  if (key === 'appreciationMax') { toast(`Appréciation du bulletin : ${v} caractères au plus.`); return; }
   if (key === 'obsPalier') { toast(v ? `Carnet : une couleur tous les ${v} observation${v > 1 ? 's' : ''}.` : 'Carnet : sans couleurs de palier.'); return; }
   if (key === 'policeEcran' || key === 'policePapier') { _applyPolices(); toast(`Police ${key === 'policeEcran' ? 'de l\'écran' : 'de l\'impression'} : ${_POLICES[v]?.label || v}.`); return; }
   toast(key === 'periodMode' ? `Périodes : ${v === 'trimestre' ? 'trimestres' : 'semestres'}.` : `Code « absent » : ${v}.`);

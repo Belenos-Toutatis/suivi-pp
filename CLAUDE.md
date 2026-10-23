@@ -1085,9 +1085,37 @@ bulletins…* sous *＋ Nouvelle feuille d'avis* —, 💾 Données ▸ Importer
 - Tests : `test/bulletins.test.js` sur `test/fixtures/bulletin-mbn-invente.pdf` (`scripts/gen_bulletin_fixture.py`, un
   PDF minimal écrit à la main — pas de bibliothèque : noms inventés). Vérifié dans le navigateur : la fixture lue,
   revue, rangée, panneau et lecture ; audit deux thèmes : 0 défaut. ⚠️ Non vérifié : le vrai PDF de l'utilisateur.
-- 🗓 **À suivre** (même demande) : réimporter les appréciations retravaillées dans le bilan du conseil (arbitré : le
-  bilan du conseil EST l'appréciation du bulletin), avec la limite de 600 caractères ; la correspondance repère → élève
-  dans l'app pendant la conversation.
+
+#### Le retour : l'appréciation retravaillée dans le bilan du conseil (v1.76.0)
+
+L'utilisateur retravaille ses appréciations dans une conversation (son projet claude.ai : `directive.md`,
+`exemple de remarques.md`), à partir du JSON de *Toute la classe d'un coup* ; ⚠️ arbitré : **le bilan du conseil EST
+l'appréciation du bulletin** (*« sinon le bilan de la période ne servira à rien »*).
+- **La limite** : `S.prefs.appreciationMax` (600 d'office, 100 à 5 000, `setPref` la valide ; 💾 Données ▸ Année et
+  périodes), `_appreciationMax()`. **Un compteur** sous le bilan d'un CONSEIL, dans la fiche (`fi-bil-n`, les trois vues)
+  et la fenêtre de bilan (`mbilan-n`, suit le moment choisi) : « 523 / 600 caractères », en alerte au-delà
+  (`_bilanCompte`, `.bil-n.trop`).
+- **Ce qui part** : un bloc de plus, **« Mon bilan de ce moment »** (`brouillon`, coché d'office) — le bilan déjà écrit
+  pour ce moment, « à retravailler (c'est l'appréciation du bulletin : 600 caractères au plus) » pour un conseil.
+- **Le retour** (fenêtre `miac`, étape 3) : **« Ranger dans »** (`miac-dest`, `_iaLotDest`) — *le bilan de ce moment* (d'office
+  pour un conseil) ou *la synthèse IA* (d'office ailleurs, le comportement d'avant). Vers le bilan, la revue dit « aucun
+  bilan encore » / « remplace le bilan écrit » (le **bilan écrit est montré**, `avantTexte`) / « déjà le bilan » ; ⚠️ un
+  texte **trop long pour le bulletin est décoché d'office** (`_iaLotCoche`, `trop`) — à raccourcir dans la conversation,
+  ou à cocher quand même. Rangé : `bilanSet` (le même bilan, sa date gardée) ou `bilanAdd` (daté du moment), **un cran
+  d'undo** ; la synthèse IA n'est pas touchée. La réponse peut porter « appreciation » au lieu de « synthese » (clés
+  tolérées de `_iaLotLire`).
+- **Savoir de qui on parle** : *🖥 Fenêtre des correspondances* (dans le volet *Correspondances des repères*,
+  `iaCorrFenetreUI`) — une fenêtre ordinaire à poser à côté de la conversation : repère en grand, photo (ou initiales),
+  nom ; **recherche par numéro** ; un clic ouvre la fiche dans Suivi PP. ⚠️ **Rien à copier** (aucun bouton, texte non
+  sélectionnable) : la table ne doit jamais finir collée dans la conversation. Elle suit le lot ouvert
+  (`_iaCorrWinMaj`, appelée par `_iaCorrRender`), se ferme avec la page ; bloquée par le navigateur, elle le dit (le volet
+  reste). **Dans la fiche**, sous la rédaction : « 🤖 Dans la conversation : [Élève 14] » (`_iaRepereHTML`, le dernier
+  lot de ce moment, gardé sur le poste).
+- Tests : `test/bulletin-retour.test.js` ; tests adaptés (le brouillon dans les cases d'office ; le test de la synthèse
+  IA d'un conseil range explicitement en synthèse). Vérifié dans le navigateur : revue vers le bilan (trop long décoché),
+  fenêtre des correspondances (dans un cadre : le navigateur de test bloque les fenêtres), recherche, clic → la bonne
+  fiche ; audit fiche, fenêtre de bilan, `miac`, Données, deux thèmes : 0 défaut. ⚠️ À essayer : la vraie fenêtre
+  détachée à côté de la conversation.
 
 ## 📷 Photos des élèves (v1.48.0)
 

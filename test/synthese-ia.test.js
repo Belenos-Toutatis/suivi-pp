@@ -111,14 +111,20 @@ test('le texte suit les cases : âge, options et aménagements décochés d’of
   ev(DEMO);
   const r = evObj(`(() => { const cls = getCls(), sid = cls.eleves[0], stu = S.eleves[sid], col = _ficheMoments(cls).find(c => c.key === 'bil:conseil:0');
     stu.pap = true; stu.pai = true;
-    const def = _iaDonnees(cls, stu, col, _iaBlocs()).texte, tout = _iaDonnees(cls, stu, col, new Set(IA_BLOCS.map(x => x.k))).texte;
-    return { def, tout, debut: _ficheBornes(cls, col).start }; })()`);
+    // Sans le brouillon (v1.76.0 : le bilan déjà écrit pour ce moment, qui peut citer ce qu'il veut) : ce qui est borné au moment.
+    const sansB = new Set([..._iaBlocs()].filter(k => k !== 'brouillon'));
+    const def = _iaDonnees(cls, stu, col, sansB).texte, tout = _iaDonnees(cls, stu, col, new Set(IA_BLOCS.map(x => x.k))).texte;
+    const avecB = _iaDonnees(cls, stu, col, _iaBlocs()).texte, bil = _bilanCible(cls, sid, { type: col.type, date: col.date });
+    return { def, tout, avecB, bil: bil ? bil.texte : null, debut: _ficheBornes(cls, col).start }; })()`);
   assert.doesNotMatch(r.def, /PAP|PAI|\b\d+ ans\b|Groupe et options/);
   assert.match(r.tout, /Aménagements : PAP, PAI\./);
   assert.match(r.def, /^Élève : \[Élève\], un garçon, en 5e\.\nMoment : Conseil de classe S1, du 01\/09 au 31\/01\./);
   // La commission éducative de février est au S2 : pas dans la synthèse du conseil du S1.
   assert.match(r.def, /Incidents : 2\./);
   assert.doesNotMatch(r.def, /commission/i);
+  // Le brouillon part d'office : le bilan du conseil (l'appréciation du bulletin), avec sa limite.
+  assert.ok(r.bil, 'la démo a un bilan du conseil du S1 pour cet élève');
+  assert.ok(r.avecB.includes(`Mon brouillon pour ce moment, à retravailler (c'est l'appréciation du bulletin : 600 caractères au plus) :\n${r.bil}`));
 });
 
 test('modèle : une synthèse par moment, à côté du bilan ; vidée = retirée ; chargement abîmé nettoyé', () => {

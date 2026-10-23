@@ -83,7 +83,8 @@ test('fenêtre : repères gardés sur le poste (un rechargement ne perd rien), r
       { eleve: `[Élève ${a}]`, synthese: `[Élève ${a}] progresse ; il aide [Élève ${b}]. Mme [Nom de l'élève ${a}] appelle.` },
       { eleve: `[Élève ${b}]`, synthese: 'Premier jet.' }, { eleve: `[Élève ${b}]`, synthese: `**[Élève ${b}]** reste calme.` },
       { eleve: '[Élève 99]', synthese: 'Inconnu.' }] });
-    ev(`__els.get('miac-rep').value = ${JSON.stringify(rep)}; iaLotReponseSaisie(); _iaLotRevueRender();`);
+    // Ce test range en SYNTHÈSE IA ; pour un conseil, la réponse va d'office dans le bilan (v1.76.0, testé à part).
+    ev(`_iaLot.dest = 'synthese'; __els.get('miac-rep').value = ${JSON.stringify(rep)}; iaLotReponseSaisie(); _iaLotRevueRender();`);
     const R = evObj(`_iaLot.revue`);
     const L = sid => R.lignes.find(l => l.sid === sid);
     assert.deepStrictEqual([R.lignes.length, L(cls.e[0]).etat, L(cls.e[1]).etat], [2, 'remplace', 'nouvelle'], 'l’élève 1 a déjà la synthèse de la démo');
