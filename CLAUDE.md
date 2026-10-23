@@ -1029,7 +1029,7 @@ avis, fenêtre de bilan, feuilles imprimées (synthèse de période et fiche). B
   réponse rangée avec un extrait perdu et un passage à la main gardé, Ctrl+Z, palette, purge). Vérifié dans le navigateur :
   sélection réelle à la souris puis palette, clic sur un passage puis *Retirer*, Ctrl+Z, analyse sur un flux simulé ;
   audit lecture, palette, onglet, fiche (trois vues), deux thèmes, et fiche et synthèse imprimées : 0 défaut.
-- ⚠️ Non vérifié : une vraie analyse par Claude (qualité des extraits recopiés), la sélection au doigt sur une tablette.
+- ✅ Une vraie analyse par Claude vérifiée par l'utilisateur le 2026-10-23. ⚠️ Non vérifié : la sélection au doigt sur une tablette.
 
 ## 📷 Photos des élèves (v1.48.0)
 
