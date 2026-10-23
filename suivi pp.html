@@ -14,14 +14,17 @@
                   JetBrains Mono) sont embarquées en data:font/woff2;base64.
                   Sans cette ligne, default-src 'self' les bloque et l'app retombe EN SILENCE
                   sur les polices système.
-     - connect-src 'self' https://api.github.com → fetch limité à l'API GitHub (checkForUpdate)
+     - connect-src 'self' https://api.github.com https://api.anthropic.com → fetch limité à l'API GitHub
+                  (checkForUpdate) et à l'API d'Anthropic (envoi direct d'une synthèse par une IA, v1.73.0 :
+                  seulement le texte relu, seulement quand l'utilisateur le décide). Un autre fournisseur
+                  d'IA s'ajoute ICI, jamais par une adresse saisie dans l'app.
      - object-src 'none' / base-uri 'self' → ancres XSS classiques fermées
      - frame-src blob: → le lecteur de PDF intégré (fiches incident) affiche un blob créé par
                   la page ELLE-MÊME dans un <iframe> ; une URL de blob est liée à son origine,
                   rien d'extérieur ne peut y être encadré. 'none' bloquait l'affichage, et
                   window.open est refusé dans une fenêtre d'application installée sans geste. -->
 <meta http-equiv="Content-Security-Policy"
-  content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src blob:">
+  content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.github.com https://api.anthropic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src blob:">
 <title>Suivi PP</title>
 <link rel="manifest" href="manifest.json">
 <!-- Favicon en data: SVG — évite un 404 sur /favicon.ico et donne son identité à
@@ -1923,6 +1926,18 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-rest mark { background: var(--highlighter); color: var(--highlighter-fg); padding: 0 1px; border-radius: 2px; }
 .ia-b.ia-lien { margin-left: auto; color: var(--link-fg); font-weight: 400; }
 .ia-corr { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+/* 📤 Envoi direct à Claude (v1.73.0) : la ligne sous les boutons, la fenêtre de dernière vérification, le journal. */
+.ia-api { margin-top: 6px; font-size: 12.5px; color: var(--pencil); }
+.ia-api:empty { display: none; }
+#miaenv textarea { width: 100%; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; margin-top: 6px; background: var(--paper-warm); color: var(--ink-deep); }
+.ia-api-cout { margin-top: 8px; font-size: 13.5px; }
+.ia-relu { margin-top: 10px; font-weight: 700; align-items: flex-start; }
+.ia-relu input { margin-top: 3px; }
+.ia-api-etat { margin-top: 8px; font-size: 13.5px; }
+.ia-api-etat:empty { display: none; }
+.ia-api-etat.err { color: var(--alert-fg); background: var(--alert-bg); border: 1px solid var(--alert-bd); padding: 6px 10px; border-radius: 6px; }
+.ia-jt td, .ia-jt th { white-space: nowrap; }
+.ia-jt td.n, .ia-jt th.n { text-align: right; font-family: var(--font-mono); }
 .ia-rv { border-left: 3px dashed var(--i-bilan); padding: 4px 10px; margin-block: 8px; }
 .ia-rv-h { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
 .ia-rv-t { white-space: pre-line; font-size: 13.5px; margin-top: 4px; }
@@ -2224,9 +2239,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     à qui a le lien que vous leur envoyez. Les photos des élèves, si vous les importez, sont rangées dans
     le sous-dossier <code>photos/</code> du dossier des PDF, jamais dans le navigateur.
     En cadre professionnel, déclarez-la à votre DPO d'établissement (souvent <code>dpo@ac-&lt;votre-académie&gt;.fr</code>).
-    Rien ne sort de votre navigateur : aucun serveur, aucune télémétrie. Seul ce que vous copiez vous-même en sort :
-  pour une synthèse par une IA, un texte où les noms sont remplacés, que vous relisez avant de le copier —
-  à ne coller que dans un outil autorisé par votre académie.
+    Rien ne sort de votre navigateur : aucun serveur, aucune télémétrie. Seul ce que vous copiez ou envoyez vous-même en sort :
+  pour une synthèse par une IA, un texte où les noms sont remplacés, que vous relisez avant qu'il parte —
+  à ne coller que dans un outil autorisé par votre académie, ou, si vous avez réglé une clé d'API, envoyé
+  directement à Claude (Anthropic), après une dernière relecture.
   </span>
   <button id="rgpd-banner-ok" onclick="dismissRgpdBanner()">J'ai compris</button>
 </div>
@@ -2364,7 +2380,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       Toutes les données restent dans <strong>votre navigateur</strong> (localStorage) et dans les
       fichiers que vous exportez vous-même. Aucun serveur, aucun compte, aucune télémétrie,
       aucune requête réseau — sauf la vérification de mise à jour, qui n'interroge que
-      <code>api.github.com</code> et n'envoie aucune donnée.
+      <code>api.github.com</code> et n'envoie aucune donnée, et, si vous réglez une clé d'API, l'envoi
+      à <code>api.anthropic.com</code> du texte relu d'une synthèse par une IA, quand vous le décidez.
       L'app contient des données personnelles d'élèves : pensez au DPO de votre établissement.
     </div>
     <div class="about-section">
@@ -2545,12 +2562,13 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <div class="ia-row"><button class="btn btn-g btn-sm" id="mia-cons-raz" onclick="iaConsigneUI(null)" title="Revenir à la consigne proposée">↺ Consigne proposée</button><span class="tb-hint">La même pour tous les élèves, gardée dans vos réglages.</span></div>
     </details>
     <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez</div>
-    <div class="tb-hint">Les noms que l'app connaît sont déjà remplacés par des repères entre crochets. Corrigez tout ce qui pourrait encore faire reconnaître l'élève : ce texte est exactement ce qui sera copié, après la consigne.</div>
+    <div class="tb-hint">Les noms que l'app connaît sont déjà remplacés par des repères entre crochets. Corrigez tout ce qui pourrait encore faire reconnaître l'élève : ce texte est exactement ce qui sera copié ou envoyé, après la consigne.</div>
     <textarea id="mia-txt" data-autofocus rows="14" spellcheck="false" aria-label="Texte qui sera copié pour l'IA" oninput="iaTexteSaisi()"></textarea>
     <div id="mia-verif" class="ia-verif"></div>
-    <div class="ia-row"><button class="btn btn-p" onclick="iaCopierUI()">📋 Copier pour l'IA</button><button class="btn btn-g btn-sm" onclick="iaRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À coller dans l'assistant que votre académie autorise (par exemple l'assistant IA de l'État).</span></div>
+    <div class="ia-row"><button class="btn btn-p" onclick="iaCopierUI()">📋 Copier pour l'IA</button><button class="btn btn-s" onclick="iaEnvoyerUI()" title="Envoyer directement à Claude, par l'API d'Anthropic : vous verrez une dernière fois tout ce qui part">📤 Envoyer à Claude</button><button class="btn btn-g btn-sm" onclick="iaRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À coller dans l'assistant que votre académie autorise (par exemple l'assistant IA de l'État), ou à envoyer directement.</span></div>
+    <div id="mia-api" class="ia-api"></div>
     <div class="ia-etape"><span class="ia-n">3</span>La réponse de l'IA</div>
-    <label for="mia-rep" class="tb-hint">Collez la réponse : l'app remet les vrais noms à la place des repères, ici, sans rien envoyer.</label>
+    <label for="mia-rep" class="tb-hint">Collez la réponse (l'envoi direct la pose ici) : l'app remet les vrais noms à la place des repères, sur ce poste.</label>
     <textarea id="mia-rep" rows="8" oninput="iaReponseSaisie()" placeholder="La réponse de l'assistant…"></textarea>
     <div id="mia-rest" class="ia-rest"></div>
     <div class="ma">
@@ -2563,7 +2581,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <div id="miac" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:960px;width:100%">
     <h2 id="miac-title">🤖 Synthèses par une IA — toute la classe</h2>
-    <div class="tb-hint">Une seule demande pour toute la classe : chaque élève reçoit un repère tiré au hasard ([Élève 14]), le même partout. Rien ne part sans votre geste « Copier » ou « Télécharger », et rien ne part du tout vers un serveur depuis l'app.</div>
+    <div class="tb-hint">Une seule demande pour toute la classe : chaque élève reçoit un repère tiré au hasard ([Élève 14]), le même partout. Rien ne part sans votre geste « Copier », « Télécharger » ou « Envoyer à Claude » — et l'envoi direct vous montre une dernière fois tout ce qui part.</div>
     <div class="ia-etape"><span class="ia-n">1</span>Le moment, les élèves, les données<button class="ia-b ia-lien" onclick="iaVersSynthClasseUI()" title="Une synthèse DE la classe, courte : ambiance de travail, situation des élèves, esprit de la classe — à partir de vos bilans">Une synthèse de la classe…</button></div>
     <div class="ia-row"><label class="ia-bloc">Moment <select id="miac-mom" onchange="iaLotMomentUI(this.value)"></select></label><label class="ia-bloc"><input type="checkbox" id="miac-seul" onchange="iaLotSeulUI(this.checked)">Seulement les élèves sans synthèse pour ce moment</label><span id="miac-n" class="tb-hint"></span></div>
     <div id="miac-blocs" class="ia-blocs"></div>
@@ -2580,9 +2598,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </details>
     <textarea id="miac-txt" data-autofocus rows="16" spellcheck="false" aria-label="Texte qui sera envoyé pour toute la classe" oninput="iaTexteSaisi()"></textarea>
     <div id="miac-verif" class="ia-verif"></div>
-    <div class="ia-row"><button class="btn btn-p" onclick="iaLotCopierUI()">📋 Copier le JSON</button><button class="btn btn-s" onclick="iaLotTelechargerUI()" title="Un fichier .json à joindre à l'assistant">💾 Télécharger le JSON</button><button class="btn btn-g btn-sm" onclick="iaLotRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À donner à l'assistant que votre académie autorise.</span></div>
+    <div class="ia-row"><button class="btn btn-p" onclick="iaLotCopierUI()">📋 Copier le JSON</button><button class="btn btn-s" onclick="iaLotTelechargerUI()" title="Un fichier .json à joindre à l'assistant">💾 Télécharger le JSON</button><button class="btn btn-s" onclick="iaLotEnvoyerUI()" title="Envoyer le JSON directement à Claude, par l'API d'Anthropic : vous le verrez une dernière fois en entier">📤 Envoyer à Claude</button><button class="btn btn-g btn-sm" onclick="iaLotRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À donner à l'assistant que votre académie autorise, ou à envoyer directement.</span></div>
+    <div id="miac-api" class="ia-api"></div>
     <div class="ia-etape"><span class="ia-n">3</span>La réponse de l'IA</div>
-    <label for="miac-rep" class="tb-hint">Collez la réponse (le JSON, ou un texte avec un titre par élève), ou ouvrez le fichier qu'elle a produit : l'app remet les vrais noms, ici, sans rien envoyer.</label>
+    <label for="miac-rep" class="tb-hint">Collez la réponse (le JSON, ou un texte avec un titre par élève), ou ouvrez le fichier qu'elle a produit (l'envoi direct la pose ici) : l'app remet les vrais noms, sur ce poste.</label>
     <div class="ia-row"><input type="file" id="miac-fic" accept=".json,.txt,.md,application/json,text/plain" style="display:none" onchange="iaLotFichierUI(this)"><button class="btn btn-g btn-sm" onclick="document.getElementById('miac-fic').click()">📂 Ouvrir un fichier…</button></div>
     <textarea id="miac-rep" rows="6" oninput="iaLotReponseSaisie()" placeholder="La réponse de l'assistant…"></textarea>
     <div id="miac-revue"></div>
@@ -2592,11 +2611,28 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </div>
   </div>
 </div>
+<!-- ═══════════════ 📤 Envoi direct à Claude : la dernière vérification (v1.73.0) ═══════════════ -->
+<div id="miaenv" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:820px;width:100%">
+    <h2>📤 Envoyer à Claude</h2>
+    <div class="tb-hint" id="miaenv-sous"></div>
+    <div class="ia-etape"><span class="ia-n">✓</span>Dernière vérification : voici exactement ce qui part</div>
+    <div class="tb-hint">Rien d'autre que ce texte n'est envoyé — ni nom, ni table des repères, qui restent sur ce poste. Pour le corriger, annulez et revenez à l'étape 2.</div>
+    <textarea id="miaenv-txt" rows="14" readonly spellcheck="false" aria-label="Le texte exact qui sera envoyé à Claude"></textarea>
+    <div id="miaenv-cout" class="ia-api-cout"></div>
+    <label class="ia-bloc ia-relu"><input type="checkbox" id="miaenv-ok" data-autofocus onchange="iaEnvoiCocheUI()">J'ai relu ce texte : rien ne permet de reconnaître un élève, sa famille ou un collègue.</label>
+    <div id="miaenv-etat" class="ia-api-etat" aria-live="polite"></div>
+    <div class="ma">
+      <button class="btn btn-g" id="miaenv-ann" onclick="iaEnvoiAnnulerUI()">Annuler</button>
+      <button class="btn btn-p" id="miaenv-go" onclick="iaEnvoiGoUI()" disabled>📤 Envoyer</button>
+    </div>
+  </div>
+</div>
 <!-- ═══════════════ 🤖 Synthèse de la classe par une IA (v1.71.0) ═══════════════ -->
 <div id="mias" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:960px;width:100%">
     <h2 id="mias-title">🤖 Synthèse de la classe</h2>
-    <div class="tb-hint">Une synthèse courte de la classe — ambiance de travail, situation des élèves, esprit de la classe — à partir de vos bilans, sous des repères tirés au hasard, et des chiffres de la classe. Rien ne part sans votre geste « Copier » ou « Télécharger ».</div>
+    <div class="tb-hint">Une synthèse courte de la classe — ambiance de travail, situation des élèves, esprit de la classe — à partir de vos bilans, sous des repères tirés au hasard, et des chiffres de la classe. Rien ne part sans votre geste « Copier », « Télécharger » ou « Envoyer à Claude ».</div>
     <div class="ia-etape"><span class="ia-n">1</span>Le moment et les données</div>
     <div class="ia-row"><label class="ia-bloc">Moment <select id="mias-mom" onchange="iaClMomentUI(this.value)"></select></label><span id="mias-n" class="tb-hint"></span></div>
     <div id="mias-blocs" class="ia-blocs"></div>
@@ -2613,9 +2649,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     </details>
     <textarea id="mias-txt" data-autofocus rows="14" spellcheck="false" aria-label="Texte qui sera envoyé pour la synthèse de la classe" oninput="iaTexteSaisi()"></textarea>
     <div id="mias-verif" class="ia-verif"></div>
-    <div class="ia-row"><button class="btn btn-p" onclick="iaClCopierUI()">📋 Copier le JSON</button><button class="btn btn-s" onclick="iaClTelechargerUI()" title="Un fichier .json à joindre à l'assistant">💾 Télécharger le JSON</button><button class="btn btn-g btn-sm" onclick="iaClRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À donner à l'assistant que votre académie autorise.</span></div>
+    <div class="ia-row"><button class="btn btn-p" onclick="iaClCopierUI()">📋 Copier le JSON</button><button class="btn btn-s" onclick="iaClTelechargerUI()" title="Un fichier .json à joindre à l'assistant">💾 Télécharger le JSON</button><button class="btn btn-s" onclick="iaClEnvoyerUI()" title="Envoyer le JSON directement à Claude, par l'API d'Anthropic : vous le verrez une dernière fois en entier">📤 Envoyer à Claude</button><button class="btn btn-g btn-sm" onclick="iaClRefaireUI()" title="Refaire le texte à partir des données cochées">↺ Refaire le texte</button><span class="tb-hint">À donner à l'assistant que votre académie autorise, ou à envoyer directement.</span></div>
+    <div id="mias-api" class="ia-api"></div>
     <div class="ia-etape"><span class="ia-n">3</span>La réponse de l'IA</div>
-    <label for="mias-rep" class="tb-hint">Collez la réponse : l'app remet les vrais noms si un repère y revient, ici, sans rien envoyer. Vous pouvez la raccourcir avant de la ranger.</label>
+    <label for="mias-rep" class="tb-hint">Collez la réponse (l'envoi direct la pose ici) : l'app remet les vrais noms si un repère y revient, sur ce poste. Vous pouvez la raccourcir avant de la ranger.</label>
     <textarea id="mias-rep" rows="7" oninput="iaClReponseSaisie()" placeholder="La réponse de l'assistant…"></textarea>
     <div id="mias-rest" class="ia-rest"></div>
     <div class="ma">
@@ -3280,8 +3317,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.72.2';
-const APP_BUILD_DATE = '2026-10-22T00:23:49Z';
+const APP_VERSION    = '1.73.0';
+const APP_BUILD_DATE = '2026-10-23T12:49:01Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4697,6 +4734,8 @@ const DON_RUBS = [
     mots: 'incidents incident instances punitions sanctions retenue exclusion commission conseil discipline rapport' },
   { k: 'apparence', ic: '🎨', t: 'Apparence', sous: 'les polices de l\'écran et du papier, le thème',
     mots: 'apparence police polices andika latin modern theme sombre clair nuit impression ecran' },
+  { k: 'ia', ic: '🤖', t: 'Envoi à une IA', sous: 'la clé d\'API de ce poste, le modèle, et ce que chaque envoi a coûté',
+    mots: 'ia intelligence artificielle claude anthropic api cle modele opus sonnet haiku fable cout credit envoi synthese jetons console' },
   { k: 'imports', ic: '📥', t: 'Importer · exporter', grp: 'Données', sous: 'faire entrer des données d\'ailleurs, les sortir, ou tout recommencer',
     mots: 'import importer exporter export json sauvegarde complete pronote siecle mbn bureau numerique plan de classe moyennes photos trombinoscope recapitulatif observations regimes demo demonstration effacer decrire fichier recuperer dates' },
   { k: 'sauvegarde', ic: '🔄', t: 'Sauvegarde et synchronisation', grp: 'Données', sous: 'le dossier synchronisé, ses versions et ses copies',
@@ -4757,6 +4796,9 @@ function _donChip(k) {
     case 'salles': { const n = nb(S.salles); return { txt: n ? _pl(n, 'salle') : 'aucune' }; }
     case 'instances': return { txt: `${_instancesActives().length}`, titre: 'Instances proposées à la saisie d\'un incident' };
     case 'apparence': return { txt: `${_POLICES[_applyPolices().ecran]?.label || 'Andika'} · ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'sombre' : 'clair'}` };
+    case 'ia': { const m = _iaJournalMois(_iaJournal());
+      return _iaCle() ? { txt: m.n ? `${_iaDollars(m.cout)} ce mois` : 'clé ✓', cl: 'ok', titre: 'Une clé d\'API sur ce poste ; ce que les envois ont coûté ce mois-ci' }
+        : { txt: 'sans clé', titre: 'Facultatif : sans clé, les fenêtres 🤖 copient le texte au lieu de l\'envoyer' }; }
     case 'imports': return { txt: '11 imports' };
     case 'sauvegarde': {
       if (!dirHandle) return { txt: 'aucun dossier', cl: 'warn', titre: 'Sans dossier, pas de sauvegarde automatique' };
@@ -4836,6 +4878,7 @@ function _donRubHTML(k) {
       </div>`;
     }
     case 'disciplines': return _disciplinesTableHTML();
+    case 'ia': return _iaReglagesHTML();
     case 'salles': return _sallesEditorHTML();
     case 'instances': return `<div class="pref-help" style="margin-bottom:8px">Les instances proposées à la saisie d'un incident. Renommez, décrivez, décochez celles que votre établissement n'utilise pas, ajoutez les vôtres. Une instance d'office ne se supprime pas : elle se décoche — des entrées d'une autre année peuvent s'en servir.</div>${_instancesTableHTML()}`;
     case 'apparence': {
@@ -9299,7 +9342,7 @@ function openSynthIA() {
   _iaActif = _ia;
   const c = _iaCtx();
   document.getElementById('mia-title').textContent = `🤖 Synthèse par une IA — ${stu.prenom} ${stu.nom}`;
-  document.getElementById('mia-sous').textContent = `${col.long} · rien ne part sans votre geste « Copier », et rien ne part du tout vers un serveur depuis l'app.`;
+  document.getElementById('mia-sous').textContent = `${col.long} · rien ne part sans votre geste « Copier » ou « Envoyer à Claude » — et l'envoi direct vous montre une dernière fois tout ce qui part.`;
   const cons = document.getElementById('mia-cons');
   cons.value = _iaConsigne();
   _iaConsigneRaz();
@@ -9309,6 +9352,7 @@ function openSynthIA() {
   if (_ia.rep === null) { const si = _synthIACible(c.cls, c.stu.id, c.mode); _ia.rep = si ? si.texte : ''; }
   document.getElementById('mia-rep').value = _ia.rep;
   _iaRestRender();
+  _iaApiLigneMaj();
   openMod('mia');
   _modalReturnTo['mia'] = () => { clearTimeout(_iaVerifT); _ia = null; _iaActif = null; _ficheRedessine(); };
   if (_suivisAUnSuivi(c.cls) && !_suivisPret) { const ici = _ia; _suivisPretAttendre().then(() => { if (_ia === ici && !_ia.modifie) _iaGenerer(); }); }
@@ -9404,7 +9448,7 @@ function iaCopierUI() {
   if (_ia.fuites.length) return _uiConfirm({ title: 'Des noms connus sont encore dans le texte', message: `${_ia.fuites.map(f => f.mot).join(', ')} : ils partiraient tels quels. Les remplacer avant de copier ?`, okLabel: 'Remplacer et copier', onOk: () => { iaFuitesUI(); _iaCopier(); } });
   _iaCopier();
 }
-function _iaCopier() { _iaPressePapiers(_iaConsigne().trim() + '\n\n' + String(_ia.txt || '').trim() + '\n', '📋 Copié : la consigne et le texte relu. Collez-les dans l\'assistant, puis rapportez sa réponse ici (étape 3).'); }
+function _iaCopier() { _iaPressePapiers(_iaContenuEleve(), '📋 Copié : la consigne et le texte relu. Collez-les dans l\'assistant, puis rapportez sa réponse ici (étape 3).'); }
 // Repli sans `navigator.clipboard` : un champ caché DANS la fenêtre ouverte (le piège à focus), sélectionné, copié.
 async function _iaPressePapiers(t, message) {
   try { await navigator.clipboard.writeText(t); toast(message); }
@@ -9647,6 +9691,7 @@ function _iaLotOuvrir(cls, col) {
   if (st.txt === null || !st.modifie) _iaLotGenerer(); else { _iaTexteRemplir('miac-txt', st.txt); _iaLotBlocsRender(); _iaCorrRender('miac-corr'); _iaVerifRender(); }
   document.getElementById('miac-rep').value = st.rep;
   _iaLotRevueRender();
+  _iaApiLigneMaj();
   if (_suivisAUnSuivi(cls) && !_suivisPret) _suivisPretAttendre().then(() => { if (_iaLot === st && !st.modifie) _iaLotGenerer(); });
 }
 // `nouveaux` : retirer les repères (la liste des élèves a changé). Sinon, ceux d'avant — la session, puis ce poste —
@@ -9933,6 +9978,7 @@ function _iaClOuvrir(cls, col) {
   if (st.rep === null) { const e = _synthClasseCible(cls, mode); st.rep = e ? e.texte : ''; }
   document.getElementById('mias-rep').value = st.rep;
   _iaClRestRender();
+  _iaApiLigneMaj();
   if (_suivisAUnSuivi(cls) && !_suivisPret) _suivisPretAttendre().then(() => { if (_iaCl === st && !st.modifie) _iaClGenerer(); });
 }
 function _iaClCol(st) { const cls = st && S.classes[st.cid]; return cls ? _chaleurMomentsTous(cls).find(c => c.key === st.colKey) || _ficheMoments(cls).find(c => c.key === st.colKey) || null : null; }
@@ -10013,6 +10059,334 @@ function synthClasseRetirerUI(id) {
   cls.synthClasse = cls.synthClasse.filter(x => x.id !== id);
   save(); renderDelegues();
   toast('Synthèse de la classe retirée — Ctrl+Z la rend.');
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// 📤 ENVOI DIRECT À UNE IA, PAR SON API (v1.73.0) — l'utilisateur : « l'utilisateur peut choisir de faire des
+// copier-coller vers un chat ou d'envoyer directement vers une API, avec toujours un contrôle manuel final afin de
+// vérifier que les données envoyées sont bien anonymées » ; puis « un lien pour créer sa clé, un pour voir où on en
+// est dans son usage, et savoir à chaque fois ce que ça a pris dans le crédit ».
+//  · Ce qui part est EXACTEMENT ce que « Copier » aurait copié (la consigne et le texte relu, ou le JSON), rien
+//    d'autre : la fenêtre d'envoi `miaenv` le montre en entier, et le bouton ne s'allume qu'une fois « J'ai relu »
+//    coché. La réponse arrive à l'étape 3 de la fenêtre d'origine, dans la même revue qu'une réponse collée :
+//    rien n'est rangé tout seul.
+//  · La CLÉ ne vit que dans ce navigateur (`suiviPP_iaCle`) : jamais dans S, donc ni dans la sync ni dans un
+//    export ; elle n'est jamais réécrite dans la page (masquée). Le modèle et l'espace de travail sont des
+//    réglages du POSTE aussi (`suiviPP_iaApi`).
+//  · Le COÛT de chaque envoi se calcule ici, des jetons que l'API compte et renvoie (`usage`), au tarif de
+//    IA_MODELES : un journal sur ce poste (`suiviPP_iaJournal` — des chiffres, aucune donnée d'élève). Le vrai solde
+//    n'est lisible qu'avec une clé d'administration, qu'on ne met pas dans un navigateur : un lien vers la Console.
+//  · Un seul fournisseur (Anthropic) : la CSP n'autorise que les adresses écrites à l'avance (`connect-src`), un
+//    fournisseur s'ajoute donc dans le code, jamais par une adresse tapée.
+//  · `fetch` direct (aucune bibliothèque : l'app est un seul fichier), en flux (SSE) pour suivre l'avancée sans
+//    buter sur un délai ; `anthropic-dangerous-direct-browser-access` est l'en-tête qui autorise l'appel depuis une
+//    page. Pas de `temperature` (refusée par la version 2026-10-21 de l'API), pas de réglage de réflexion (le modèle
+//    décide ; `effort: medium`). Les modèles qui l'acceptent ont `fallbacks: "default"` : un refus de sécurité est
+//    rejoué par l'API sur un autre modèle au lieu de revenir vide.
+// ═══════════════════════════════════════════════════════════════════════════
+const LS_IA_CLE = 'suiviPP_iaCle', LS_IA_API = 'suiviPP_iaApi', LS_IA_JOURNAL = 'suiviPP_iaJournal';
+const IA_API_URL = 'https://api.anthropic.com/v1/messages', IA_API_VERSION = '2026-10-21';
+const IA_LIENS = {
+  cle: 'https://platform.claude.com/settings/keys',
+  espaces: 'https://platform.claude.com/settings/workspaces',
+  credit: 'https://platform.claude.com/settings/billing',
+  usage: 'https://platform.claude.com/usage',
+};
+// Dollars par million de jetons, relevés le 2026-10-06 (Haiku : jusqu'à 100 000 jetons envoyés, bien au-delà de
+// nos demandes). `secours` : le modèle accepte `fallbacks` — pas Haiku.
+const IA_TARIFS_DATE = '2026-10-06';
+const IA_MODELES = [
+  { id: 'claude-opus-5-5', nom: 'Claude Opus 5.5', entree: 4, sortie: 20, secours: true, note: 'recommandé' },
+  { id: 'claude-sonnet-5-5', nom: 'Claude Sonnet 5.5', entree: 2, sortie: 10, secours: true, note: 'deux fois moins cher' },
+  { id: 'claude-haiku-5-5', nom: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, secours: false, note: 'le moins cher, moins nuancé' },
+  { id: 'claude-fable-5-1', nom: 'Claude Fable 5.1', entree: 10, sortie: 50, secours: true, note: 'le plus capable, le plus cher' },
+];
+const IA_SORTES = { eleve: 'un élève', lot: 'toute la classe', synthese: 'la synthèse de la classe' };
+const IA_SORTES_COURT = { eleve: 'un élève', lot: 'la classe', synthese: 'synthèse classe' };
+// La réponse de toute la classe est IMPOSÉE dans la forme que `_iaLotLire` lit déjà.
+const IA_SCHEMA_LOT = { type: 'object', additionalProperties: false, required: ['syntheses'], properties: {
+  syntheses: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['eleve', 'synthese'],
+    properties: { eleve: { type: 'string' }, synthese: { type: 'string' } } } } } };
+function _iaLsLire(k, def) { try { const v = localStorage.getItem(k); return v === null ? def : v; } catch (_) { return def; } }
+function _iaLsEcrire(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); return true; } catch (_) { return false; } }
+function _iaCle() { return String(_iaLsLire(LS_IA_CLE, '') || '').trim(); }
+function _iaCleMasquee(c) { return c ? `${c.slice(0, 7)}…${c.slice(-4)}` : ''; }
+function _iaModele(id) { return IA_MODELES.find(m => m.id === id) || null; }
+function _iaApiReglages() {
+  let o = null; try { o = JSON.parse(_iaLsLire(LS_IA_API, '{}')); } catch (_) {}
+  o = _isPlainObj(o) ? o : {};
+  return { modele: (_iaModele(o.modele) || IA_MODELES[0]).id, espace: /^wrkspc_[A-Za-z0-9]+$/.test(o.espace || '') ? o.espace : '' };
+}
+// La requête — pure (testée). `contenu` : le texte exact que montre la fenêtre d'envoi.
+function _iaRequete(sorte, contenu, reg, cle) {
+  const m = _iaModele(reg && reg.modele) || IA_MODELES[0];
+  const headers = { 'content-type': 'application/json', 'x-api-key': cle, 'anthropic-version': IA_API_VERSION,
+    'anthropic-dangerous-direct-browser-access': 'true' };
+  if (m.secours) headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+  if (reg && reg.espace) headers['anthropic-workspace-id'] = reg.espace;
+  const output_config = { effort: 'medium' };
+  if (sorte === 'lot') output_config.format = { type: 'json_schema', schema: IA_SCHEMA_LOT };
+  const body = { model: m.id, max_tokens: sorte === 'lot' ? 32000 : 16000, stream: true, output_config,
+    messages: [{ role: 'user', content: String(contenu) }] };
+  if (m.secours) body.fallbacks = 'default';
+  return { url: IA_API_URL, headers, body };
+}
+// `u` : { entree, sortie, cacheW, cacheR } en jetons → dollars.
+function _iaCout(modele, u) {
+  const m = _iaModele(modele) || IA_MODELES[0];
+  return ((+u.entree || 0) + 1.25 * (+u.cacheW || 0) + 0.1 * (+u.cacheR || 0)) * m.entree / 1e6 + (+u.sortie || 0) * m.sortie / 1e6;
+}
+// Avant l'envoi, sans rien envoyer : ~3,2 caractères par jeton (du français et du JSON), et une réponse moyenne,
+// réflexion comprise. Une estimation qu'on annonce comme telle.
+function _iaEstime(sorte, contenu, modele, n) {
+  const entree = Math.ceil(String(contenu).length / 3.2), sortie = sorte === 'lot' ? 2000 + 500 * Math.max(1, n || 1) : 2500;
+  return { entree, sortie, cout: _iaCout(modele, { entree, sortie }) };
+}
+function _iaDollars(x) { return !(x > 0) ? '0 $' : x < 0.01 ? 'moins de 0,01 $' : `${x.toFixed(2).replace('.', ',')} $`; }
+function _iaJetons(n) { return String(Math.round(+n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+// Le flux SSE, découpé en événements — pur. `pousse(morceau)` → les événements COMPLETS reçus ; un événement coupé
+// entre deux morceaux attend le suivant (et un « \r » de fin de morceau, son « \n »).
+function _iaSSE() {
+  let tampon = '';
+  return { pousse(morceau) {
+    tampon = (tampon + String(morceau ?? '')).replace(/\r\n/g, '\n');
+    const evs = [];
+    let i;
+    while ((i = tampon.indexOf('\n\n')) >= 0) {
+      const bloc = tampon.slice(0, i);
+      tampon = tampon.slice(i + 2);
+      const data = bloc.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).replace(/^ /, '')).join('\n');
+      if (data) try { evs.push(JSON.parse(data)); } catch (_) {}
+    }
+    return evs;
+  } };
+}
+function _iaFluxInit() { return { texte: '', entree: 0, sortie: 0, cacheW: 0, cacheR: 0, stop: null, modele: '', reflexion: false, secours: '', erreur: null }; }
+// Un événement du flux appliqué à l'état — pur. Seul le TEXTE compte (la réflexion n'est pas affichée) ; un bloc
+// `fallback` dit qu'un modèle a refusé et qu'un autre reprend : ce que le premier avait écrit ne compte plus.
+function _iaFlux(e, ev) {
+  if (!ev || typeof ev !== 'object') return e;
+  const u = x => {
+    if (!_isPlainObj(x)) return;
+    if (typeof x.input_tokens === 'number') e.entree = x.input_tokens;
+    if (typeof x.output_tokens === 'number') e.sortie = x.output_tokens;
+    if (typeof x.cache_creation_input_tokens === 'number') e.cacheW = x.cache_creation_input_tokens;
+    if (typeof x.cache_read_input_tokens === 'number') e.cacheR = x.cache_read_input_tokens;
+  };
+  switch (ev.type) {
+    case 'message_start': e.modele = (ev.message && ev.message.model) || e.modele; u(ev.message && ev.message.usage); break;
+    case 'content_block_start': {
+      const b = ev.content_block || {};
+      if (b.type === 'thinking' || b.type === 'redacted_thinking') e.reflexion = true;
+      else if (b.type === 'fallback') { e.texte = ''; e.secours = (b.to && b.to.model) || 'un autre modèle'; }
+      else if (b.type === 'text' && typeof b.text === 'string') e.texte += b.text;
+      break;
+    }
+    case 'content_block_delta': if (ev.delta && ev.delta.type === 'text_delta') { e.texte += ev.delta.text || ''; e.reflexion = false; } break;
+    case 'message_delta': if (ev.delta && ev.delta.stop_reason) e.stop = ev.delta.stop_reason; u(ev.usage); break;
+    case 'error': e.erreur = (ev.error && ev.error.message) || 'Erreur pendant la réponse.'; break;
+  }
+  return e;
+}
+// Une réponse en erreur → ce qu'on dit, en clair — pur.
+function _iaErreurTexte(statut, corps) {
+  const msg = String((corps && corps.error && corps.error.message) || ''), type = (corps && corps.error && corps.error.type) || '';
+  if (statut === 401) return 'La clé est refusée (fausse, expirée ou désactivée) : vérifiez-la dans 💾 Données ▸ 🤖 Envoi à une IA.';
+  if (statut === 403) return 'Cette clé n\'a pas le droit d\'utiliser l\'API (permission refusée).';
+  if (/workspace/i.test(msg)) return 'Cette clé n\'est limitée à aucun espace de travail, ou pas à celui indiqué : réglez l\'espace (wrkspc_…) dans 💾 Données ▸ 🤖 Envoi à une IA, ou créez une clé limitée à un espace.';
+  if (/credit balance|billing/i.test(msg)) return 'Crédit épuisé : rechargez-le dans la Console, ou attendez le crédit du mois.';
+  if (statut === 404 || type === 'not_found_error') return `Modèle introuvable pour cette clé${msg ? ` (${msg})` : ''} : choisissez-en un autre dans 💾 Données ▸ 🤖 Envoi à une IA.`;
+  if (statut === 413) return 'Demande trop longue : décochez des données (étape 1).';
+  if (statut === 429) return 'Trop de demandes en peu de temps, ou plafond de dépense atteint : réessayez dans une minute.';
+  if (statut === 529 || type === 'overloaded_error') return 'Le service est surchargé : réessayez dans quelques minutes.';
+  if (statut >= 500) return `Le service a répondu par une erreur (${statut}) : réessayez plus tard.`;
+  return `La demande est refusée (${statut || 'réseau'})${msg ? ` : ${msg}` : ''}.`;
+}
+// ── Le journal des envois (ce poste) : { ts, sorte, modele, entree, sortie, cacheW, cacheR, cout, stop }. ──
+function _iaJournal() {
+  let j = null; try { j = JSON.parse(_iaLsLire(LS_IA_JOURNAL, '[]')); } catch (_) {}
+  return Array.isArray(j) ? j.filter(x => _isPlainObj(x) && typeof x.ts === 'number') : [];
+}
+function _iaJournalAjoute(e) { const j = _iaJournal(); j.push(e); _iaLsEcrire(LS_IA_JOURNAL, JSON.stringify(j.slice(-300))); }
+// Le mois de `quand` (aujourd'hui par défaut) — pur.
+function _iaJournalMois(j, quand) {
+  const d = quand || new Date(), l = j.filter(x => { const t = new Date(x.ts); return t.getFullYear() === d.getFullYear() && t.getMonth() === d.getMonth(); });
+  return { n: l.length, cout: l.reduce((s, x) => s + (+x.cout || 0), 0) };
+}
+// L'envoi lui-même. `st` : { sorte, contenu, ctrl } ; `progres(etat)` à chaque morceau reçu. → l'état final, avec
+// `demande` (le modèle demandé), `erreur`, `arrete`. Ne lève jamais.
+async function _iaEnvoyer(st, cle, progres) {
+  const reg = _iaApiReglages(), req = _iaRequete(st.sorte, st.contenu, reg, cle);
+  const ctrl = st.ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  let e = _iaFluxInit();
+  const fin = x => Object.assign(e, { demande: reg.modele, erreur: e.erreur, arrete: false }, x);
+  const coupe = err => err && err.name === 'AbortError';
+  let rep;
+  try { rep = await fetch(req.url, { method: 'POST', headers: req.headers, body: JSON.stringify(req.body), signal: ctrl ? ctrl.signal : undefined }); }
+  catch (err) { return fin(coupe(err) ? { arrete: true } : { erreur: 'Envoi impossible : pas de réseau, ou le navigateur a bloqué l\'appel.' }); }
+  if (!rep.ok) { let corps = null; try { corps = await rep.json(); } catch (_) {} return fin({ erreur: _iaErreurTexte(rep.status, corps), statut: rep.status }); }
+  const sse = _iaSSE();
+  try {
+    if (rep.body && typeof rep.body.getReader === 'function') {
+      const lecteur = rep.body.getReader(), dec = new TextDecoder();
+      for (;;) {
+        const { value, done } = await lecteur.read();
+        if (done) break;
+        for (const ev of sse.pousse(dec.decode(value, { stream: true }))) e = _iaFlux(e, ev);
+        if (progres) progres(e);
+      }
+    } else for (const ev of sse.pousse(await rep.text() + '\n\n')) e = _iaFlux(e, ev);
+  } catch (err) { return fin(coupe(err) ? { arrete: true } : { erreur: 'La réponse a été coupée en route : réessayez.' }); }
+  return fin({});
+}
+// ── Les fenêtres ──
+let _iaEnvoi = null, _iaEnvoiT = null;
+function _iaContenuEleve() { return _iaConsigne().trim() + '\n\n' + String(_ia.txt || '').trim() + '\n'; }
+function iaEnvoyerUI() {
+  const ta = document.getElementById('mia-txt');
+  if (!_ia || !ta) return;
+  _ia.txt = ta.value; _iaVerifRender();
+  if (!_ia.txt.trim()) return toast('⚠️ Rien à envoyer : cochez des données (étape 1).', 'warn');
+  const aller = () => _iaEnvoiOuvrir('eleve', _iaContenuEleve(), 'mia', 1);
+  if (_ia.fuites.length) return _uiConfirm({ title: 'Des noms connus sont encore dans le texte', message: `${_ia.fuites.map(f => f.mot).join(', ')} : ils partiraient tels quels. Les remplacer d'abord ?`, okLabel: 'Remplacer et continuer', onOk: () => { iaFuitesUI(); aller(); } });
+  aller();
+}
+function iaLotEnvoyerUI() { _iaPret(_iaLotConstruire, j => _iaEnvoiOuvrir('lot', j, 'miac', Object.keys(_iaLot.codes || {}).length)); }
+function iaClEnvoyerUI() { _iaPret(st => _iaClasseJSON(st.txt, _iaConsigneSynthClasse()), j => _iaEnvoiOuvrir('synthese', j, 'mias', 1)); }
+function _iaEnvoiOuvrir(sorte, contenu, origine, n) {
+  if (!_iaCle()) return _uiConfirm({ title: 'Aucune clé d\'API sur ce poste', message: 'Pour envoyer directement à Claude, collez d\'abord une clé d\'API dans 💾 Données ▸ 🤖 Envoi à une IA — le lien pour en créer une y est. Le texte relu est gardé : vous le retrouverez en revenant ici. Sans clé, « Copier » reste possible.', okLabel: 'Ouvrir le réglage', onOk: iaVersReglageUI });
+  const reg = _iaApiReglages(), m = _iaModele(reg.modele), est = _iaEstime(sorte, contenu, reg.modele, n), mois = _iaJournalMois(_iaJournal());
+  _iaEnvoi = { sorte, contenu, origine, n, ctrl: null, encours: false };
+  document.getElementById('miaenv-sous').textContent = `${m.nom} (Anthropic) · ${IA_SORTES[sorte]} · clé ${_iaCleMasquee(_iaCle())}`;
+  document.getElementById('miaenv-txt').value = contenu;
+  document.getElementById('miaenv-cout').innerHTML = `Environ <strong>${_iaJetons(est.entree)}</strong> jetons envoyés et ${_iaJetons(est.sortie)} rendus (réflexion comprise) : <strong>≈ ${_iaDollars(est.cout)}</strong>, une estimation — le coût réel s'affichera après la réponse. Ce mois-ci sur ce poste : ${_iaDollars(mois.cout)} (${_pl(mois.n, 'envoi')}). <a href="${IA_LIENS.credit}" target="_blank" rel="noopener noreferrer">Crédit restant ↗</a>`;
+  document.getElementById('miaenv-ok').checked = false;
+  _iaEnvoiEtat('');
+  _iaEnvoiBoutons();
+  openMod('miaenv');
+  _modalReturnTo['miaenv'] = () => { clearInterval(_iaEnvoiT); if (_iaEnvoi && _iaEnvoi.encours && _iaEnvoi.ctrl) _iaEnvoi.ctrl.abort(); };
+}
+function _iaEnvoiBoutons() {
+  const st = _iaEnvoi, go = document.getElementById('miaenv-go'), ann = document.getElementById('miaenv-ann'), ok = document.getElementById('miaenv-ok');
+  if (!st || !go) return;
+  go.disabled = st.encours || !ok.checked;
+  go.textContent = st.encours ? '⏳ Envoi en cours…' : '📤 Envoyer';
+  ann.textContent = st.encours ? '⏹ Arrêter' : 'Annuler';
+  ok.disabled = st.encours;
+}
+function iaEnvoiCocheUI() { _iaEnvoiBoutons(); }
+function _iaEnvoiEtat(html, err) {
+  const b = document.getElementById('miaenv-etat');
+  if (!b) return;
+  b.innerHTML = html; b.classList.toggle('err', !!err);
+}
+function _iaEnvoiProgres(e, t0) {
+  const s = Math.round((Date.now() - t0) / 1000);
+  _iaEnvoiEtat(`${e.texte ? `Réponse en cours : ${_iaJetons(e.texte.length)} caractères reçus` : e.reflexion ? 'Claude réfléchit…' : 'Envoyé, en attente de la réponse…'}${e.secours ? ` (reprise par ${_escName(e.secours)})` : ''} · ${s} s`);
+}
+function iaEnvoiAnnulerUI() {
+  if (_iaEnvoi && _iaEnvoi.encours && _iaEnvoi.ctrl) { _iaEnvoi.ctrl.abort(); return; }
+  closeMod2('miaenv');
+}
+async function iaEnvoiGoUI() {
+  const st = _iaEnvoi, ok = document.getElementById('miaenv-ok');
+  if (!st || st.encours) return;
+  if (!ok || !ok.checked) return toast('⚠️ Cochez d\'abord « J\'ai relu ce texte ».', 'warn');
+  const cle = _iaCle();
+  if (!cle) return toast('⚠️ Aucune clé d\'API sur ce poste.', 'warn');
+  st.encours = true; _iaEnvoiBoutons();
+  const t0 = Date.now();
+  let dernier = _iaFluxInit();
+  _iaEnvoiProgres(dernier, t0);
+  clearInterval(_iaEnvoiT); _iaEnvoiT = setInterval(() => _iaEnvoiProgres(dernier, t0), 1000);
+  const e = await _iaEnvoyer(st, cle, x => { dernier = x; _iaEnvoiProgres(x, t0); });
+  clearInterval(_iaEnvoiT);
+  st.encours = false;
+  const ouvert = document.getElementById('miaenv').classList.contains('on');
+  const modele = _iaModele(e.modele) ? e.modele : e.demande, cout = e.entree || e.sortie ? _iaCout(modele, e) : 0;
+  if (e.entree || e.sortie) _iaJournalAjoute({ ts: Date.now(), sorte: st.sorte, modele, entree: e.entree, sortie: e.sortie, cacheW: e.cacheW, cacheR: e.cacheR, cout,
+    stop: e.arrete ? 'arrete' : e.erreur ? 'erreur' : e.stop || '' });
+  _iaApiLigneMaj();
+  const prix = e.entree || e.sortie ? `Cet envoi : ${_iaJetons(e.entree)} jetons envoyés, ${_iaJetons(e.sortie)} rendus ≈ ${_iaDollars(cout)} · ce mois-ci sur ce poste : ${_iaDollars(_iaJournalMois(_iaJournal()).cout)}.` : '';
+  if (e.arrete) { if (ouvert) { _iaEnvoiBoutons(); _iaEnvoiEtat(`Envoi arrêté : rien n'est rangé. ${prix}`); } else toast(`Envoi à Claude arrêté : rien n'est rangé. ${prix}`, 'warn'); return; }
+  const echec = e.erreur || (e.stop === 'refusal' ? 'Claude a refusé de traiter cette demande (filtre de sécurité) : rien n\'est rangé. Reformulez la consigne, ou passez par « Copier ».' : !e.texte.trim() ? 'La réponse est vide : réessayez.' : null);
+  if (echec) {
+    if (ouvert) { _iaEnvoiBoutons(); _iaEnvoiEtat(`⚠️ ${_escName(echec)}${prix ? `<br>${_escName(prix)}` : ''}`, true); }
+    else toast(`⚠️ ${echec}`, 'warn');
+    return;
+  }
+  if (ouvert) closeMod2('miaenv');
+  _iaReponseVers(st.origine, e.texte.trim());
+  toast(`🤖 Réponse reçue${e.stop === 'max_tokens' ? ' — COUPÉE (trop longue) : redemandez, ou complétez à la main' : ''} : relisez-la (étape 3) avant de la ranger. ${prix}`, e.stop === 'max_tokens' ? 'warn' : 'info');
+}
+// La réponse posée à l'étape 3 de la fenêtre d'origine, comme si on l'avait collée.
+function _iaReponseVers(origine, t) {
+  const ta = document.getElementById(origine + '-rep');
+  if (!ta) return;
+  ta.value = t;
+  if (origine === 'mia') iaReponseSaisie();
+  else if (origine === 'miac') { if (_iaLot) { _iaLot.rep = t; _iaLotRevueRender(); } }
+  else iaClReponseSaisie();
+  try { ta.focus({ preventScroll: true }); ta.scrollIntoView({ block: 'center' }); } catch (_) {}
+}
+// La ligne sous les boutons des trois fenêtres : modèle, clé, ce que ça a coûté ce mois-ci, le lien vers le crédit.
+function _iaApiLigneHTML() {
+  const cle = _iaCle();
+  if (!cle) return `📤 L'envoi direct à Claude demande une clé d'API sur ce poste : <button type="button" class="ia-b" onclick="iaVersReglageUI()">la régler…</button>`;
+  const j = _iaJournal(), dern = j[j.length - 1], m = _iaModele(_iaApiReglages().modele);
+  return `📤 ${_escName(m.nom)} · clé ${_escName(_iaCleMasquee(cle))}${dern ? ` · dernier envoi ≈ ${_iaDollars(dern.cout)}` : ''} · ce mois-ci sur ce poste : ${_iaDollars(_iaJournalMois(j).cout)} · <a href="${IA_LIENS.credit}" target="_blank" rel="noopener noreferrer">crédit restant ↗</a>`;
+}
+function _iaApiLigneMaj() { for (const id of ['mia-api', 'miac-api', 'mias-api']) { const b = document.getElementById(id); if (b) b.innerHTML = _iaApiLigneHTML(); } }
+function iaVersReglageUI() {
+  for (const id of ['miaenv', 'mias', 'miac', 'mia']) { const m = document.getElementById(id); if (m && m.classList.contains('on')) closeMod2(id); }
+  openDonnees('ia');
+}
+// ── 💾 Données ▸ 🤖 Envoi à une IA ──
+function _iaReglagesHTML() {
+  const cle = _iaCle(), reg = _iaApiReglages(), j = _iaJournal(), mois = _iaJournalMois(j);
+  const lien = (k, t) => `<a href="${IA_LIENS[k]}" target="_blank" rel="noopener noreferrer">${t} ↗</a>`;
+  const prix = m => `${String(m.entree).replace('.', ',')} $ / ${String(m.sortie).replace('.', ',')} $`;
+  const etat = x => ({ max_tokens: 'coupée', refusal: 'refusée', arrete: 'arrêtée', erreur: 'erreur' })[x.stop] || '';
+  const lignes = j.slice(-12).reverse().map(x => { const d = new Date(x.ts);
+    return `<tr><td>${_escName(_fmtDateFr(_todayYmd(d)).slice(0, 5))} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</td><td>${_escName(IA_SORTES_COURT[x.sorte] || '')}</td><td>${_escName((_iaModele(x.modele) || { nom: String(x.modele || '') }).nom.replace(/^Claude /, ''))}</td><td class="n">${_iaJetons(x.entree)}</td><td class="n">${_iaJetons(x.sortie)}</td><td class="n">${_iaDollars(+x.cout)}</td><td>${etat(x)}</td></tr>`; }).join('');
+  return `<div class="pref-help" style="margin-bottom:10px">Deux façons de demander une synthèse à une IA, au choix dans chaque fenêtre 🤖 : <strong>📋 Copier</strong>, pour la coller dans un assistant — rien ne part de l'app —, ou <strong>📤 Envoyer à Claude</strong>, directement, par l'API d'Anthropic. C'est le même texte relu qui part, et l'envoi direct le montre une dernière fois en entier : il ne part qu'une fois « J'ai relu » coché.</div>
+  <div class="prefs">
+    <label for="ia-cle">Clé d'API</label>
+    <div><div class="prefs-row"><input type="password" id="ia-cle" autocomplete="off" spellcheck="false" placeholder="${cle ? 'remplacer par une autre clé' : 'sk-ant-…'}" style="max-width:300px;font-family:var(--font-mono)" onkeydown="if(event.key==='Enter'){event.preventDefault();iaApiCleUI(this.value)}" aria-label="Clé d'API d'Anthropic"><button class="btn btn-p btn-sm" onclick="iaApiCleUI(document.getElementById('ia-cle').value)">Enregistrer</button>${cle ? `<span class="don-chip ok" title="La clé enregistrée sur ce poste">${_escName(_iaCleMasquee(cle))}</span><button class="btn btn-g btn-sm" onclick="iaApiCleUI('')">🗑 Effacer de ce poste</button>` : ''}</div>
+      <div style="margin-top:4px">${lien('cle', '🔑 Créer une clé dans la Console')}</div></div>
+    <div class="pref-help">Gardée <strong>dans ce navigateur seulement</strong> : jamais dans vos données, ni dans la synchronisation, ni dans un export — sur l'autre poste, collez-la une seconde fois. En la créant, limitez-la à un espace de travail réservé à Suivi PP (${lien('espaces', 'espaces de travail')}) et donnez à cet espace un <strong>plafond de dépense</strong> : 5 $ par mois suffisent largement, et une clé volée ou une erreur ne coûtera jamais plus. Effacez-la d'un poste que vous ne contrôlez pas.</div>
+    <label for="ia-modele">Modèle</label>
+    <select id="ia-modele" onchange="iaApiModeleUI(this.value)" style="max-width:460px">${IA_MODELES.map(m => `<option value="${m.id}"${m.id === reg.modele ? ' selected' : ''}>${_escName(m.nom)} — ${prix(m)} · ${_escName(m.note)}</option>`).join('')}</select>
+    <div class="pref-help">Dollars par million de jetons envoyés / rendus, relevés le ${_escName(_fmtDateFr(IA_TARIFS_DATE))} ; la réflexion du modèle compte dans les jetons rendus. Avec Opus 5.5, la synthèse d'un élève coûte quelques centimes, celle de toute la classe quelques dizaines de centimes.</div>
+    <label for="ia-espace">Espace de travail</label>
+    <input id="ia-espace" value="${_escAttr(reg.espace)}" placeholder="wrkspc_… (facultatif)" style="max-width:300px;font-family:var(--font-mono)" onchange="iaApiEspaceUI(this.value)">
+    <div class="pref-help">Seulement si la clé n'est limitée à aucun espace de travail : l'identifiant de celui à utiliser (colonne ID de la page ${lien('espaces', 'Espaces de travail')}). Sinon, laissez vide.</div>
+    <label>Fournisseur</label>
+    <div>Anthropic (Claude), à l'adresse <code>api.anthropic.com</code>.</div>
+    <div class="pref-help">Le seul pour l'instant. L'app n'a le droit de joindre que les adresses écrites à l'avance dans son code (sa politique de sécurité) : un autre fournisseur s'ajoutera là, jamais par une adresse tapée ici.</div>
+    <label>Ce que les envois ont coûté</label>
+    <div><div class="prefs-row"><strong>Ce mois-ci sur ce poste : ${_iaDollars(mois.cout)}</strong><span class="tb-hint">${_pl(mois.n, 'envoi')}</span>${lien('credit', '💳 Crédit restant')}${lien('usage', '📊 Utilisation')}${j.length ? '<button class="btn btn-g btn-sm" onclick="iaJournalEffacerUI()">Effacer ce journal</button>' : ''}</div>
+      ${j.length ? `<div class="rel-wrap" style="margin-top:6px"><table class="dt ia-jt"><thead><tr><th>Quand</th><th>Pour</th><th>Modèle</th><th class="n">Envoyés</th><th class="n">Rendus</th><th class="n">Coût</th><th></th></tr></thead><tbody>${lignes}</tbody></table></div>` : '<div class="tb-hint" style="margin-top:4px">Aucun envoi depuis ce poste.</div>'}</div>
+    <div class="pref-help">Calculé ici, à chaque envoi, à partir des jetons que l'API compte et renvoie avec sa réponse, au tarif ci-dessus : une estimation à quelques centimes près. Le solde exact — qui compte aussi les envois des autres postes et tout autre usage de vos clés — est dans la Console. Ce journal ne contient que des chiffres, aucune donnée d'élève, et reste sur ce poste.</div>
+  </div>`;
+}
+function iaApiCleUI(v) {
+  const c = String(v || '').trim();
+  if (c && /^sk-ant-admin/.test(c)) return toast('⚠️ C\'est une clé d\'ADMINISTRATION : elle ne sert pas aux demandes, et ne doit pas rester dans un navigateur. Créez une clé d\'API ordinaire.', 'warn');
+  if (c && !/^sk-ant-[A-Za-z0-9_-]{10,}$/.test(c)) return toast('⚠️ Une clé d\'API d\'Anthropic commence par « sk-ant- », sans espace : vérifiez la copie.', 'warn');
+  if (!_iaLsEcrire(LS_IA_CLE, c || null)) return toast('⚠️ Ce navigateur refuse d\'enregistrer la clé (stockage bloqué).', 'warn');
+  renderDonnees(); _iaApiLigneMaj();
+  toast(c ? '🔑 Clé enregistrée sur ce poste seulement.' : 'Clé effacée de ce poste.');
+}
+function _iaApiEcrire(maj) { _iaLsEcrire(LS_IA_API, JSON.stringify(Object.assign(_iaApiReglages(), maj))); renderDonnees(); _iaApiLigneMaj(); }
+function iaApiModeleUI(id) { if (_iaModele(id)) _iaApiEcrire({ modele: id }); }
+function iaApiEspaceUI(v) {
+  const s = String(v || '').trim();
+  if (s && !/^wrkspc_[A-Za-z0-9]+$/.test(s)) { toast('⚠️ L\'identifiant d\'un espace de travail commence par « wrkspc_ ».', 'warn'); renderDonnees(); return; }
+  _iaApiEcrire({ espace: s });
+}
+function iaJournalEffacerUI() {
+  _uiConfirm({ title: 'Effacer le journal des envois ?', message: 'Les coûts comptés sur ce poste disparaîtront de l\'app. Le crédit, dans la Console, ne change pas.', okLabel: 'Effacer', okClass: 'btn-d',
+    onOk: () => { _iaLsEcrire(LS_IA_JOURNAL, null); renderDonnees(); _iaApiLigneMaj(); } });
 }
 function ficheMotUI(m) { _ficheMot = _ficheMot === m ? null : m; _ficheRender(); }
 // Les avis en TABLEAU : une ligne par discipline, une colonne par colonne de la feuille.

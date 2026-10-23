@@ -714,7 +714,7 @@ Entrée **datée et qualifiée** par élève : `stu.bilans`, `_BILAN_TYPES` = `c
 
 ### 🤖 Synthèse par une IA (v1.69.0)
 
-Demandé par l'utilisateur : « on sélectionne les données à extraire, elles sont extraites de manière anonyme, une IA fait une synthèse sur l'élève, et on réimporte le résultat ». **Aucun réseau** : l'app prépare un texte qu'on COPIE dans l'assistant de son choix, puis on COLLE sa réponse. Bloc « 🤖 SYNTHÈSE PAR UNE IA » du script, fenêtre `mia`, ouverte depuis la rédaction de la fiche (trois vues) : *🤖 Synthèse par une IA…* (`openSynthIA`).
+Demandé par l'utilisateur : « on sélectionne les données à extraire, elles sont extraites de manière anonyme, une IA fait une synthèse sur l'élève, et on réimporte le résultat ». **Aucun réseau** : l'app prépare un texte qu'on COPIE dans l'assistant de son choix, puis on COLLE sa réponse — ou, depuis la v1.73.0, qu'on ENVOIE directement à Claude après une dernière relecture (cf. *Envoi direct à Claude*). Bloc « 🤖 SYNTHÈSE PAR UNE IA » du script, fenêtre `mia`, ouverte depuis la rédaction de la fiche (trois vues) : *🤖 Synthèse par une IA…* (`openSynthIA`).
 
 - **Cadre (vérifié le 2026-10-21)** : le *cadre d'usage de l'IA en éducation* (juin 2025) tolère les outils grand public pour les enseignants **sans aucune donnée personnelle ni sensible** ; l'*Assistant IA interministériel* (assistant.numerique.gouv.fr, ProConnect) se dit capable de traiter des données personnelles sans entraînement — à confirmer auprès du DPO pour des données d'élèves. D'où un circuit par copier-coller, indépendant de l'outil, et la phrase de la fenêtre (« l'assistant que votre académie autorise »).
 - **Trois étapes** : 1. les données du MOMENT choisi dans la fiche (`IA_BLOCS`, cases de séance `_iaBlocsSel` ; **âge, options et aménagements décochés d'office** — PAI, PPS : santé ; un bloc vide pour cet élève est grisé « (rien) », `_iaBlocsVides`) ; 2. le texte qui partira, **modifiable**, avec la vérification ; 3. la réponse collée, noms remis, rangée.
@@ -759,6 +759,66 @@ Demandé : « un autre export en JSON, pour une période ou un bilan de mi-péri
 - **La réponse** (`_iaClasseLire` : un texte, ou un JSON qui en porte un) : aperçu avec sa longueur, les élèves cités malgré la consigne surlignés (noms remis), « plus long que demandé » au-delà de douze lignes ou 1 500 caractères — on peut la raccourcir avant de ranger. La table des repères ne vit que pour la séance (`_iaClEtats`).
 - **Rangée sur la classe** : `cls.synthClasse = [{ id, ts, date, type, texte }]`, une par MOMENT (`_synthClasseCible`, `synthClasseSet` : vide = retirée), `iaClRangerUI` (un cran d'undo, rien si la même). Lue dans 🏫 Vie de classe (`_synthClasseSecHTML`, après les heures de vie de classe : moment, date où elle a été rangée, *📋 Copier* — pour l'appréciation générale du bulletin —, 🗑, Ctrl+Z la rend) et **imprimée en tête de la synthèse de période** (bloc `classe` de `_PERIODE_BLOCS`, coché d'office car court ; rien s'il n'y en a pas pour ce moment ; pas sur les fiches). Normalisée au chargement avec les classes ; part avec la classe.
 - Démo : une synthèse de la classe au conseil du S1 (`demo_sc01`). Tests : `test/synthese-ia-classe-synthese.test.js`.
+
+#### 📤 Envoi direct à Claude, par l'API (v1.73.0)
+
+Demandé le 2026-10-23 : *« prévoir d'envoyer directement les données anonymées vers l'API de Claude ; l'utilisateur
+peut choisir de faire des copier-coller vers un chat ou d'envoyer directement vers une API, avec toujours un contrôle
+manuel final afin de vérifier que les données envoyées sont bien anonymées »* ; puis *« un lien pour créer sa clé
+d'API, un pour voir où on en est dans son usage — et savoir à chaque fois ce que ça a pris dans le crédit »*. Bloc
+« 📤 ENVOI DIRECT À UNE IA » du script, après les synthèses de la classe.
+
+- **Budget** (vérifié avec l'utilisateur) : l'abonnement Max 5x donne **100 $ de crédit d'API par mois**, sans
+  report, une fois l'organisation de la Console reliée à l'abonnement (fait). Mesuré sur la démo : le JSON de toute
+  la classe, tout coché, fait ~25 000 caractères (~7 000 à 9 000 jetons) ; ≈ 0,25 à 0,50 $ avec Opus 5.5, quelques
+  dollars par an.
+- **Deux voies, au choix, dans les trois fenêtres** (`mia`, `miac`, `mias`) : *📋 Copier* (inchangé) ou *📤 Envoyer
+  à Claude* (`iaEnvoyerUI`, `iaLotEnvoyerUI`, `iaClEnvoyerUI`), après la MÊME préparation (`_iaPret` / la question
+  sur un nom connu). ⚠️ **Ce qui part est exactement ce que Copier aurait copié** (`_iaContenuEleve`, `_iaLotConstruire`,
+  `_iaClasseJSON`) — un seul message `user`, rien d'autre : ni système, ni table des repères, ni nom.
+- **Le contrôle final** : fenêtre `miaenv` (`_iaEnvoiOuvrir`) — le texte EXACT en lecture seule, le modèle, la clé
+  masquée, le coût ESTIMÉ (`_iaEstime` : ~3,2 caractères par jeton, une réponse moyenne réflexion comprise), et la
+  case *« J'ai relu ce texte : rien ne permet de reconnaître un élève, sa famille ou un collègue »* sans laquelle
+  le bouton reste éteint (`iaEnvoiGoUI` refuse aussi). Pour corriger, on annule et on revient à l'étape 2. Pendant
+  l'envoi : l'avancée (« Claude réfléchit… », caractères reçus, secondes), *⏹ Arrêter* ; fermer la fenêtre arrête.
+- **La réponse** arrive à l'étape 3 de la fenêtre d'origine, comme collée (`_iaReponseVers`) : même revue, mêmes
+  noms remis, **rien n'est rangé tout seul**. Pour toute la classe, la forme est IMPOSÉE (`output_config.format`,
+  `IA_SCHEMA_LOT` = `{ syntheses: [{ eleve, synthese }] }`, ce que `_iaLotLire` lit déjà). Coupée (`max_tokens`),
+  refusée (`refusal`), vide, en erreur : dit, rien n'est posé.
+- **La requête** (`_iaRequete`, pure) : `POST https://api.anthropic.com/v1/messages`, `x-api-key`,
+  `anthropic-version: 2026-10-21`, ⚠️ `anthropic-dangerous-direct-browser-access: true` (sans lui, le navigateur refuse
+  l'appel — CORS), `stream: true`, `output_config.effort: 'medium'`, `max_tokens` 32 000 (classe) / 16 000. ⚠️ **Ni
+  `temperature` ni `thinking`** : la version 2026-10-21 refuse les paramètres d'échantillonnage, et la réflexion
+  d'Opus 5.5 ne se coupe pas (400). `fallbacks: "default"` + bêta `server-side-fallback-2026-07-01` sauf Haiku (qui
+  n'en a pas) : un refus de sécurité est rejoué par l'API sur un autre modèle. `anthropic-workspace-id` seulement si
+  un espace est réglé (clé non limitée à un espace : sinon 400).
+- **Le flux** (`_iaSSE`, `_iaFlux`, purs) : événements découpés n'importe où (un `\r` de fin de morceau attend son
+  `\n`), seul le texte compte, un bloc `fallback` efface ce que le modèle qui a refusé avait écrit ; `usage` lu dans
+  `message_start` et `message_delta`. Erreurs en clair : `_iaErreurTexte` (clé refusée, espace de travail, crédit
+  épuisé, modèle introuvable, trop de demandes, surcharge).
+- ⚠️ **La clé ne vit que dans ce navigateur** (`suiviPP_iaCle`) : jamais dans `S`, donc ni dans la sync ni dans
+  l'export (testé), et jamais réécrite dans la page (masquée « sk-ant-…ABCD »). Une clé d'administration
+  (`sk-ant-admin…`) est refusée. Modèle et espace : réglages du POSTE aussi (`suiviPP_iaApi`). Rubrique **🤖 Envoi à
+  une IA** de 💾 Données (`_iaReglagesHTML`, entre Apparence et Importer) : clé, *🔑 Créer une clé dans la Console*
+  (`platform.claude.com/settings/keys`), modèle (`IA_MODELES` : Opus 5.5 par défaut, Sonnet 5.5, Haiku 5.5, Fable 5.1,
+  avec leurs tarifs relevés le 2026-10-06), espace de travail, fournisseur. Conseil écrit : une clé limitée à un espace
+  « Suivi PP » avec un plafond de dépense.
+- **Le coût de chaque envoi** : calculé des jetons que l'API renvoie (`_iaCout` : entrée, sortie, cache), noté dans
+  un journal du POSTE (`suiviPP_iaJournal`, 300 entrées, **des chiffres, aucune donnée d'élève** — testé), dit dans le
+  toast (« Cet envoi : 9 123 jetons envoyés, 4 321 rendus ≈ 0,12 $ · ce mois-ci sur ce poste : 0,12 $ »), sous les
+  boutons des trois fenêtres (`_iaApiLigneHTML`) et dans la rubrique (total du mois, douze derniers envois,
+  *💳 Crédit restant* → `settings/billing`, *📊 Utilisation* → `usage`). ⚠️ **Le solde exact n'est pas lu** : il
+  faudrait une clé d'administration, qu'on ne met pas dans un navigateur ; le journal ne voit pas les autres postes.
+- **Un seul fournisseur** : la CSP (`connect-src`) n'ouvre que `https://api.anthropic.com` en plus de GitHub (testé) ;
+  un autre fournisseur s'ajoute dans le code et la CSP, jamais par une adresse saisie.
+- Textes : bandeau RGPD, *Vie privée* de ⓘ et les fenêtres 🤖 ne disent plus « rien ne part vers un serveur » sans
+  nuance.
+- Tests : `test/ia-api.test.js` (requête, flux coupé n'importe où et repris par un autre modèle, coût et mois, erreurs,
+  clé hors de `S`, CSP, un envoi complet et un envoi refusé sur un `fetch` simulé). Vérifié dans le navigateur : un
+  appel RÉEL avec une fausse clé rend un 401 lisible (CSP, en-tête et CORS passent) ; un envoi complet sur un flux
+  simulé (réponse à l'étape 3, revue, coût) ; audit 12 états × 2 thèmes et 320 px, 0 défaut.
+- ⚠️ **Non vérifié** : un envoi réel avec une vraie clé (réponse d'Opus 5.5 en flux, forme imposée, `fallbacks`) ;
+  les liens de la Console (chemins `settings/billing` et `usage`) — à cliquer une fois.
 
 ### Synthèse de période imprimable
 
@@ -1254,7 +1314,7 @@ Reprendre le design « carnet du prof » **à l'identique** : tokens, polices em
   - ⚠️ **Une référence par id écrite en VALEUR désigne une entrée PROPRE** (`_sanitizeRefs`, fin de `_sanitizeImbrique`) : `_validateImport` ne voit que les clés, et `S.cur`, un roster ou un `classe_id` valant « constructor » / « __proto__ » trouvait une propriété HÉRITÉE (onglets qui tombent, `Object.prototype` écrit par `_withStudent`). Roster, places, `classIds` : retirés ; `S.cur` → première classe ; `classe_id` → la classe dont le roster le porte, sinon retiré ; ce qui peut désigner un disparu (PV, tags, instance d'un incident, domaine `_domaineOk`) ne perd que le nom hérité. `getCls` et `_withStudent` testent `hasOwnProperty` ; `_auditState` signale un `S.cur` inconnu. Fuzz à graine fixe avec méta-test : `test/audit-1014-donnees.test.js`.
 - **Zéro dialogue natif** : ni `alert`, ni `confirm`, ni `prompt` (l'anti-popup les bloque en silence, le bouton paraît cassé). Utiliser `_uiConfirm`, `_uiPrompt`, `appAlert`, ou `toast(msg, 'warn')` pour une précondition non bloquante. ⚠️ `_uiConfirm` **n'est pas bloquant au sens JS** : tout ce qui suivait le `confirm()` va dans `onOk` / `onCancel`.
 - **Échappement au rendu**, systématique : `_escName` / `_escAttr` pour toute donnée utilisateur en `innerHTML` ; `_escJsAttr` pour un texte passé à un handler inline (le navigateur HTML-décode l'attribut **avant** de parser le JS, `_escAttr` seul laisse un breakout) ; `_csvCellGuard` avant tout quoting de cellule exportée (une cellule commençant par `=` `+` `-` `@` est une formule à l'import tableur). Template balisé `_html` pour le code neuf.
-- **CSP en `<meta>`** dès le premier commit : `connect-src 'self' https://api.github.com`, `img-src 'self' data: blob:`, et ⚠️ **`font-src 'self' data:`** (sans lui, `default-src 'self'` bloque les polices base64 et l'app retombe en silence sur les polices système) ; **`frame-src blob:`** (et non `'none'`) : le lecteur de PDF intégré encadre un blob créé par la page, lié à son origine, rien d'extérieur ne peut être encadré.
+- **CSP en `<meta>`** dès le premier commit : `connect-src 'self' https://api.github.com` (et, depuis la v1.73.0, `https://api.anthropic.com` pour l'envoi direct d'une synthèse), `img-src 'self' data: blob:`, et ⚠️ **`font-src 'self' data:`** (sans lui, `default-src 'self'` bloque les polices base64 et l'app retombe en silence sur les polices système) ; **`frame-src blob:`** (et non `'none'`) : le lecteur de PDF intégré encadre un blob créé par la page, lié à son origine, rien d'extérieur ne peut être encadré.
 - **États vides actionnables** : un état vide dit QUOI faire (`_emptyStateHTML(icon, titre, hint)`).
 - **Retour de modale** : `_modalReturnTo[id]` pour qu'un panneau ouvert en parenthèse (réglages d'un document depuis son tableau) revienne d'où il vient, sur les trois voies de fermeture (bouton, fond, Échap).
 - **Auto-focus et Entrée** : chaque modale à formulaire porte `data-autofocus` sur son premier champ utile et valide à `Entrée`. Sans `data-autofocus`, `openMod` focalise la boîte `.mb` elle-même, sinon le focus reste **derrière** la modale et le piège à focus ne s'enclenche jamais.
@@ -1326,6 +1386,7 @@ Familles à couvrir dès le début :
 - Tests statiques du design system (`test/design-system.test.js`, avec méta-tests) : symétrie des tokens entre les trois blocs dans les deux sens, tout token *utilisé* a une valeur en thème clair, aucune encre figée derrière un fond dynamique, pose ET retrait des orientations d'impression, boîte focalisable dans chaque modale, règles responsive.
 - ⚠️ Rendu papier non vérifié sur du vrai papier : `window.print` est mocké. Orientation : `@page` anonyme injecté le temps de l'impression puis retiré à `afterprint` (les pages nommées sont ignorées par Firefox) ; une page de chaque est à vérifier à la main sur Chromium et Firefox.
 - ⚠️ Non vérifiés à la main : vidéoprojecteur réel (1024 × 768 et 1920 × 1080, lisibilité du fond de la salle), clavier virtuel d'une vraie tablette, dossier Nextcloud réel pour les PDF.
+- **Audit ciblé** (v1.73.0, 2026-10-23, envoi direct à Claude) : rubrique 🤖 de 💾 Données (avec et sans clé, journal rempli), fenêtres `miac` (ligne sous les boutons, avec et sans clé) et `miaenv` (vide, en erreur), deux thèmes, 1 400 et 320 px : 0 défaut ; envoi complet sur un flux simulé, appel réel avec une fausse clé (401 lisible) ; `npm test` 836/836.
 - **Audit ciblé** (v1.71.0, 2026-10-22, synthèse de la classe) : 🏫 Vie de classe (états du parcours, section des synthèses), feuille imprimée de la synthèse de période (bloc en tête), fenêtre `mias` remplie, deux thèmes, grand écran et 320 px : 0 défaut après correction du défaut 40 ; gestes réels (+, réponse tapée, Ranger).
 - **Audit ciblé** (v1.70.0, 2026-10-22, toute la classe d'un coup) : liste (nouveau bouton) et fenêtre `miac` remplie (vérification, revue, correspondances), deux thèmes, grand écran et 320 px : 0 défaut ; gestes réels (bouton, Copier, réponse tapée, décocher, Ranger).
 - **Audit ciblé** (v1.69.0, 2026-10-21, synthèse par une IA) : fiche (trois vues, mot surligné compris) et fenêtre `mia` remplie (noms connus, à vérifier, remplacés, aperçu), deux thèmes, 1 024 et 320 px : 0 défaut après correction du défaut 39 ; gestes réels (clavier, clics, Ctrl+Z) ; `npm test` 817/817.

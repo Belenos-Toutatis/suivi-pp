@@ -10,13 +10,13 @@ const evObj = c => JSON.parse(JSON.stringify(sb.__TESTEVAL(c)));
 const DEMO = `S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook(); undoStack.length = 0; renderDonnees = () => {}; _renderStorageGauge = () => {}; _donFiltre = '';`;
 const rendu = k => ev(`(() => { _donRub = ${JSON.stringify(k)}; const z = document.createElement('div'); _renderDonneesInner(z); return z.innerHTML; })()`);
 
-test('dix rubriques, réglages puis données ; chacune se rend, la courante est marquée', () => {
+test('onze rubriques, réglages puis données ; chacune se rend, la courante est marquée', () => {
   ev(DEMO);
   const ks = evObj(`DON_RUBS.map(r => r.k)`);
-  assert.deepStrictEqual(ks, ['classe', 'periodes', 'disciplines', 'salles', 'instances', 'apparence', 'imports', 'sauvegarde', 'fichiers', 'memoire']);
+  assert.deepStrictEqual(ks, ['classe', 'periodes', 'disciplines', 'salles', 'instances', 'apparence', 'ia', 'imports', 'sauvegarde', 'fichiers', 'memoire']);
   for (const k of ks) {
     const h = rendu(k);
-    assert.strictEqual((h.match(/class="don-it/g) || []).length, 10, k);
+    assert.strictEqual((h.match(/class="don-it/g) || []).length, 11, k);
     assert.match(h, new RegExp(`class="don-it on" onclick="donRubUI\\('${k}'\\)"`), k);
     assert.match(h, /<div class="don-grp">Données<\/div>/);
   }
