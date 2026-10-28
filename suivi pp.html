@@ -1101,6 +1101,14 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .inc-choix-l .pap-ok { color: var(--ok-fg); padding: 2px 10px; }
 /* Contacts : le texte entier, ses retours à la ligne gardés (v1.55.7). */
 textarea.jl-txt { width: 100%; min-height: 0; resize: vertical; field-sizing: content; overflow-y: hidden; font-size: .9em; line-height: 1.35; padding: 4px 6px; box-sizing: border-box; }
+/* Fichiers joints à un contact (v1.78.0) : sous le texte, un lien par fichier, ✕ pour le détacher. */
+.jl-pj { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 4px; font-size: .86em; }
+.jl-pj:empty { display: none; }
+.jl-pj-f { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.jl-pj-f a { overflow-wrap: anywhere; }
+.jl-pj-f .btn { padding: 0 6px; line-height: 1.4; }
+.pf-pj { display: inline-flex; flex-wrap: wrap; gap: 2px 8px; margin-left: 4px; font-size: .92em; }
+.pf-pj a { overflow-wrap: anywhere; }
 #mrem-jlist td { vertical-align: top; }
 #mrem-jlist tr.jl-cible td { box-shadow: inset 0 2px 0 var(--link-fg), inset 0 -2px 0 var(--link-fg); }
 .av-partage { margin-bottom: 10px; }
@@ -2278,7 +2286,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
   <span style="flex:1;min-width:240px">
     <strong>Données personnelles d'élèves</strong> — cette app stocke localement noms, prénoms,
     dates de naissance, aménagements pédagogiques, relevés de carnet, moyennes par matière,
-    retours de documents administratifs, réponses des familles, un journal des contacts avec elles, et les
+    retours de documents administratifs, réponses des familles, un journal des contacts avec elles (et, si vous
+    les joignez, leurs fichiers — retranscriptions d'appels, échanges de courriels —, dans le sous-dossier
+    <code>contacts/</code> du dossier des PDF), et les
     incidents et instances (commission éducative…) avec, si vous les joignez, les PDF des fiches —
     ceux-ci dans le dossier que vous choisissez, pas dans le navigateur —, les fiches de suivi (le comportement,
     cours par cours, et les bilans pour les familles), et les avis des collègues :
@@ -2768,8 +2778,10 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
         <select id="mrem-jtype"></select></label>
       <textarea id="mrem-jtxt" class="jl-txt" data-autofocus rows="2" placeholder="Ce qu'il faut en retenir — Entrée : nouvelle ligne · Ctrl+Entrée : noter" maxlength="2000" style="flex:1;min-width:170px"
              oninput="_autoTaille(this)" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();journalAddUI()}"></textarea>
+      <label class="btn btn-g btn-sm" style="cursor:pointer" title="Joindre un ou plusieurs fichiers à ce contact : retranscription d'un appel, échange de courriels…">📎 Fichiers…<input type="file" id="mrem-jpj" multiple style="display:none" onchange="journalPjChoixUI(this)"></label>
       <button class="btn btn-s btn-sm" onclick="journalAddUI()">+ Noter</button>
     </div>
+    <div id="mrem-jpj-l" class="tb-hint" style="margin:-4px 0 8px"></div>
     <div id="mrem-jlist"></div>
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('mcontacts')">Fermer</button>
@@ -2844,13 +2856,13 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 <!-- ═══════════════ NOM D'UNE PIÈCE JOINTE ═══════════════ -->
 <div id="mpjnom" class="mo" onclick="closeMod(this,event)">
   <div class="mb" style="max-width:560px;width:100%">
-    <h2>📎 Sous quel nom ranger ce PDF ?</h2>
+    <h2 id="pjn-titre">📎 Sous quel nom ranger ce PDF ?</h2>
     <div class="tb-hint" style="margin-bottom:10px">Dans le dossier des PDF, tel que vous le retrouverez dans Nextcloud. Un nom déjà pris reçoit un « (2) ».</div>
     <div class="st-group" style="display:flex;flex-direction:column;gap:8px">
       <label><input type="radio" name="pjn" value="garder"> Garder le nom du fichier : <code id="pjn-garder-l"></code></label>
       <label><input type="radio" name="pjn" value="auto" checked data-autofocus> Nom automatique — date, type, qui : <code id="pjn-auto-l"></code></label>
       <label style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><input type="radio" name="pjn" value="autre"> Autre nom :
-        <input type="text" id="pjn-nom" maxlength="100" style="flex:1;min-width:200px" onfocus="document.querySelector('input[name=pjn][value=autre]').checked=true" onkeydown="if(event.key==='Enter'){event.preventDefault();pjChooseNameOk()}"> <span class="tb-hint">.pdf</span></label>
+        <input type="text" id="pjn-nom" maxlength="100" style="flex:1;min-width:200px" onfocus="document.querySelector('input[name=pjn][value=autre]').checked=true" onkeydown="if(event.key==='Enter'){event.preventDefault();pjChooseNameOk()}"> <span class="tb-hint" id="pjn-ext">.pdf</span></label>
     </div>
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('mpjnom')">Annuler</button>
@@ -2913,7 +2925,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <h2 id="mpdf-title" style="flex:none">📎 PDF</h2>
     <iframe id="mpdf-frame" title="Pièce jointe" style="flex:1;width:100%;border:1px solid var(--rule-line);border-radius:var(--radius-md);background:#fff;min-height:200px" tabindex="0"></iframe>
     <div class="ma" style="flex:none">
-      <button class="btn btn-g" onclick="pjOpenOnglet()" title="Dans un onglet du navigateur : pour imprimer ou agrandir">↗ Onglet</button>
+      <button class="btn btn-g" onclick="pjEnregistrer()" title="Enregistrer une copie du fichier (téléchargement)">⬇ Enregistrer</button>
+      <button class="btn btn-g" id="mpdf-ong" onclick="pjOpenOnglet()" title="Dans un onglet du navigateur : pour imprimer ou agrandir">↗ Onglet</button>
       <button class="btn btn-p" data-autofocus onclick="closeMod2('mpdf')">Fermer</button>
     </div>
   </div>
@@ -3690,8 +3703,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.77.0';
-const APP_BUILD_DATE = '2026-10-23T17:53:42Z';
+const APP_VERSION    = '1.78.0';
+const APP_BUILD_DATE = '2026-10-28T18:09:13Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4706,6 +4719,8 @@ function _sanitizeCoreSections() {
   for (const e of Object.values(S.eleves)) {
     if (!Array.isArray(e.tags)) e.tags = [];
     if (!Array.isArray(e.journal)) e.journal = [];
+    // Fichiers joints à un contact (v1.78.0) : des références lisibles, sinon rien.
+    for (const j of e.journal) if (_isPlainObj(j) && j.pj !== undefined) { const l = _journalPj(j).slice(0, PJ_CT_MAX); if (l.length) j.pj = l; else delete j.pj; }
     if (!Array.isArray(e.incidents)) e.incidents = [];
     e.incidents = e.incidents.filter(_isPlainObj);
     if (!Array.isArray(e.bilans)) e.bilans = [];
@@ -5322,8 +5337,8 @@ function _donRubHTML(k) {
       <label>Dossier des PDF</label>
       <div>${pjDirHandle ? `<code>${_escName(pjDirHandle.name)}</code>` : '<span class="tb-hint">aucun — les fiches incident ne pourront pas être jointes</span>'}
         <button class="btn btn-g btn-sm" onclick="choosePjDir()">📂 ${pjDirHandle ? 'Changer' : 'Choisir un dossier'}</button>${
-        pjDirHandle ? ` <button class="btn btn-g btn-sm" onclick="pjNettoyerUI()" title="Lister puis supprimer les PDF que plus aucune entrée ne référence, et les photos d'élèves supprimés">🧹 Orphelins…</button>` : ''}</div>
-      <div class="pref-help">Les PDF joints aux incidents sont <strong>copiés</strong> dans ce dossier, jamais dans la sauvegarde JSON (trop lourds pour la mémoire du navigateur) ; les photos des élèves vont dans son sous-dossier <code>photos/</code>. Choisissez un dossier <strong>synchronisé par Nextcloud</strong>, distinct du dossier de sauvegarde : sur l'autre poste, il suffira de choisir le même. L'app n'y efface rien d'elle-même.</div>
+        pjDirHandle ? ` <button class="btn btn-g btn-sm" onclick="pjNettoyerUI()" title="Lister puis supprimer les PDF et les fichiers de contacts que plus aucune entrée ne référence, et les photos d'élèves supprimés">🧹 Orphelins…</button>` : ''}</div>
+      <div class="pref-help">Les PDF joints aux incidents sont <strong>copiés</strong> dans ce dossier, jamais dans la sauvegarde JSON (trop lourds pour la mémoire du navigateur) ; les photos des élèves vont dans son sous-dossier <code>photos/</code>, les fichiers joints aux contacts avec les familles dans <code>contacts/</code>. Choisissez un dossier <strong>synchronisé par Nextcloud</strong>, distinct du dossier de sauvegarde : sur l'autre poste, il suffira de choisir le même. L'app n'y efface rien d'elle-même.</div>
     </div>`;
     case 'memoire': {
       const nb = o => Object.keys(o || {}).length;
@@ -6178,6 +6193,44 @@ function journalRemove(sid, id) {
   stu.journal.splice(i, 1);
   return true;
 }
+// Fichiers joints à un contact (v1.78.0, l'utilisateur : « joindre un fichier ou deux — la
+// retranscription d'une conversation téléphonique, d'un échange de mails »). Comme les PDF des
+// incidents : COPIÉS dans le dossier des pièces jointes, sous-dossier `contacts/` (tout ce qui s'y
+// trouve est à l'app : 🧹 Orphelins peut y regarder sans toucher aux fichiers de l'utilisateur),
+// jamais dans le JSON ; l'entrée n'en garde que `pj: [{ nom, fichier, taille }]` (absent = aucun).
+// Tout format : PDF, image et texte se lisent dans l'app, le reste (Word, ODT…) s'enregistre.
+const CONTACTS_SUBDIR = 'contacts';
+const PJ_CT_MAX = 5;
+function _journalPj(e) { return _isPlainObj(e) && Array.isArray(e.pj) ? e.pj.map(_pjRef).filter(Boolean) : []; }
+// Les fichiers d'un contact en liens qui les ouvrent (fiche : tableau de bord, chronologie) ; '' sans fichier.
+function _journalPjLiensHTML(sid, e) {
+  const l = _journalPj(e);
+  return l.length ? ` <span class="pf-pj">${l.map(p => `<a href="#" onclick="journalPjOuvrirUI('${_escJsAttr(sid)}','${_escJsAttr(e.id)}','${_escJsAttr(p.fichier)}');return false" title="Ouvrir (${_escAttr(_fmtBytes(p.taille))})">📎 ${_escName(p.nom)}</a>`).join('')}</span>` : '';
+}
+// Ajoute des références (sans doublon de fichier, PJ_CT_MAX au plus) ; rend le nombre ajouté, ou -1.
+function journalPjAdd(sid, id, refs) {
+  const stu = S.eleves[sid];
+  const e = stu && Array.isArray(stu.journal) ? stu.journal.find(x => x.id === id) : null;
+  if (!e) return -1;
+  const l = _journalPj(e);
+  let n = 0;
+  for (const r of (refs || []).map(_pjRef).filter(Boolean)) {
+    if (l.length >= PJ_CT_MAX || l.some(x => x.fichier === r.fichier)) continue;
+    l.push(r); n++;
+  }
+  if (l.length) e.pj = l; else delete e.pj;
+  return n;
+}
+function journalPjRemove(sid, id, fichier) {
+  const stu = S.eleves[sid];
+  const e = stu && Array.isArray(stu.journal) ? stu.journal.find(x => x.id === id) : null;
+  if (!e) return false;
+  const l = _journalPj(e), i = l.findIndex(x => x.fichier === fichier);
+  if (i < 0) return false;
+  l.splice(i, 1);
+  if (l.length) e.pj = l; else delete e.pj;
+  return true;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HEURES DE VIE DE CLASSE — le journal de la CLASSE, pas d'un élève : ce qu'on y a
@@ -6545,6 +6598,12 @@ function _pjReferences() {
   // Les procès-verbaux signés : sur l'élection, ou sur une désignation sans vote.
   for (const byId of Object.values(S.elections)) for (const el of Object.values(byId)) if (el.pv && el.pv.fichier) out.add(el.pv.fichier);
   for (const c of Object.values(S.classes)) if (_isPlainObj(c.delegues) && c.delegues.pv && c.delegues.pv.fichier) out.add(c.delegues.pv.fichier);
+  return out;
+}
+// Les fichiers joints aux contacts (v1.78.0) — rangés à part, dans `contacts/`.
+function _pjCtReferences() {
+  const out = new Set();
+  for (const e of Object.values(S.eleves)) for (const j of (Array.isArray(e.journal) ? e.journal : [])) for (const r of _journalPj(j)) out.add(r.fichier);
   return out;
 }
 // Référence normalisée d'une pièce jointe, ou null.
@@ -8823,6 +8882,7 @@ function openContacts(sid, focusId, bornes) {
   if (ty) ty.innerHTML = _JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}">${t2.icon} ${_escName(t2.label)}</option>`).join('');
   const tx = document.getElementById('mrem-jtxt');
   if (tx) { tx.value = ''; _autoTaille(tx); }
+  journalPjChoixVider();
   _journalRender();
   openMod('mcontacts');
   // Une entrée choisie dans la liste (v1.55.6) : son texte reçoit le focus, la ligne est marquée.
@@ -11792,7 +11852,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
     ${_ficheSuivisCarteHTML(cls, stu, col)}
     ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
-    ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
+    ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}${_journalPjLiensHTML(stu.id, x)}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
     ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
       return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : (d.archive && !r.rendu) ? '<span class="pf-mu">(archivé)</span>' /* rangé : pas un manquant (le compteur l'exclut) */ : (!r.rendu && !_papierDistribue(d)) ? '<span class="pf-mu">pas encore distribué</span>' /* à venir : pas un manquant non plus */ : `${d.archive ? '<span class="pf-mu">(archivé)</span> ' : ''}<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
   </div>`;
@@ -11822,7 +11882,7 @@ function _ficheEvenements(cls, stu, col) {
   _avisCampagnes(cid).filter(c => dans(c.date) && c.avis?.[sid]).forEach(c => { const items = c.disciplines.filter(d => c.avis[sid][d.id]).map(d => ({ disc: d, ...c.avis[sid][d.id] }));
     if (items.length) E.push({ date: c.date, k: 'avis', html: `Avis des collègues — ${_escName(_avisObjectif(cls, c).long)} : ${items.length} discipline(s)${(c.cibles || []).includes(sid) ? ' ⭐' : ''}`, detail: _avisItemsHTML(items, _avisCols(c), c, sid) }); });
   (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'incid', html: `<strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<div class="fi-vide">${_escName(x.texte)}</div>` : ''}` }));
-  (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'contact', html: `<strong>${_escName(_journalType(x.type).label)}</strong> — ${_escName(x.texte || '')}` }));
+  (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'contact', html: `<strong>${_escName(_journalType(x.type).label)}</strong> — ${_escName(x.texte || '')}${_journalPjLiensHTML(stu.id, x)}` }));
   _bilansOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
   _decisionsOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>Décisions — ${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
   _docsOfCurrent().filter(d => (d.classIds || []).includes(cid) && dans(d.dateDistribution) && _docExpected(d).some(x => x.id === sid)).forEach(d => {
@@ -11967,7 +12027,7 @@ function chaleurContactsUI(sid, a, b, lab) {
   if (!x.length) return openContacts(sid, null, { a, b });
   const titre = () => `📇 ${stu.prenom} ${stu.nom} — ${x.length ? _pl(x.length, 'contact') : 'plus aucun contact'} · ${lab}`;
   const corps = () => x.length ? `<div class="inc-choix-l">${x.map(e => { const t = _journalType(e.type);
-    return `<button class="btn btn-g inc-choix" onclick="_appDialogValeur('${_escJsAttr(e.id)}')"><span class="inc-choix-d">${_escName(_fmtDateFr(e.date))}</span> <strong>${t.icon} ${_escName(t.label)}</strong>${e.texte ? `<small class="pf-p">${_escName(e.texte)}</small>` : ''}</button>`; }).join('')}</div><p class="tb-hint" style="margin-top:6px">Cliquez un contact pour le corriger (date, type, texte) ou le supprimer.</p>`
+    return `<button class="btn btn-g inc-choix" onclick="_appDialogValeur('${_escJsAttr(e.id)}')"><span class="inc-choix-d">${_escName(_fmtDateFr(e.date))}</span> <strong>${t.icon} ${_escName(t.label)}</strong>${_journalPj(e).length ? ` <span class="tb-hint">📎 ${_journalPj(e).length}</span>` : ''}${e.texte ? `<small class="pf-p">${_escName(e.texte)}</small>` : ''}</button>`; }).join('')}</div><p class="tb-hint" style="margin-top:6px">Cliquez un contact pour le corriger (date, type, texte) ou le supprimer.</p>`
     : '<p class="tb-hint">Plus aucun contact dans cette case.</p>';
   const redessin = () => { if (!S.eleves[sid]) return closeMod2('mAppDialog'); x = _contactsListe(sid, a, b); _appDialogMaj(titre(), corps()); };
   _appDialogShow({ title: titre(), type: 'liste', message: corps(), redessin,
@@ -12117,14 +12177,86 @@ function _journalRender() {
             onchange="_dateChamp(event,()=>journalDateUI('${_escJsAttr(e.id)}', this))" onblur="_dateChamp(event,()=>journalDateUI('${_escJsAttr(e.id)}', this))"></td>
       <td><select style="font-size:.88em;max-width:170px" title="Type du contact — se corrige ici" onchange="journalTypeUI('${_escJsAttr(e.id)}', this.value)">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}"${t2.key === t.key ? ' selected' : ''}>${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></td>
       <td style="width:99%;min-width:180px"><textarea class="jl-txt" rows="1" maxlength="2000" aria-label="Texte du contact — se corrige ici"
-            oninput="_autoTaille(this)" onchange="journalEditUI('${_escJsAttr(e.id)}', this.value)">${_escName(e.texte)}</textarea></td>
+            oninput="_autoTaille(this)" onchange="journalEditUI('${_escJsAttr(e.id)}', this.value)">${_escName(e.texte)}</textarea>${_journalPjLigneHTML(e)}</td>
       <td><button class="btn btn-d btn-sm" onclick="journalRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer ce contact">🗑 Supprimer</button></td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
   // Le texte ENTIER, retours à la ligne compris (v1.55.7) : chaque zone prend la hauteur de son texte.
   box.querySelectorAll('textarea.jl-txt').forEach(_autoTaille);
 }
+// Les fichiers d'un contact, sous son texte : chacun s'ouvre, ✕ le détache (le fichier reste dans le dossier),
+// « 📎 Joindre » en ajoute (PJ_CT_MAX au plus).
+function _journalPjLigneHTML(e) {
+  const l = _journalPj(e), j = _escJsAttr(e.id);
+  const liens = l.map(p => `<span class="jl-pj-f">📎 <a href="#" onclick="journalPjOuvrirUI('${_escJsAttr(_remSid)}','${j}','${_escJsAttr(p.fichier)}');return false" title="Ouvrir (${_escAttr(_fmtBytes(p.taille))})">${_escName(p.nom)}</a><button class="btn btn-g btn-sm" onclick="journalPjRetirerUI('${j}','${_escJsAttr(p.fichier)}')" title="Détacher ce fichier — il reste dans le dossier" aria-label="Détacher ${_escAttr(p.nom)}">✕</button></span>`).join('');
+  const ajout = l.length < PJ_CT_MAX
+    ? `<label class="btn btn-g btn-sm" style="cursor:pointer" title="Joindre un fichier à ce contact : retranscription d'un appel, échange de courriels…">📎 Joindre${l.length ? '' : ' un fichier'}<input type="file" multiple style="display:none" onchange="journalPjAjouterUI('${j}',this)"></label>` : '';
+  return `<div class="jl-pj">${liens}${ajout}</div>`;
+}
+// Les fichiers choisis à la saisie d'un nouveau contact : nommés sous la barre, joints par « + Noter ».
+function journalPjChoixUI(inp) {
+  const l = document.getElementById('mrem-jpj-l');
+  const f = inp && inp.files ? [...inp.files] : [];
+  if (f.length > PJ_CT_MAX) { toast(`⚠️ ${PJ_CT_MAX} fichiers au plus par contact.`, 'warn'); inp.value = ''; }
+  if (l) l.innerHTML = inp.value && f.length ? `📎 À joindre : ${f.map(x => `<code>${_escName(x.name)}</code>`).join(', ')} <button class="btn btn-g btn-sm" onclick="journalPjChoixVider()">✕</button>` : '';
+}
+function journalPjChoixVider() { const i = document.getElementById('mrem-jpj'); if (i) i.value = ''; journalPjChoixUI(i); }
+// Copie des fichiers dans `contacts/`, après le choix de leur nom (un à la fois). Rend les références
+// copiées, ou null si l'on a renoncé avant toute copie. Rien n'est écrit dans S ici.
+async function _journalPjCopier(sid, e, files) {
+  const stu = S.eleves[sid];
+  if (!stu || !files.length) return [];
+  if (!pjDirHandle) { toast('⚠️ Choisissez d\'abord le dossier des pièces jointes (💾 Données et réglages ▸ 📎 Fichiers joints et photos).', 'warn'); return null; }
+  if (!(await _pjReady('readwrite'))) { toast('⚠️ Accès au dossier des pièces jointes refusé.', 'warn'); return null; }
+  const noms = [];
+  for (const file of files) {
+    const ext = _pjExt(file.name);
+    const nom = await pjChooseName(file.name, _pjAutoNom('contact', { date: e.date, type: _journalType(e.type).label, nom: stu.nom, prenom: stu.prenom, ext }), ext);
+    if (nom === null) return null;   // renoncé : rien n'est copié
+    noms.push([file, nom, ext]);
+  }
+  const dir = await _pjCtDir(true);
+  if (!dir) { toast('⚠️ Impossible de créer le sous-dossier « contacts » dans le dossier des pièces jointes.', 'error'); return null; }
+  const refs = [];
+  for (const [file, nom, ext] of noms) {
+    try { refs.push(await pjStore(file, nom, { dir, ext })); }
+    catch (err) { toast(`⚠️ Copie de « ${file.name} » impossible : ${err && err.message || err}`, 'error'); }
+  }
+  return refs;
+}
+async function journalPjAjouterUI(id, input) {
+  const sid = _remSid;
+  const e = _journalOf(sid).find(x => x.id === id);
+  const files = input && input.files ? [...input.files] : [];
+  if (input) input.value = '';
+  if (!e || !files.length) return;
+  const place = PJ_CT_MAX - _journalPj(e).length;
+  if (files.length > place) return toast(`⚠️ ${PJ_CT_MAX} fichiers au plus par contact : il reste ${_pl(Math.max(0, place), 'place')}.`, 'warn');
+  const refs = await _journalPjCopier(sid, e, files);
+  if (!refs || !refs.length) return;
+  pushUndo();
+  journalPjAdd(sid, id, refs);
+  save();
+  if (document.getElementById('mcontacts')?.classList.contains('on')) _journalRender();
+  renderStudents();
+  toast(`📎 ${(refs.length > 1 ? refs.length + ' fichiers joints' : '1 fichier joint')} au contact.`);
+}
+function journalPjRetirerUI(id, fichier) {
+  if (!_journalPj(_journalOf(_remSid).find(x => x.id === id)).some(p => p.fichier === fichier)) return;
+  pushUndo();
+  journalPjRemove(_remSid, id, fichier);
+  save();
+  _journalRender();
+  renderStudents();
+  toast('Fichier détaché — il reste dans le dossier (🧹 Orphelins… dans Données pour le supprimer). Ctrl+Z le rattache.');
+}
+function journalPjOuvrirUI(sid, id, fichier) {
+  const p = _journalPj(_journalOf(sid).find(x => x.id === id)).find(x => x.fichier === fichier);
+  if (p) pjOpen(p, CONTACTS_SUBDIR);
+}
 function journalAddUI() {
+  const pj = document.getElementById('mrem-jpj');
+  if (pj && pj.files && pj.files.length) return _journalAddAvecPj(pj);
   const champD = document.getElementById('mrem-jdate');
   const d = champD.value ? _ymdCompleteAnnee(champD.value) : '';
   if (d && d !== champD.value) champD.value = d;
@@ -12139,6 +12271,31 @@ function journalAddUI() {
   _autoTaille(tx);
   _journalRender();
   renderStudents();
+  tx.focus();
+}
+// Nouveau contact AVEC des fichiers : les noms se choisissent d'abord (renoncer laisse la saisie telle
+// quelle) ; l'entrée est notée, puis les fichiers copiés — un échec de copie ne retire pas l'entrée.
+async function _journalAddAvecPj(pj) {
+  const champD = document.getElementById('mrem-jdate');
+  const d = champD.value ? _ymdCompleteAnnee(champD.value) : '';
+  if (d && d !== champD.value) champD.value = d;
+  const ty = document.getElementById('mrem-jtype').value;
+  const tx = document.getElementById('mrem-jtxt');
+  if (!_ymdValid(d)) return toast('⚠️ Date du contact illisible.', 'warn');
+  if (!tx.value.trim()) { toast('⚠️ Notez ce qu\'il faut en retenir — une ligne sans contenu ne servira à rien dans six mois.', 'warn'); tx.focus(); return; }
+  const sid = _remSid, files = [...pj.files].slice(0, PJ_CT_MAX);
+  const refs = await _journalPjCopier(sid, { date: d, type: ty }, files);
+  if (refs === null) return;
+  pushUndo();
+  const e = journalAdd(sid, d, ty, tx.value);
+  if (e && refs.length) journalPjAdd(sid, e.id, refs);
+  save();
+  tx.value = '';
+  _autoTaille(tx);
+  journalPjChoixVider();
+  _journalRender();
+  renderStudents();
+  if (refs.length) toast(`📎 Contact noté, ${(refs.length > 1 ? refs.length + ' fichiers joints' : '1 fichier joint')}.`);
   tx.focus();
 }
 function journalEditUI(id, txt) {
@@ -12173,7 +12330,7 @@ function journalRemoveUI(id) {
   if (!e) return;
   _uiConfirm({
     title: '🗑 Supprimer ce contact ?',
-    message: `${_fmtDateFr(e.date)} — ${_journalType(e.type).label}\n« ${e.texte} »\n\nRécupérable par Ctrl+Z.`,
+    message: `${_fmtDateFr(e.date)} — ${_journalType(e.type).label}\n« ${e.texte} »\n\nRécupérable par Ctrl+Z.${_journalPj(e).length ? ' Ses fichiers restent dans le dossier (🧹 dans Données pour les retirer).' : ''}`,
     okLabel: 'Supprimer', okClass: 'btn-d',
     onOk: () => { pushUndo(); journalRemove(_remSid, id); save(); _journalRender(); renderStudents(); },
   });
@@ -22713,7 +22870,7 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
   const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const incH = inc.length ? inc.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<br>${pl(x.texte)}` : ''}</span></div>`).join('') : vide('Aucun incident sur le moment.');
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
-  const ctH = ct.length ? ct.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_journalType(x.type).label.toLowerCase())}</strong> — ${pl(x.texte || '')}</span></div>`).join('') : vide('Aucun contact sur le moment.');
+  const ctH = ct.length ? ct.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_journalType(x.type).label.toLowerCase())}</strong> — ${pl(x.texte || '')}${_journalPj(x).length ? ` <em>(joint : ${_escName(_journalPj(x).map(p => p.nom).join(', '))})</em>` : ''}</span></div>`).join('') : vide('Aucun contact sur le moment.');
   const absR = _absMbnResume(sid, b.start, b.end);
   const absH = `<p class="fp-mu fp-small">${_escName(_absResumeTexte(absR))}</p>` + absR.list.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.debut)}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('');
   const infos = _ficheDocuments(cls, sid);
@@ -23011,12 +23168,26 @@ async function _pjReady(mode) {
 // ⚠️ Le chemin n'est retiré (`/` et `\` : on garde le dernier morceau) que pour le nom d'un FICHIER
 // d'origine (`origine` vrai : il vient d'un `File`). Dans un nom construit ou tapé, « / » est une
 // barre du texte (« Cellule de veille / GPDS », « 5C/5D ») : elle devient « - », rien n'est coupé.
-function _pjSafeName(nom, origine) {
+// `ext` (v1.78.0) : l'extension du fichier, « pdf » d'office ; '' = sans extension (fichier joint à un contact).
+function _pjSafeName(nom, origine, ext = 'pdf') {
+  ext = String(ext || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   let base = String(nom || '');
   base = origine ? base.split(/[\\/]/).pop() : base.replace(/\s*[\\/]+\s*/g, ' - ');
-  base = base.replace(/\.pdf$/i, '');
+  if (ext) base = base.replace(new RegExp('\\.' + ext + '$', 'i'), '');
   base = base.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').replace(/\s+/g, ' ').replace(/^[\s._]+|[\s.]+$/g, '').slice(0, 100).trim();
-  return `${base || 'document'}.pdf`;
+  return `${base || 'document'}${ext ? '.' + ext : ''}`;
+}
+// L'extension d'un nom de fichier (minuscules, lettres et chiffres), ou ''.
+function _pjExt(nom) { const m = /\.([a-z0-9]{1,8})$/i.exec(String(nom || '')); return m ? m[1].toLowerCase() : ''; }
+// Comment une pièce jointe se lit dans l'app : 'pdf', 'image', 'texte', 'page' (HTML, dans un cadre
+// sans script), sinon 'autre' (à enregistrer). ⚠️ Le SVG n'est pas une image ici : il porte du script.
+function _pjSorte(nom) {
+  const x = _pjExt(nom);
+  if (x === 'pdf') return 'pdf';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(x)) return 'image';
+  if (['txt', 'text', 'md', 'eml', 'csv', 'log', 'vtt', 'srt'].includes(x)) return 'texte';
+  if (['html', 'htm'].includes(x)) return 'page';
+  return 'autre';
 }
 // Le nom AUTOMATIQUE proposé : le type de document, qui il concerne, puis la date en
 // AAAA-MM-JJ (arbitré par l'utilisateur le 2026-09-11 : c'est par le type et la personne
@@ -23026,23 +23197,34 @@ function _pjAutoNom(kind, o) {
   if (kind === 'incident') return _pjSafeName(`${o.instance || 'Incident'} — ${`${o.nom || ''} ${o.prenom || ''}`.trim()} — ${d}`);
   if (kind === 'pv') return _pjSafeName(`PV élection ${o.eco ? 'éco-délégués' : 'délégués'} — ${o.classe || ''} — ${d}`);
   if (kind === 'pvdd') return _pjSafeName(`PV ${o.eco ? 'éco-délégués' : 'délégués'} — ${o.classe || ''} — ${d}`);
+  if (kind === 'contact') return _pjSafeName(`${o.type || 'Contact'} — ${`${o.nom || ''} ${o.prenom || ''}`.trim()} — ${d}`, false, o.ext || '');
   return _pjSafeName(`${o.nom || 'document'} — ${d}`);
 }
 // Un nom libre dans le dossier : « x.pdf », puis « x (2).pdf », « x (3).pdf »…
-async function _pjUnique(fichier) {
-  if (!pjDirHandle) return fichier;
-  const base = fichier.replace(/\.pdf$/i, '');
+// `dir` : le dossier où chercher (celui des PDF d'office ; `contacts/` pour les fichiers d'un contact).
+async function _pjUnique(fichier, dir) {
+  dir = dir || pjDirHandle;
+  if (!dir) return fichier;
+  const x = _pjExt(fichier), ext = x ? '.' + x : '';
+  const base = ext ? fichier.slice(0, -ext.length) : fichier;
   for (let i = 1; i < 100; i++) {
-    const essai = i === 1 ? fichier : `${base} (${i}).pdf`;
-    try { await pjDirHandle.getFileHandle(essai); } catch (_) { return essai; }   // introuvable = libre
+    const essai = i === 1 ? fichier : `${base} (${i})${ext}`;
+    try { await dir.getFileHandle(essai); } catch (_) { return essai; }   // introuvable = libre
   }
-  return `${base} ${Date.now()}.pdf`;
+  return `${base} ${Date.now()}${ext}`;
+}
+// Le sous-dossier des fichiers joints aux contacts (créé à la première écriture), ou null.
+async function _pjCtDir(write) {
+  if (!pjDirHandle) return null;
+  try { return await pjDirHandle.getDirectoryHandle(CONTACTS_SUBDIR, { create: !!write }); } catch (_) { return null; }
 }
 // Copie le fichier sous le nom choisi ; `nom` est le nom VOULU (déjà arbitré par pjChooseName).
-async function pjStore(file, nom) {
-  if (!pjDirHandle) throw new Error('aucun dossier choisi');
-  const fichier = await _pjUnique(_pjSafeName(nom || file.name, !nom));
-  const fh = await pjDirHandle.getFileHandle(fichier, { create: true });
+// `o.dir`, `o.ext` (v1.78.0) : un autre dossier, une autre extension que .pdf.
+async function pjStore(file, nom, o = {}) {
+  const dir = o.dir || pjDirHandle;
+  if (!dir) throw new Error('aucun dossier choisi');
+  const fichier = await _pjUnique(_pjSafeName(nom || file.name, !nom, o.ext === undefined ? 'pdf' : o.ext), dir);
+  const fh = await dir.getFileHandle(fichier, { create: true });
   const w = await fh.createWritable();
   await w.write(file);
   await w.close();
@@ -23050,14 +23232,18 @@ async function pjStore(file, nom) {
 }
 // Le choix du nom, AVANT la copie : garder celui du fichier, prendre le nom automatique
 // (date · type · qui), ou en taper un. Rend null si l'utilisateur renonce.
-let _pjNomResolve = null;
-function pjChooseName(original, auto) {
+let _pjNomResolve = null, _pjNomExt = 'pdf';
+function pjChooseName(original, auto, ext = 'pdf') {
   return new Promise(resolve => {
     _pjNomResolve = resolve;
+    _pjNomExt = ext;
     const g = document.getElementById('pjn-garder-l'), a = document.getElementById('pjn-auto-l'), inp = document.getElementById('pjn-nom');
-    if (g) g.textContent = _pjSafeName(original, true);
+    const t = document.getElementById('pjn-titre'), x = document.getElementById('pjn-ext');
+    if (t) t.textContent = ext === 'pdf' ? '📎 Sous quel nom ranger ce PDF ?' : `📎 Sous quel nom ranger ce fichier ?`;
+    if (x) x.textContent = ext ? '.' + ext : '';
+    if (g) g.textContent = _pjSafeName(original, true, ext);
     if (a) a.textContent = auto;
-    if (inp) inp.value = auto.replace(/\.pdf$/i, '');
+    if (inp) inp.value = ext && auto.toLowerCase().endsWith('.' + ext) ? auto.slice(0, -ext.length - 1) : auto;
     const r = document.querySelector('input[name="pjn"][value="auto"]');
     if (r) r.checked = true;
     _modalReturnTo['mpjnom'] = () => { if (_pjNomResolve) { const f = _pjNomResolve; _pjNomResolve = null; f(null); } };
@@ -23068,8 +23254,8 @@ function pjChooseNameOk() {
   const mode = document.querySelector('input[name="pjn"]:checked')?.value || 'auto';
   const nom = mode === 'garder' ? document.getElementById('pjn-garder-l').textContent
             : mode === 'auto' ? document.getElementById('pjn-auto-l').textContent
-            : _pjSafeName(document.getElementById('pjn-nom').value);
-  if (mode === 'autre' && nom === 'document.pdf' && !document.getElementById('pjn-nom').value.trim()) return toast('⚠️ Donnez un nom au fichier.', 'warn');
+            : _pjSafeName(document.getElementById('pjn-nom').value, false, _pjNomExt);
+  if (mode === 'autre' && !document.getElementById('pjn-nom').value.trim()) return toast('⚠️ Donnez un nom au fichier.', 'warn');
   const f = _pjNomResolve; _pjNomResolve = null;
   closeMod2('mpjnom');
   if (f) f(nom);
@@ -23080,21 +23266,54 @@ function pjChooseNameOk() {
 // nouvel onglet dépend de l'anti-popup et, dans une application installée, sort de la
 // fenêtre. Le bouton « ↗ onglet » reste là pour qui veut l'imprimer ou l'agrandir.
 // Une seule URL de blob vivante à la fois : révoquée à la fermeture.
-let _pjUrl = null;
-async function pjOpen(pdf) {
-  if (!pjDirHandle) return toast('⚠️ Choisissez le dossier des PDF dans 💾 Données.', 'warn');
-  if (!(await _pjReady('read'))) return toast('⚠️ Accès au dossier des PDF refusé.', 'warn');
+// v1.78.0 : `sous` = le sous-dossier ('contacts'), et tout format — PDF et image dans le lecteur du
+// navigateur, texte et page HTML dans un cadre SANS script (`sandbox`, `srcdoc`), le reste à enregistrer.
+// ⚠️ Une page HTML ou un SVG ouverts par une URL de blob de l'app tourneraient avec SON origine (et
+// liraient ses données) : jamais d'onglet pour eux, et l'enregistrement passe par un blob neutre.
+let _pjUrl = null, _pjDl = null;
+async function pjOpen(pdf, sous) {
+  if (!pjDirHandle) return toast('⚠️ Choisissez le dossier des pièces jointes dans 💾 Données.', 'warn');
+  if (!(await _pjReady('read'))) return toast('⚠️ Accès au dossier des pièces jointes refusé.', 'warn');
   let f;
-  try { f = await (await pjDirHandle.getFileHandle(pdf.fichier)).getFile(); }
+  try { const dir = sous ? await pjDirHandle.getDirectoryHandle(sous) : pjDirHandle; f = await (await dir.getFileHandle(pdf.fichier)).getFile(); }
   catch (e) { return toast(`⚠️ « ${pdf.fichier} » introuvable dans le dossier — pas encore synchronisé, ou déplacé.`, 'warn'); }
+  const sorte = sous ? _pjSorte(pdf.fichier) : 'pdf';
+  const MIME = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' };
   if (_pjUrl) { URL.revokeObjectURL(_pjUrl); _pjUrl = null; }
-  _pjUrl = URL.createObjectURL(new Blob([f], { type: 'application/pdf' }));
+  const vue = sorte === 'pdf' || sorte === 'image';
+  _pjUrl = URL.createObjectURL(new Blob([f], { type: vue ? MIME[_pjExt(pdf.fichier)] || 'application/pdf' : 'application/octet-stream' }));
+  _pjDl = pdf.nom || pdf.fichier;
   const t = document.getElementById('mpdf-title');
   if (t) t.textContent = `📎 ${pdf.nom || pdf.fichier}`;
   const fr = document.getElementById('mpdf-frame');
-  if (fr) fr.src = _pjUrl;
-  _modalReturnTo['mpdf'] = () => { const fr2 = document.getElementById('mpdf-frame'); if (fr2) fr2.src = 'about:blank'; if (_pjUrl) { URL.revokeObjectURL(_pjUrl); _pjUrl = null; } };
+  if (fr) {
+    fr.removeAttribute('srcdoc');
+    if (vue) { fr.removeAttribute('sandbox'); fr.src = _pjUrl; }
+    else {
+      fr.setAttribute('sandbox', '');
+      fr.src = 'about:blank';
+      let html;
+      if (sorte === 'texte' || sorte === 'page') {
+        const buf = new Uint8Array(await f.arrayBuffer());
+        let text;
+        try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (_) { text = new TextDecoder('windows-1252').decode(buf); }
+        html = sorte === 'page' ? text
+          : `<meta charset="utf-8"><pre style="white-space:pre-wrap;word-wrap:break-word;font:15px/1.5 sans-serif;margin:14px;color:#111">${_escName(text)}</pre>`;
+      } else html = `<meta charset="utf-8"><div style="font:15px/1.5 sans-serif;margin:24px;color:#111">Ce format (<code>.${_escName(_pjExt(pdf.fichier) || '?')}</code>) ne s'affiche pas dans le navigateur.<br>Ouvrez-le depuis le dossier des pièces jointes, ou enregistrez-en une copie (⬇ Enregistrer).</div>`;
+      fr.srcdoc = html;
+    }
+  }
+  const ong = document.getElementById('mpdf-ong');
+  if (ong) ong.style.display = vue ? '' : 'none';
+  _modalReturnTo['mpdf'] = () => { const fr2 = document.getElementById('mpdf-frame'); if (fr2) { fr2.removeAttribute('srcdoc'); fr2.removeAttribute('sandbox'); fr2.src = 'about:blank'; } if (_pjUrl) { URL.revokeObjectURL(_pjUrl); _pjUrl = null; } };
   openMod('mpdf');
+}
+// Une copie du fichier ouvert, où l'on veut (téléchargement du navigateur).
+function pjEnregistrer() {
+  if (!_pjUrl) return;
+  const a = document.createElement('a');
+  a.href = _pjUrl; a.download = _pjDl || 'document';
+  document.body.appendChild(a); a.click(); a.remove();
 }
 function pjOpenOnglet() {
   if (!_pjUrl) return;
@@ -23111,12 +23330,18 @@ async function pjOrphelins() {
   }
   // Les photos d'élèves supprimés (v1.48.0) : la suppression d'un élève laisse sa photo.
   for (const name of await _photosOrphelines()) out.push(PHOTOS_SUBDIR + '/' + name);
+  // Les fichiers joints aux contacts (v1.78.0) : tout le sous-dossier est à l'app.
+  const ct = await _pjCtDir(false);
+  if (ct) {
+    const refsCt = _pjCtReferences();
+    try { for await (const [name, h] of ct.entries()) if (h.kind === 'file' && !refsCt.has(name)) out.push(CONTACTS_SUBDIR + '/' + name); } catch (_) {}
+  }
   return out.sort();
 }
 async function pjNettoyerUI() {
   const l = await pjOrphelins();
   if (l === null) return toast('⚠️ Dossier des PDF inaccessible.', 'warn');
-  if (!l.length) return toast('✓ Aucun PDF ni aucune photo orphelins dans le dossier.');
+  if (!l.length) return toast('✓ Aucun fichier orphelin dans le dossier.');
   _uiConfirm({
     title: `🧹 Supprimer ${l.length} fichier${l.length > 1 ? 's' : ''} orphelin${l.length > 1 ? 's' : ''} ?`,
     message: `Ces fichiers ne sont plus référencés par aucune entrée :\n${l.slice(0, 12).join('\n')}${l.length > 12 ? `\n… et ${l.length - 12} autres` : ''}\n\nSuppression DÉFINITIVE dans le dossier (pas de Ctrl+Z).`,
@@ -23124,9 +23349,11 @@ async function pjNettoyerUI() {
     onOk: async () => {
       let n = 0;
       const ph = l.some(x => x.startsWith(PHOTOS_SUBDIR + '/')) ? await _photosDir(true, true) : null;
+      const ct = l.some(x => x.startsWith(CONTACTS_SUBDIR + '/')) ? await _pjCtDir(false) : null;
       for (const name of l) {
         try {
-          if (name.startsWith(PHOTOS_SUBDIR + '/')) { if (ph) { await ph.removeEntry(name.slice(PHOTOS_SUBDIR.length + 1)); _photos.sids.delete(name.slice(PHOTOS_SUBDIR.length + 1).replace(/\.jpe?g$/i, '')); n++; } }
+          if (name.startsWith(CONTACTS_SUBDIR + '/')) { if (ct) { await ct.removeEntry(name.slice(CONTACTS_SUBDIR.length + 1)); n++; } }
+          else if (name.startsWith(PHOTOS_SUBDIR + '/')) { if (ph) { await ph.removeEntry(name.slice(PHOTOS_SUBDIR.length + 1)); _photos.sids.delete(name.slice(PHOTOS_SUBDIR.length + 1).replace(/\.jpe?g$/i, '')); n++; } }
           else { await pjDirHandle.removeEntry(name); n++; }
         } catch (_) {}
       }
