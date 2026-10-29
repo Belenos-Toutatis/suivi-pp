@@ -1887,17 +1887,14 @@ html[data-theme="dark"] .pf-star { color: #e6b450; }
 .pf-tl .lane { stroke: var(--rule-line-soft); }
 .pf-tl .mid { stroke: var(--margin-red); stroke-dasharray: 3 3; }
 .pf-tl .mk { cursor: pointer; } .pf-tl .mk:hover { opacity: .75; }
-.pf-two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr); gap: 12px; align-items: start; }
-@media (max-width: 900px) { .pf-two { grid-template-columns: minmax(0, 1fr); } }
 .pf-jr { display: grid; grid-template-columns: 62px 22px 1fr; gap: 2px 8px; padding-block: 6px; border-bottom: 1px solid var(--rule-line-soft); font-size: 13.5px; }
 .pf-jr .pf-sw { width: 12px; height: 12px; border-radius: 3px; margin-top: 4px; }
 .pf-jr.pf-flash { animation: fiFlash 1.2s ease-out; }
 @media (prefers-reduced-motion: reduce) { .pf-jr.pf-flash { animation: none; } }
-.pf-sticky { position: sticky; top: 120px; }
-@media (max-width: 900px) { .pf-sticky { position: static; } }
+.pf-bas { margin-top: 12px; }   /* le bilan, sur toute la largeur sous les cadres (v1.79.2) */
 .pf-three { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .pf-three .pf-redac { grid-column: 1 / -1; }
-@media (min-width: 1900px) { .pf-three { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); } .pf-three .pf-redac { grid-column: auto; position: sticky; top: 120px; } }
+/* La rédaction en bas, sur toute la largeur, à toutes les tailles (v1.79.2 : le bilan se fait après avoir tout regardé). */
 body.fiche-cote .pf-three { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 @media (max-width: 900px) { .pf-three { grid-template-columns: minmax(0, 1fr); } }
@@ -3704,8 +3701,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.79.1';
-const APP_BUILD_DATE = '2026-10-29T06:40:50Z';
+const APP_VERSION    = '1.79.2';
+const APP_BUILD_DATE = '2026-10-29T06:57:50Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -11812,6 +11809,9 @@ function _ficheCourbeHTML(cls, stu, col) {
   return (quoi ? `<div class="pf-mu pf-chart-cap">${_escName(quoi)}</div>` : '') + g + '</svg>';
 }
 // ── Vue 1 : le TABLEAU DE BORD du prototype — une carte par sujet, sur le moment choisi ──
+// Le bilan, sur toute la largeur, en BAS de la fiche (v1.79.2, l'utilisateur : « on fait le bilan à la fin, après avoir
+// tout regardé ») : hors des colonnes, il reste le dernier cadre quelle que soit la largeur de l'écran.
+function _ficheBilanBas(html) { return `<div class="pf-bas">${html}</div>`; }
 function _ficheTableauHTML(cls, stu, col, ed) {
   ed = Object.assign({ places: [], els: [], elsHTML: '', docsInfo: [], dateInp: () => '', presence: '', age: null }, ed || {});
   const b = _ficheBornes(cls, col), sid = stu.id;
@@ -11875,19 +11875,21 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     <h3 class="pf-h3b">Remarque ${pen('remarque', stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<p class="pf-p">${_escName(stu.remarque)}</p>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
   // Papiers : les choix portés sur chaque document (Devoirs Faits, options…), lus d'un coup d'œil.
   const choixDoc = id => (ed.docsInfo.find(x => x.docId === id)?.reponses || []).map(r => `${r.champ} : ${r.valeurs.join(', ')}`).join(' · ');
+  // Ordre (v1.79.2, arbitré par l'utilisateur) : identité, puis la vie scolaire (papiers, absences, incidents, observations,
+  // fiches de suivi, contacts), les moyennes, les avis des collègues ; le bilan à la fin, après avoir tout regardé.
   return `<div class="pf-grid">
     ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="btn btn-g btn-sm" onclick="ficheVersEdition()" title="Tout modifier dans une fenêtre : nom, civilité, groupe, options, régimes, aménagements, dates">✏️ Tout modifier</button><button class="btn btn-d btn-sm" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑 Supprimer</button>`)}
-    ${card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + (ouEdit('bilans') ? `<div class="pf-edbox">${ed.bilHTML}</div>` : _ficheBilansAutresHTML(cls, stu, col)), pen('bilans', 'Modifier ou supprimer un bilan écrit — tous les bilans de l\'année'))}
-    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length, pen('mbn', 'Retirer une observation MBN importée par erreur — toute l\'année')) + (ouEdit('mbn') ? `<div class="pf-edbox">${_obsMbnOf(sid).length ? _obsMbnOf(sid).map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''} <button class="btn btn-d btn-sm" onclick="obsMbnRemoveUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}')" title="Retirer cette observation (Ctrl+Z la rend)">🗑 Supprimer</button></span></div>`).join('') : '<p class="pf-empty">Aucune observation MBN.</p>'}</div>` : mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
-    ${card('moy', 'Moyennes', '', moyT)}
-    ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
-    ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
-    ${_ficheSuivisCarteHTML(cls, stu, col)}
-    ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
-    ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}${_journalPjLiensHTML(stu.id, x)}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
     ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
       return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : (d.archive && !r.rendu) ? '<span class="pf-mu">(archivé)</span>' /* rangé : pas un manquant (le compteur l'exclut) */ : (!r.rendu && !_papierDistribue(d)) ? '<span class="pf-mu">pas encore distribué</span>' /* à venir : pas un manquant non plus */ : `${d.archive ? '<span class="pf-mu">(archivé)</span> ' : ''}<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
-  </div>`;
+    ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
+    ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
+    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length, pen('mbn', 'Retirer une observation MBN importée par erreur — toute l\'année')) + (ouEdit('mbn') ? `<div class="pf-edbox">${_obsMbnOf(sid).length ? _obsMbnOf(sid).map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''} <button class="btn btn-d btn-sm" onclick="obsMbnRemoveUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}')" title="Retirer cette observation (Ctrl+Z la rend)">🗑 Supprimer</button></span></div>`).join('') : '<p class="pf-empty">Aucune observation MBN.</p>'}</div>` : mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
+    ${_ficheSuivisCarteHTML(cls, stu, col)}
+    ${card('contact', 'Contacts avec la famille', ct.length, (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_escName(x.texte || '')}${_journalPjLiensHTML(stu.id, x)}</span></div>`).join('') : '<p class="pf-empty">Aucun contact sur la période.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
+    ${card('moy', 'Moyennes', '', moyT)}
+    ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
+  </div>
+  ${_ficheBilanBas(card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + (ouEdit('bilans') ? `<div class="pf-edbox">${ed.bilHTML}</div>` : _ficheBilansAutresHTML(cls, stu, col)), pen('bilans', 'Modifier ou supprimer un bilan écrit — tous les bilans de l\'année')))}`;
 }
 // ── Vue « Faits et rédaction » ──
 function _ficheFaitsHTML(cls, stu, col) {
@@ -11954,8 +11956,8 @@ function _ficheChronoHTML(cls, stu, col) {
   const journal = E.length ? E.map(e => `<div class="pf-jr" id="fi-ev-${e.i}"><span class="pf-d">${_escName(_fmtDateFr(e.date).slice(0, 5))}</span>${_pfSw(e.k)}<span>${e.html}${e.detail ? `<details class="pf-lire"><summary class="pf-mu">Lire les avis</summary>${e.detail}</details>` : ''}</span></div>`).join('')
     : '<p class="pf-empty">Rien sur la période.</p>';
   return `${kpis}<div class="pf-tl">${g}</div>
-    <div class="pf-two"><section class="pf-card"><h3>Journal de la période <span class="pf-k">${E.length} événement${E.length > 1 ? 's' : ''}, du plus ancien au plus récent</span></h3>${journal}</section>
-    <section class="pf-card pf-sticky"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col)}<div style="margin-top:8px">${_ficheBilansAutresHTML(cls, stu, col)}</div>${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_escName(stu.remarque)}</div>` : ''}</section></div>`;
+    <div><section class="pf-card"><h3>Journal de la période <span class="pf-k">${E.length} événement${E.length > 1 ? 's' : ''}, du plus ancien au plus récent</span></h3>${journal}</section></div>
+    ${_ficheBilanBas(`<section class="pf-card"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col)}<div style="margin-top:8px">${_ficheBilansAutresHTML(cls, stu, col)}</div>${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_escName(stu.remarque)}</div>` : ''}</section>`)}`;
 }
 function ficheSaut(i) {
   const el = document.getElementById('fi-ev-' + i);
