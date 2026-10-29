@@ -110,7 +110,7 @@ Ce fichier ne garde que le cœur (décisions, modèle, conventions, invariants, 
 | `docs/moyennes.md` | Moyennes par matière : import, statistiques, affichage, impression · Écran 📈 Moyennes |
 | `docs/elections.md` | Élection des délégués : cadre réglementaire, modèle, bureau de vote, accord en genre, un siège après l'autre, saisie bulletin par bulletin, **arithmétique**, projection en direct, PV, après l'élection (remplacements, éco-délégués) · Écran 🏫 Vie de classe (heures de vie de classe) |
 | `docs/bilans.md` | Bilans de période · Décisions d'un moment · Synthèse de période imprimable · Bouton « 🖨 Imprimer… » · Fiche élève imprimée |
-| `docs/ia.md` | Synthèse par une IA (un élève, toute la classe, la synthèse DE la classe) · Désactiver l'IA · Envoi direct à Claude par l'API · Longueur, chiffres, plein écran |
+| `docs/ia.md` | Synthèse par une IA (un élève, toute la classe, la synthèse DE la classe) · Bilan corrigé ou reformulé · Désactiver l'IA · Envoi direct à Claude par l'API · Longueur, chiffres, plein écran |
 | `docs/avis.md` | Avis des collègues (circuit Nuage, colonnes, objectif, message, disciplines et matières, revue, lecture/écriture, module .ods et Andika, onglet 🗣) · 🎨 Ton des avis · 📄 Bulletins (import, retour dans le bilan) · Vers MBN (favori) |
 | `docs/fiches-suivi.md` | Onglet 📋 Suivis : messages, Ctrl+Z, carte de la fiche, carte de chaleur, réglages communs (le reste : `fiches-suivi/CLAUDE.md`) |
 | `docs/photos.md` | 📷 Photos des élèves, trombinoscope |

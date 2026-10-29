@@ -1960,7 +1960,7 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-bloc.vide, .ia-rien { color: var(--pencil); }
 .ia-cons { margin-top: 10px; font-size: 13.5px; }
 .ia-cons summary { cursor: pointer; color: var(--link-fg); }
-#mia textarea, #miac textarea, #mias textarea { width: 100%; font: inherit; font-size: 13.5px; line-height: 1.45; margin-top: 6px; }
+#mia textarea, #miac textarea, #mias textarea, #mir textarea { width: 100%; font: inherit; font-size: 13.5px; line-height: 1.45; margin-top: 6px; }
 .ia-verif { margin-top: 4px; font-size: 13px; }
 .ia-vl { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-block: 4px; }
 .ia-vt { font-weight: 700; color: var(--pencil); font-size: 12.5px; margin-right: 2px; }
@@ -1974,6 +1974,16 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-rest { margin-top: 8px; padding: 6px 10px; border-left: 3px dashed var(--i-bilan); white-space: pre-line; font-size: 13.5px; }
 .ia-rest:empty { display: none; }
 .ia-rest mark { background: var(--highlighter); color: var(--highlighter-fg); padding: 0 1px; border-radius: 2px; }
+/* ✍️ Bilan corrigé ou reformulé par une IA (v1.80.0) : la consigne lue, la proposition comparée au bilan, mot à mot. */
+.ia-cons-t { white-space: pre-line; margin-top: 6px; padding: 6px 10px; border: 1px solid var(--rule-line-soft); border-radius: 6px; background: var(--paper); font-size: 13px; }
+.ia-diff { margin-top: 8px; padding: 6px 10px; border-left: 3px dashed var(--i-bilan); white-space: pre-wrap; font-size: 14px; line-height: 1.55; }
+.ia-diff:empty { display: none; }
+.ia-diff ins { text-decoration: none; background: var(--don-ok-bg); color: var(--don-ok-fg); border-radius: 2px; }
+.ia-diff del { color: var(--com-del); text-decoration: line-through; }
+.ia-diff .ia-vt { display: block; margin-bottom: 4px; }
+.ia-diff .bil-n { margin-top: 6px; }
+ins.ia-leg { text-decoration: none; background: var(--don-ok-bg); color: var(--don-ok-fg); padding: 0 3px; border-radius: 2px; }
+del.ia-leg { color: var(--com-del); }
 .ia-b.ia-lien { margin-left: auto; color: var(--link-fg); font-weight: 400; }
 .ia-corr { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 /* 📤 Envoi direct à Claude (v1.73.0) : la ligne sous les boutons, la fenêtre de dernière vérification, le journal. */
@@ -2666,6 +2676,36 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <div class="ma">
       <button class="btn btn-g" onclick="closeMod2('mia')">Fermer</button>
       <button class="btn btn-p" onclick="iaRangerUI()">✓ Ranger dans la fiche</button>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════ ✍️ Bilan corrigé ou reformulé par une IA (v1.80.0) ═══════════════ -->
+<div id="mir" class="mo" onclick="closeMod(this,event)">
+  <div class="mb" style="max-width:880px;width:100%">
+    <h2 id="mir-title">🤖 Corriger ou reformuler le bilan</h2>
+    <div class="tb-hint" id="mir-sous"></div>
+    <div class="ia-etape"><span class="ia-n">1</span>Ce que l'IA doit faire</div>
+    <div class="ia-row" role="radiogroup" aria-label="Ce que l'IA doit faire">
+      <label class="ia-bloc"><input type="radio" name="mir-mode" value="corriger" onchange="iaRedacModeUI(this.value)">Corriger l'orthographe et la grammaire — rien d'autre ne change</label>
+      <label class="ia-bloc"><input type="radio" name="mir-mode" value="reformuler" onchange="iaRedacModeUI(this.value)">Reformuler et réorganiser — le même contenu, mieux dit</label>
+    </div>
+    <details class="ia-cons">
+      <summary>Consigne donnée à l'IA (copiée avant le texte)</summary>
+      <div id="mir-cons" class="ia-cons-t"></div>
+    </details>
+    <div class="ia-etape"><span class="ia-n">2</span>Ce qui va partir : relisez, corrigez<button type="button" class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI(this)" aria-pressed="false" title="Afficher le texte à relire sur tout l'écran">⛶ Plein écran</button></div>
+    <div class="tb-hint">Votre bilan, les noms que l'app connaît déjà remplacés par des repères entre crochets. Corrigez tout ce qui pourrait encore faire reconnaître l'élève : ce texte est exactement ce qui sera copié ou envoyé, après la consigne. Le bilan lui-même n'est pas touché.</div>
+    <textarea id="mir-txt" class="ia-lit" data-autofocus rows="9" spellcheck="false" aria-label="Texte qui sera copié pour l'IA" oninput="iaTexteSaisi()"></textarea>
+    <div id="mir-verif" class="ia-verif"></div>
+    <div class="ia-row"><button class="btn btn-p" onclick="iaRedacCopierUI()">📋 Copier pour l'IA</button><button class="btn btn-s" onclick="iaRedacEnvoyerUI()" title="Envoyer directement à Claude, par l'API d'Anthropic : vous verrez une dernière fois tout ce qui part">📤 Envoyer à Claude</button><button class="btn btn-g btn-sm" onclick="iaRedacRefaireUI()" title="Repartir du bilan enregistré">↺ Refaire le texte</button><span class="tb-hint">À coller dans l'assistant que votre académie autorise, ou à envoyer directement.</span></div>
+    <div id="mir-api" class="ia-api"></div>
+    <div class="ia-etape"><span class="ia-n">3</span>La proposition de l'IA</div>
+    <label for="mir-rep" class="tb-hint">Collez la réponse (l'envoi direct la pose ici) : les vrais noms sont remis, et chaque changement apparaît par rapport à votre bilan — <ins class="ia-leg">ajouté</ins>, <del class="ia-leg">retiré</del>.</label>
+    <textarea id="mir-rep" rows="7" oninput="iaRedacReponseSaisie()" placeholder="La réponse de l'assistant…"></textarea>
+    <div id="mir-diff" class="ia-diff"></div>
+    <div class="ma">
+      <button class="btn btn-g" onclick="closeMod2('mir')">Fermer</button>
+      <button class="btn btn-p" onclick="iaRedacRangerUI()" title="Le bilan devient la proposition — Ctrl+Z rend l'ancien">✓ Remplacer le bilan</button>
     </div>
   </div>
 </div>
@@ -3735,8 +3775,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.79.4';
-const APP_BUILD_DATE = '2026-10-29T17:39:09Z';
+const APP_VERSION    = '1.80.0';
+const APP_BUILD_DATE = '2026-10-29T17:59:27Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9704,7 +9744,7 @@ function _ficheRedacHTML(cls, stu, col, extra) {
   return `${ia ? _pfPli('ia', '🤖 Synthèse par une IA', si ? si.texte : '', ia) : ''}${_pfPli('bilan', `${_escName(col.long)} · ce que je dirai`, b ? b.texte : '', `
     <textarea id="fi-bil" class="pf-ta" aria-label="${_escAttr(col.long)} · ce que je dirai" onchange="ficheBilanSave()" oninput="_autoTaille(this);_bilanCompte(this, 'fi-bil-n', ${col.type === 'conseil'})" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
     ${col.type === 'conseil' ? `<div class="bil-n${b && b.texte.length > _appreciationMax() ? ' trop' : ''}" id="fi-bil-n" title="Le bilan du conseil est l'appréciation du bulletin (réglage dans 💾 Données ▸ Année et périodes)">${_bilanCompteHTML(b ? b.texte.length : 0)}</div>` : ''}${_iaRepereHTML(cls, stu, col)}
-    ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>`)}
+    ${_iaOn() ? `<div class="pf-row"><button class="pf-ins" onclick="openRedacIA()" title="Faire corriger l'orthographe et la grammaire du bilan, ou le faire reformuler et réorganiser — vous comparez avant de remplacer">🤖 Corriger ou reformuler avec une IA…</button></div>` : ''}${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>`)}
     ${_pfPli('dec', 'Décisions · à mettre en place', d ? d.texte : '', `
     <textarea id="fi-dec" class="pf-ta pf-ta-dec" aria-label="Décisions · à mettre en place" onchange="ficheDecisionSave()" oninput="_autoTaille(this)" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
     <div class="tb-hint" id="fi-dec-etat">${d ? `Noté le ${_escName(_fmtDateFr(d.date))} · vider le champ la retire` : 'Enregistré en quittant le champ'}</div>`)}`;
@@ -10165,7 +10205,7 @@ function iaFormeUI(sorte, champ, v) {
 // ── Plein écran pour relire (v1.73.2, l'utilisateur : « pour que la vérification que les données envoyées sont bien
 // anonymes soit plus facile, il faut pouvoir l'afficher en plein écran ») : la fenêtre prend tout l'écran, le texte à
 // relire en prend la plus grande part. Le choix vaut pour les quatre fenêtres, retenu sur le poste (`suiviPP_iaPlein`).
-const LS_IA_PLEIN = 'suiviPP_iaPlein', IA_PLEIN_MODALES = ['mia', 'miac', 'mias', 'miaenv'];
+const LS_IA_PLEIN = 'suiviPP_iaPlein', IA_PLEIN_MODALES = ['mia', 'miac', 'mias', 'mir', 'miaenv'];
 function _iaPlein() { try { return localStorage.getItem(LS_IA_PLEIN) === '1'; } catch (_) { return false; } }
 function _iaPleinApplique() {
   const on = _iaPlein();
@@ -10396,6 +10436,156 @@ function ficheSynthIARetirer() {
   synthIASet(cls, stu.id, { type: col.type, date: col.date }, '');
   save(); _ficheRender();
   toast('Synthèse retirée — Ctrl+Z la rend.');
+}
+
+// ── ✍️ LE BILAN CORRIGÉ OU REFORMULÉ PAR UNE IA (v1.80.0) ── l'utilisateur : « une correction orthographique,
+// grammaticale, mais aussi une re-rédaction, une reformulation, une réorganisation de ce qui est rédigé dans les bilans,
+// en utilisant l'IA ». Le bilan du moment, et lui seul, part par le même circuit que la synthèse : noms remplacés,
+// relecture (`_iaActif` : signalements, masquer, remplacer), Copier ou Envoyer à Claude (sorte `redac`) ; la réponse
+// revient, noms remis, COMPARÉE mot à mot au bilan (`_motsDiff`) ; rien ne change sans « Remplacer le bilan » (un cran
+// d'undo). Deux demandes : corriger seulement, ou reformuler et réorganiser (retenue sur le poste). Pour un conseil, la
+// consigne rappelle la longueur de l'appréciation du bulletin. État de séance par élève et moment (`_iaRedacEtats`),
+// refait si le bilan a changé entre-temps.
+const IA_REDAC_CONSIGNES = {
+  corriger: `Voici le bilan d'un élève de collège, rédigé par son professeur principal.
+Corrigez UNIQUEMENT l'orthographe, la grammaire, la conjugaison, la ponctuation et la typographie française. Ne changez ni le sens, ni les mots choisis, ni l'ordre des phrases, ni le ton ; ne raccourcissez pas, n'ajoutez rien. Si le texte est déjà correct, rendez-le tel quel.`,
+  reformuler: `Voici le bilan d'un élève de collège, rédigé par son professeur principal.
+Reformulez-le et réorganisez-le pour qu'il soit clair, fluide et bien construit : un ordre logique (ce qui va bien, ce qui doit progresser, ce qui est attendu ou conseillé), des phrases nettes, un ton bienveillant et exigeant. Gardez TOUTES les informations et le sens : n'inventez rien, n'ajoutez aucun fait, aucune note, aucun chiffre qui n'y serait pas. Gardez la personne grammaticale du texte (il ou elle, ou vous). Corrigez aussi l'orthographe et la grammaire. Une longueur proche de l'original.`,
+};
+const IA_REDAC_FIN = `Les repères entre crochets ([Élève], [Professeur de SVT]…) remplacent des noms : gardez-les tels quels, crochets compris.
+Répondez par le seul texte du bilan, sans titre, sans guillemets, sans commentaire ni mise en forme.`;
+const LS_IA_REDAC = 'suiviPP_iaRedacMode';
+const _iaRedacEtats = {};
+let _iaRedac = null;
+function _iaRedacMode() { return _iaLsLire(LS_IA_REDAC, '') === 'reformuler' ? 'reformuler' : 'corriger'; }
+// La consigne — pure (testée) : la demande, la longueur d'un conseil (l'appréciation du bulletin), la fin commune.
+function _iaRedacConsigne(mode, conseil, max) {
+  const lg = conseil && mode === 'reformuler' ? `\nC'est l'appréciation du bulletin : au plus ${max} caractères, espaces comprises.` : '';
+  return (IA_REDAC_CONSIGNES[mode] || IA_REDAC_CONSIGNES.corriger) + lg + '\n' + IA_REDAC_FIN;
+}
+function _iaRedacContenu(st) { const c = _iaRedacCtx(st); return _iaRedacConsigne(_iaRedacMode(), c && c.col.type === 'conseil', _appreciationMax()) + '\n\n' + String(st.txt || '').trim() + '\n'; }
+function _iaRedacCtx(st) {
+  const stu = st && S.eleves[st.sid], cls = stu && S.classes[stu.classe_id];
+  const col = cls && (_chaleurMomentsTous(cls).find(c => c.key === st.colKey) || _ficheMoments(cls).find(c => c.key === st.colKey));
+  if (!col) return null;
+  const mode = { type: col.type, date: col.date };
+  return { stu, cls, col, mode, bilan: _bilanCible(cls, stu.id, mode) };
+}
+// Les mots ajoutés et retirés de `a` à `b` — pur (testé). Un mot = ce qui n'est pas un blanc, avec les blancs qui le
+// suivent ; comparés sans ces blancs. Plus longue sous-suite commune ; au-delà de 600 mots de part et d'autre, tout
+// est dit remplacé (le calcul deviendrait lent, et un tel bilan n'en est plus un).
+function _motsDiff(a, b) {
+  const A = String(a || '').match(/\S+\s*/g) || [], B = String(b || '').match(/\S+\s*/g) || [];
+  const k = t => t.trim();
+  const out = [], pousse = (kk, t) => { const d = out[out.length - 1]; if (d && d.k === kk) d.t += t; else out.push({ k: kk, t }); };
+  if (A.length > 600 || B.length > 600) { A.forEach(t => pousse('-', t)); B.forEach(t => pousse('+', t)); return out; }
+  const n = A.length, m = B.length, L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = k(A[i]) === k(B[j]) ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (k(A[i]) === k(B[j])) { pousse('=', B[j]); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) pousse('-', A[i++]);
+    else pousse('+', B[j++]);
+  }
+  while (i < n) pousse('-', A[i++]);
+  while (j < m) pousse('+', B[j++]);
+  return out;
+}
+// La réponse de l'IA, nettoyée et les noms remis : ce qui deviendrait le bilan.
+function _iaRedacProposition(st) {
+  const t = _iaRestaure(_iaNettoie(st.rep || ''), st.table).trim();
+  return t.replace(/^[«"“]\s*/, '').replace(/\s*[»"”]$/, '').trim();
+}
+function openRedacIA() {
+  if (_iaRefuse()) return;
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id], col = cls && _ficheMomentCourant(cls);
+  if (!col) return toast('⚠️ Choisissez d\'abord un moment dans la fiche (Synthèse pour).', 'warn');
+  if (document.getElementById('fi-bil')) ficheBilanSave();
+  const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
+  if (!b || !String(b.texte || '').trim()) return toast('⚠️ Écrivez d\'abord le bilan : c\'est lui que l\'IA corrige ou reformule.', 'warn');
+  const cle = stu.id + '|' + col.key;
+  let st = _iaRedacEtats[cle];
+  if (!st || st.source !== b.texte) st = _iaRedacEtats[cle] = { sid: stu.id, colKey: col.key, source: b.texte, txt: null, table: null, ok: [], ignores: [], modifie: false, rep: '' };
+  st.ids = { txt: 'mir-txt', verif: 'mir-verif' };
+  st.personnes = () => { const x = _iaRedacCtx(st); return x ? _iaPersonnes(x.cls, x.stu) : []; };
+  _iaRedac = st; _iaActif = st;
+  document.getElementById('mir-title').textContent = `🤖 Corriger ou reformuler le bilan — ${stu.prenom} ${stu.nom}`;
+  document.getElementById('mir-sous').textContent = `${col.long} · rien ne part sans votre geste « Copier » ou « Envoyer à Claude », et le bilan ne change qu'avec « Remplacer le bilan ».`;
+  if (st.txt === null) _iaRedacGenerer(); else { _iaTexteRemplir('mir-txt', st.txt); _iaVerifRender(); }
+  document.getElementById('mir-rep').value = st.rep;
+  _iaRedacModeRender();
+  _iaRedacRender();
+  _iaOuvertureMaj();
+  openMod('mir');
+  _modalReturnTo['mir'] = () => { clearTimeout(_iaVerifT); _iaRedac = null; _iaActif = null; _ficheRedessine(); };
+}
+function _iaRedacGenerer() {
+  const st = _iaRedac, c = _iaRedacCtx(st);
+  if (!c || !c.bilan) return;
+  const r = _iaPseudo(c.bilan.texte, { personnes: _iaPersonnes(c.cls, c.stu) });
+  r.table.jetons['[Élève]'] = r.table.jetons['[Élève]'] || { retour: String(c.stu.prenom || '').trim(), vus: {} };
+  Object.assign(st, { txt: r.texte, table: r.table, modifie: false });
+  _iaTexteRemplir('mir-txt', r.texte);
+  _iaVerifRender();
+}
+function iaRedacRefaireUI() {
+  if (!_iaRedac) return;
+  if (!_iaRedac.modifie) return _iaRedacGenerer();
+  _uiConfirm({ title: 'Refaire le texte à copier ?', message: 'Il repart du bilan enregistré : vos corrections à la main seront perdues.', okLabel: 'Refaire', onOk: _iaRedacGenerer });
+}
+function _iaRedacModeRender() {
+  const m = _iaRedacMode(), c = _iaRedacCtx(_iaRedac);
+  document.querySelectorAll('input[name="mir-mode"]').forEach(r => { r.checked = r.value === m; });
+  const box = document.getElementById('mir-cons');
+  if (box) box.textContent = _iaRedacConsigne(m, c && c.col.type === 'conseil', _appreciationMax());
+}
+function iaRedacModeUI(v) { _iaLsEcrire(LS_IA_REDAC, v === 'reformuler' ? 'reformuler' : 'corriger'); _iaRedacModeRender(); }
+// Copier ou envoyer : la consigne, puis le texte relu. Un nom connu encore là → on demande avant (comme la synthèse).
+function _iaRedacPret(suite) {
+  const st = _iaRedac, ta = document.getElementById('mir-txt');
+  if (!st || !ta) return;
+  st.txt = ta.value; _iaVerifRender();
+  if (!st.txt.trim()) return toast('⚠️ Le texte est vide : ↺ Refaire le texte repart du bilan.', 'warn');
+  if (st.fuites.length) return _uiConfirm({ title: 'Des noms connus sont encore dans le texte', message: `${st.fuites.map(f => f.mot).join(', ')} : ils partiraient tels quels. Les remplacer d'abord ?`, okLabel: 'Remplacer et continuer', onOk: () => { iaFuitesUI(); suite(); } });
+  suite();
+}
+function iaRedacCopierUI() { _iaRedacPret(() => _iaPressePapiers(_iaRedacContenu(_iaRedac), '📋 Copié : la consigne et le bilan relu. Collez-les dans l\'assistant, puis rapportez sa réponse ici (étape 3).')); }
+function iaRedacEnvoyerUI() { _iaRedacPret(() => _iaEnvoiOuvrir('redac', _iaRedacContenu(_iaRedac), 'mir', 1)); }
+function iaRedacReponseSaisie() {
+  const ta = document.getElementById('mir-rep');
+  if (!_iaRedac || !ta) return;
+  _iaRedac.rep = ta.value;
+  _iaRedacRender();
+}
+function _iaRedacRender() {
+  const box = document.getElementById('mir-diff'), st = _iaRedac, c = _iaRedacCtx(st);
+  if (!box || !st) return;
+  const p = _iaRedacProposition(st);
+  if (!p || !c || !c.bilan) { box.innerHTML = ''; return; }
+  const d = _motsDiff(c.bilan.texte, p), change = d.some(x => x.k !== '=');
+  const reste = p.match(_IA_REPERE) || [];
+  box.innerHTML = `<span class="ia-vt">${change ? 'La proposition, comparée à votre bilan' : 'Aucun changement : la proposition est identique à votre bilan'}</span>`
+    + d.map(x => x.k === '+' ? `<ins>${_escName(x.t)}</ins>` : x.k === '-' ? `<del>${_escName(x.t)}</del>` : _escName(x.t)).join('')
+    + (c.col.type === 'conseil' ? `<div class="bil-n${p.length > _appreciationMax() ? ' trop' : ''}">${_bilanCompteHTML(p.length)} (votre bilan : ${c.bilan.texte.length})</div>` : '')
+    + (reste.length ? `<div class="tb-hint">Repères sans correspondance, laissés tels quels : ${_escName([...new Set(reste)].join(', '))}.</div>` : '');
+}
+function iaRedacRangerUI() {
+  const st = _iaRedac, c = _iaRedacCtx(st);
+  if (!c) return;
+  const ta = document.getElementById('mir-rep');
+  if (ta) st.rep = ta.value;
+  const t = _iaRedacProposition(st).slice(0, 10000);
+  if (!t) return toast('⚠️ Collez d\'abord la réponse de l\'IA (étape 3).', 'warn');
+  const b = c.bilan;
+  if (b && b.texte === t) { closeMod2('mir'); return toast('Le bilan est déjà ce texte : rien n\'a changé.'); }
+  pushUndo();
+  if (b) bilanSet(c.stu.id, b.id, { date: b.date, type: b.type, texte: t });
+  else bilanAdd(c.stu.id, { date: c.col.date, type: c.col.type, texte: t });
+  save();
+  delete _iaRedacEtats[st.sid + '|' + st.colKey];
+  closeMod2('mir');
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+  toast('✍️ Bilan remplacé par la proposition — Ctrl+Z rend l\'ancien.');
 }
 
 // ── TOUTE LA CLASSE D'UN COUP (v1.70.0) ── l'utilisateur : « il faudrait une solution pour faire toute la classe en
@@ -11175,8 +11365,8 @@ const IA_MODELES = [
   { id: 'claude-haiku-5-5', nom: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, secours: false, note: 'le moins cher, moins nuancé' },
   { id: 'claude-fable-5-1', nom: 'Claude Fable 5.1', entree: 10, sortie: 50, secours: true, note: 'le plus capable, le plus cher' },
 ];
-const IA_SORTES = { eleve: 'un élève', lot: 'toute la classe', synthese: 'la synthèse de la classe', tons: 'le ton des avis des collègues' };
-const IA_SORTES_COURT = { eleve: 'un élève', lot: 'la classe', synthese: 'synthèse classe', tons: 'ton des avis' };
+const IA_SORTES = { eleve: 'un élève', lot: 'toute la classe', synthese: 'la synthèse de la classe', tons: 'le ton des avis des collègues', redac: 'un bilan à corriger ou reformuler' };
+const IA_SORTES_COURT = { eleve: 'un élève', lot: 'la classe', synthese: 'synthèse classe', tons: 'ton des avis', redac: 'bilan retravaillé' };
 // La réponse de toute la classe est IMPOSÉE dans la forme que `_iaLotLire` lit déjà.
 const IA_SCHEMA_LOT = { type: 'object', additionalProperties: false, required: ['syntheses'], properties: {
   syntheses: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['eleve', 'synthese'],
@@ -11409,6 +11599,7 @@ function _iaReponseVers(origine, t) {
   ta.value = t;
   if (origine === 'mia') iaReponseSaisie();
   else if (origine === 'miac') { if (_iaLot) { _iaLot.rep = t; _iaLotRevueRender(); } }
+  else if (origine === 'mir') iaRedacReponseSaisie();
   else iaClReponseSaisie();
   try { ta.focus({ preventScroll: true }); ta.scrollIntoView({ block: 'center' }); } catch (_) {}
 }
@@ -11419,9 +11610,9 @@ function _iaApiLigneHTML() {
   const j = _iaJournal(), dern = j[j.length - 1], m = _iaModele(_iaApiReglages().modele);
   return `📤 ${_escName(m.nom)} · clé ${_escName(_iaCleMasquee(cle))}${dern ? ` · dernier envoi ≈ ${_iaDollars(dern.cout)}` : ''} · ce mois-ci sur ce poste : ${_iaDollars(_iaJournalMois(j).cout)} · <a href="${IA_LIENS.credit}" target="_blank" rel="noopener noreferrer">crédit restant ↗</a>`;
 }
-function _iaApiLigneMaj() { for (const id of ['mia-api', 'miac-api', 'mias-api']) { const b = document.getElementById(id); if (b) b.innerHTML = _iaApiLigneHTML(); } }
+function _iaApiLigneMaj() { for (const id of ['mia-api', 'miac-api', 'mias-api', 'mir-api']) { const b = document.getElementById(id); if (b) b.innerHTML = _iaApiLigneHTML(); } }
 function iaVersReglageUI() {
-  for (const id of ['miaenv', 'mias', 'miac', 'mia']) { const m = document.getElementById(id); if (m && m.classList.contains('on')) closeMod2(id); }
+  for (const id of ['miaenv', 'mir', 'mias', 'miac', 'mia']) { const m = document.getElementById(id); if (m && m.classList.contains('on')) closeMod2(id); }
   openDonnees('ia');
 }
 // ── 💾 Données ▸ 🤖 Intelligence artificielle ──

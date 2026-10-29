@@ -45,6 +45,34 @@ Demandé par l'utilisateur : « on sélectionne les données à extraire, elles 
 - Tests : `test/synthese-ia.test.js` — dont un balayage de TOUTE la démo (tous les élèves × tous les moments, tout coché) par un détecteur indépendant du moteur, avec méta-test, et « rien de ce que l'app écrit n'est à vérifier ».
 - ⚠️ Non vérifié : un vrai assistant (format de sa réponse), le presse-papiers réel (testé sur un témoin).
 
+#### ✍️ Le bilan corrigé ou reformulé (v1.80.0)
+
+Demandé le 2026-10-29 : *« une correction orthographique, grammaticale, mais aussi une re-rédaction, une reformulation,
+une réorganisation de ce qui est rédigé dans les bilans, en utilisant l'IA »*. Bouton *🤖 Corriger ou reformuler avec
+une IA…* sous le champ du bilan (`_ficheRedacHTML`, donc dans les trois vues ; absent si l'IA est désactivée), fenêtre
+`mir` (`openRedacIA`). Refusé tant que le bilan du moment est vide ; le bilan en cours de frappe est d'abord enregistré.
+
+- **Deux demandes** (radios, retenues sur le poste : `suiviPP_iaRedacMode`) : *Corriger l'orthographe et la grammaire —
+  rien d'autre ne change* (d'office) ou *Reformuler et réorganiser — le même contenu, mieux dit* (ordre : ce qui va bien,
+  ce qui doit progresser, ce qui est attendu ; rien d'inventé, aucun chiffre ajouté, même personne grammaticale).
+  Consignes fixes (`IA_REDAC_CONSIGNES`, `IA_REDAC_FIN` : garder les repères, répondre par le seul texte), lues dans un
+  volet ; pour un **conseil reformulé**, la longueur de l'appréciation du bulletin (`_appreciationMax`) est rappelée
+  (`_iaRedacConsigne`, pure).
+- **Ce qui part** : le seul texte du bilan, pseudonymisé par le même moteur (`_iaPseudo`, `_iaPersonnes`), relu à
+  l'étape 2 avec la même vérification (`_iaActif` = `_iaRedac` : signalements, masquer, remplacer, plein écran) ; puis
+  *📋 Copier* ou *📤 Envoyer à Claude* (sorte `redac`, texte libre, sans forme imposée ; même dernière vérification
+  `miaenv`, même journal du coût).
+- **Le retour** (`_iaRedacProposition` : `_iaNettoie`, noms remis, guillemets d'encadrement retirés) est **comparé mot à
+  mot au bilan** (`_motsDiff`, pure : plus longue sous-suite commune sur les mots, blancs ignorés ; au-delà de 600 mots,
+  remplacé en bloc) : ajouts sur fond vert (`--don-ok-bg/fg`), retraits barrés (`--com-del`) ; au conseil, le compteur
+  du bulletin (proposition et bilan). **Rien ne change** sans *✓ Remplacer le bilan* (`iaRedacRangerUI` : `bilanSet`,
+  date du bilan gardée, un cran d'undo, rien si identique).
+- État de séance par élève et moment (`_iaRedacEtats`), **refait si le bilan a changé** depuis ; oublié après un
+  remplacement. Rien dans `S`.
+- Tests : `test/bilan-redac-ia.test.js` (comparaison, consignes, de bout en bout sur la démo — aucun prénom ne part,
+  repères remis, Ctrl+Z —, refus sans bilan, bouton absent IA désactivée, requête).
+- ⚠️ Non vérifié : une vraie réponse d'assistant (respect des repères et du « seul texte »).
+
 #### Toute la classe d'un coup (v1.70.0)
 
 Demandé : « une solution pour faire toute la classe en une seule fois — avec un JSON anonymisé ». Bouton *🤖 Synthèses par une IA…* de la barre de 👥 Élèves (`openSynthIAClasse`), et *Toute la classe d'un coup…* dans la fenêtre d'un élève (`iaVersClasseUI`). Fenêtre `miac`, mêmes trois étapes ; **la relecture est COMMUNE** aux deux fenêtres : `_iaActif` = l'état de la fenêtre ouverte (`_ia` ou `_iaLot`), qui porte `ids` (son texte, sa vérification), `personnes()` et `apres()` — `iaTexteSaisi`, `_iaVerifRender`, `iaFuitesUI`, `iaMasquerUI`, `iaIgnorerUI` servent aux deux.
