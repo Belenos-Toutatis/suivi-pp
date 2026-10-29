@@ -1100,6 +1100,7 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 .inc-choix-l .pap-l small { display: block; color: var(--pencil); }
 .inc-choix-l .pap-ok { color: var(--ok-fg); padding: 2px 10px; }
 /* Contacts : le texte entier, ses retours à la ligne gardés (v1.55.7). */
+html[data-ia="off"] .ia-only { display: none !important; }   /* fonctions d'IA désactivées (v1.79.0) */
 textarea.jl-txt { width: 100%; min-height: 0; resize: vertical; field-sizing: content; overflow-y: hidden; font-size: .9em; line-height: 1.35; padding: 4px 6px; box-sizing: border-box; }
 /* Fichiers joints à un contact (v1.78.0) : sous le texte, un lien par fichier, ✕ pour le détacher. */
 .jl-pj { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 4px; font-size: .86em; }
@@ -2349,7 +2350,7 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
       <button class="btn btn-g btn-sm" onclick="openTrombiImport()" title="Les photos des élèves, depuis le trombinoscope PDF de Mon Bureau Numérique — dans la fiche et au survol des noms">📥 Importer des photos</button>
       <button class="btn btn-g btn-sm" onclick="openClassesModal()" title="Créer, renommer, réordonner ou supprimer une classe">🏫 Classes…</button>
       <button class="btn btn-g btn-sm" onclick="openTagsModal()" title="Les options suivies : LATIN, BILINGUE, DNL…">🏷 Options…</button>
-      <button class="btn btn-g btn-sm" onclick="openSynthIAClasse()" title="Une synthèse par élève, pour toute la classe en une seule demande à un assistant : un JSON dont les noms sont remplacés par des repères, relu avant de partir">🤖 Synthèses par une IA…</button>
+      <button class="btn btn-g btn-sm ia-only" onclick="openSynthIAClasse()" title="Une synthèse par élève, pour toute la classe en une seule demande à un assistant : un JSON dont les noms sont remplacés par des repères, relu avant de partir">🤖 Synthèses par une IA…</button>
       <button class="btn btn-g btn-sm" onclick="openMbnConseil()" title="Écrire les bilans du conseil, comme appréciations générales, dans le conseil de classe de Mon Bureau Numérique — par un favori que vous lancez dans votre session MBN">🏫 Vers MBN…</button>
       <button class="btn btn-g btn-sm" onclick="openPeriodePrint()" title="La liste telle qu'elle est à l'écran, ou la synthèse d'un moment (conseil, mi-période, point du mois) en tableau ou en fiches — Ctrl+P fait pareil">🖨 Imprimer…</button>
       <input type="search" id="eleve-search" placeholder="🔍 nom, prénom, option…" oninput="setEleveFilter(this.value)" style="margin-left:auto;min-width:180px">
@@ -3703,8 +3704,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.78.0';
-const APP_BUILD_DATE = '2026-10-28T18:09:13Z';
+const APP_VERSION    = '1.79.0';
+const APP_BUILD_DATE = '2026-10-29T06:22:59Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -3788,6 +3789,9 @@ let S = _emptyState();
 // écrire « A » en dur (même convention que _codeA() dans Plan de classe).
 const DEFAULT_PREFS = {
   periodMode: 'semestre',   // 'semestre' | 'trimestre'
+  // Fonctions d'IA (v1.79.0) : false = rien de l'IA ne s'affiche (boutons, synthèses rangées, couleurs du ton
+  // des avis…) ; RIEN n'est effacé, tout revient en les réactivant. Réglage de l'utilisateur, il suit la sync.
+  iaActive: true,
   codeAbsent: 'A',          // élève absent au moment du relevé : rien à relever
   // Début des périodes 2 (et 3), en 'MM-DD' — réglable, ça change d'un établissement à l'autre.
   periodStarts: { semestre: ['02-01'], trimestre: ['12-01', '03-15'] },
@@ -5131,8 +5135,8 @@ const DON_RUBS = [
     mots: 'incidents incident instances punitions sanctions retenue exclusion commission conseil discipline rapport' },
   { k: 'apparence', ic: '🎨', t: 'Apparence', sous: 'les polices de l\'écran et du papier, le thème',
     mots: 'apparence police polices andika latin modern theme sombre clair nuit impression ecran' },
-  { k: 'ia', ic: '🤖', t: 'Envoi à une IA', sous: 'la clé d\'API de ce poste, le modèle, et ce que chaque envoi a coûté',
-    mots: 'ia intelligence artificielle claude anthropic api cle modele opus sonnet haiku fable cout credit envoi synthese jetons console' },
+  { k: 'ia', ic: '🤖', t: 'Intelligence artificielle', sous: 'activer ou désactiver les fonctions d\'IA ; la clé d\'API de ce poste, le modèle, et ce que chaque envoi a coûté',
+    mots: 'desactiver activer masquer cacher ia intelligence artificielle claude anthropic api cle modele opus sonnet haiku fable cout credit envoi synthese jetons console' },
   { k: 'imports', ic: '📥', t: 'Importer · exporter', grp: 'Données', sous: 'faire entrer des données d\'ailleurs, les sortir, ou tout recommencer',
     mots: 'import importer exporter export json sauvegarde complete pronote siecle mbn bureau numerique plan de classe moyennes photos trombinoscope recapitulatif observations regimes demo demonstration effacer decrire fichier recuperer dates bulletins bulletin appreciations' },
   { k: 'sauvegarde', ic: '🔄', t: 'Sauvegarde et synchronisation', grp: 'Données', sous: 'le dossier synchronisé, ses versions et ses copies',
@@ -5193,7 +5197,8 @@ function _donChip(k) {
     case 'salles': { const n = nb(S.salles); return { txt: n ? _pl(n, 'salle') : 'aucune' }; }
     case 'instances': return { txt: `${_instancesActives().length}`, titre: 'Instances proposées à la saisie d\'un incident' };
     case 'apparence': return { txt: `${_POLICES[_applyPolices().ecran]?.label || 'Andika'} · ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'sombre' : 'clair'}` };
-    case 'ia': { const m = _iaJournalMois(_iaJournal());
+    case 'ia': { if (!_iaOn()) return { txt: 'désactivées', titre: 'Fonctions d\'IA désactivées : rien ne s\'en affiche, rien n\'est effacé' };
+      const m = _iaJournalMois(_iaJournal());
       return _iaCle() ? { txt: m.n ? `${_iaDollars(m.cout)} ce mois` : 'clé ✓', cl: 'ok', titre: 'Une clé d\'API sur ce poste ; ce que les envois ont coûté ce mois-ci' }
         : { txt: 'sans clé', titre: 'Facultatif : sans clé, les fenêtres 🤖 copient le texte au lieu de l\'envoyer' }; }
     case 'imports': return { txt: '12 imports' };
@@ -10114,6 +10119,7 @@ function _iaCtx() {
   return col ? { stu, cls, col, mode: { type: col.type, date: col.date } } : null;
 }
 function openSynthIA() {
+  if (_iaRefuse()) return;
   const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id], col = cls && _ficheMomentCourant(cls);
   if (!col) return toast('⚠️ Choisissez d\'abord un moment dans la fiche (Synthèse pour).', 'warn');
   const cle = stu.id + '|' + col.key;
@@ -10286,6 +10292,7 @@ function iaRangerUI() {
 }
 // ── Dans la fiche ── la synthèse du moment, au-dessus de la rédaction du bilan.
 function _ficheSynthIAHTML(cls, stu, col) {
+  if (!_iaOn()) return '';   // désactivées : la synthèse rangée reste dans les données, invisible
   const si = _synthIACible(cls, stu.id, { type: col.type, date: col.date });
   if (!si) return `<div class="pf-row"><button class="pf-ins" onclick="openSynthIA()">🤖 Synthèse par une IA…</button><span class="pf-mu">Les noms sont remplacés, et vous relisez tout avant de copier.</span></div>`;
   return `<div class="pf-bil pf-ia"><div class="pf-bil-l">🤖 Synthèse par une IA · rangée le ${_escName(_fmtDateFr(_todayYmd(new Date(si.ts || Date.now()))))} · à relire, pas à recopier</div><div id="fi-ia-t">${_escName(si.texte)}</div><div class="pf-row"><button class="pf-ins" onmousedown="ficheSynthIASel()" onclick="ficheSynthIAInserer()" title="Ajouter la synthèse à la fin du bilan — ou seulement le passage que vous y avez sélectionné">＋ insérer dans le bilan</button><button class="pf-ins" onclick="openSynthIA()">🤖 Refaire…</button><button class="pf-ins" onclick="ficheSynthIARetirer()">🗑 Retirer</button></div></div>`;
@@ -10447,6 +10454,7 @@ function _iaLotGarder() {
 
 // ── La fenêtre « toute la classe » ──
 function openSynthIAClasse(colKey) {
+  if (_iaRefuse()) return;
   const cls = getCls();
   if (!cls || !cls.eleves.length) return toast('⚠️ Pas d\'élève dans cette classe.', 'warn');
   const col = (colKey && _chaleurMomentsTous(cls).find(c => c.key === colKey)) || _ficheMomentCourant(cls);
@@ -10536,6 +10544,7 @@ function _iaCorrRender(id) {
 // collée dans la conversation. Elle suit le lot ouvert (`_iaActif`) et se ferme avec la page.
 let _iaCorrWin = null;
 function iaCorrFenetreUI() {
+  if (_iaRefuse()) return;
   const st = _iaActif;
   if (!st || !st.codes) return toast('⚠️ Pas de repères pour ce texte.', 'warn');
   if (_iaCorrWin && !_iaCorrWin.closed) { _iaCorrWin.focus(); _iaCorrWinMaj(); return; }
@@ -10578,6 +10587,7 @@ function _iaCorrWinMaj() {
 window.addEventListener('pagehide', () => { try { if (_iaCorrWin && !_iaCorrWin.closed) _iaCorrWin.close(); } catch (_) {} });
 // Dans la fiche, sous la rédaction : le repère de l'élève dans le dernier lot préparé pour ce moment (gardé sur le poste).
 function _iaRepereHTML(cls, stu, col) {
+  if (!_iaOn()) return '';
   const sv = cls && col ? _iaLotSauve(cls.id, col.key) : null, n = sv && sv.codes[stu.id];
   return n ? `<div class="tb-hint" title="Le repère de cet élève dans le dernier texte préparé pour toute la classe, pour ce moment — gardé sur ce poste">🤖 Dans la conversation : <strong>[Élève ${n}]</strong></div>` : '';
 }
@@ -10807,6 +10817,7 @@ let _iaCl = null;
 function _iaClBlocs() { return _iaClBlocsSel || (_iaClBlocsSel = new Set(IA_BLOCS_CLASSE.filter(x => x.on).map(x => x.k))); }
 function _iaConsigneSynthClasse() { const c = _prefs().iaConsigneSynthClasse; return typeof c === 'string' && c.trim() ? c : IA_CONSIGNE_SYNTH_CLASSE; }
 function openSynthClasse(colKey) {
+  if (_iaRefuse()) return;
   const cls = getCls();
   if (!cls || !cls.eleves.length) return toast('⚠️ Pas d\'élève dans cette classe.', 'warn');
   const col = (colKey && _chaleurMomentsTous(cls).find(c => c.key === colKey)) || _ficheMomentCourant(cls);
@@ -10903,6 +10914,7 @@ function iaClRangerUI() {
 // l'enregistrer la remplace). Vider le texte la retire (Ctrl+Z la rend), comme dans la fenêtre IA.
 let _scEdit = null;
 function _synthClasseSecHTML(cls) {
+  if (!_iaOn()) return '';   // désactivées : la section 🤖 entière (les synthèses restent dans les données)
   const list = _synthClasseOf(cls), E = _scEdit;
   const zone = (id, txt) => `<textarea id="${id}" class="pf-ta" rows="4" data-sc-focus style="width:100%" oninput="_autoTaille(this)" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();synthClasseEcrireOkUI()}else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();synthClasseEcrireAnnulerUI()}" placeholder="L'ambiance de travail, la situation d'ensemble des élèves, l'esprit de la classe — ce qui va bien d'abord.">${_escName(txt || '')}</textarea>`;
   const boutons = `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn btn-p btn-sm" onclick="synthClasseEcrireOkUI()">✓ Enregistrer</button><button class="btn btn-g btn-sm" onclick="synthClasseEcrireAnnulerUI()">Annuler</button><span class="tb-hint">Ctrl+Entrée enregistre · vider le texte retire la synthèse</span></div>`;
@@ -11164,11 +11176,11 @@ function _iaFlux(e, ev) {
 // Une réponse en erreur → ce qu'on dit, en clair — pur.
 function _iaErreurTexte(statut, corps) {
   const msg = String((corps && corps.error && corps.error.message) || ''), type = (corps && corps.error && corps.error.type) || '';
-  if (statut === 401) return 'La clé est refusée (fausse, expirée ou désactivée) : vérifiez-la dans 💾 Données ▸ 🤖 Envoi à une IA.';
+  if (statut === 401) return 'La clé est refusée (fausse, expirée ou désactivée) : vérifiez-la dans 💾 Données ▸ 🤖 Intelligence artificielle.';
   if (statut === 403) return 'Cette clé n\'a pas le droit d\'utiliser l\'API (permission refusée).';
-  if (/workspace/i.test(msg)) return 'Cette clé n\'est limitée à aucun espace de travail, ou pas à celui indiqué : réglez l\'espace (wrkspc_…) dans 💾 Données ▸ 🤖 Envoi à une IA, ou créez une clé limitée à un espace.';
+  if (/workspace/i.test(msg)) return 'Cette clé n\'est limitée à aucun espace de travail, ou pas à celui indiqué : réglez l\'espace (wrkspc_…) dans 💾 Données ▸ 🤖 Intelligence artificielle, ou créez une clé limitée à un espace.';
   if (/credit balance|billing/i.test(msg)) return 'Crédit épuisé : rechargez-le dans la Console, ou attendez le crédit du mois.';
-  if (statut === 404 || type === 'not_found_error') return `Modèle introuvable pour cette clé${msg ? ` (${msg})` : ''} : choisissez-en un autre dans 💾 Données ▸ 🤖 Envoi à une IA.`;
+  if (statut === 404 || type === 'not_found_error') return `Modèle introuvable pour cette clé${msg ? ` (${msg})` : ''} : choisissez-en un autre dans 💾 Données ▸ 🤖 Intelligence artificielle.`;
   if (statut === 413) return 'Demande trop longue : décochez des données (étape 1).';
   if (statut === 429) return 'Trop de demandes en peu de temps, ou plafond de dépense atteint : réessayez dans une minute.';
   if (statut === 529 || type === 'overloaded_error') return 'Le service est surchargé : réessayez dans quelques minutes.';
@@ -11227,7 +11239,7 @@ function iaEnvoyerUI() {
 function iaLotEnvoyerUI() { _iaPret(_iaLotConstruire, j => _iaEnvoiOuvrir('lot', j, 'miac', Object.keys(_iaLot.codes || {}).length)); }
 function iaClEnvoyerUI() { _iaPret(_iaClConstruire, j => _iaEnvoiOuvrir('synthese', j, 'mias', 1)); }
 function _iaEnvoiOuvrir(sorte, contenu, origine, n) {
-  if (!_iaCle()) return _uiConfirm({ title: 'Aucune clé d\'API sur ce poste', message: 'Pour envoyer directement à Claude, il faut d\'abord une clé d\'API, collée dans 💾 Données ▸ 🤖 Envoi à une IA : la rubrique explique, étape par étape, comment la créer (une fois, quelques minutes). Le texte relu est gardé : vous le retrouverez en revenant ici. Sans clé, « Copier » reste possible.', okLabel: 'Ouvrir le réglage', onOk: iaVersReglageUI });
+  if (!_iaCle()) return _uiConfirm({ title: 'Aucune clé d\'API sur ce poste', message: 'Pour envoyer directement à Claude, il faut d\'abord une clé d\'API, collée dans 💾 Données ▸ 🤖 Intelligence artificielle : la rubrique explique, étape par étape, comment la créer (une fois, quelques minutes). Le texte relu est gardé : vous le retrouverez en revenant ici. Sans clé, « Copier » reste possible.', okLabel: 'Ouvrir le réglage', onOk: iaVersReglageUI });
   const reg = _iaApiReglages(), m = _iaModele(reg.modele), est = _iaEstime(sorte, contenu, reg.modele, n), mois = _iaJournalMois(_iaJournal());
   _iaEnvoi = { sorte, contenu, origine, n, ctrl: null, encours: false };
   document.getElementById('miaenv-sous').textContent = `${m.nom} (Anthropic) · ${IA_SORTES[sorte]} · clé ${_iaCleMasquee(_iaCle())}`;
@@ -11321,7 +11333,7 @@ function iaVersReglageUI() {
   for (const id of ['miaenv', 'mias', 'miac', 'mia']) { const m = document.getElementById(id); if (m && m.classList.contains('on')) closeMod2(id); }
   openDonnees('ia');
 }
-// ── 💾 Données ▸ 🤖 Envoi à une IA ──
+// ── 💾 Données ▸ 🤖 Intelligence artificielle ──
 // Le pas-à-pas pour obtenir une clé (v1.73.1, l'utilisateur : « ce n'est pas indiqué dans le logiciel, ce serait bien
 // que ce soit fait et expliqué ») — ouvert tant qu'aucune clé n'est enregistrée. ⚠️ L'ESPACE DE TRAVAIL vient AVANT la
 // clé : la fenêtre « Créer une clé API » demande sa portée, et c'est l'espace qui porte le plafond de dépense.
@@ -11353,7 +11365,11 @@ function _iaReglagesHTML() {
   const etat = x => ({ max_tokens: 'coupée', refusal: 'refusée', arrete: 'arrêtée', erreur: 'erreur' })[x.stop] || '';
   const lignes = j.slice(-12).reverse().map(x => { const d = new Date(x.ts);
     return `<tr><td>${_escName(_fmtDateFr(_todayYmd(d)).slice(0, 5))} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</td><td>${_escName(IA_SORTES_COURT[x.sorte] || '')}</td><td>${_escName((_iaModele(x.modele) || { nom: String(x.modele || '') }).nom.replace(/^Claude /, ''))}</td><td class="n">${_iaJetons(x.entree)}</td><td class="n">${_iaJetons(x.sortie)}</td><td class="n">${_iaDollars(+x.cout)}</td><td>${etat(x)}</td></tr>`; }).join('');
-  return `<div class="pref-help" style="margin-bottom:10px">Deux façons de demander une synthèse à une IA, au choix dans chaque fenêtre 🤖 : <strong>📋 Copier</strong>, pour la coller dans un assistant — rien ne part de l'app —, ou <strong>📤 Envoyer à Claude</strong>, directement, par l'API d'Anthropic. C'est le même texte relu qui part, et l'envoi direct le montre une dernière fois en entier : il ne part qu'une fois « J'ai relu » coché.</div>
+  const inter = `<div class="prefs" style="margin-bottom:12px"><label>Fonctions d'IA</label>
+    <div><div class="prefs-row"><button class="btn ${_iaOn() ? 'btn-s' : 'btn-g'} btn-sm" onclick="setPref('iaActive', ${_iaOn() ? 'false' : 'true'})" aria-pressed="${_iaOn()}">${_iaOn() ? '🤖 Activées — clic pour les désactiver' : '🚫 Désactivées — clic pour les réactiver'}</button></div>
+    <div class="pref-help">Désactivées, plus rien de l'IA ne s'affiche : ni les boutons 🤖, ni les synthèses rangées (élèves et classe, à l'écran comme sur le papier), ni les couleurs du ton des avis. <strong>Rien n'est effacé</strong> : tout revient en les réactivant. Vos bilans, même retravaillés avec une IA, restent les vôtres et s'affichent toujours.</div></div></div>`;
+  if (!_iaOn()) return inter;
+  return inter + `<div class="pref-help" style="margin-bottom:10px">Deux façons de demander une synthèse à une IA, au choix dans chaque fenêtre 🤖 : <strong>📋 Copier</strong>, pour la coller dans un assistant — rien ne part de l'app —, ou <strong>📤 Envoyer à Claude</strong>, directement, par l'API d'Anthropic. C'est le même texte relu qui part, et l'envoi direct le montre une dernière fois en entier : il ne part qu'une fois « J'ai relu » coché.</div>
   ${_iaGuideHTML(!cle, fin)}
   <div class="prefs">
     <label for="ia-cle">Clé d'API</label>
@@ -11412,7 +11428,7 @@ function iaJournalEffacerUI() {
 const TONS = [{ v: 3, l: 'très positif' }, { v: 2, l: 'positif' }, { v: 1, l: 'plutôt positif' }, { v: -1, l: 'plutôt négatif' }, { v: -2, l: 'négatif' }, { v: -3, l: 'très négatif' }];
 const TONS_V = TONS.map(t => t.v);
 const LS_TONS_VUS = 'suiviPP_tonsVus';
-function _tonsVus() { try { return localStorage.getItem(LS_TONS_VUS) !== '0'; } catch (_) { return true; } }
+function _tonsVus() { if (!_iaOn()) return false; try { return localStorage.getItem(LS_TONS_VUS) !== '0'; } catch (_) { return true; } }
 function tonsVusUI(on) { try { localStorage.setItem(LS_TONS_VUS, on ? '1' : '0'); } catch (_) {} _tonsRedessine(); }
 function _tonHash(t) { const s = String(t ?? ''); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + '.' + s.length.toString(36); }
 function _tonLabel(v) { return (TONS.find(x => x.v === v) || {}).l || ''; }
@@ -11481,6 +11497,7 @@ function _tonsBilan(camp) {
   return { avis, faits, aFaire: avis - faits, manuels };
 }
 function _tonsAvisHTML(cls, camp) {
+  if (!_iaOn()) return '';
   const b = _tonsBilan(camp), id = _escJsAttr(camp.id);
   return `<div class="ton-bloc"><strong>🎨 Le ton des avis</strong> <span class="tb-hint">${b.avis ? `${b.faits} avis surlignés sur ${b.avis}${b.aFaire ? ` · ${b.aFaire} à analyser` : ''}${b.manuels ? ` · ${_pl(b.manuels, 'passage')} corrigé${b.manuels > 1 ? 's' : ''} à la main` : ''}` : 'aucun avis pour l\'instant'}</span>
     <div class="ia-row"><button class="btn btn-s btn-sm" onclick="tonsAnalyserUI('${id}', false)"${b.aFaire ? '' : ' disabled'} title="Claude repère, dans chaque avis, les passages positifs et négatifs et leur intensité — vous verrez une dernière fois tout ce qui part">🎨 Surligner avec Claude${b.aFaire ? ` (${b.aFaire} avis)` : ''}…</button>${b.faits ? `<button class="btn btn-g btn-sm" onclick="tonsAnalyserUI('${id}', true)" title="Refaire l'analyse de tous les avis ; les passages corrigés à la main sont gardés">↺ Tout refaire…</button>` : ''}
@@ -11507,6 +11524,7 @@ function _tonPalMontrer(x, y, existant) {
 }
 function _tonOffset(el, node, off) { const r = document.createRange(); r.setStart(el, 0); r.setEnd(node, off); return r.toString().length; }
 function _tonSurSelection(ev) {
+  if (!_iaOn()) return;
   if (ev && ev.target && ev.target.closest && ev.target.closest('#ton-pal')) return;
   setTimeout(() => {
     const sel = window.getSelection ? window.getSelection() : null;
@@ -14358,8 +14376,14 @@ function _applyPolices() {
     if (papier === 'andika') d.setAttribute('data-police-papier', 'andika'); else d.removeAttribute('data-police-papier');
   } catch (_) {}
   _suivisApparenceMaj();   // 📋 Suivis : la fiche suit les polices de Données
+  // Fonctions d'IA désactivées : `html[data-ia="off"] .ia-only` cache les boutons du HTML statique.
+  try { if (_iaOn()) document.documentElement.removeAttribute('data-ia'); else document.documentElement.setAttribute('data-ia', 'off'); } catch (_) {}
   return { ecran, papier };
 }
+// Les fonctions d'IA sont-elles affichées ? (v1.79.0, l'utilisateur : « un réglage qui désactive les fonctions liées
+// à l'IA et n'affiche plus les résultats obtenus, sans les effacer »). Un seul interrupteur, lu partout où l'IA se montre.
+function _iaOn() { return _prefs().iaActive !== false; }
+function _iaRefuse() { if (_iaOn()) return false; toast('Les fonctions d\'IA sont désactivées (💾 Données ▸ 🤖 Intelligence artificielle).', 'warn'); return true; }
 function setPref(key, value) {
   if (!(key in DEFAULT_PREFS)) return;
   let v = key === 'codeAbsent' ? String(value || '').trim().slice(0, 3) : value;
@@ -14381,6 +14405,13 @@ function setPref(key, value) {
   renderDonnees();
   if (key === 'appreciationMax') { toast(`Appréciation du bulletin : ${v} caractères au plus.`); return; }
   if (key === 'obsPalier') { toast(v ? `Carnet : une couleur tous les ${v} observation${v > 1 ? 's' : ''}.` : 'Carnet : sans couleurs de palier.'); return; }
+  if (key === 'iaActive') {
+    _applyPolices();
+    const at = document.querySelector('.tab.on'); if (at && at.id !== 'tab-donnees') renderTab(at.id.replace('tab-', ''));
+    _refreshOpenConsultModals();
+    toast(v ? '🤖 Fonctions d\'IA réactivées : synthèses et couleurs des avis reviennent.' : 'Fonctions d\'IA désactivées : plus rien ne s\'en affiche, rien n\'est effacé.');
+    return;
+  }
   if (key === 'policeEcran' || key === 'policePapier') { _applyPolices(); toast(`Police ${key === 'policeEcran' ? 'de l\'écran' : 'de l\'impression'} : ${_POLICES[v]?.label || v}.`); return; }
   toast(key === 'periodMode' ? `Périodes : ${v === 'trimestre' ? 'trimestres' : 'semestres'}.` : `Code « absent » : ${v}.`);
 }
@@ -22583,7 +22614,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const hvcHTML = on('hvc') ? `<div class="print-hvc"><strong>Heures de vie de classe ${_escName(p.label)}</strong>${
     hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_escName(e.texte)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
   // La synthèse de la classe (v1.71.0) : celle DE CE MOMENT, seulement si elle existe (rien à dire sinon).
-  const sc = on('classe') && o.col ? _synthClasseCible(cls, { type: o.col.type, date: o.col.date }) : null;
+  const sc = on('classe') && o.col && _iaOn() ? _synthClasseCible(cls, { type: o.col.type, date: o.col.date }) : null;
   const scHTML = sc ? `<div class="print-hvc pp-pl"><strong>Synthèse de la classe</strong> ${_escName(sc.texte)}</div>` : '';
   const sub = `du ${_fmtDateFr(_debutUtile(p.start) < p.end ? _debutUtile(p.start) : p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet${
     on('moy') ? (syn.moyennes ? ` · moyennes « ${syn.moyennes.periode} » importées le ${_fmtDateFr(syn.moyennes.date)}` : ' · aucune moyenne importée pour cette période') : ''} · imprimé le ${_fmtDateFr(_todayYmd())}`;
@@ -22711,7 +22742,7 @@ function _periodePrintRefresh() {
   const sans = syn.rows.filter(r => !r.bilan).length;
   const bits = [`${syn.rows.length} élève${syn.rows.length > 1 ? 's' : ''} présents pendant ${syn.periode.label}`,
     o.blocs.includes('hvc') ? `${_hvcPeriode(cls, o.idx).length} heure${_hvcPeriode(cls, o.idx).length > 1 ? 's' : ''} de vie de classe` : '',
-    o.blocs.includes('classe') && o.col && _synthClasseCible(cls, { type: o.col.type, date: o.col.date }) ? 'la synthèse de la classe en tête' : '',
+    o.blocs.includes('classe') && o.col && _iaOn() && _synthClasseCible(cls, { type: o.col.type, date: o.col.date }) ? 'la synthèse de la classe en tête' : '',
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
     o.blocs.includes('moy') ? (syn.moyennes ? `moyennes « ${syn.moyennes.periode} » du ${_fmtDateFr(syn.moyennes.date)}` : '⚠️ aucune moyenne importée pour cette période') : '',
     o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — à écrire par les points de la colonne Bilans, ou dans la fiche` : '✓ un bilan pour chacun') : '',

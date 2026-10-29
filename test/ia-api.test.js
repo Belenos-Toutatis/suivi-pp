@@ -235,3 +235,24 @@ test('plein écran : un choix retenu sur le poste, le bouton le dit', () => {
   assert.strictEqual((html.match(/class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI\(this\)"/g) || []).length, 4, 'les trois relectures et la dernière vérification');
   assert.strictEqual((html.match(/<textarea id="(mia|miac|mias|miaenv)-txt" class="ia-lit"/g) || []).length, 4);
 });
+
+// Fonctions d'IA désactivées (v1.79.0) : plus rien ne s'affiche, rien n'est effacé, tout revient.
+test('fonctions d\'IA désactivées : synthèses et couleurs cachées, données intactes, retour à l\'identique', () => {
+  const app2 = require('./harness.js').loadApp();
+  const e = c => app2.__TESTEVAL(c);
+  e(`S = _emptyState(); createDemo(); postLoadHook();`);
+  const avant = e(`JSON.stringify([S.eleves.demo_e01.synthIA, getCls().synthClasse])`);
+  const vue = () => JSON.parse(e(`(() => { const cls = getCls(), stu = S.eleves.demo_e01;
+    const col = _ficheMoments(cls).find(c => c.type === 'conseil');
+    return JSON.stringify({ fiche: _ficheSynthIAHTML(cls, stu, col), classe: _synthClasseSecHTML(cls), tons: _tonsVus(),
+      papier: _periodePrintHTML(cls, col.pIdx ?? 0, { type: 'conseil', col, blocs: ['classe'], forme: 'tableau' }).html.includes(getCls().synthClasse[0].texte.slice(0, 30)) }); })()`));
+  const on = vue();
+  assert.ok(on.fiche.includes('Synthèse par une IA') && on.classe.includes('Synthèses de la classe') && on.tons);
+  e(`setPref('iaActive', false)`);
+  const off = vue();
+  assert.deepStrictEqual([off.fiche, off.classe, off.tons, off.papier], ['', '', false, false]);
+  assert.strictEqual(e(`JSON.stringify([S.eleves.demo_e01.synthIA, getCls().synthClasse])`), avant, 'rien n\'est effacé');
+  assert.strictEqual(e(`(() => { let t = ''; const o = toast; toast = m => { t = m; }; openSynthIA(); toast = o; return t; })()`).includes('désactivées'), true);
+  e(`undoLast()`);
+  assert.deepStrictEqual(vue(), on, 'Ctrl+Z les rend');
+});

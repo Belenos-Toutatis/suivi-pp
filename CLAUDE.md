@@ -718,6 +718,19 @@ Entrée **datée et qualifiée** par élève : `stu.bilans`, `_BILAN_TYPES` = `c
 
 ### 🤖 Synthèse par une IA (v1.69.0)
 
+**Désactiver les fonctions d'IA** (v1.79.0, l'utilisateur : *« un réglage qui désactive les fonctions liées à l'IA et
+n'affiche plus les résultats obtenus, sans les effacer »*) : `S.prefs.iaActive` (d'office `true`, suit la sync, un cran
+d'undo par `setPref`), interrupteur en tête de la rubrique **🤖 Intelligence artificielle** de 💾 Données (ex-*Envoi à
+une IA* ; désactivées, la rubrique ne montre que l'interrupteur, pastille « désactivées »). Lu par **`_iaOn()`**
+(⚠️ pas `_iaActif` : c'est l'état de la fenêtre IA ouverte). Désactivées : boutons 🤖 (classe `ia-only` +
+`html[data-ia="off"]` posé par `_applyPolices` pour le HTML statique), synthèse IA de la fiche (`_ficheSynthIAHTML`),
+repère « Dans la conversation » (`_iaRepereHTML`), section *🤖 Synthèses de la classe* de Vie de classe et son bloc
+imprimé, bloc 🎨 du ton des avis, couleurs du ton partout (`_tonsVus` rend faux) et leur palette ; les ouvreurs
+(`openSynthIA`, `openSynthIAClasse`, `openSynthClasse`, `iaCorrFenetreUI`) refusent par `_iaRefuse()`. **Rien n'est
+effacé** (`stu.synthIA`, `cls.synthClasse`, `camp.tons` intacts) ; les BILANS, même retravaillés avec une IA, restent
+affichés. ⚠️ La synthèse de la classe écrite à la main (✏️ Écrire) est cachée avec les autres : elle vit dans la même
+section. Tout nouvel affichage d'IA se branche sur `_iaOn()`. Test : `ia-api.test.js`.
+
 Demandé par l'utilisateur : « on sélectionne les données à extraire, elles sont extraites de manière anonyme, une IA fait une synthèse sur l'élève, et on réimporte le résultat ». **Aucun réseau** : l'app prépare un texte qu'on COPIE dans l'assistant de son choix, puis on COLLE sa réponse — ou, depuis la v1.73.0, qu'on ENVOIE directement à Claude après une dernière relecture (cf. *Envoi direct à Claude*). Bloc « 🤖 SYNTHÈSE PAR UNE IA » du script, fenêtre `mia`, ouverte depuis la rédaction de la fiche (trois vues) : *🤖 Synthèse par une IA…* (`openSynthIA`).
 
 - **Cadre (vérifié le 2026-10-21)** : le *cadre d'usage de l'IA en éducation* (juin 2025) tolère les outils grand public pour les enseignants **sans aucune donnée personnelle ni sensible** ; l'*Assistant IA interministériel* (assistant.numerique.gouv.fr, ProConnect) se dit capable de traiter des données personnelles sans entraînement — à confirmer auprès du DPO pour des données d'élèves. D'où un circuit par copier-coller, indépendant de l'outil, et la phrase de la fenêtre (« l'assistant que votre académie autorise »).
@@ -808,8 +821,8 @@ d'API, un pour voir où on en est dans son usage — et savoir à chaque fois ce
   épuisé, modèle introuvable, trop de demandes, surcharge).
 - ⚠️ **La clé ne vit que dans ce navigateur** (`suiviPP_iaCle`) : jamais dans `S`, donc ni dans la sync ni dans
   l'export (testé), et jamais réécrite dans la page (masquée « sk-ant-…ABCD »). Une clé d'administration
-  (`sk-ant-admin…`) est refusée. Modèle et espace : réglages du POSTE aussi (`suiviPP_iaApi`). Rubrique **🤖 Envoi à
-  une IA** de 💾 Données (`_iaReglagesHTML`, entre Apparence et Importer) : clé, *🔑 Créer une clé dans la Console*
+  (`sk-ant-admin…`) est refusée. Modèle et espace : réglages du POSTE aussi (`suiviPP_iaApi`). Rubrique **🤖 Intelligence
+  artificielle** de 💾 Données (`_iaReglagesHTML`, entre Apparence et Importer) : clé, *🔑 Créer une clé dans la Console*
   (`platform.claude.com/settings/keys`), modèle (`IA_MODELES` : Opus 5.5 par défaut, Sonnet 5.5, Haiku 5.5, Fable 5.1,
   avec leurs tarifs relevés le 2026-10-06), espace de travail, fournisseur. Conseil écrit : une clé limitée à un espace
   « Suivi PP » avec un plafond de dépense.
