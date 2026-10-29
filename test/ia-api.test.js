@@ -250,9 +250,37 @@ test('fonctions d\'IA désactivées : synthèses et couleurs cachées, données 
   assert.ok(on.fiche.includes('Synthèse par une IA') && on.classe.includes('Synthèses de la classe') && on.tons);
   e(`setPref('iaActive', false)`);
   const off = vue();
-  assert.deepStrictEqual([off.fiche, off.classe, off.tons, off.papier], ['', '', false, false]);
+  assert.deepStrictEqual([off.fiche, off.tons, off.papier], ['', false, false]);
+  // La section reste pour écrire à la main (v1.79.1) : ni 🤖 ni +, la synthèse d'IA de la démo masquée.
+  assert.ok(off.classe.includes('Synthèses de la classe') && off.classe.includes('✏️ Écrire'));
+  assert.ok(!off.classe.includes('🤖') && !off.classe.includes('openSynthClasse') && !off.classe.includes(e(`getCls().synthClasse[0].texte.slice(0, 30)`)));
   assert.strictEqual(e(`JSON.stringify([S.eleves.demo_e01.synthIA, getCls().synthClasse])`), avant, 'rien n\'est effacé');
   assert.strictEqual(e(`(() => { let t = ''; const o = toast; toast = m => { t = m; }; openSynthIA(); toast = o; return t; })()`).includes('désactivées'), true);
   e(`undoLast()`);
   assert.deepStrictEqual(vue(), on, 'Ctrl+Z les rend');
+});
+
+test('fonctions d\'IA désactivées : la synthèse de la classe écrite à la main reste visible et s\'imprime', () => {
+  const app2 = require('./harness.js').loadApp();
+  const e = c => app2.__TESTEVAL(c);
+  e(`S = _emptyState(); createDemo(); postLoadHook(); setPref('iaActive', false);`);
+  const r = JSON.parse(e(`(() => { const cls = getCls(), ms = _ficheMoments(cls);
+    const s1 = ms.find(c => c.type === 'conseil'), autre = ms.find(c => c.key !== s1.key);
+    // Un autre moment : écrite à la main, visible et imprimée.
+    synthClasseSet(cls, { type: autre.type, date: autre.date }, 'Ma synthèse à moi.');
+    const vue = _synthClasseSecHTML(cls).includes('Ma synthèse à moi.');
+    // Le moment de la synthèse d'IA masquée : le formulaire le dit, et un champ vide n'efface rien.
+    _scEdit = { nouveau: true, colKey: s1.key };
+    const avert = _synthClasseSecHTML(cls).includes('masquée tant que');
+    return JSON.stringify({ vue, avert, n: cls.synthClasse.length, s1: s1.key }); })()`));
+  assert.ok(r.vue && r.avert);
+  assert.strictEqual(r.n, 2);
+  // Remplacer la synthèse d'IA masquée par un texte à soi : la marque part, le texte s'affiche.
+  const apres = JSON.parse(e(`(() => { const cls = getCls(), c = _ficheMoments(cls).find(x => x.key === ${JSON.stringify(r.s1)});
+    const avant = _synthClasseCible(cls, { type: c.type, date: c.date });
+    synthClasseSet(cls, { type: c.type, date: c.date }, 'Remplacée à la main.', false);
+    return JSON.stringify({ ia: !!avant.ia, n: cls.synthClasse.length, vue: _synthClasseSecHTML(cls).includes('Remplacée à la main.') }); })()`));
+  assert.deepStrictEqual(apres, { ia: false, n: 2, vue: true });
+  // Rangée depuis une IA : marquée.
+  assert.strictEqual(e(`(() => { const cls = getCls(); cls.synthClasse = []; synthClasseSet(cls, { type: 'conseil', date: _ficheMoments(cls)[0].date }, 'x', true); return cls.synthClasse[0].ia; })()`), true);
 });

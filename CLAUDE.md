@@ -728,8 +728,14 @@ repère « Dans la conversation » (`_iaRepereHTML`), section *🤖 Synthèses d
 imprimé, bloc 🎨 du ton des avis, couleurs du ton partout (`_tonsVus` rend faux) et leur palette ; les ouvreurs
 (`openSynthIA`, `openSynthIAClasse`, `openSynthClasse`, `iaCorrFenetreUI`) refusent par `_iaRefuse()`. **Rien n'est
 effacé** (`stu.synthIA`, `cls.synthClasse`, `camp.tons` intacts) ; les BILANS, même retravaillés avec une IA, restent
-affichés. ⚠️ La synthèse de la classe écrite à la main (✏️ Écrire) est cachée avec les autres : elle vit dans la même
-section. Tout nouvel affichage d'IA se branche sur `_iaOn()`. Test : `ia-api.test.js`.
+affichés. **Synthèses de la classe** (v1.79.1, l'utilisateur : *« je dois encore pouvoir rédiger moi-même la synthèse de
+la classe »*) : la section reste, sans 🤖 ni +, avec ✏️ Écrire ; seules les synthèses **marquées `ia: true`** (rangées
+depuis la fenêtre `mias` : `synthClasseSet(…, true)`) sont masquées, à l'écran comme sur le papier (`_synthClasseVue`,
+`_scCibleVue`). ⚠️ Celles rangées avant la v1.79.1 n'ont pas la marque : elles passent pour écrites à la main (cacher un
+texte de l'utilisateur serait pire). Écrire pour un moment dont la synthèse d'IA est masquée : le formulaire le dit, un
+champ vide ne l'efface pas, un texte la remplace et perd la marque (`synthClasseSet(…, false)`, Ctrl+Z la rend) ; une
+correction (✏️ Modifier, IA active) garde la marque. Tout nouvel affichage d'IA se branche sur `_iaOn()`. Test :
+`ia-api.test.js`.
 
 Demandé par l'utilisateur : « on sélectionne les données à extraire, elles sont extraites de manière anonyme, une IA fait une synthèse sur l'élève, et on réimporte le résultat ». **Aucun réseau** : l'app prépare un texte qu'on COPIE dans l'assistant de son choix, puis on COLLE sa réponse — ou, depuis la v1.73.0, qu'on ENVOIE directement à Claude après une dernière relecture (cf. *Envoi direct à Claude*). Bloc « 🤖 SYNTHÈSE PAR UNE IA » du script, fenêtre `mia`, ouverte depuis la rédaction de la fiche (trois vues) : *🤖 Synthèse par une IA…* (`openSynthIA`).
 

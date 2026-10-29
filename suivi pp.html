@@ -3704,8 +3704,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.79.0';
-const APP_BUILD_DATE = '2026-10-29T06:22:59Z';
+const APP_VERSION    = '1.79.1';
+const APP_BUILD_DATE = '2026-10-29T06:40:50Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -10710,14 +10710,26 @@ function _synthClasseOf(cls) {
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || ((b.ts || 0) - (a.ts || 0)));
 }
 function _synthClasseCible(cls, mode) { return mode ? _synthClasseOf(cls).find(e => _momentEst(cls, e, mode)) || null : null; }
+// Fonctions d'IA désactivées (v1.79.1) : une synthèse rangée depuis une IA (`ia: true`) est MASQUÉE, celle écrite à la
+// main reste. ⚠️ Les synthèses rangées avant la v1.79.1 ne portent pas la marque : elles passent pour écrites à la main
+// (cacher un texte de l'utilisateur serait pire que montrer celui d'une IA).
+function _synthClasseVue(e) { return !!e && (_iaOn() || !e.ia); }
+function _scCibleVue(cls, mode) { const e = _synthClasseCible(cls, mode); return _synthClasseVue(e) ? e : null; }
 // Comme `synthIASet` : un texte vide la RETIRE. → 'ajout' | 'modif' | 'suppr' | null. Sans pushUndo ni save.
-function synthClasseSet(cls, mode, texte) {
+// `ia` : true = la réponse d'une IA (marquée) ; false = un texte de l'utilisateur qui REMPLACE une synthèse d'IA
+// (la marque part) ; absent = une correction, la marque reste ce qu'elle était.
+function synthClasseSet(cls, mode, texte, ia) {
   if (!cls || !mode || !_ymdValid(mode.date)) return null;
   const txt = String(texte || '').trim().slice(0, 10000), e = _synthClasseCible(cls, mode);
   if (!txt) { if (!e) return null; cls.synthClasse = cls.synthClasse.filter(x => x !== e); return 'suppr'; }
-  if (e) { if (e.texte === txt) return null; e.texte = txt; e.ts = Date.now(); return 'modif'; }
+  if (e) {
+    if (e.texte === txt && (ia === undefined || !!e.ia === ia)) return null;
+    e.texte = txt; e.ts = Date.now();
+    if (ia === true) e.ia = true; else if (ia === false) delete e.ia;
+    return 'modif';
+  }
   if (!Array.isArray(cls.synthClasse)) cls.synthClasse = [];
-  cls.synthClasse.push({ id: uid('sc'), ts: Date.now(), date: mode.date, type: _bilanType(mode.type).key, texte: txt });
+  cls.synthClasse.push({ id: uid('sc'), ts: Date.now(), date: mode.date, type: _bilanType(mode.type).key, texte: txt, ...(ia ? { ia: true } : {}) });
   return 'ajout';
 }
 // Le libellé d'une synthèse rangée : le moment (« Conseil de classe S1 ») si on le retrouve, sinon sa date.
@@ -10902,7 +10914,7 @@ function iaClRangerUI() {
   const t = _iaRestaure(_iaNettoie(_iaClasseLire(ta.value)), st.table).trim();
   if (!t) return toast('⚠️ Collez d\'abord la réponse de l\'IA (étape 3).', 'warn');
   const mode = { type: col.type, date: col.date }, avant = _synthClasseCible(cls, mode);
-  if (!avant || avant.texte !== t.slice(0, 10000)) { pushUndo(); synthClasseSet(cls, mode, t); save(); }
+  if (!avant || avant.texte !== t.slice(0, 10000)) { pushUndo(); synthClasseSet(cls, mode, t, true); save(); }
   st.rep = t;
   closeMod2('mias');
   toast('🤖 Synthèse de la classe rangée (🏫 Vie de classe, et en tête de la synthèse de période imprimée) — Ctrl+Z l\'annule.');
@@ -10914,16 +10926,16 @@ function iaClRangerUI() {
 // l'enregistrer la remplace). Vider le texte la retire (Ctrl+Z la rend), comme dans la fenêtre IA.
 let _scEdit = null;
 function _synthClasseSecHTML(cls) {
-  if (!_iaOn()) return '';   // désactivées : la section 🤖 entière (les synthèses restent dans les données)
-  const list = _synthClasseOf(cls), E = _scEdit;
+  // IA désactivée : la section reste pour écrire à la main ; ni 🤖 ni +, et les synthèses d'IA sont masquées.
+  const ia = _iaOn(), list = _synthClasseOf(cls).filter(_synthClasseVue), E = _scEdit;
   const zone = (id, txt) => `<textarea id="${id}" class="pf-ta" rows="4" data-sc-focus style="width:100%" oninput="_autoTaille(this)" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();synthClasseEcrireOkUI()}else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();synthClasseEcrireAnnulerUI()}" placeholder="L'ambiance de travail, la situation d'ensemble des élèves, l'esprit de la classe — ce qui va bien d'abord.">${_escName(txt || '')}</textarea>`;
   const boutons = `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn btn-p btn-sm" onclick="synthClasseEcrireOkUI()">✓ Enregistrer</button><button class="btn btn-g btn-sm" onclick="synthClasseEcrireAnnulerUI()">Annuler</button><span class="tb-hint">Ctrl+Entrée enregistre · vider le texte retire la synthèse</span></div>`;
   let nouveau = '';
   if (E && E.nouveau) {
     const ms = _ficheMoments(cls), col = ms.find(c => c.key === E.colKey) || _ficheMomentCourant(cls) || ms[0];
-    const deja = col ? _synthClasseCible(cls, { type: col.type, date: col.date }) : null;
+    const m = col ? { type: col.type, date: col.date } : null, deja = m ? _scCibleVue(cls, m) : null, cachee = m && !deja ? _synthClasseCible(cls, m) : null;
     nouveau = `<div class="fi-form" id="sc-form"><label>Moment <select id="sc-mom" onchange="synthClasseMomentUI(this.value)">${ms.map(c => `<option value="${_escAttr(c.key)}"${col && c.key === col.key ? ' selected' : ''}>${_escName(c.long)}</option>`).join('')}</select></label>
-      ${deja ? `<span class="tb-hint">Une synthèse est déjà rangée pour ce moment : la voici, à modifier.</span>` : ''}
+      ${deja ? `<span class="tb-hint">Une synthèse est déjà rangée pour ce moment : la voici, à modifier.</span>` : ''}${cachee ? `<span class="tb-hint">Une synthèse préparée par une IA est rangée pour ce moment, masquée tant que les fonctions d'IA sont désactivées : enregistrer la vôtre la remplacera (Ctrl+Z la rend).</span>` : ''}
       <div style="flex-basis:100%">${zone('sc-txt', E.txt !== undefined ? E.txt : deja ? deja.texte : '')}</div>${boutons}</div>`;
   }
   const ligne = e => E && E.id === e.id
@@ -10931,10 +10943,11 @@ function _synthClasseSecHTML(cls) {
     : `<div class="fi-j pf-ia"><div class="fi-j-h">${_escName(_synthClasseLabel(cls, e))} · rangée le ${_escName(_fmtDateFr(_todayYmd(new Date(e.ts || Date.now()))))}
       <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="synthClasseModifierUI('${_escJsAttr(e.id)}')" title="Corriger ce texte ici">✏️ Modifier</button> <button class="btn btn-g btn-sm" onclick="synthClasseCopierUI('${_escJsAttr(e.id)}')" title="Copier le texte (pour l'appréciation générale du bulletin, par exemple)">📋 Copier</button> <button class="btn btn-d btn-sm" onclick="synthClasseRetirerUI('${_escJsAttr(e.id)}')" title="Retirer cette synthèse (Ctrl+Z la rend)">🗑 Retirer</button></span></div>
       <div class="fi-inc-txt">${_escName(e.texte)}</div></div>`;
-  return `<div class="fi-sec"><h3>🤖 Synthèses de la classe${list.length ? ` <span class="fi-vide">(${list.length})</span>` : ''} <button class="fi-plus" onclick="openSynthClasse()" title="Préparer une synthèse de la classe par une IA : les bilans des élèves sous des repères, les chiffres de la classe — relus avant de partir">+</button> <button class="btn btn-g btn-sm" onclick="synthClasseEcrireUI()" title="Écrire vous-même la synthèse de la classe pour un moment, sans IA">✏️ Écrire</button></h3>`
+  return `<div class="fi-sec"><h3>${ia ? '🤖 ' : ''}Synthèses de la classe${list.length ? ` <span class="fi-vide">(${list.length})</span>` : ''} ${ia ? `<button class="fi-plus" onclick="openSynthClasse()" title="Préparer une synthèse de la classe par une IA : les bilans des élèves sous des repères, les chiffres de la classe — relus avant de partir">+</button> ` : ''}<button class="btn btn-g btn-sm" onclick="synthClasseEcrireUI()" title="Écrire vous-même la synthèse de la classe pour un moment, sans IA">✏️ Écrire</button></h3>`
     + nouveau
     + (list.length ? list.map(ligne).join('')
-      : (nouveau ? '' : `<span class="fi-vide">Aucune. ✏️ Écrire la rédige vous-même ; le + prépare, pour un conseil ou une mi-période, une demande à un assistant : les bilans de vos élèves sous des repères, les chiffres de la classe ; la réponse, courte, se range ici.</span>`))
+      : (nouveau ? '' : ia ? `<span class="fi-vide">Aucune. ✏️ Écrire la rédige vous-même ; le + prépare, pour un conseil ou une mi-période, une demande à un assistant : les bilans de vos élèves sous des repères, les chiffres de la classe ; la réponse, courte, se range ici.</span>`
+        : `<span class="fi-vide">Aucune. ✏️ Écrire la rédige vous-même, pour un conseil, une mi-période ou un point du mois ; elle s'imprime en tête de la synthèse de période.</span>`))
     + '</div>';
 }
 function _scRedessine() {
@@ -10947,7 +10960,7 @@ function synthClasseModifierUI(id) { _scEdit = { id }; _scRedessine(); }
 function synthClasseMomentUI(k) {
   if (!_scEdit || !_scEdit.nouveau) return;
   const t = document.getElementById('sc-txt'), cls = getCls(), ancien = _ficheMoments(cls).find(c => c.key === _scEdit.colKey);
-  const dejaAncien = ancien ? _synthClasseCible(cls, { type: ancien.type, date: ancien.date }) : null;
+  const dejaAncien = ancien ? _scCibleVue(cls, { type: ancien.type, date: ancien.date }) : null;
   // Un texte tapé passe au nouveau moment ; celui qui n'était que la synthèse rangée de l'ancien moment, non.
   const v = t ? t.value : '';
   _scEdit = { nouveau: true, colKey: k, ...(v.trim() && (!dejaAncien || v.trim() !== dejaAncien.texte) ? { txt: v } : {}) };
@@ -10961,10 +10974,11 @@ function synthClasseEcrireOkUI() {
   if (E.nouveau) { const c = _ficheMoments(cls).find(x => x.key === (document.getElementById('sc-mom')?.value || E.colKey)); if (c) mode = { type: c.type, date: c.date }; }
   else { const e = _synthClasseOf(cls).find(x => x.id === E.id); if (e) mode = { type: e.type, date: e.date }; }
   if (!mode) return toast('⚠️ Choisissez un moment.', 'warn');
-  const avant = _synthClasseCible(cls, mode), v = String(t.value || '').trim();
-  if ((avant ? avant.texte : '') === v) { _scEdit = null; renderDelegues(); return; }
+  // Une synthèse d'IA MASQUÉE pour ce moment : un champ vide la laisse ; un texte la remplace (et n'est plus marqué IA).
+  const avant = _synthClasseCible(cls, mode), cachee = avant && !_synthClasseVue(avant), v = String(t.value || '').trim();
+  if ((avant && !cachee ? avant.texte : '') === v) { _scEdit = null; renderDelegues(); return; }
   pushUndo();
-  const r = synthClasseSet(cls, mode, v);
+  const r = synthClasseSet(cls, mode, v, cachee ? false : undefined);
   save();
   _scEdit = null;
   renderDelegues();
@@ -22614,7 +22628,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const hvcHTML = on('hvc') ? `<div class="print-hvc"><strong>Heures de vie de classe ${_escName(p.label)}</strong>${
     hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_escName(e.texte)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
   // La synthèse de la classe (v1.71.0) : celle DE CE MOMENT, seulement si elle existe (rien à dire sinon).
-  const sc = on('classe') && o.col && _iaOn() ? _synthClasseCible(cls, { type: o.col.type, date: o.col.date }) : null;
+  const sc = on('classe') && o.col ? _scCibleVue(cls, { type: o.col.type, date: o.col.date }) : null;
   const scHTML = sc ? `<div class="print-hvc pp-pl"><strong>Synthèse de la classe</strong> ${_escName(sc.texte)}</div>` : '';
   const sub = `du ${_fmtDateFr(_debutUtile(p.start) < p.end ? _debutUtile(p.start) : p.start)} au ${_fmtDateFr(p.end)} · ${rows.length} élève${rows.length > 1 ? 's' : ''} · ${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet${
     on('moy') ? (syn.moyennes ? ` · moyennes « ${syn.moyennes.periode} » importées le ${_fmtDateFr(syn.moyennes.date)}` : ' · aucune moyenne importée pour cette période') : ''} · imprimé le ${_fmtDateFr(_todayYmd())}`;
@@ -22742,7 +22756,7 @@ function _periodePrintRefresh() {
   const sans = syn.rows.filter(r => !r.bilan).length;
   const bits = [`${syn.rows.length} élève${syn.rows.length > 1 ? 's' : ''} présents pendant ${syn.periode.label}`,
     o.blocs.includes('hvc') ? `${_hvcPeriode(cls, o.idx).length} heure${_hvcPeriode(cls, o.idx).length > 1 ? 's' : ''} de vie de classe` : '',
-    o.blocs.includes('classe') && o.col && _iaOn() && _synthClasseCible(cls, { type: o.col.type, date: o.col.date }) ? 'la synthèse de la classe en tête' : '',
+    o.blocs.includes('classe') && o.col && _scCibleVue(cls, { type: o.col.type, date: o.col.date }) ? 'la synthèse de la classe en tête' : '',
     `${syn.nbReleves} relevé${syn.nbReleves > 1 ? 's' : ''} de carnet`,
     o.blocs.includes('moy') ? (syn.moyennes ? `moyennes « ${syn.moyennes.periode} » du ${_fmtDateFr(syn.moyennes.date)}` : '⚠️ aucune moyenne importée pour cette période') : '',
     o.blocs.includes('bilan') ? (sans ? `⚠️ ${sans} sans bilan rédigé — à écrire par les points de la colonne Bilans, ou dans la fiche` : '✓ un bilan pour chacun') : '',
@@ -26553,7 +26567,7 @@ function createDemo(opts) {
     if (s) (s.decisions = s.decisions || []).push({ id: `demo_d${String(k + 1).padStart(2, '0')}`, ts: Date.parse(D(md) + 'T12:00:00'), date: D(md), type, texte });
   });
   // ── Une synthèse de la classe par une IA (v1.71.0), au conseil du S1.
-  cls.synthClasse = [{ id: 'demo_sc01', ts: Date.parse(D('01-19') + 'T12:00:00'), date: D('01-20'), type: 'conseil',
+  cls.synthClasse = [{ id: 'demo_sc01', ia: true, ts: Date.parse(D('01-19') + 'T12:00:00'), date: D('01-20'), type: 'conseil',
     texte: 'Une classe vivante et plutôt agréable, qui participe volontiers à l\'oral mais dont le travail personnel reste inégal : la moyenne de la classe est correcte, avec un petit groupe en réelle difficulté que le carnet et les incidents désignent aussi.\n\nL\'esprit de la classe est bon — délégués investis, entraide visible en heure de vie de classe —, mais les bavardages pèsent sur certains cours. À suivre au second semestre : la régularité du travail à la maison et le calme en demi-groupe.' }];
   // ── Une synthèse par une IA rangée (v1.69.0), au conseil du S1 : la réponse d'un assistant, noms remis.
   { const s = E(0), p = s.prenom;
