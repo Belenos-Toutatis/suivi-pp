@@ -1906,6 +1906,26 @@ html[data-theme="dark"] .pf-star { color: #e6b450; }
 .pf-jr.pf-flash { animation: fiFlash 1.2s ease-out; }
 @media (prefers-reduced-motion: reduce) { .pf-jr.pf-flash { animation: none; } }
 .pf-bas { margin-top: 12px; }   /* le bilan, sur toute la largeur sous les cadres (v1.79.2) */
+/* v1.79.4 : collé au bas de la fenêtre pendant qu'on fait défiler les cartes, au plus la moitié de sa hauteur (il
+   défile alors en lui-même, son titre reste en haut) ; ▾ le replie sur son titre. Écran assez haut seulement, jamais
+   sur le papier. */
+@media screen and (min-height: 560px) {
+  .pf-bas { position: sticky; bottom: -14px; z-index: 3; }   /* -14 px : sous la marge basse de la fenêtre, rien ne passe dessous */
+  .pf-bas > .pf-card { max-height: 50vh; overflow-y: auto; box-shadow: var(--shadow-pop); }
+  .pf-bas > .pf-card > h3 { position: sticky; top: -10px; z-index: 1; background: var(--pf-card); margin: -10px 0 8px; padding-top: 10px; }
+}
+.pf-bas.plie > .pf-card > :not(h3) { display: none; }
+.pf-bas.plie > .pf-card > h3 { margin-bottom: 0; }
+.pf-tout { font-size: 15px; }
+/* Une partie repliable du cadre des bilans : titre, et le début du texte tant qu'elle est repliée. */
+.pf-pli { margin-block: 2px 8px; }
+.pf-pli > summary { list-style: none; cursor: pointer; display: flex; gap: 8px; align-items: baseline; font-size: 13px; color: var(--pencil); margin-bottom: 3px; }
+.pf-pli > summary::before { content: '▾'; flex: none; }
+.pf-pli:not([open]) > summary::before { content: '▸'; }
+.pf-pli > summary::-webkit-details-marker { display: none; }
+.pf-pli-t { flex: none; }
+.pf-pli-a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; color: var(--ink-deep); }
+.pf-pli[open] > summary .pf-pli-a { display: none; }
 .pf-three { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .pf-three .pf-redac { grid-column: 1 / -1; }
 /* La rédaction en bas, sur toute la largeur, à toutes les tailles (v1.79.2 : le bilan se fait après avoir tout regardé). */
@@ -3715,8 +3735,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.79.3';
-const APP_BUILD_DATE = '2026-10-29T08:08:42Z';
+const APP_VERSION    = '1.79.4';
+const APP_BUILD_DATE = '2026-10-29T17:39:09Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9663,16 +9683,31 @@ function _bilanCompte(ta, id, conseil) {
   b.textContent = _bilanCompteHTML(n);
   b.classList.toggle('trop', n > _appreciationMax());
 }
+// Le cadre des bilans se replie PARTIE PAR PARTIE (v1.79.4, l'utilisateur : « que je puisse à la rigueur la réduire
+// partie par partie ») : synthèse de l'IA, bilan, décisions, autres moments. Repliée, une partie garde son titre et le
+// début de son texte. Le choix se retient sur le poste (comme la vue), il vaut pour tous les élèves.
+const _LS_FICHE_PLIS = 'suiviPP_fichePlis';
+function _fichePlis() { try { const o = JSON.parse(localStorage.getItem(_LS_FICHE_PLIS) || '{}'); return _isPlainObj(o) ? o : {}; } catch (_) { return {}; } }
+function _fichePliSet(k, plie) { const o = _fichePlis(); if (plie) o[k] = true; else delete o[k]; try { localStorage.setItem(_LS_FICHE_PLIS, JSON.stringify(o)); } catch (_) { } }
+function fichePliUI(el) { if (el && el.dataset && el.dataset.pli) _fichePliSet(el.dataset.pli, !el.open); }
+// Une partie : `<details>` ouvert sauf si repliée ; l'aperçu (texte brut, échappé ici) ne se voit que replié.
+function _pfPli(k, titre, apercu, corps) {
+  const a = String(apercu || '').replace(/\s+/g, ' ').trim();
+  return `<details class="pf-pli" data-pli="${_escAttr(k)}"${_fichePlis()[k] ? '' : ' open'} ontoggle="fichePliUI(this)"><summary><span class="pf-pli-t">${titre}</span>${a ? `<span class="pf-pli-a">${_escName(a.length > 90 ? a.slice(0, 90) + '…' : a)}</span>` : ''}</summary>${corps}</details>`;
+}
+// Avant d'écrire dans le bilan (fait inséré, brouillon, synthèse) : sa partie se déplie, sinon le texte arrive caché.
+function _pliOuvrir(el) { const d = el && el.closest && el.closest('details.pf-pli'); if (d && !d.open) { d.open = true; _fichePliSet(d.dataset.pli, false); } }
 function _ficheRedacHTML(cls, stu, col, extra) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
   const d = _decisionCible(cls, stu.id, { type: col.type, date: col.date });
-  return `${_ficheSynthIAHTML(cls, stu, col)}<label for="fi-bil" class="pf-lab">${_escName(col.long)} · ce que je dirai</label>
-    <textarea id="fi-bil" class="pf-ta" onchange="ficheBilanSave()" oninput="_autoTaille(this);_bilanCompte(this, 'fi-bil-n', ${col.type === 'conseil'})" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
+  const ia = _ficheSynthIAHTML(cls, stu, col), si = ia && _synthIACible(cls, stu.id, { type: col.type, date: col.date });
+  return `${ia ? _pfPli('ia', '🤖 Synthèse par une IA', si ? si.texte : '', ia) : ''}${_pfPli('bilan', `${_escName(col.long)} · ce que je dirai`, b ? b.texte : '', `
+    <textarea id="fi-bil" class="pf-ta" aria-label="${_escAttr(col.long)} · ce que je dirai" onchange="ficheBilanSave()" oninput="_autoTaille(this);_bilanCompte(this, 'fi-bil-n', ${col.type === 'conseil'})" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
     ${col.type === 'conseil' ? `<div class="bil-n${b && b.texte.length > _appreciationMax() ? ' trop' : ''}" id="fi-bil-n" title="Le bilan du conseil est l'appréciation du bulletin (réglage dans 💾 Données ▸ Année et périodes)">${_bilanCompteHTML(b ? b.texte.length : 0)}</div>` : ''}${_iaRepereHTML(cls, stu, col)}
-    ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>
-    <label for="fi-dec" class="pf-lab pf-lab-dec">Décisions · à mettre en place</label>
-    <textarea id="fi-dec" class="pf-ta pf-ta-dec" onchange="ficheDecisionSave()" oninput="_autoTaille(this)" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
-    <div class="tb-hint" id="fi-dec-etat">${d ? `Noté le ${_escName(_fmtDateFr(d.date))} · vider le champ la retire` : 'Enregistré en quittant le champ'}</div>`;
+    ${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>`)}
+    ${_pfPli('dec', 'Décisions · à mettre en place', d ? d.texte : '', `
+    <textarea id="fi-dec" class="pf-ta pf-ta-dec" aria-label="Décisions · à mettre en place" onchange="ficheDecisionSave()" oninput="_autoTaille(this)" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
+    <div class="tb-hint" id="fi-dec-etat">${d ? `Noté le ${_escName(_fmtDateFr(d.date))} · vider le champ la retire` : 'Enregistré en quittant le champ'}</div>`)}`;
 }
 // Comme le bilan : enregistré en quittant le champ, sans re-rendu ; vider le champ retire la
 // décision (Ctrl+Z la rend).
@@ -9691,8 +9726,12 @@ function ficheDecisionSave() {
   const etat = document.getElementById('fi-dec-etat');
   if (etat) etat.textContent = r === 'suppr' ? '✓ Retirée — Ctrl+Z la rend' : `✓ Enregistré à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 }
-// Les AUTRES bilans de l'élève, sous la rédaction (prototype : un liseré violet par bilan).
-function _ficheBilansAutresHTML(cls, stu, col) {
+// Les AUTRES bilans de l'élève, sous la rédaction (prototype : un liseré violet par bilan) ; une partie repliable.
+function _ficheBilansAutresHTML(cls, stu, col, corps) {
+  const h = corps !== undefined ? corps : _ficheBilansAutresListe(cls, stu, col);
+  return h ? _pfPli('autres', 'Les autres moments', '', h) : '';
+}
+function _ficheBilansAutresListe(cls, stu, col) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
   return _ficheMoments(cls).filter(c => c.key !== col.key).map(c => { const x = _bilanCible(cls, stu.id, { type: c.type, date: c.date }), dc = _decisionCible(cls, stu.id, { type: c.type, date: c.date });
     return `<div class="pf-bil"><div class="pf-bil-l">${_escName(c.long)}${x ? ' · ' + _escName(_fmtDateFr(x.date).slice(0, 5)) : ''}</div>${x ? _escName(x.texte) : '<span class="pf-mu">rien d\'écrit</span>'}${dc ? `<div class="pf-dec"><span class="pf-dec-l">Décisions</span> ${_escName(dc.texte)}</div>` : ''}</div>`; }).join('')
@@ -9729,7 +9768,7 @@ function ficheInsererFait(i) {
   const t = f.phrase.charAt(0).toUpperCase() + f.phrase.slice(1) + '.';
   ta.value = (ta.value.trim() ? ta.value.trim() + ' ' : '') + t;
   ficheBilanSave();
-  ta.focus();
+  _pliOuvrir(ta); ta.focus();
 }
 function ficheBrouillonUI() {
   const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id];
@@ -9737,7 +9776,7 @@ function ficheBrouillonUI() {
   if (!cls || !ta) return;
   const br = _ficheBrouillon(cls, stu, _ficheMomentCourant(cls));
   if (!br) return toast('Rien à rassembler pour ce moment.');
-  const poser = () => { ta.value = br; ficheBilanSave(); ta.focus(); };
+  const poser = () => { ta.value = br; ficheBilanSave(); _pliOuvrir(ta); ta.focus(); };
   if (ta.value.trim()) _uiConfirm({ title: 'Remplacer le texte du bilan ?', message: 'Le brouillon remplace ce qui est écrit. Ctrl+Z le récupère.', okLabel: 'Remplacer', onOk: poser });
   else poser();
 }
@@ -10348,7 +10387,7 @@ function ficheSynthIAInserer() {
   const t = _ficheIASel || si.texte;
   _ficheIASel = '';
   ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + t;
-  ficheBilanSave(); _autoTaille(ta); ta.focus();
+  ficheBilanSave(); _pliOuvrir(ta); _autoTaille(ta); ta.focus();
 }
 function ficheSynthIARetirer() {
   const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id], col = cls && _ficheMomentCourant(cls);
@@ -11852,7 +11891,18 @@ function _ficheCourbeHTML(cls, stu, col) {
 // ── Vue 1 : le TABLEAU DE BORD du prototype — une carte par sujet, sur le moment choisi ──
 // Le bilan, sur toute la largeur, en BAS de la fiche (v1.79.2, l'utilisateur : « on fait le bilan à la fin, après avoir
 // tout regardé ») : hors des colonnes, il reste le dernier cadre quelle que soit la largeur de l'écran.
-function _ficheBilanBas(html) { return `<div class="pf-bas">${html}</div>`; }
+// v1.79.4 (l'utilisateur : « que la partie bilan en bas soit fixe en bas de l'écran ») : il reste collé au bas de la
+// fenêtre pendant qu'on fait défiler les cartes (CSS `sticky`, au plus la moitié de la hauteur, défile en lui-même),
+// et ▾ le replie tout entier sur son titre (retenu sur le poste, comme ses parties).
+function _ficheBilanBas(html) { return `<div class="pf-bas${_fichePlis().tout ? ' plie' : ''}">${html}</div>`; }
+function ficheBasToutUI(btn) {
+  const bas = btn && btn.closest('.pf-bas'); if (!bas) return;
+  const plie = !bas.classList.contains('plie');
+  if (plie) { const a = document.activeElement; if (a && bas.contains(a) && a.blur) a.blur(); }   /* la frappe en cours s'enregistre */
+  bas.classList.toggle('plie', plie); _fichePliSet('tout', plie);
+  btn.textContent = plie ? '▸' : '▾'; btn.setAttribute('aria-expanded', String(!plie));
+  btn.title = plie ? 'Déplier le cadre des bilans' : 'Replier le cadre des bilans sur son titre';
+}
 function _ficheTableauHTML(cls, stu, col, ed) {
   ed = Object.assign({ places: [], els: [], elsHTML: '', docsInfo: [], dateInp: () => '', presence: '', age: null }, ed || {});
   const b = _ficheBornes(cls, col), sid = stu.id;
@@ -11930,7 +11980,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${card('moy', 'Moyennes', '', moyT)}
     ${card('avis', `Avis des collègues${camp && (camp.cibles || []).includes(sid) ? ' <span class="pf-star" title="demandé en particulier">★</span>' : ''}`, camp ? _escName(_avisObjectif(cls, camp).long) : '', tabs + (camp ? _ficheAvisBlocsHTML(camp, sid) : '<p class="pf-empty">Pas de feuille d\'avis pour cette période.</p>'))}
   </div>
-  ${_ficheBilanBas(card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + (ouEdit('bilans') ? `<div class="pf-edbox">${ed.bilHTML}</div>` : _ficheBilansAutresHTML(cls, stu, col)), pen('bilans', 'Modifier ou supprimer un bilan écrit — tous les bilans de l\'année')))}`;
+  ${_ficheBilanBas(card('bilan', 'Bilans', '', _ficheRedacHTML(cls, stu, col) + _ficheBilansAutresHTML(cls, stu, col, ouEdit('bilans') ? `<div class="pf-edbox">${ed.bilHTML}</div>` : undefined), pen('bilans', 'Modifier ou supprimer un bilan écrit — tous les bilans de l\'année') + (t => `<button class="pf-ed pf-tout" onclick="ficheBasToutUI(this)" aria-expanded="${!t}" title="${t ? 'Déplier le cadre des bilans' : 'Replier le cadre des bilans sur son titre'}">${t ? '▸' : '▾'}</button>`)(!!_fichePlis().tout)))}`;
 }
 // ── Vue « Faits et rédaction » ──
 function _ficheFaitsHTML(cls, stu, col) {
