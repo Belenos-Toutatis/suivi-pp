@@ -44,88 +44,14 @@ Démonstration en noms fictifs (poissons pour les enseignants), jamais « Dupont
   `autonome`). Suivi PP la reconstruit depuis la page intégrée qu'il garde (`_suivisAutonomeDepuis` : retire `data-hote` et
   `class="integree"`, pose ses polices) : identique au fichier du dépôt, et refusée si le bloc de données n'est pas vide.
 
-## Apparence et polices
+## Détail par sujet — `fiches-suivi/docs/` (lire le fichier AVANT de toucher au sujet)
 
-- **`theme.css`** redéfinit les variables de `head.html` (`--bg`, `--paper`, `--ink`, `--accent`…) aux couleurs de Suivi PP
-  (papier bleuté, encre bleu nuit, Seyès, filet rouge), thèmes `clair` et `sombre`, **à l'écran seulement** : l'impression garde
-  la fiche papier classique.
-- **Polices** de Suivi PP embarquées (`polices.css` : Andika, Latin Modern, JetBrains Mono — sous-ensemble élargi au latin étendu A,
-  diacritiques, espace fine insécable). `--font-ui` (écran) et `--font-print` (papier) ; `--sans` suit la première, `--serif`
-  (les feuilles) la seconde ; à l'impression tout prend `--font-print`.
-  - Réglées dans **Fichier › Apparence**, enregistrées avec le suivi : `S.policeEcran = "lm"`, `S.policePapier = "andika"` ;
-    absentes = les défauts (un ancien suivi ne reçoit aucun champ). `appliquerPolices()` pose `data-police` / `data-police-papier`.
-  - Les feuilles affichées à l'écran prennent la police d'IMPRESSION ; le bouton **Aa** les bascule dans celle d'affichage
-    (`html.feuilles-ecran`, réglage du navigateur ; absent quand les deux polices sont les mêmes). Arbitré par l'utilisateur.
-  - La marge des impressions (`@top-left` : nom et logo de l'établissement) prend la police d'impression.
-  - ⚠️ Andika est large : un test qui clique au MILIEU d'un champ date tombe sur un autre segment — viser le segment (`e2e_audit5`,
-    fonction `jour`).
-- **Contraste** : `e2e_contraste.js` passe l'auditeur de Suivi PP (`../scripts/audit_browser.js`) sur chaque vue et les réglages,
-  2 thèmes × 2 polices × 1366 et 1024 px.
-
-## Import d'une classe depuis Plan de classe
-
-`lignesPlanDeClasse(d)` (ui.js) lit une sauvegarde `.json` de Plan de classe et la rend comme un export (Nom · Prénom · Classe ·
-Groupe · Options) ; l'aperçu habituel (`importerEleves`) fait le reste (choix de la classe, « Groupe 1 », options par le nom des
-étiquettes). Liste blanche ; classes virtuelles écartées ; un suivi de cette appli n'est pas pris pour une sauvegarde de Plan de
-classe. Par « Importer un fichier… » des listes d'élèves, et dans l'accueil par **« Classe depuis Plan de classe (.json)… »**
-(nouveau suivi, puis import ; la classe nomme le suivi s'il n'a pas de nom).
-
-## Version intégrée à Suivi PP (onglet 📋 Suivis)
-
-La même page, assemblée avec `<html data-hote="suivi-pp" class="integree">` et `/*POLICES-HOTE*/` à la place des polices (Suivi PP
-y pose les siennes). Suivi PP la décompresse (`DecompressionStream('deflate-raw')`) et la charge par **`srcdoc`**. Tout ce qui lui
-est propre passe par `HOTE` (ui.js, bloc « hôte »). Le côté Suivi PP est décrit dans son CLAUDE.md, *Fiches de suivi*.
-- ⚠️ **`srcdoc`, pas une URL de blob** : en `file://`, un blob a l'origine « null » et refuse les changements d'ancre (toute la
-  navigation). Mais en `srcdoc` la base est l'adresse de Suivi PP (un `href="#edt"` y chargerait Suivi PP) et `<base>` est refusé
-  par sa politique (`base-uri 'self'`) : la fiche intercepte ses liens `#…` (écouteur `click` sur `window`, en dernier).
-- **Messages** (postMessage, `app: "suivi-pp"` → fiche, `app: "fiche-suivi"` → Suivi PP, vérifiés par leur source). Suivi PP envoie
-  `charger` (`cle` = la classe, `etat`, `classe` = la liste, `demo`, `theme`, `polices`, `pile`, `raison` : `annuler` / `retablir`),
-  `apparence`, `pile`, `imprimer` (Ctrl+P), `commun`, `aller` (`#eleve/…`). La fiche envoie `pret`, `etat` (`cle`, l'enveloppe,
-  `etape`, `retirer`, `version`), `annuler` (`sens`) et `autonome`.
-  - `charger` porte un numéro (`version`), retenu (`hoteVersion`) APRÈS la frappe en attente qu'il fait partir : chaque `etat` le
-    répète, et Suivi PP écarte un suivi fondé sur un état qu'il a remplacé depuis.
-- **Rien ne s'enregistre dans la fiche** : `persist()` envoie l'état (s'il a changé) ; aucune clé `localStorage` propre à la page
-  (son adresse change à chaque ouverture : elles s'accumuleraient) ; ni `dirty`, ni Enregistrer, nouveau suivi, démonstration,
-  nouvelle année, thème ou polices dans le menu.
-- **Page fermée pendant une frappe** : un commentaire part après 0,4 s (`persistBientot`) ; `window.__ficheEnAttente()` rend de
-  façon synchrone le message pas encore envoyé (Suivi PP l'appelle en se fermant, `_suivisRecupererFrappe`).
-- **La pile d'annulation est celle de Suivi PP** : `memoriser()` décide où commence une étape (frappe continue = une étape) ;
-  `hoteEtape` → Suivi PP pose un cran avec cet envoi ; saisie refusée après l'envoi → `retirer`. Ctrl+Z / Ctrl+Y / ↶ → `annuler` ;
-  le suivi revient par `charger` avec la raison et la fiche dit ce qui a été annulé (`decrireChangement`).
-- **La liste de la classe vient de Suivi PP** (`appliquerClasseHote`) : « NOM Prénom », « Groupe N », options par leur code,
-  arrivée, départ (premier jour d'absence là-bas, dernier jour présent ici).
-  - ⚠️ **Chaque élève garde SA ligne** : les codes de la fiche de classe sont rangés par POSITION (`j.cl["s.p"]`). Reconnu par son
-    nom (ou ses mots dans un autre ordre), il est mis à jour ; nouveau, ajouté à la FIN ; parti, daté ; supprimé dans Suivi PP, sa
-    ligne RESTE, signalée « pas dans Suivi PP », à retirer à la main dans Réglages.
-  - Les renommages faits dans Suivi PP (d'après les noms envoyés la dernière fois) suivent partout (classe, suivi collectif, suivis
-    individuels). Groupes venus de Suivi PP : pas renommables ici ; ceux créés ici se cochent dans la liste en lecture. Le nom de
-    classe n'est posé que s'il est vide.
-- **Accueil** d'une classe sans suivi : commencer, ou reprendre un suivi de la version autonome (`.html` ou `.json`, un cran
-  d'annulation). Jamais la démonstration sur une vraie classe.
-- **Démonstration** : seulement sur une classe de démonstration de Suivi PP (`demo: true`) : `demoHote` prend la démonstration de
-  l'appli aux noms de la classe (rang pour rang), déplacée de semaines entières dans son année scolaire, calendrier de cette année.
-- **Pour la fiche élève de Suivi PP** : `window.__ficheResumeEleve(etat, nom, du, au)` et `__ficheResumeEleves(etat, noms, du, au)`
-  (carte de chaleur) rendent ce que les fiches disent d'un élève entre deux dates, par les calculs de la fiche élève de l'appli
-  (`donneesSynthEleve`, `famillesUtilisees`, `niveauReussite`) sur un suivi passé en argument (état courant échangé le temps du
-  calcul, caches vidés avant et après), en données simples. ⚠️ Toute évolution de ces calculs se voit dans Suivi PP : garder la
-  forme du résultat (cf. `_suivisCorpsHTML`).
-- **Réglages communs** (`appliquerCommunHote`, message `commun`) : classe, établissement, référent, découpage, et pour chaque matière
-  rattachée à une discipline son enseignant, son champ disciplinaire et ses codes d'option. Reçus de Suivi PP (une valeur vide ne
-  remplace rien) ; modifiés ici, ils repartent avec le suivi. Champs marqués d'un trait bleu (`marquerCommunsHote`).
-  **Pinceau de l'emploi du temps** : une matière dont la discipline est une OPTION (`profs[mat].codes`) se peint d'office pour le
-  groupe de même nom (`cleNom`), un toast le dit ; « Toute la classe » pour changer.
-- Tests : `e2e_integre.js` (le vrai `suivi pp.html`, en `file://`) ; côté Suivi PP, `test/fiches-suivi.test.js`.
-
-## Champs disciplinaires
-
-`CHAMPS` (core.js) = les domaines de Suivi PP (`langues`, `lettres`, `sciences`, `arts`, `eps`, `autre`, mêmes libellés).
-`S.matieres[i].champ` n'est écrit que s'il est CHOISI (réglages › Matières, menu « Champ » ; ou reçu de Suivi PP), sinon
-`champDefaut(nom)` le déduit du nom (motifs ; ⚠️ l'EPS avant les sciences : « Éd. physique » contient PHYSIQUE).
-`matieresParChamp(st)` range (ordre des champs, puis de la liste), `ordreMatieres(st)` en donne les noms. Suivent ce rangement : la
-palette de l'emploi du temps (un paquet par champ), les réglages (un intertitre par champ ; les `data-path` gardent l'index du
-tableau), les menus de matière (`optgroupsMatieres`), le menu du créneau, les trois bilans par matière (`tr.nv-champ` : un trait entre
-deux champs, sans ligne de plus — les tests comptent les lignes). ⚠️ Les COULEURS des matières ne changent pas (rang dans la liste).
-Test : `e2e_champs.js`.
+| Fichier | Sections |
+|---|---|
+| `docs/integration.md` | *Version intégrée à Suivi PP (onglet 📋 Suivis)* : `srcdoc`, messages, pile d'annulation, liste de la classe, démonstration, résumés pour la fiche élève, réglages communs |
+| `docs/apparence.md` | *Apparence et polices* : `theme.css`, polices, bouton **Aa**, contraste |
+| `docs/import-enregistrement.md` | *Import d'une classe depuis Plan de classe* ; *Enregistrement (version autonome)* |
+| `docs/champs.md` | *Champs disciplinaires* : `CHAMPS`, `champDefaut`, rangement par champ |
 
 ## Rétrocompatibilité (obligatoire depuis le 10/10/2026 ; les versions antérieures n'ont pas à être reprises)
 
@@ -137,14 +63,6 @@ Test : `e2e_champs.js`.
   conversion ; les champs inconnus sont gardés.
 - `FORMAT_DONNEES` n'augmente que si l'enveloppe change ; chaque changement de format ajoute un fichier de référence dans `compat/`.
 - `e2e_compat` rouvre les fichiers de `compat/` sans perdre ni changer une seule valeur.
-
-## Enregistrement (version autonome)
-
-- `MODE_ENREG = "html"` : Ctrl+S réécrit la page elle-même (`PAGE_SOURCE`, dont on remplace le bloc de données) ; `"hote"` en
-  version intégrée.
-- Chrome et Edge écrivent directement (File System Access ; le premier enregistrement demande ce fichier-ci) ; les autres
-  navigateurs téléchargent une copie. Copie de secours dans le navigateur (`localStorage`, clé propre au chemin du fichier).
-- « Reprendre un suivi » : un autre `.html` de l'appli ou un `.json`. « Exporter les données (.json) » : une sauvegarde à part.
 
 ## Les familles de fiches (ordre toujours respecté : individuelles → collectives → classe)
 
