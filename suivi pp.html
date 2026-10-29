@@ -1733,10 +1733,10 @@ img.ch-ph:not([src]) { visibility: hidden; }
 .pf-nav { display: inline-flex; gap: 4px; align-items: center; }
 .pf-nav button, .pf-x { border: 1px solid var(--rule-line); background: var(--pf-card); border-radius: 6px; padding: 5px 10px; }
 .pf-n { font-family: var(--font-mono); color: var(--pencil); font-size: 13px; }
-/* Tableau de bord (v1.79.3) : des colonnes de 370 px au moins, qui prennent toute la largeur ; chaque carte se
-   pose sous la plus courte, dans l'ordre (« maçonnerie », `_pfMasonry` : la hauteur de chaque carte en rangées de
-   4 px). Les colonnes CSS d'avant s'équilibraient mal : une colonne restait vide à droite. Sans le script, une
-   simple grille. */
+/* Tableau de bord (v1.79.3) : des colonnes de 370 px au moins, qui prennent toute la largeur. v1.80.1 : remplies
+   l'une après l'autre, dans l'ordre, à hauteurs aussi égales que possible (`_pfMasonry` / `_pfColonnes` : la hauteur
+   de chaque carte en rangées de 4 px, sa colonne et sa rangée posées par le script). Les colonnes CSS d'avant
+   s'équilibraient mal : une colonne restait vide à droite. Sans le script, une simple grille. */
 .pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); gap: 12px; align-items: start; }
 .pf-grid.mason { grid-auto-rows: 4px; row-gap: 0; }
 .pf-grid > .pf-card { margin: 0; }
@@ -3775,8 +3775,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.80.0';
-const APP_BUILD_DATE = '2026-10-29T17:59:27Z';
+const APP_VERSION    = '1.80.1';
+const APP_BUILD_DATE = '2026-10-29T18:18:29Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9417,8 +9417,11 @@ function _ficheRender() {
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
 }
 // Tableau de bord en maçonnerie (v1.79.3) : chaque carte occupe autant de rangées de 4 px que sa hauteur (+ 12 px
-// d'écart) ; la grille la pose d'elle-même à la première place libre, donc sous la colonne la plus courte, dans
-// l'ordre des cartes. Rien ne bouge dans le DOM (un champ en cours de frappe garde le focus) : seules les hauteurs
+// d'écart). ~~La grille la pose d'elle-même à la première place libre, sous la colonne la plus courte.~~ v1.80.1
+// (l'utilisateur : « la vie scolaire c'était au début, or je vois observations, incidents, fiches de suivi à la fin ») :
+// posées ainsi, les cartes alternaient d'une colonne à l'autre et ne se lisaient plus dans l'ordre. Les colonnes se
+// remplissent maintenant L'UNE APRÈS L'AUTRE, chacune de haut en bas, coupées pour être le plus égales possible
+// (`_pfColonnes`) : jamais de colonne vide, l'ordre arbitré se lit en descendant. Rien ne bouge dans le DOM (un champ en cours de frappe garde le focus) : seules les hauteurs
 // sont recalculées quand une carte change de taille (éditeur ouvert, photo chargée) ou est remplacée (carte des
 // fiches de suivi complétée). Écritures à la tâche suivante (défaut 20 : jamais depuis l'observateur lui-même).
 var _pfMasonObs = null;
@@ -9428,10 +9431,16 @@ function _pfMasonry(grid) {
   let t = 0;
   const poser = () => {
     if (!grid.isConnected) return;
-    for (const c of grid.children) {
-      const span = 'span ' + Math.max(1, Math.ceil((c.getBoundingClientRect().height + 12) / 4));
-      if (c.style.gridRowEnd !== span) c.style.gridRowEnd = span;
-    }
+    const cartes = [...grid.children];
+    const n = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+    const spans = cartes.map(c => Math.max(1, Math.ceil((c.getBoundingClientRect().height + 12) / 4)));
+    const col = _pfColonnes(spans, n), bas = new Array(n).fill(0);
+    cartes.forEach((c, i) => {
+      const k = col[i], v = `${bas[k] + 1} / span ${spans[i]}`;
+      bas[k] += spans[i];
+      if (c.style.gridColumn !== String(k + 1)) c.style.gridColumn = String(k + 1);
+      if (c.style.gridRow !== v) c.style.gridRow = v;
+    });
   };
   const plus_tard = () => { clearTimeout(t); t = setTimeout(poser, 0); };
   const ro = new ResizeObserver(plus_tard);
@@ -9441,6 +9450,24 @@ function _pfMasonry(grid) {
   grid.classList.add('mason');
   suivre(); poser();
   _pfMasonObs = [ro, mo].filter(Boolean);
+}
+// La colonne de chaque carte — pure (testée) : la suite des hauteurs coupée en `n` morceaux CONSÉCUTIFS (au plus un
+// par carte, aucun vide), la plus haute colonne la plus basse possible ; à égalité, la coupe la plus tardive (les
+// premières colonnes un peu plus remplies). Recherche exhaustive par programmation dynamique (une dizaine de cartes).
+function _pfColonnes(h, n) {
+  const N = h.length; n = Math.max(1, Math.min(n | 0, N));
+  if (!N) return [];
+  const pre = [0]; h.forEach(x => pre.push(pre[pre.length - 1] + x));
+  // best[k][i] : meilleure hauteur max pour les i premières cartes en k colonnes ; cut : où commence la dernière.
+  const best = Array.from({ length: n + 1 }, () => new Array(N + 1).fill(Infinity)), cut = best.map(r => r.map(() => 0));
+  best[0][0] = 0;
+  for (let k = 1; k <= n; k++) for (let i = k; i <= N; i++) for (let j = k - 1; j < i; j++) {
+    const v = Math.max(best[k - 1][j], pre[i] - pre[j]);
+    if (v <= best[k][i]) { best[k][i] = v; cut[k][i] = j; }
+  }
+  const col = new Array(N);
+  for (let k = n, i = N; k >= 1; k--) { const j = cut[k][i]; for (let x = j; x < i; x++) col[x] = k - 1; i = j; }
+  return col;
 }
 // Un champ de texte à la hauteur de son contenu, jamais sous sa hauteur minimale (CSS).
 function _autoTaille(ta) {
