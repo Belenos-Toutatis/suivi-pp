@@ -101,7 +101,7 @@ test('photos : rangées dans photos/ du dossier des pièces jointes, relues, orp
 
 test('photos : survol des noms, case de la fiche, import dans Données et Élèves', () => {
   assert.match(ev(`_nomFicheHTML('s1', 'NOM', 'Prénom')`), /data-photo-sid="s1"/);
-  assert.match(SRC, /const ident = `<div id="fiche-photo" class="fiche-photo"><\/div>/);
+  assert.match(SRC, /const ident = `<div class="pf-id"><div id="fiche-photo" class="fiche-photo"><\/div>/);
   assert.match(SRC, /<img id="mfiche-ph" class="pf-ph" alt="" hidden>/);
   assert.match(SRC, /_fichePhotoFill\(stu\.id\);/);
   assert.ok((SRC.match(/onclick="openTrombiImport\(\)"/g) || []).length >= 1 && SRC.includes("b('openTrombiImport()'"));

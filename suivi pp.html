@@ -1733,8 +1733,13 @@ img.ch-ph:not([src]) { visibility: hidden; }
 .pf-nav { display: inline-flex; gap: 4px; align-items: center; }
 .pf-nav button, .pf-x { border: 1px solid var(--rule-line); background: var(--pf-card); border-radius: 6px; padding: 5px 10px; }
 .pf-n { font-family: var(--font-mono); color: var(--pencil); font-size: 13px; }
-.pf-grid { columns: 370px; column-gap: 12px; }
-.pf-grid > .pf-card { break-inside: avoid; margin-bottom: 12px; display: block; }
+/* Tableau de bord (v1.79.3) : des colonnes de 370 px au moins, qui prennent toute la largeur ; chaque carte se
+   pose sous la plus courte, dans l'ordre (« maçonnerie », `_pfMasonry` : la hauteur de chaque carte en rangées de
+   4 px). Les colonnes CSS d'avant s'équilibraient mal : une colonne restait vide à droite. Sans le script, une
+   simple grille. */
+.pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); gap: 12px; align-items: start; }
+.pf-grid.mason { grid-auto-rows: 4px; row-gap: 0; }
+.pf-grid > .pf-card { margin: 0; }
 .pf-card { background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; padding: 10px 12px; min-width: 0; font-size: 14px; }
 .pf-card h3 { margin: 0 0 8px; font-size: 14.5px; color: var(--ink-deep); display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .pf-card h3 .pf-k { margin-left: auto; font-weight: 400; font-size: 12.5px; color: var(--pencil); }
@@ -1770,6 +1775,15 @@ img.ch-ph:not([src]) { visibility: hidden; }
 .pf-sw { width: 16px; height: 12px; border-radius: 2px; display: inline-block; flex: none; }
 .pf-kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: 13.5px; margin: 0; }
 .pf-kv dt { color: var(--pencil); } .pf-kv dd { margin: 0; }
+/* Carte Identité (v1.79.3) : la photo à droite des premières lignes seulement ; dessous, les valeurs prennent
+   toute la largeur (un `dl` en grille à côté d'un flottant restait étroit sur toute sa hauteur). */
+.pf-id { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; gap: 3px 12px; font-size: 13.5px; }
+.pf-id > .pf-kv { display: contents; }
+.pf-id > .fiche-photo { float: none; margin: 0 0 4px; grid-column: 3; grid-row: 1 / span 7; align-self: start; }
+.pf-id > .pf-kv > dt { grid-column: 1; }
+.pf-id > .pf-kv > dd { grid-column: 2; min-width: 0; }
+.pf-id > .pf-kv > dd:nth-of-type(n+8) { grid-column: 2 / -1; }
+@media (max-width: 520px) { .pf-id > .fiche-photo { grid-column: 1 / -1; grid-row: auto; justify-self: center; } .pf-id > .pf-kv > dd { grid-column: 2 / -1; } }
 /* 📷 Photos (v1.48.0, repris de Plan de classe) : case de la carte Identité, vignette de
    l'en-tête, aperçu au survol d'un nom, fenêtre d'import du trombinoscope. */
 .fiche-photo { float: right; margin: 0 0 8px 12px; text-align: center; }
@@ -3701,8 +3715,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.79.2';
-const APP_BUILD_DATE = '2026-10-29T06:57:50Z';
+const APP_VERSION    = '1.79.3';
+const APP_BUILD_DATE = '2026-10-29T08:08:42Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9337,9 +9351,36 @@ function _ficheRender() {
     : vue === 'faits' && col ? _ficheFaitsHTML(cls, stu, col)
     : col ? _ficheTableauHTML(cls, stu, col, ed) : `<div class="fi-cols">${secs}</div>`;
   box.querySelectorAll('textarea.pf-ta').forEach(_autoTaille);
+  _pfMasonry(box.querySelector('.pf-grid'));
   _fichePhotoFill(stu.id);
   const f = box.querySelector('[data-fi-focus]');
   if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } }
+}
+// Tableau de bord en maçonnerie (v1.79.3) : chaque carte occupe autant de rangées de 4 px que sa hauteur (+ 12 px
+// d'écart) ; la grille la pose d'elle-même à la première place libre, donc sous la colonne la plus courte, dans
+// l'ordre des cartes. Rien ne bouge dans le DOM (un champ en cours de frappe garde le focus) : seules les hauteurs
+// sont recalculées quand une carte change de taille (éditeur ouvert, photo chargée) ou est remplacée (carte des
+// fiches de suivi complétée). Écritures à la tâche suivante (défaut 20 : jamais depuis l'observateur lui-même).
+var _pfMasonObs = null;
+function _pfMasonry(grid) {
+  if (_pfMasonObs) { _pfMasonObs.forEach(o => o.disconnect()); _pfMasonObs = null; }
+  if (!grid || typeof ResizeObserver !== 'function') return;
+  let t = 0;
+  const poser = () => {
+    if (!grid.isConnected) return;
+    for (const c of grid.children) {
+      const span = 'span ' + Math.max(1, Math.ceil((c.getBoundingClientRect().height + 12) / 4));
+      if (c.style.gridRowEnd !== span) c.style.gridRowEnd = span;
+    }
+  };
+  const plus_tard = () => { clearTimeout(t); t = setTimeout(poser, 0); };
+  const ro = new ResizeObserver(plus_tard);
+  const suivre = () => { ro.disconnect(); for (const c of grid.children) ro.observe(c); };
+  const mo = typeof MutationObserver === 'function' ? new MutationObserver(() => { suivre(); plus_tard(); }) : null;
+  if (mo) mo.observe(grid, { childList: true });
+  grid.classList.add('mason');
+  suivre(); poser();
+  _pfMasonObs = [ro, mo].filter(Boolean);
 }
 // Un champ de texte à la hauteur de son contenu, jamais sous sa hauteur minimale (CSS).
 function _autoTaille(ta) {
@@ -11856,7 +11897,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
   const penF = (onclick, title) => `<button class="pf-ed" onclick="${onclick}" title="${_escAttr(title)}" aria-label="${_escAttr(title)}">✎</button>`;
   const kv = (dt, dd, crayon, editeur) => `<dt>${dt}</dt><dd>${dd}${crayon ? ' ' + crayon : ''}${editeur || ''}</dd>`;
   const ouEdit = k => _ficheEdit === k;
-  const ident = `<div id="fiche-photo" class="fiche-photo"></div><dl class="pf-kv">${
+  const ident = `<div class="pf-id"><div id="fiche-photo" class="fiche-photo"></div><dl class="pf-kv">${
     kv('Nom', `${_escName(stu.nom)} ${_escName(stu.prenom)}`, pen('nom', 'Corriger le nom ou le prénom'), ed.edNom)}${
     kv('Classe', `${_escName(cls.nom)}${cls.annee ? ` <span class="pf-mu">${_escName(cls.annee)}</span>` : ''}`, pen('classe', 'Corriger le nom ou l\'année de la classe'), ed.edClasse)}${
     kv('Né(e) le', stu.naissance ? `${_escName(_fmtDateFr(stu.naissance))}${ed.age !== null ? ` <span class="pf-mu">${ed.age} ans</span>` : ''}` : '–', pen('naissance', 'Corriger la date de naissance'), ouEdit('naissance') ? `<div class="fi-editor">${ed.dateInp('naissance', stu.naissance)}</div>` : '')}${
@@ -11871,7 +11912,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     kv('Place', ed.places.length ? ed.places.map(x => `${_escName(x.salleNom)} <span class="pf-mu">rang ${x.rang}, place ${x.colonne}</span>`).join('<br>') : '–', pen('place', 'Changer de place'), ed.edPlace)}${
     kv(_maj(_delMot(_civOf(sid))), dlg ? (dlg === 'titulaire' ? 'titulaire' : _supMot(_civOf(sid))) : '–')}${
     ed.eco ? kv(_maj(_delMot(_civOf(sid), true)), ed.eco === 'titulaire' ? 'titulaire' : _supMot(_civOf(sid))) : ''}${
-    ed.els.length ? kv('Élections', ed.elsHTML) : ''}</dl>
+    ed.els.length ? kv('Élections', ed.elsHTML) : ''}</dl></div>
     <h3 class="pf-h3b">Remarque ${pen('remarque', stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<p class="pf-p">${_escName(stu.remarque)}</p>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
   // Papiers : les choix portés sur chaque document (Devoirs Faits, options…), lus d'un coup d'œil.
   const choixDoc = id => (ed.docsInfo.find(x => x.docId === id)?.reponses || []).map(r => `${r.champ} : ${r.valeurs.join(', ')}`).join(' · ');
