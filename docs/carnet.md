@@ -43,6 +43,21 @@ retirées, « • » devant les puces) dans la cellule de la liste, son infobull
 remarque part en `_mdTexte` : « **Changé » ou « > Idée » passaient pour des majuscules en milieu de phrase (noms
 suspects). Démo : la remarque du dixième élève. Tests : `test/remarque-md.test.js`.
 
+**Le compte rendu d'un contact** (v1.80.3, *« la même chose pour le compte rendu d'un contact avec la famille »*) :
+même markdown. Fenêtre des contacts : UNE barre au-dessus de la saisie, qui agit sur le champ où est le curseur
+(`_mdBarreHTML('@')`, nouveau contact ou contact de la liste ; les boutons ne prennent pas le focus) ; Ctrl+B dans chaque
+champ. ⚠️ Un champ qui s'enregistre en le quittant (`onchange`) : le navigateur ne compte pas un changement fait par le
+script, d'où `data-md-touche` et un `change` relancé au `focusout`. Rendu par `_mdMini(texte, true)` : un seul
+paragraphe sans décalage reste EN LIGNE après « appel téléphonique · » (`.md-l`), une liste ou un décalage fait un bloc
+— carte de la fiche, chronologie, fiche imprimée ; en une ligne (`_mdTexte`) dans les infobulles, la liste des contacts
+d'une case, et vers l'IA. Démo : la rencontre du 12/03 du premier élève.
+
+**Les champs grandissent avec leur texte** (v1.80.3, *« la fenêtre d'édition est des fois un peu petite, elle ne
+s'allonge pas avec le texte »*) : classe `ta-auto` (`field-sizing: content`, au moins ~6 lignes, `ta-court` ~3) +
+`_autoTaille` à la frappe et à l'ouverture (mesurée une fois la fenêtre visible) — remarque (fiche et fenêtre), bilan et
+décisions de la fenêtre du bilan, texte d'un incident. Les contacts (`jl-txt`) et le bilan de la fiche (`pf-ta`) le
+faisaient déjà ; les champs des fenêtres 🤖 gardent leur grande taille fixe (texte à relire).
+
 ### Observations notées dans MBN — la seconde source
 
 Les observations sont notées à deux endroits (carnet de correspondance et MBN, saisies par des collègues) ; l'app tient le compte des deux. Export MBN : `Élève · Civilité · Classe · Type · Motif · Demandeur · Donnée le · Informations complémentaires`, une ligne par observation, « Donnée le » en **nombre de série** Excel dans le .xlsx.

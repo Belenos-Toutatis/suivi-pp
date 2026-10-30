@@ -7,6 +7,7 @@ const { loadApp } = require('./harness.js');
 const app = loadApp();
 const ev = c => app.__TESTEVAL(c);
 const md = t => ev(`_mdMini(${JSON.stringify(t)})`);
+const md2 = t => ev(`_mdMini(${JSON.stringify(t)}, true)`);
 
 test('gras, paragraphes, sauts de ligne', () => {
   assert.strictEqual(md('Très **volontaire** à l\'oral.\nPeu de leçons.\n\nSecond paragraphe.'),
@@ -48,4 +49,37 @@ test('la fiche montre la remarque mise en forme ; l’éditeur porte la barre', 
   const h = ev(`(() => { const cls = getCls(), col = _ficheMoments(cls)[0]; return _ficheTableauHTML(cls, S.eleves.s, col, { remHTML: _mdBarreHTML('fi-rem-edit') }); })()`);
   assert.match(h, /<div class="pf-p"><div class="md"><p><strong>Attention<\/strong><\/p><ul><li>carnet<\/li><\/ul><\/div><\/div>/);
   assert.match(ev(`_mdBarreHTML('fi-rem-edit')`), /mdOutil\('fi-rem-edit','gras'\)/);
+});
+
+// v1.80.3 : le compte rendu d'un contact avec la famille, même mise en forme.
+test('contact : en ligne s’il n’a qu’un paragraphe, en bloc dès une liste ou un décalage', () => {
+  assert.strictEqual(md2('Mère **inquiète**\nRappeler lundi'), '<span class="md-l">Mère <strong>inquiète</strong><br>Rappeler lundi</span>');
+  assert.strictEqual(md2(''), '<span class="md-l"></span>');
+  assert.match(md2('Points :\n- carnet\n- devoirs'), /^<div class="md"><p>Points :<\/p><ul>/);
+  assert.match(md2('> décalé'), /^<div class="md"><p class="md-r1">/);
+});
+
+test('contact : la fiche le met en forme, la fenêtre des contacts a sa barre (le champ où est le curseur)', () => {
+  ev(`S = _emptyState(); postLoadHook(); S.classes.c = { id: 'c', nom: '5C', eleves: ['s'], ord: 0 }; S.cur = 'c';
+      S.eleves.s = { id: 's', nom: 'X', prenom: 'Y', classe_id: 'c', tags: [] };
+      journalAdd('s', _ficheMoments(getCls())[0].date, 'appel', '**Mère** jointe :\\n- carnet\\n- devoirs');`);
+  const h = ev(`(() => { const cls = getCls(), col = _ficheMoments(cls)[0]; return _ficheTableauHTML(cls, S.eleves.s, col, {}); })()`);
+  assert.match(h, /appel téléphonique<\/span> · <div class="md"><p><strong>Mère<\/strong> jointe :<\/p><ul><li>carnet<\/li><li>devoirs<\/li><\/ul><\/div>/);
+  assert.match(ev(`_mdBarreHTML('@')`), /mdOutil\('@','ul'\)[\s\S]*dans le texte où est le curseur/);
+  assert.match(ev(`_iaDonnees(getCls(), S.eleves.s, _ficheMoments(getCls())[0], new Set(['contact'])).texte`), /Mère jointe :/, 'vers l’IA : sans les marques');
+});
+
+// v1.80.3 (l'utilisateur : « la fenêtre d'édition est des fois un peu petite, elle ne s'allonge pas avec le texte ») :
+// les champs de texte libre prennent la hauteur de leur contenu et grandissent à la frappe.
+test('les champs de texte libre grandissent avec leur texte', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  for (const id of ['mrem-txt', 'mbilan-txt', 'mbilan-dec', 'minc-txt']) {
+    const tag = (src.match(new RegExp(`<textarea id="${id}"[^>]*>`)) || [''])[0];
+    assert.match(tag, /class="ta-auto/, id);
+    assert.match(tag, /oninput="_autoTaille\(this\)/, id);
+  }
+  assert.match(src, /<textarea id="fi-rem-edit" class="ta-auto"[^>]*oninput="_autoTaille\(this\)"/);
+  assert.match(src, /textarea\.ta-auto \{ field-sizing: content;/);
+  // Méta-test : le détecteur voit bien un champ qui ne grandit pas.
+  assert.doesNotMatch('<textarea id="x" rows="4">', /class="ta-auto/);
 });
