@@ -83,3 +83,23 @@ test('les champs de texte libre grandissent avec leur texte', () => {
   // Méta-test : le détecteur voit bien un champ qui ne grandit pas.
   assert.doesNotMatch('<textarea id="x" rows="4">', /class="ta-auto/);
 });
+
+// v1.80.4 : décisions, texte d'un incident, compte rendu d'une heure de vie de classe — même mise en forme.
+test('décisions, incidents, heures de vie de classe : barre dans chaque éditeur, texte mis en forme à l’affichage', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  for (const id of ['fi-dec', 'mbilan-dec', 'minc-txt', 'hvc-txt']) {
+    const tag = (src.match(new RegExp(`<textarea id="${id}"[^>]*>`)) || [''])[0];
+    assert.match(tag, /mdTouche\(event\)/, id + ' : Ctrl+B');
+    assert.ok(src.includes(`_mdBarreHTML('${id}')`), id + ' : la barre');
+  }
+  ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook();`);
+  const cls = 'getCls()', s0 = `S.eleves[getCls().eleves[0]]`;
+  const h = ev(`(() => { const cls = ${cls}, col = _ficheMoments(cls).find(c => c.key === 'bil:conseil:0'); return _ficheChronoHTML(cls, ${s0}, col); })()`);
+  assert.match(h, /Décisions — [^<]*<\/strong> — <div class="md"><p><strong>Avertissement travail et comportement\.<\/strong><\/p><ul>/, 'décisions de la démo, en chronologie');
+  const h2 = ev(`(() => { const cls = ${cls}, col = _ficheMoments(cls).find(c => c.key === 'bil:conseil:1'); return _ficheChronoHTML(cls, ${s0}, col); })()`);
+  assert.match(h2, /<div class="fi-vide"><div class="md"><p>Présents[^<]*<br><strong>Décision<\/strong>[^<]*<\/p><ul><li>/, 'texte d’un incident (la commission du S2)');
+  assert.match(h, /comportement\. rendez-vous avec la mère/, 'infobulle de la frise : pas de mots collés');
+  assert.match(ev(`_hvcHTML(${cls})`), /<div class="fi-inc-txt"><div class="md"><p>Tour de table[\s\S]*?<ol>/, 'heure de vie de classe');
+  const ia = ev(`_iaDonnees(${cls}, ${s0}, _ficheMoments(${cls}).find(c => c.key === 'bil:conseil:0'), new Set(IA_BLOCS.map(x => x.k))).texte`);
+  assert.ok(!/\*\*/.test(ia), 'vers l’IA : sans les marques');
+});

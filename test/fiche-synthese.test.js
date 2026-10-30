@@ -236,7 +236,7 @@ test('Décisions d\'un moment de bilan : une par moment, sous le bilan (fiche), 
   // Chronologie et synthèse de période.
   assert.ok(evObj(`_ficheEvenements(getCls(), S.eleves[${J}], _ficheMomentCourant(getCls())).map(e => e.html)`).some(h => /Décisions/.test(h) && /tutorat/.test(h)));
   assert.strictEqual(ev(`_periodeSynthese(getCls(), 0, { type: 'conseil' }).rows.find(r => r.sid === ${J}).decisions`), 'PPRE en maths, tutorat.');
-  assert.match(ev(`_periodePrintHTML(getCls(), 0, { type: 'conseil', blocs: ['bilan'], forme: 'tableau' }).html`), /<strong>Décisions :<\/strong> PPRE en maths, tutorat\./);
+  assert.match(ev(`_periodePrintHTML(getCls(), 0, { type: 'conseil', blocs: ['bilan'], forme: 'tableau' }).html`), /<strong>Décisions :<\/strong> <span class="md-l">PPRE en maths, tutorat\.<\/span>/);
   // Vider : retirée.
   assert.strictEqual(ev(`decisionSet(getCls(), ${J}, ${mode}, '')`), 'suppr');
   assert.strictEqual(ev(`_decisionsOf(${J}).length`), 1);

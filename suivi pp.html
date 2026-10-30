@@ -2651,12 +2651,13 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
     </div>
     <div id="mbilan-avis"></div>
     <div class="fg">
-      <textarea id="mbilan-txt" class="ta-auto" data-autofocus rows="6" placeholder="Élève sérieux, en progrès à l'oral. Le carnet reste chargé (+6 ce semestre) : rappeler le cadre. Encourager à demander de l'aide en maths." oninput="_autoTaille(this);_bilanCompte(this, 'mbilan-n', document.getElementById('mbilan-type')?.value === 'conseil')" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
+      <textarea id="mbilan-txt" class="ta-auto" data-autofocus rows="6" placeholder="Élève sérieux, en progrès à l'oral. Le carnet reste chargé (+6 ce semestre) : rappeler le cadre. Encourager à demander de l'aide en maths." oninput="_autoTaille(this);_bilanCompte(this, 'mbilan-n', document.getElementById('mbilan-type')?.value === 'conseil')" onkeydown="if(mdTouche(event))return;if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
       <div class="bil-n" id="mbilan-n"></div>
     </div>
     <div class="fg">
       <label for="mbilan-dec">Décisions · à mettre en place</label>
-      <textarea id="mbilan-dec" class="ta-auto ta-court" rows="3" oninput="_autoTaille(this)" placeholder="Ce qui a été décidé en réunion : avertissement, PPRE, tutorat, rendez-vous avec la famille…" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
+      <div id="mbilan-dec-barre"></div>
+      <textarea id="mbilan-dec" class="ta-auto ta-court" rows="3" oninput="_autoTaille(this)" placeholder="Ce qui a été décidé en réunion : avertissement, PPRE, tutorat, rendez-vous avec la famille…" onkeydown="if(mdTouche(event))return;if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();bilanNav(1)}"></textarea>
     </div>
     <div class="ma">
       <button class="btn btn-d btn-sm" id="mbilan-del" onclick="bilanRemoveUI()" title="Supprimer ce bilan">🗑 Supprimer</button>
@@ -2932,7 +2933,7 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
       <input type="text" id="minc-objet" data-autofocus maxlength="160" placeholder="Bagarre en récréation · Convocation suite à trois rapports…"
              onkeydown="if(event.key==='Enter'){event.preventDefault();saveIncident()}"></div>
     <div class="fg"><label for="minc-txt">Décision, points principaux <span style="font-weight:400;font-size:.85em">(facultatif)</span></label>
-      <textarea id="minc-txt" class="ta-auto" rows="4" oninput="_autoTaille(this)" placeholder="Ce qui a été dit, ce qui a été décidé, ce qu'on attend de l'élève et de la famille."></textarea></div>
+      <div id="minc-barre"></div><textarea id="minc-txt" class="ta-auto" rows="4" oninput="_autoTaille(this)" onkeydown="mdTouche(event)" placeholder="Ce qui a été dit, ce qui a été décidé, ce qu'on attend de l'élève et de la famille."></textarea></div>
     <div class="fg"><label for="minc-pdf">📎 PDF de la fiche <span style="font-weight:400;font-size:.85em">(facultatif — copié dans le dossier des PDF, jamais dans la sauvegarde)</span></label>
       <input type="file" id="minc-pdf" accept="application/pdf,.pdf">
       <div id="minc-pdf-etat" style="margin-top:4px"></div></div>
@@ -3794,8 +3795,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.80.3';
-const APP_BUILD_DATE = '2026-10-30T16:30:46Z';
+const APP_VERSION    = '1.80.4';
+const APP_BUILD_DATE = '2026-10-30T16:41:16Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8619,7 +8620,7 @@ function _chaleurGroupes(cls, bcols, colM) {
   }
   if (bcols.length) G.push({ key: 'bil', label: 'Bilans', sub: bcols.map(c => ({ id: c.key, l: (col && c.key === col.key ? '▶ ' : '') + c.court, long: c.long + (col && c.key === col.key ? ' — le moment choisi' : '') })),
     cell: (sid, k) => { const c = bcols.find(x => x.key === k), b = _bilanDeColonne(cls, sid, c), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
-      const dTxt = dc ? `\nDécisions : ${String(dc.texte).slice(0, 300)}` : '';
+      const dTxt = dc ? `\nDécisions : ${_mdTexte(dc.texte).slice(0, 300)}` : '';
       const ouvre = `elevesBilanOuvrir('${_escJsAttr(sid)}','${_escJsAttr(k)}')`;   // comme les points de la liste (v1.47.1, audit C9)
       return b || dc ? ['ch-bil', dc ? '◉' : '●', `${c.long}${b ? ` — ${_fmtDateFr(b.date)}\n${String(b.texte).slice(0, 400)}` : ' : bilan à écrire'}${dTxt}\nClic : rédiger`, ouvre] : ['ch-no', '○', `${c.long} : rien d'écrit — clic : rédiger`, ouvre]; },
     sum: sid => ['ch-bil', bcols.map(c => _bilanDeColonne(cls, sid, c) ? '●' : '○').join(''), bcols.map(c => `${c.court} : ${_bilanDeColonne(cls, sid, c) ? 'écrit' : '—'}`).join('\n')] });
@@ -8921,7 +8922,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
     td.avis = () => _avisCelluleHTML(cls, campCour, sid);
     td.bilans = () => `<span class="el-bdots">${bcols.map((c, i) => {
       const b = _bilanDeColonne(cls, sid, c), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
-      const t = (b ? `${c.long} — ${_fmtDateFr(b.date)}\n${b.texte}` : `${c.long} : à écrire`) + (dc ? `\nDécisions : ${dc.texte}` : '');
+      const t = (b ? `${c.long} — ${_fmtDateFr(b.date)}\n${b.texte}` : `${c.long} : à écrire`) + (dc ? `\nDécisions : ${_mdTexte(dc.texte)}` : '');
       return `${i && bcols[i - 1].pIdx !== c.pIdx ? '<i class="el-bsep"></i>' : ''}<button class="el-bd${b ? ' f' : ''}${dc ? ' d' : ''}" onclick="elevesBilanOuvrir('${j}','${_escJsAttr(c.key)}')" title="${_escAttr(t)}" aria-label="${_escAttr(c.long + (b ? ' : écrit' : ' : à écrire'))}"></button>`;
     }).join('')}</span>`;
     td.rem = () => s.remarque ? `<button class="el-rem" onclick="openRemarque('${j}')" title="${_escAttr(_mdTexte(s.remarque))}">${_escName(_mdTexte(s.remarque))}</button>` : dot('Pas de remarque — clic : en écrire une', `openRemarque('${j}')`);
@@ -9449,7 +9450,7 @@ function _ficheRender() {
         return `<div class="fi-j fi-inc"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))} · ⚖️ ${_escName(inst.label)}${
           e.pdf ? ` · <a href="#" onclick="pjOpenUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}');return false" title="Ouvrir le PDF (${_escAttr(_fmtBytes(e.pdf.taille))})">📎 ${_escName(e.pdf.nom)}</a>` : ''}
           <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="ficheVersIncident('${_escJsAttr(e.id)}')" title="Modifier cette entrée">✏️ Modifier</button> <button class="btn btn-d btn-sm" onclick="incidentRemoveUI('${_escJsAttr(stu.id)}','${_escJsAttr(e.id)}')" title="Supprimer cette entrée">🗑 Supprimer</button></span></div>
-          <strong>${_escName(e.objet)}</strong>${e.texte ? `<div class="fi-inc-txt">${_escName(e.texte)}</div>` : ''}</div>`;
+          <strong>${_escName(e.objet)}</strong>${e.texte ? `<div class="fi-inc-txt">${_mdMini(e.texte)}</div>` : ''}</div>`;
       }).join('')
     : vide('Aucun incident ni instance — tant mieux.'));
 
@@ -9885,8 +9886,8 @@ function _ficheRedacHTML(cls, stu, col, extra) {
     <textarea id="fi-bil" class="pf-ta" aria-label="${_escAttr(col.long)} · ce que je dirai" onchange="ficheBilanSave()" oninput="_autoTaille(this);_bilanCompte(this, 'fi-bil-n', ${col.type === 'conseil'})" placeholder="Votre bilan pour ${_escAttr(col.long.toLowerCase())}…">${b ? _escName(b.texte) : ''}</textarea>
     ${col.type === 'conseil' ? `<div class="bil-n${b && b.texte.length > _appreciationMax() ? ' trop' : ''}" id="fi-bil-n" title="Le bilan du conseil est l'appréciation du bulletin (réglage dans 💾 Données ▸ Année et périodes)">${_bilanCompteHTML(b ? b.texte.length : 0)}</div>` : ''}${_iaRepereHTML(cls, stu, col)}
     ${_iaOn() ? `<div class="pf-row"><button class="pf-ins" onclick="openRedacIA()" title="Faire corriger l'orthographe et la grammaire du bilan, ou le faire reformuler et réorganiser — vous comparez avant de remplacer">🤖 Corriger ou reformuler avec une IA…</button></div>` : ''}${extra || ''}<div class="tb-hint" id="fi-bil-etat">${b ? `Écrit le ${_escName(_fmtDateFr(b.date))} · enregistré en quittant le champ` : 'Enregistré en quittant le champ'}</div>`)}
-    ${_pfPli('dec', 'Décisions · à mettre en place', d ? d.texte : '', `
-    <textarea id="fi-dec" class="pf-ta pf-ta-dec" aria-label="Décisions · à mettre en place" onchange="ficheDecisionSave()" oninput="_autoTaille(this)" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
+    ${_pfPli('dec', 'Décisions · à mettre en place', d ? _mdTexte(d.texte) : '', `
+    ${_mdBarreHTML('fi-dec')}<textarea id="fi-dec" class="pf-ta pf-ta-dec" aria-label="Décisions · à mettre en place" onchange="ficheDecisionSave()" oninput="_autoTaille(this)" onkeydown="mdTouche(event)" placeholder="Ce qui a été décidé en réunion, ce qu'on met en place : avertissement, PPRE, tutorat, rendez-vous avec la famille, point dans un mois…">${d ? _escName(d.texte) : ''}</textarea>
     <div class="tb-hint" id="fi-dec-etat">${d ? `Noté le ${_escName(_fmtDateFr(d.date))} · vider le champ la retire` : 'Enregistré en quittant le champ'}</div>`)}`;
 }
 // Comme le bilan : enregistré en quittant le champ, sans re-rendu ; vider le champ retire la
@@ -9914,7 +9915,7 @@ function _ficheBilansAutresHTML(cls, stu, col, corps) {
 function _ficheBilansAutresListe(cls, stu, col) {
   const b = _bilanCible(cls, stu.id, { type: col.type, date: col.date });
   return _ficheMoments(cls).filter(c => c.key !== col.key).map(c => { const x = _bilanCible(cls, stu.id, { type: c.type, date: c.date }), dc = _decisionCible(cls, stu.id, { type: c.type, date: c.date });
-    return `<div class="pf-bil"><div class="pf-bil-l">${_escName(c.long)}${x ? ' · ' + _escName(_fmtDateFr(x.date).slice(0, 5)) : ''}</div>${x ? _escName(x.texte) : '<span class="pf-mu">rien d\'écrit</span>'}${dc ? `<div class="pf-dec"><span class="pf-dec-l">Décisions</span> ${_escName(dc.texte)}</div>` : ''}</div>`; }).join('')
+    return `<div class="pf-bil"><div class="pf-bil-l">${_escName(c.long)}${x ? ' · ' + _escName(_fmtDateFr(x.date).slice(0, 5)) : ''}</div>${x ? _escName(x.texte) : '<span class="pf-mu">rien d\'écrit</span>'}${dc ? `<div class="pf-dec"><span class="pf-dec-l">Décisions</span> ${_mdMini(dc.texte, true)}</div>` : ''}</div>`; }).join('')
     + _bilansOf(stu.id).filter(x => x !== b && !_ficheMoments(cls).some(c => _bilanCible(cls, stu.id, { type: c.type, date: c.date }) === x))
       .map(x => `<div class="pf-bil"><div class="pf-bil-l">${_escName(_bilanLabel(x))} · ${_escName(_fmtDateFr(x.date))}</div>${_escName(x.texte)}</div>`).join('');
 }
@@ -10147,7 +10148,7 @@ function _iaSuspects(texte, autorises, ignores) {
     if (!/^\p{Lu}/u.test(w) || reperes.some(([a, b]) => i >= a && i < b)) continue;
     const caps = w.length >= 2 && w === w.toUpperCase() && /\p{Lu}.*\p{Lu}/u.test(w);
     const avant = src.slice(0, i).replace(/[ \t ]+$/, '');
-    if (!caps && (!avant || /[\n.!?:;«"(—–•…-]$/.test(avant))) continue;   // début de phrase : la majuscule y est normale
+    if (!caps && (!avant || /[\n.!?:;«"(—–•…/-]$/.test(avant))) continue;   // début de phrase : la majuscule y est normale (« / » : un saut de ligne mis à plat par ligne())
     const k = _iaPlie(w);
     if ((autorises && autorises.has(k)) || (ignores && ignores.has(k))) continue;
     const x = out.get(k) || { mot: w, n: 0 };
@@ -10258,7 +10259,7 @@ function _iaDonnees(cls, stu, col, blocs, repere) {
   const dans = l => (l || []).filter(x => _isPlainObj(x) && x.date >= b.start && x.date <= b.end).sort((x, y) => x.date.localeCompare(y.date));
   if (on('incid')) {
     const inc = dans(stu.incidents);
-    parts.push(inc.length ? [`Incidents : ${inc.length}.`, ...inc.map(x => `– ${jm(x.date)}, ${st(_instanceOf(x.type).label).toLowerCase()}${x.objet ? ` : ${ligne(x.objet)}` : ''}${x.texte ? `. ${ligne(x.texte)}` : ''}`)] : ['Aucun incident sur le moment.']);
+    parts.push(inc.length ? [`Incidents : ${inc.length}.`, ...inc.map(x => `– ${jm(x.date)}, ${st(_instanceOf(x.type).label).toLowerCase()}${x.objet ? ` : ${ligne(x.objet)}` : ''}${x.texte ? `. ${ligne(_mdTexte(x.texte))}` : ''}`)] : ['Aucun incident sur le moment.']);
   }
   if (on('contact')) { const ct = dans(stu.journal); if (ct.length) parts.push([`Contacts avec la famille : ${ct.length}.`, ...ct.map(x => `– ${jm(x.date)}, ${st(_journalType(x.type).label).toLowerCase()}${x.texte ? ` : ${ligne(_mdTexte(x.texte))}` : ''}`)]); }
   if (on('remarque') && String(stu.remarque || '').trim()) parts.push(['Remarque du professeur principal (sans date) :', _mdTexte(stu.remarque)]);   /* sans les marques de mise en forme (v1.80.2) */
@@ -10281,7 +10282,7 @@ function _iaDonnees(cls, stu, col, blocs, repere) {
   if (on('bilans')) {
     const mode = { type: col.type, date: col.date }, avant = x => x.date < col.date && !_momentEst(cls, x, mode);
     const L = [..._bilansOf(sid).filter(avant).reverse().map(x => `– ${st(_bilanLabel(x))} (${jm(x.date)}) : ${ligne(x.texte)}`),
-      ..._decisionsOf(sid).filter(avant).reverse().map(x => `– Décisions, ${st(_bilanLabel(x)).toLowerCase()} (${jm(x.date)}) : ${ligne(x.texte)}`)];
+      ..._decisionsOf(sid).filter(avant).reverse().map(x => `– Décisions, ${st(_bilanLabel(x)).toLowerCase()} (${jm(x.date)}) : ${ligne(_mdTexte(x.texte))}`)];
     if (L.length) parts.push(['Bilans des moments précédents :', ...L]);
   }
   return { texte: parts.map(p => p.join('\n')).join('\n\n'), ok };
@@ -11188,7 +11189,7 @@ function _iaClasseTexte(cls, col, codes, blocs) {
   if (on('chiffres')) _iaClasseChiffres(cls, col, sids).forEach(l => tete.push(st(l)));
   if (on('hvc')) {
     const h = _hvcOf(cls).filter(e => e.date >= b.start && e.date <= b.end && e.date <= _todayYmd()).reverse();
-    if (h.length) tete.push('Heures de vie de classe :', ...h.map(e => `– ${jm(e.date)} : ${e.titre}${e.texte ? ` — ${ligne(e.texte)}` : ''}`));
+    if (h.length) tete.push('Heures de vie de classe :', ...h.map(e => `– ${jm(e.date)} : ${e.titre}${e.texte ? ` — ${ligne(_mdTexte(e.texte))}` : ''}`));
   }
   let r = _iaPseudo(tete.join('\n'), { personnes: _iaPersonnes(cls, null, codes) });
   let table = r.table;
@@ -11196,7 +11197,7 @@ function _iaClasseTexte(cls, col, codes, blocs) {
   for (const sid of sids) {
     const stu = S.eleves[sid], L = [];
     if (on('bilans')) { const x = _bilanCible(cls, sid, mode); if (x) L.push(`Bilan : ${x.texte.trim()}`); }
-    if (on('decisions')) { const x = _decisionCible(cls, sid, mode); if (x) L.push(`Décisions : ${x.texte.trim()}`); }
+    if (on('decisions')) { const x = _decisionCible(cls, sid, mode); if (x) L.push(`Décisions : ${_mdTexte(x.texte).trim()}`); }
     if (on('synthIA')) { const x = _synthIACible(cls, sid, mode); if (x) L.push(`Synthèse (IA) : ${x.texte.trim()}`); }
     if (on('avis')) {
       const av = _ficheAvis(cls, sid, col);
@@ -12337,10 +12338,10 @@ function _ficheEvenements(cls, stu, col) {
   (mp ? mp.list : []).filter(r => dans(r.date)).forEach(r => { const g = _moyGen(r, sid); if (g !== null) E.push({ date: r.date, k: 'moy', html: `Moyennes : générale ${_escName(typeof g === 'number' ? _fmtNote(g, 1) : g)}${_moySous10(r, sid) ? `, ${_moySous10(r, sid)} matière(s) sous 10` : ''}` }); });
   _avisCampagnes(cid).filter(c => dans(c.date) && c.avis?.[sid]).forEach(c => { const items = c.disciplines.filter(d => c.avis[sid][d.id]).map(d => ({ disc: d, ...c.avis[sid][d.id] }));
     if (items.length) E.push({ date: c.date, k: 'avis', html: `Avis des collègues — ${_escName(_avisObjectif(cls, c).long)} : ${items.length} discipline(s)${(c.cibles || []).includes(sid) ? ' ⭐' : ''}`, detail: _avisItemsHTML(items, _avisCols(c), c, sid) }); });
-  (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'incid', html: `<strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<div class="fi-vide">${_escName(x.texte)}</div>` : ''}` }));
+  (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'incid', html: `<strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<div class="fi-vide">${_mdMini(x.texte)}</div>` : ''}` }));
   (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).forEach(x => E.push({ date: x.date, k: 'contact', html: `<strong>${_escName(_journalType(x.type).label)}</strong> — ${_mdMini(x.texte || '', true)}${_journalPjLiensHTML(stu.id, x)}` }));
   _bilansOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
-  _decisionsOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>Décisions — ${_escName(_bilanLabel(x))}</strong> — ${_escName(x.texte)}` }));
+  _decisionsOf(sid).filter(x => dans(x.date)).forEach(x => E.push({ date: x.date, k: 'bilan', html: `<strong>Décisions — ${_escName(_bilanLabel(x))}</strong> — ${_mdMini(x.texte, true)}` }));
   _docsOfCurrent().filter(d => (d.classIds || []).includes(cid) && dans(d.dateDistribution) && _docExpected(d).some(x => x.id === sid)).forEach(d => {
     const r = _retour(d, sid);
     E.push({ date: d.dateDistribution, k: 'papier', html: `${_escName(d.titre)} distribué${d.suiviRetour === false ? '' : r.rendu ? ` — rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour)) : ''}` : d.archive ? '' : ' — <strong>pas rendu</strong>'}${d.archive ? ' (archivé)' : ''}` });   // archivé non rendu : pas un manquant (comme la carte Papiers)
@@ -12368,7 +12369,7 @@ function _ficheChronoHTML(cls, stu, col) {
   LANES.forEach(([k, l], j) => { const y = 22 + j * LH + LH / 2; g += `<text x="0" y="${y + 4}">${l}</text><line class="lane" x1="${L}" y1="${y}" x2="${W - R}" y2="${y}"/>`; });
   E.forEach(e => {
     const j = LANES.findIndex(x => x[0] === e.k), y = 22 + j * LH + LH / 2, x = X(e.date);
-    const tip = `<title>${_escName(_fmtDateFr(e.date))} · ${_escName(e.html.replace(/<[^>]+>/g, ''))}</title>`;
+    const tip = `<title>${_escName(_fmtDateFr(e.date))} · ${_escName(e.html.replace(/<\/(p|li|div)>|<br>/g, ' ').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim())}</title>`;   /* les blocs de la mise en forme : un espace, pas des mots collés */
     const r = e.k === 'obs' ? 4 + Math.min(6, e.n || 0) : 6;
     g += e.k === 'incid' ? `<rect class="mk" fill="${PF_ICO.incid}" onclick="ficheSaut(${e.i})" x="${x - 6}" y="${y - 6}" width="12" height="12">${tip}</rect>`
       : e.k === 'moy' ? `<path class="mk" fill="${PF_ICO.moy}" onclick="ficheSaut(${e.i})" d="M${x} ${y - 7}L${+x + 7} ${y}L${x} ${y + 7}L${x - 7} ${y}Z">${tip}</path>`
@@ -12524,6 +12525,8 @@ function openIncident(sid, id, bornes) {
   // Supprimer depuis la fenêtre, comme un bilan (v1.47.3, second audit D4) — en modification seulement.
   const del = document.getElementById('minc-del');
   if (del) del.style.display = e ? '' : 'none';
+  const br = document.getElementById('minc-barre');
+  if (br) br.innerHTML = _mdBarreHTML('minc-txt');
   openMod('mincident');
   _autoTaille(tx);
 }
@@ -12846,6 +12849,8 @@ function _bilanDecCharge() {
   const dd = _decisionCible(cls, _bilanSid, { type: document.getElementById('mbilan-type')?.value || 'conseil', date: document.getElementById('mbilan-date')?.value });
   dc.value = dd ? dd.texte : '';
   _autoTaille(dc);
+  const br = document.getElementById('mbilan-dec-barre');
+  if (br && !br.firstChild) br.innerHTML = _mdBarreHTML('mbilan-dec');
 }
 function _bilanHint() {
   const stu = S.eleves[_bilanSid];
@@ -18195,11 +18200,11 @@ function _hvcHTML(cls) {
       <label>Date <input type="date" id="hvc-date" value="${_escAttr(e ? e.date : _ymdClampAnnee(cls, today))}" style="min-width:140px"></label>
       <label style="flex:1;min-width:200px">Thème <input type="text" id="hvc-titre" data-hvc-focus value="${_escAttr(e ? e.titre : '')}" placeholder="Règles de vie, préparation de l'élection, harcèlement, orientation…" maxlength="120"
         onkeydown="if(event.key==='Enter'){event.preventDefault();hvcSaveUI()}"></label>
-      <label style="flex-basis:100%">Ce qu'on a traité, les décisions prises <textarea id="hvc-txt" rows="3" style="width:100%" placeholder="Décision : tutorat entre pairs le jeudi. À revoir : le bruit en permanence.">${_escName(e ? e.texte : '')}</textarea></label>
+      <div style="flex-basis:100%"><label for="hvc-txt">Ce qu'on a traité, les décisions prises</label>${_mdBarreHTML('hvc-txt')}<textarea id="hvc-txt" class="ta-auto ta-court" rows="3" style="width:100%" oninput="_autoTaille(this)" onkeydown="mdTouche(event)" placeholder="Décision : tutorat entre pairs le jeudi. À revoir : le bruit en permanence.">${_escName(e ? e.texte : '')}</textarea></div>
       <button class="btn btn-p btn-sm" onclick="hvcSaveUI()">✓ Enregistrer</button> <button class="btn btn-g btn-sm" onclick="_hvcEdit=null;renderDelegues()">Annuler</button></div>`;
   const ligne = e => _hvcEdit === e.id ? form(e) : `<div class="fi-j${e.date > today ? ' hvc-avenir' : ''}"><div class="fi-j-h">${_escName(_fmtDateFr(e.date))}${e.date > today ? ' · <span class="badge warn">à venir</span>' : ''}
       <span class="fi-inc-act"><button class="btn btn-g btn-sm" onclick="_hvcEdit='${_escJsAttr(e.id)}';renderDelegues()" title="Modifier cette heure de vie de classe">✏️ Modifier</button> <button class="btn btn-d btn-sm" onclick="hvcRemoveUI('${_escJsAttr(e.id)}')" title="Supprimer cette heure de vie de classe">🗑 Supprimer</button></span></div>
-      <strong>${_escName(e.titre)}</strong>${e.texte ? `<div class="fi-inc-txt">${_escName(e.texte)}</div>` : ''}</div>`;
+      <strong>${_escName(e.titre)}</strong>${e.texte ? `<div class="fi-inc-txt">${_mdMini(e.texte)}</div>` : ''}</div>`;
   const avenir = list.filter(e => e.date > today).reverse(), tenues = list.filter(e => e.date <= today);
   const corps = (_hvcEdit === 'new' ? form(null) : '')
     + (avenir.length ? `<div class="tb-hint" style="margin:4px 0">À venir</div>${avenir.map(ligne).join('')}` : '')
@@ -18263,7 +18268,7 @@ function _renderDeleguesCore() {
   }).join('')}</tbody></table></div>` + direct;
   _hvcFocus(box);
 }
-function _hvcFocus(box) { const f = box.querySelector('[data-hvc-focus]'); if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } } }
+function _hvcFocus(box) { _autoTaille(box.querySelector('#hvc-txt')); const f = box.querySelector('[data-hvc-focus]'); if (f) { try { f.focus({ preventScroll: false }); } catch (_) { f.focus(); } } }
 
 // ═══════════════ Le PV signé, en PDF ═══════════════
 // À l'issue de l'élection, le procès-verbal imprimé, signé par les assesseurs et le PP,
@@ -23053,7 +23058,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const titre = `${o.col ? o.col.long : _periodeTitre(o.type, p)} — ${cls.nom}${cls.annee ? ' — ' + cls.annee : ''}`;
   const hvc = on('hvc') ? _hvcPeriode(cls, periodIdx) : [];
   const hvcHTML = on('hvc') ? `<div class="print-hvc"><strong>Heures de vie de classe ${_escName(p.label)}</strong>${
-    hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_escName(e.texte)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
+    hvc.length ? `<ul>${hvc.map(e => `<li>${_escName(_fmtDateFr(e.date))} — <strong>${_escName(e.titre)}</strong>${e.texte ? ` : ${_mdMini(e.texte, true)}` : ''}</li>`).join('')}</ul>` : ' <em>aucune notée</em>'}</div>` : '';
   // La synthèse de la classe (v1.71.0) : celle DE CE MOMENT, seulement si elle existe (rien à dire sinon).
   const sc = on('classe') && o.col ? _scCibleVue(cls, { type: o.col.type, date: o.col.date }) : null;
   const scHTML = sc ? `<div class="print-hvc pp-pl"><strong>Synthèse de la classe</strong> ${_escName(sc.texte)}</div>` : '';
@@ -23077,7 +23082,7 @@ function _periodePrintHTML(cls, periodIdx, opts) {
   const abr = c => AV_ABR[c.key] || c.label;
   // Les paragraphes d'un avis (Ctrl+Entrée dans la feuille) se voient aussi sur le papier (v1.46.11).
   const avisLigne = a => { const cs = a.cols || AVIS_CRITERES; return cs.filter(c => a[c.key]).map(c => `${cs.length > 1 ? `<em>${_escName(abr(c))}</em> ` : ''}<span class="pp-pl">${_tonHTML(_avisMap(cls.id)?.[a.campId] || null, a.sid, a.did, c.key, a[c.key], { papier: true })}</span>`).join(' · '); };
-  const decTxt = r => r.decisions ? `<br><strong>Décisions :</strong> ${_escName(r.decisions)}` : '';
+  const decTxt = r => r.decisions ? `<br><strong>Décisions :</strong> ${_mdMini(r.decisions, true)}` : '';
   const bilCell = r => (r.bilan ? `${r.bilan.type !== (o.type || 'conseil') ? `<small><em>${_escName(_bilanLabel(r.bilan))} du ${_escName(_fmtDateFr(r.bilan.date))}</em></small><br>` : ''}${_escName(r.bilan.texte)}` : '') + decTxt(r);
   // ── TABLEAU : une page paysage, lisible d'un bout à l'autre ──
   // Colonnes de largeur FIXE (table-layout: fixed) : la hauteur ne dépend plus de ce que
@@ -23306,7 +23311,7 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
   const mode = { type: col.type, date: col.date };
   const bil = _bilanCible(cls, sid, mode), dec = _decisionCible(cls, sid, mode);
   const bilanH = `<div class="fp-st">Bilan${bil ? ` <span class="fp-mu">· écrit le ${_escName(_fmtDateFr(bil.date))}</span>` : ''}</div>${bil ? `<p>${pl(bil.texte)}</p>` : lignes(4)}
-    <div class="fp-st">Décisions · à mettre en place</div>${dec ? `<p>${pl(dec.texte)}</p>` : lignes(2)}`;
+    <div class="fp-st">Décisions · à mettre en place</div>${dec ? _mdMini(dec.texte) : lignes(2)}`;
   // ── Observations ──
   const avecMbn = _obsMbnClasseAny(cls);
   const oc = _obsEntre(cls.id, sid, b.start, b.end), cum = _cumulAu(cls.id, sid, b.end);
@@ -23340,7 +23345,7 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
   }
   // ── Incidents, contacts, papiers ──
   const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
-  const incH = inc.length ? inc.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? `<br>${pl(x.texte)}` : ''}</span></div>`).join('') : vide('Aucun incident sur le moment.');
+  const incH = inc.length ? inc.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? _mdMini(x.texte) : ''}</span></div>`).join('') : vide('Aucun incident sur le moment.');
   const ct = (stu.journal || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const ctH = ct.length ? ct.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_journalType(x.type).label.toLowerCase())}</strong> — ${_mdMini(x.texte || '', true)}${_journalPj(x).length ? ` <em>(joint : ${_escName(_journalPj(x).map(p => p.nom).join(', '))})</em>` : ''}</span></div>`).join('') : vide('Aucun contact sur le moment.');
   const absR = _absMbnResume(sid, b.start, b.end);
@@ -23355,7 +23360,7 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
   // ── Les autres moments de l'année : leurs bilans et décisions, s'ils en ont ──
   const autres = _chaleurMoments(cls).filter(c => c.key !== col.key).map(c => {
     const x = _bilanCible(cls, sid, { type: c.type, date: c.date }), dc = _decisionCible(cls, sid, { type: c.type, date: c.date });
-    return x || dc ? `<div class="fp-ent"><span class="fp-d">${_escName(c.court)}</span><span>${x ? pl(x.texte) : ''}${dc ? `${x ? '<br>' : ''}<em>Décisions :</em> ${pl(dc.texte)}` : ''}</span></div>` : '';
+    return x || dc ? `<div class="fp-ent"><span class="fp-d">${_escName(c.court)}</span><span>${x ? pl(x.texte) : ''}${dc ? `${x ? '<br>' : ''}<em>Décisions :</em> ${_mdMini(dc.texte, true)}` : ''}</span></div>` : '';
   }).join('');
   return `<div class="fp-page">${tete}
     ${on('bilan') ? sec(_escName(col.long), bilanH, 'fp-large') : ''}
@@ -26902,7 +26907,7 @@ function createDemo(opts) {
   const incidents = [
     [0, '10-03', 'fiche_incident',       'Insolence répétée en cours de mathématiques', 'Rapport de la collègue transmis à la CPE. Mot dans le carnet, à faire signer.'],
     [0, '11-18', 'retenue',              'Retenue — travail non fait à trois reprises', 'Lundi 2 h, devoir de physique à rendre.'],
-    [0, '02-05', 'commission_educative', 'Convocation après trois rapports d\'incident', 'Présents : principale, CPE, PP, la mère. Décision : contrat de comportement sur six semaines, point le 20 mars. L\'élève reconnaît les faits, la famille s\'engage sur le suivi du carnet.'],
+    [0, '02-05', 'commission_educative', 'Convocation après trois rapports d\'incident', 'Présents : principale, CPE, PP, la mère.\n**Décision** : contrat de comportement sur six semaines, point le 20 mars.\n- l\'élève reconnaît les faits ;\n- la famille s\'engage sur le suivi du carnet.'],   /* mise en forme (v1.80.4) */
     [0, '02-12', 'engagement',           'Contrat de comportement — six semaines', 'Signé par l\'élève, la mère et la principale. Trois engagements : carnet signé chaque semaine, matériel, pas de remarque en cours. Point le 20 mars.'],
     [9, '01-22', 'exclusion_cours',      'Exclu du cours de SVT — bavardages incessants', 'Pris en charge en vie scolaire avec un travail. Rapport écrit remis.'],
     [9, '11-06', 'demo_inst_rappel',     'Rappel à l\'ordre — bousculade dans le couloir', `Entretien de dix minutes avec la CPE, ${E(1).prenom} aussi. Pas de suite si rien ne se reproduit.`],
@@ -26943,7 +26948,7 @@ function createDemo(opts) {
   });
   // ── Heures de vie de classe — le journal de la classe, une par mois environ.
   const hvcs = [
-    ['09-05', 'Accueil et règles de vie', 'Tour de table, présentation du carnet et du rôle du PP. Décision : les délégués seront élus le 7 octobre, candidatures en binôme à déposer avant le 1er.'],
+    ['09-05', 'Accueil et règles de vie', 'Tour de table, présentation du carnet et du rôle du PP.\n**Décision** :\n1. élection des délégués le 7 octobre ;\n2. candidatures en binôme à déposer avant le 1er.'],   /* mise en forme (v1.80.4) */
     ['09-26', 'Le rôle des délégués', 'Présentation projetée. Cinq binômes candidats. Deux assesseurs volontaires.'],
     ['11-14', 'Bruit et bavardages', 'Constat partagé avec les délégués. Décision : changement de place de trois élèves, bilan dans un mois.'],
     ['01-16', 'Bilan du premier semestre', 'Lecture des points positifs par les délégués. Rappel : fiches d\'orientation à rendre pour le 20 février.'],
@@ -26984,7 +26989,7 @@ function createDemo(opts) {
   });
   // ── Décisions prises en réunion (v1.46.13), sous le bilan du même moment.
   const decisions = [
-    [0, '01-21', 'conseil', 'Avertissement travail et comportement. Rendez-vous avec la mère avant les vacances d\'hiver ; point sur le contrat dans six semaines.'],
+    [0, '01-21', 'conseil', '**Avertissement travail et comportement.**\n- rendez-vous avec la mère avant les vacances d\'hiver ;\n- point sur le contrat dans six semaines.'],   /* mise en forme (v1.80.4) */
     [12, '01-21', 'conseil', 'Mettre en place le PAP dès la rentrée de février. Tutorat avec le professeur de français.'],
     [9, '11-15', 'miperiode', 'Changement de place (devant, côté fenêtre). Point avec lui au conseil.'],
     [16, '01-21', 'conseil', 'Félicitations.'],

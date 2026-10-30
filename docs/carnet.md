@@ -58,6 +58,18 @@ s'allonge pas avec le texte »*) : classe `ta-auto` (`field-sizing: content`, au
 décisions de la fenêtre du bilan, texte d'un incident. Les contacts (`jl-txt`) et le bilan de la fiche (`pf-ta`) le
 faisaient déjà ; les champs des fenêtres 🤖 gardent leur grande taille fixe (texte à relire).
 
+**Décisions, incidents, heures de vie de classe** (v1.80.4, *« ajoute-la aux trois endroits »*) : même markdown.
+Barre et Ctrl+B dans chaque éditeur — décisions de la fiche (`fi-dec`) et de la fenêtre du bilan (`mbilan-dec`, barre
+posée par `_bilanDecCharge`), texte d'un incident (`minc-txt`, barre posée par `openIncident`), compte rendu d'une heure
+de vie de classe (`hvc-txt`, qui grandit aussi : `ta-auto ta-court`). Rendu : `_mdMini(…, true)` là où le texte suit un
+libellé sur la même ligne (décisions sous les autres moments, chronologie, synthèse de période, impression d'une heure
+de vie de classe), `_mdMini` en bloc ailleurs (« Décisions · à mettre en place » imprimé, texte d'un incident, liste des
+heures de vie de classe) ; `_mdTexte` dans les infobulles, l'aperçu d'une partie repliée et tout ce qui part vers l'IA
+(élève et classe). L'infobulle de la frise met un espace entre les blocs (sinon « comportement.rendez-vous »). Le
+détecteur de noms de l'IA (`_iaSuspects`) tient « / » pour un début de phrase : c'est ainsi que `ligne()` met à plat un
+saut de ligne. Démo : décision du conseil S1 du onzième élève, commission éducative du 05/02, heure de vie de classe du
+05/09.
+
 ### Observations notées dans MBN — la seconde source
 
 Les observations sont notées à deux endroits (carnet de correspondance et MBN, saisies par des collègues) ; l'app tient le compte des deux. Export MBN : `Élève · Civilité · Classe · Type · Motif · Demandeur · Donnée le · Informations complémentaires`, une ligne par observation, « Donnée le » en **nombre de série** Excel dans le .xlsx.
