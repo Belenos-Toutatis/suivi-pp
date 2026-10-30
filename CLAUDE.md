@@ -105,7 +105,7 @@ Ce fichier ne garde que le cœur (décisions, modèle, conventions, invariants, 
 
 | Fichier | Sections |
 |---|---|
-| `docs/carnet.md` | Relevés de carnet (cumul, `'A'`, paliers, impression) · Remarque, journal des contacts (fichiers joints), naissance · Observations notées dans MBN · Récapitulatif vie scolaire de MBN (PDF) |
+| `docs/carnet.md` | Relevés de carnet (cumul, `'A'`, paliers, impression) · Remarque (mise en forme Markdown), journal des contacts (fichiers joints), naissance · Observations notées dans MBN · Récapitulatif vie scolaire de MBN (PDF) |
 | `docs/documents.md` | Documents (un papier, plusieurs réponses ; options d'un champ) · Écran 📄 Retours : ramassage, impression d'un document et de la grille |
 | `docs/moyennes.md` | Moyennes par matière : import, statistiques, affichage, impression · Écran 📈 Moyennes |
 | `docs/elections.md` | Élection des délégués : cadre réglementaire, modèle, bureau de vote, accord en genre, un siège après l'autre, saisie bulletin par bulletin, **arithmétique**, projection en direct, PV, après l'élection (remplacements, éco-délégués) · Écran 🏫 Vie de classe (heures de vie de classe) |

@@ -29,6 +29,20 @@
     - Vus aussi dans la fiche (carte Contacts, chronologie : liens `_journalPjLiensHTML`), la liste de la carte de chaleur (« 📎 n ») et la fiche imprimée (« joint : … »). Pas dans la démo (ce sont des fichiers). Tests : `test/contacts-pj.test.js`.
 - **Date de naissance** (`stu.naissance`) : saisie à la main, reconnue à l'import CSV et reprise de Plan de classe ; elle permet le départage automatique par l'âge aux élections. ⚠️ Donnée personnelle de plus : citée dans le texte RGPD ; champ **facultatif** — sans elle, l'app demande de trancher.
 
+#### Remarque mise en forme (v1.80.2)
+
+Demandé le 2026-10-30 : *« mettre des choses en gras, décaler un paragraphe, faire des listes — la solution la plus
+simple »*. **Markdown réduit, pas de texte riche** : `stu.remarque` reste une chaîne (rien à migrer, rien de neuf dans
+`S`, sync et exports inchangés, pas de HTML stocké donc rien à assainir), mise en forme à l'AFFICHAGE par `_mdMini`
+(tout passe par `_escName` d'abord) : `**gras**`, ligne « - » / « * » / « • » = puces, « 1. » / « 1) » = numérotée,
+« > » en tête (répétable), une tabulation ou deux espaces = un cran de décalage (4 au plus, `.md-r1…4`), ligne vide =
+nouveau paragraphe. Barre d'outils au-dessus des deux éditeurs (fiche ✎ et fenêtre `mrem`, `_mdBarreHTML` /
+`mdOutil` / `_mdAppliquer` pur : G, •, 1., ⇥, ⇤ ; un même bouton retire la liste ; Ctrl+B = gras, `mdTouche`).
+Rendue dans la fiche (trois vues), l'ancienne fiche et la fiche imprimée ; en une ligne (`_mdTexte` : marques
+retirées, « • » devant les puces) dans la cellule de la liste, son infobulle et la grille imprimée. ⚠️ Vers l'IA, la
+remarque part en `_mdTexte` : « **Changé » ou « > Idée » passaient pour des majuscules en milieu de phrase (noms
+suspects). Démo : la remarque du dixième élève. Tests : `test/remarque-md.test.js`.
+
 ### Observations notées dans MBN — la seconde source
 
 Les observations sont notées à deux endroits (carnet de correspondance et MBN, saisies par des collègues) ; l'app tient le compte des deux. Export MBN : `Élève · Civilité · Classe · Type · Motif · Demandeur · Donnée le · Informations complémentaires`, une ligne par observation, « Donnée le » en **nombre de série** Excel dans le .xlsx.

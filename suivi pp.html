@@ -2124,6 +2124,17 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 .fi-inc-act { float: right; margin-left: 8px; }
 .inst-table input[type="text"] { width: 100%; font-size: .9em; }
 .inst-table tr.inst-fam td { background: var(--paper-warm); font: 600 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--pencil); padding: 6px 12px; }
+/* La remarque mise en forme (v1.80.2) : `_mdMini` rend des blocs, pas des sauts de ligne. */
+.md { white-space: normal; }
+.md p { margin: 0 0 .45em; }
+.md p:last-child, .md ul:last-child, .md ol:last-child { margin-bottom: 0; }
+.md ul, .md ol { margin: 0 0 .45em; padding-left: 1.4em; }
+.md li { margin: .1em 0; }
+.md .md-r1 { margin-left: 1.6em; } .md .md-r2 { margin-left: 3.2em; } .md .md-r3 { margin-left: 4.8em; } .md .md-r4 { margin-left: 6.4em; }
+.md-barre { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0; }
+.md-b { border: 1px solid var(--rule-line); background: var(--paper); color: var(--ink-deep); border-radius: 5px; min-width: 30px; padding: 2px 7px; font-size: 13.5px; line-height: 1.3; }
+.md-b:hover { background: var(--chip-on-bg); color: var(--chip-on-fg); }
+.md-aide { font-size: 12px; color: var(--pencil); margin-left: 6px; }
 .fi-rem { white-space: pre-line; background: var(--paper-warm); border-radius: var(--radius-md); padding: 8px 10px; font-size: .93em; }
 .synth-contact { font-size: .82em; font-family: var(--font-mono); color: var(--ink-blue-soft); white-space: nowrap; margin-bottom: 2px; }
 
@@ -2827,8 +2838,9 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
     <h2 id="mrem-title">📋 Remarque</h2>
     <div class="fg">
       <label for="mrem-txt">Remarque — texte libre</label>
+      <div id="mrem-barre"></div>
       <textarea id="mrem-txt" data-autofocus rows="6" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral."
-                onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();saveRemarque()}"></textarea>
+                onkeydown="if(mdTouche(event))return;if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();saveRemarque()}"></textarea>
       <div class="tb-hint" style="margin-top:4px">Les contacts avec la famille ont leur propre fenêtre : ☎ dans la colonne Contacts.</div>
     </div>
     <div class="ma">
@@ -3775,8 +3787,8 @@ body.salle-dragging-on { user-select: none; cursor: grabbing; }
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.80.1';
-const APP_BUILD_DATE = '2026-10-29T18:18:29Z';
+const APP_VERSION    = '1.80.2';
+const APP_BUILD_DATE = '2026-10-30T15:58:09Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -8905,7 +8917,7 @@ function _elevesIndicHTML(cls, rowsData, bcols, campCour) {
       const t = (b ? `${c.long} — ${_fmtDateFr(b.date)}\n${b.texte}` : `${c.long} : à écrire`) + (dc ? `\nDécisions : ${dc.texte}` : '');
       return `${i && bcols[i - 1].pIdx !== c.pIdx ? '<i class="el-bsep"></i>' : ''}<button class="el-bd${b ? ' f' : ''}${dc ? ' d' : ''}" onclick="elevesBilanOuvrir('${j}','${_escJsAttr(c.key)}')" title="${_escAttr(t)}" aria-label="${_escAttr(c.long + (b ? ' : écrit' : ' : à écrire'))}"></button>`;
     }).join('')}</span>`;
-    td.rem = () => s.remarque ? `<button class="el-rem" onclick="openRemarque('${j}')" title="${_escAttr(s.remarque)}">${_escName(s.remarque)}</button>` : dot('Pas de remarque — clic : en écrire une', `openRemarque('${j}')`);
+    td.rem = () => s.remarque ? `<button class="el-rem" onclick="openRemarque('${j}')" title="${_escAttr(_mdTexte(s.remarque))}">${_escName(_mdTexte(s.remarque))}</button>` : dot('Pas de remarque — clic : en écrire une', `openRemarque('${j}')`);
     return `<tr class="${isFuture || isGone ? 'inactive' : ''}${fiche === sid ? ' el-cur' : ''}" onclick="_elevesLigneClic(event,'${j}')">
       <td>${_vignetteHTML(sid, avecPhI)}${civ}<a href="#" onclick="openFiche('${j}');return false" title="Ouvrir la fiche" class="el-nom" data-photo-sid="${_escAttr(sid)}">${_nomHTML(sid, s.nom, s.prenom)}</a>${cible ? ' <span title="Avis demandés en particulier">⭐</span>' : ''}${_ageSubHTML(s, 'age-' + sid)}${life}</td>
       ${_elevesNais ? `<td><input type="date" class="el-nais" value="${_escAttr(s.naissance || '')}" data-sid="${_escAttr(sid)}" max="${_escAttr(today)}" onchange="_dateChamp(event,()=>eleveNaisCommit(this))" onblur="_dateChamp(event,()=>eleveNaisCommit(this))" onkeydown="eleveNaisKey(event)" title="Date de naissance — Entrée passe à l'élève suivant. Sert au départage d'une égalité aux délégués."></td>` : ''}
@@ -8932,6 +8944,85 @@ function _withStudent(sid, fn, msg) {
 // Texte libre multi-ligne. Les contacts avec la famille, datés, ont leur fenêtre à part
 // (`openContacts`, v1.46.14) — ils ne se tapent plus dans la remarque.
 let _remSid = null;
+// ── La remarque mise en forme (v1.80.2) ── l'utilisateur : « mettre des choses en gras, décaler un paragraphe, faire des
+// listes ». Un MARKDOWN RÉDUIT, choisi pour sa simplicité : la remarque reste du texte (rien ne change dans `S`, la sync,
+// les exports, l'envoi à une IA), mise en forme à l'AFFICHAGE seulement. `**gras**` ; une ligne « - » (ou « * », « • »)
+// = liste à puces, « 1. » (ou « 1) ») = liste numérotée ; « > » en tête de ligne (répétable), une tabulation ou deux
+// espaces = un cran de décalage (4 au plus) ; une ligne vide sépare deux paragraphes. Une barre d'outils écrit cette
+// syntaxe (`_mdBarreHTML`, Ctrl+B pour le gras) : on n'a pas à la connaître.
+function _mdLigne(l) {
+  const m = l.match(/^([>\t ]*)(.*)$/), pre = m[1], chevrons = (pre.match(/>/g) || []).length;
+  const espaces = Math.max(0, (pre.match(/ /g) || []).length - chevrons), niv = Math.min(4, chevrons + (pre.match(/\t/g) || []).length + Math.floor(espaces / 2));
+  const t = m[2], ul = t.match(/^[-*•]\s+(.*)$/), ol = t.match(/^\d{1,3}[.)]\s+(.*)$/);
+  return ul ? { niv, k: 'ul', t: ul[1] } : ol ? { niv, k: 'ol', t: ol[1] } : { niv, k: t.trim() ? 'p' : '', t };
+}
+// Le gras sur un texte DÉJÀ échappé (les astérisques ne sont pas touchés par l'échappement).
+function _mdGras(h) { return h.replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, '<strong>$1</strong>'); }
+// Le HTML — pur, testé ; tout le texte passe par `_escName` AVANT la mise en forme.
+function _mdMini(texte) {
+  const L = String(texte || '').replace(/\r\n?/g, '\n').split('\n').map(_mdLigne), out = [];
+  const r = n => n ? ` class="md-r${n}"` : '';
+  for (let i = 0; i < L.length;) {
+    const x = L[i];
+    if (!x.k) { i++; continue; }
+    if (x.k === 'p') {
+      const bloc = [];
+      while (i < L.length && L[i].k === 'p' && L[i].niv === x.niv) bloc.push(_mdGras(_escName(L[i++].t)));
+      out.push(`<p${r(x.niv)}>${bloc.join('<br>')}</p>`);
+    } else {
+      const items = [];
+      while (i < L.length && L[i].k === x.k) { items.push(`<li${r(L[i].niv)}>${_mdGras(_escName(L[i].t))}</li>`); i++; }
+      out.push(`<${x.k}${r(x.niv)}>${items.join('')}</${x.k}>`);
+    }
+  }
+  return `<div class="md">${out.join('')}</div>`;
+}
+// En une ligne (cellule de la liste, infobulle) : sans les marques, une puce « • » devant chaque élément.
+function _mdTexte(texte) {
+  return String(texte || '').replace(/\r\n?/g, '\n').split('\n').map(l => { const x = _mdLigne(l); return (x.k === 'ul' ? '• ' : '') + x.t.replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, '$1'); }).join('\n').trim();
+}
+function _mdBarreHTML(id) {
+  const b = (a, ic, t) => `<button type="button" class="md-b" onmousedown="event.preventDefault()" onclick="mdOutil('${id}','${a}')" title="${_escAttr(t)}" aria-label="${_escAttr(t)}">${ic}</button>`;
+  return `<div class="md-barre" role="toolbar" aria-label="Mise en forme">${b('gras', '<strong>G</strong>', 'Gras (Ctrl+B) — **comme ceci**')}${b('ul', '•', 'Liste à puces — une ligne qui commence par « - »')}${b('ol', '1.', 'Liste numérotée — « 1. » en début de ligne')}${b('dec', '⇥', 'Décaler les lignes choisies — « > » en début de ligne')}${b('ret', '⇤', 'Retirer un décalage')}<span class="md-aide">**gras** · - liste · 1. liste · > décalé</span></div>`;
+}
+// Les lignes touchées par la sélection, transformées ; la sélection les recouvre ensuite.
+function _mdLignes(ta, f) {
+  const v = ta.value, a = v.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+  let b = v.indexOf('\n', Math.max(ta.selectionEnd - (ta.selectionEnd > ta.selectionStart && v[ta.selectionEnd - 1] === '\n' ? 1 : 0), a));
+  if (b < 0) b = v.length;
+  const neuf = f(v.slice(a, b).split('\n')).join('\n');
+  ta.value = v.slice(0, a) + neuf + v.slice(b);
+  ta.setSelectionRange(a, a + neuf.length);
+}
+// Pur (testé) : l'action sur des lignes.
+function _mdAppliquer(lignes, action) {
+  const pre = l => l.match(/^[>\t ]*/)[0];
+  const corps = l => l.slice(pre(l).length);
+  if (action === 'dec') return lignes.map(l => l.trim() ? '> ' + l : l);
+  if (action === 'ret') return lignes.map(l => l.replace(/^(> ?|\t| {2})/, ''));
+  const re = action === 'ul' ? /^[-*•]\s+/ : /^\d{1,3}[.)]\s+/, pleines = lignes.filter(l => l.trim());
+  const deja = pleines.length && pleines.every(l => re.test(corps(l)));
+  let n = 0;
+  return lignes.map(l => { if (!l.trim()) return l; const c = corps(l).replace(/^[-*•]\s+|^\d{1,3}[.)]\s+/, '');
+    return pre(l) + (deja ? c : (action === 'ul' ? '- ' : `${++n}. `) + c); });
+}
+function mdOutil(id, action) {
+  const ta = document.getElementById(id);
+  if (!ta) return;
+  ta.focus();
+  if (action === 'gras') {
+    const a = ta.selectionStart, b = ta.selectionEnd, sel = ta.value.slice(a, b);
+    const m = sel.match(/^(\s*)([\s\S]*?)(\s*)$/);
+    const g = /^\*\*[\s\S]+\*\*$/.test(m[2]) ? m[2].slice(2, -2) : `**${m[2]}**`;
+    ta.value = ta.value.slice(0, a) + m[1] + g + m[3] + ta.value.slice(b);
+    if (m[2]) ta.setSelectionRange(a + m[1].length, a + m[1].length + g.length); else ta.setSelectionRange(a + 2, a + 2);
+  } else _mdLignes(ta, l => _mdAppliquer(l, action));
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function mdTouche(e) {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); mdOutil(e.target.id, 'gras'); return true; }
+  return false;
+}
 function openRemarque(sid) {
   const s = S.eleves[sid];
   if (!s) return;
@@ -8940,6 +9031,8 @@ function openRemarque(sid) {
   const a = document.getElementById('mrem-txt');
   if (t) t.textContent = `📋 ${s.prenom} ${s.nom} — remarque`;
   if (a) a.value = s.remarque || '';
+  const br = document.getElementById('mrem-barre');
+  if (br) br.innerHTML = _mdBarreHTML('mrem-txt');
   openMod('mrem');
 }
 // Les contacts avec la famille : une fenêtre À PART (v1.46.14, l'utilisateur : « les contacts
@@ -9358,9 +9451,9 @@ function _ficheRender() {
     ? avisFiche.map(x => `<div class="fi-j"><div class="fi-j-h">${_escName(x.p ? x.p.label : '?')} · ${_escName(_avisObjectif(cls, x.c).court)} · feuille du ${_escName(_fmtDateFr(x.c.date))}</div>${_avisItemsHTML(x.items, _avisCols(x.c), x.c, stu.id)}</div>`).join('')
     : vide('Aucun avis de collègue — 🗣 Avis des collègues, dans la liste des élèves, pour en demander.');
   const remHTML = _ficheEdit === 'remarque'
-    ? `<textarea id="fi-rem-edit" data-fi-focus rows="4" style="width:100%" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral.">${_escName(stu.remarque || '')}</textarea>
+    ? `${_mdBarreHTML('fi-rem-edit')}<textarea id="fi-rem-edit" data-fi-focus rows="4" style="width:100%" onkeydown="mdTouche(event)" placeholder="Peu d'apprentissage des leçons. Très volontaire à l'oral.">${_escName(stu.remarque || '')}</textarea>
        <div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="ficheSaveRemarque()">✓ Enregistrer</button><button class="btn btn-g btn-sm" onclick="ficheEdit('remarque')">Annuler</button></div>`
-    : (stu.remarque ? `<div class="fi-rem">${_escName(stu.remarque)}</div>` : vide('Aucune remarque.'));
+    : (stu.remarque ? `<div class="fi-rem">${_mdMini(stu.remarque)}</div>` : vide('Aucune remarque.'));
   const contactForm = _ficheEdit !== 'contact' ? '' : `<div class="fi-form">
       <label>Date <input type="date" id="fi-j-date" value="${_escAttr(_dateParDefaut(cls))}" style="min-width:140px"></label>
       <label>Type <select id="fi-j-type">${_JOURNAL_TYPES.map(t2 => `<option value="${_escAttr(t2.key)}">${t2.icon} ${_escName(t2.label)}</option>`).join('')}</select></label>
@@ -10148,7 +10241,7 @@ function _iaDonnees(cls, stu, col, blocs, repere) {
     parts.push(inc.length ? [`Incidents : ${inc.length}.`, ...inc.map(x => `– ${jm(x.date)}, ${st(_instanceOf(x.type).label).toLowerCase()}${x.objet ? ` : ${ligne(x.objet)}` : ''}${x.texte ? `. ${ligne(x.texte)}` : ''}`)] : ['Aucun incident sur le moment.']);
   }
   if (on('contact')) { const ct = dans(stu.journal); if (ct.length) parts.push([`Contacts avec la famille : ${ct.length}.`, ...ct.map(x => `– ${jm(x.date)}, ${st(_journalType(x.type).label).toLowerCase()}${x.texte ? ` : ${ligne(x.texte)}` : ''}`)]); }
-  if (on('remarque') && String(stu.remarque || '').trim()) parts.push(['Remarque du professeur principal (sans date) :', String(stu.remarque).trim()]);
+  if (on('remarque') && String(stu.remarque || '').trim()) parts.push(['Remarque du professeur principal (sans date) :', _mdTexte(stu.remarque)]);   /* sans les marques de mise en forme (v1.80.2) */
   if (on('avis')) {
     // Toutes les feuilles du moment (v1.75.0) : les appréciations du bulletin ET la feuille d'avis des collègues.
     for (const camp of _avisFeuillesDuMoment(cls, col)) {
@@ -12181,7 +12274,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     kv(_maj(_delMot(_civOf(sid))), dlg ? (dlg === 'titulaire' ? 'titulaire' : _supMot(_civOf(sid))) : '–')}${
     ed.eco ? kv(_maj(_delMot(_civOf(sid), true)), ed.eco === 'titulaire' ? 'titulaire' : _supMot(_civOf(sid))) : ''}${
     ed.els.length ? kv('Élections', ed.elsHTML) : ''}</dl></div>
-    <h3 class="pf-h3b">Remarque ${pen('remarque', stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<p class="pf-p">${_escName(stu.remarque)}</p>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
+    <h3 class="pf-h3b">Remarque ${pen('remarque', stu.remarque ? 'Modifier la remarque' : 'Écrire une remarque')}</h3>${_ficheEdit === 'remarque' ? ed.remHTML : stu.remarque ? `<div class="pf-p">${_mdMini(stu.remarque)}</div>` : '<p class="pf-empty">Aucune remarque.</p>'}`;
   // Papiers : les choix portés sur chaque document (Devoirs Faits, options…), lus d'un coup d'œil.
   const choixDoc = id => (ed.docsInfo.find(x => x.docId === id)?.reponses || []).map(r => `${r.champ} : ${r.valeurs.join(', ')}`).join(' · ');
   // Ordre (v1.79.2, arbitré par l'utilisateur) : identité, puis la vie scolaire (papiers, absences, incidents, observations,
@@ -12210,7 +12303,7 @@ function _ficheFaitsHTML(cls, stu, col) {
     <section class="pf-card"><h3>Ce que disent les faits <span class="pf-k">${_escName(col.long.toLowerCase())} · du ${_escName(_fmtDateFr(_debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start).slice(0, 5))} au ${_escName(_fmtDateFr(b.end).slice(0, 5))}</span></h3>${faits || '<p class="pf-empty">Rien sur ce moment.</p>'}
       <div style="margin-top:10px">${_ficheCourbeHTML(cls, stu, col)}</div></section>
     <section class="pf-card"><h3>${_pfSw('avis')}Avis des collègues ${av && (av.camp.cibles || []).includes(stu.id) ? '<span class="pf-star">★</span>' : ''}<span class="pf-k">${av ? _escName(_avisObjectif(cls, av.camp).long) : ''}</span></h3>${_ficheAvisTableHTML(av)}</section>
-    <section class="pf-card pf-redac"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col, `<div class="pf-row"><button class="pf-btnp" onclick="ficheBrouillonUI()">Proposer un brouillon à partir des faits</button><span class="pf-mu">Assemble les faits en phrases, à réécrire ensuite.</span></div>`)}${_ficheBilansAutresHTML(cls, stu, col)}${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_escName(stu.remarque)}</div>` : ''}</section>
+    <section class="pf-card pf-redac"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col, `<div class="pf-row"><button class="pf-btnp" onclick="ficheBrouillonUI()">Proposer un brouillon à partir des faits</button><span class="pf-mu">Assemble les faits en phrases, à réécrire ensuite.</span></div>`)}${_ficheBilansAutresHTML(cls, stu, col)}${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_mdMini(stu.remarque)}</div>` : ''}</section>
   </div>`;
 }
 // ── Vue « Chronologie » ── tout ce qui s'est passé dans les bornes du moment, daté.
@@ -12266,7 +12359,7 @@ function _ficheChronoHTML(cls, stu, col) {
     : '<p class="pf-empty">Rien sur la période.</p>';
   return `${kpis}<div class="pf-tl">${g}</div>
     <div><section class="pf-card"><h3>Journal de la période <span class="pf-k">${E.length} événement${E.length > 1 ? 's' : ''}, du plus ancien au plus récent</span></h3>${journal}</section></div>
-    ${_ficheBilanBas(`<section class="pf-card"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col)}<div style="margin-top:8px">${_ficheBilansAutresHTML(cls, stu, col)}</div>${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_escName(stu.remarque)}</div>` : ''}</section>`)}`;
+    ${_ficheBilanBas(`<section class="pf-card"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col)}<div style="margin-top:8px">${_ficheBilansAutresHTML(cls, stu, col)}</div>${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_mdMini(stu.remarque)}</div>` : ''}</section>`)}`;
 }
 function ficheSaut(i) {
   const el = document.getElementById('fi-ev-' + i);
@@ -20122,7 +20215,7 @@ function _elevesPrintHTML(cls) {
     { key: 'docs', th: 'Non rendus', w: 9, td: r => `<small>${r.nonRendus.map(t => `☐ ${_escName(t)}`).join(' ')}</small>` },
     { key: 'incidents', th: 'Incidents <small>(année)</small>', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
     { key: 'avis', th: 'Avis coll.', w: 4.5, c: 1, td: (r, sid) => { const a = campP ? _avisResume(campP, sid) : null; return a && (a.n || a.cible) ? `${a.n}/${a.total}${a.cible ? ' ★' : ''}` : ''; } },
-    { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(r.remarque)}</small>` },
+    { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(_mdTexte(r.remarque))}</small>` },
     ..._bilanColsVues(cls, pIdx).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
       td: (r, sid) => { const b = _bilanDeColonne(cls, sid, c); return `<small>${b ? _escName(b.texte) : ''}</small>`; } })),
   ].filter(c => _elevesPrintVue(c.key) && (c.key !== 'avis' || campP));   // pas de feuille d'avis : pas de colonne vide sur le papier
@@ -23245,7 +23338,7 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
     ${on('bilan') ? sec(_escName(col.long), bilanH, 'fp-large') : ''}
     <div class="fp-cols">
       ${on('identite') ? sec('Identité et repères', ident) : ''}
-      ${on('remarque') ? sec('Remarque', stu.remarque ? `<p>${pl(stu.remarque)}</p>` : vide('Aucune remarque.')) : ''}
+      ${on('remarque') ? sec('Remarque', stu.remarque ? _mdMini(stu.remarque) : vide('Aucune remarque.')) : ''}
       ${on('obs') ? sec('Observations', obsH) : ''}
       ${on('moy') ? sec('Moyennes', moyH) : ''}
       ${on('incidents') ? sec('Incidents', incH) : ''}
@@ -26885,7 +26978,7 @@ function createDemo(opts) {
     s.synthIA = [{ id: 'demo_ia01', ts: Date.parse(D('01-18') + 'T12:00:00'), date: D('01-20'), type: 'conseil',
       texte: `${p} a un premier semestre difficile, surtout pour le comportement et le travail personnel : un rapport d'incident en octobre, une retenue en novembre pour du travail non fait, et des observations au carnet qui ne cessent d'augmenter. La famille est en contact (deux appels), mais la signature du carnet n'a tenu que trois semaines.\n\nCe qui va bien : ${p} est très volontaire à l'oral, et sa participation est relevée.\n\nÀ suivre : le travail à la maison et la signature du carnet ; un point avec la famille avant les vacances d'hiver paraît utile.` }]; }
   E(5).remarque = 'Tiers-temps : prévoir une salle à part pour les évaluations longues.';
-  E(9).remarque = 'Changé de place en février (devant, côté fenêtre) : ça a tout changé.\nÀ garder l\'an prochain.';
+  E(9).remarque = '**Changé de place en février** (devant, côté fenêtre) : ça a tout changé.\n- à garder l\'an prochain ;\n- à dire au professeur principal suivant.\n> Idée de la famille, au rendez-vous de janvier.';   /* mise en forme (v1.80.2) */
   E(19).remarque = `Arrivée le ${_fmtDateFr(D('11-03'))}, venant d'un autre collège.`;
 
   // ── Salles, places et ordres de ramassage ──
