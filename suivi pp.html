@@ -1857,6 +1857,12 @@ img.ch-ph:not([src]) { visibility: hidden; }
 .pf-ent { display: grid; grid-template-columns: 52px 1fr; gap: 2px 10px; padding-block: 5px; border-bottom: 1px dashed var(--rule-line-soft); font-size: 13.5px; }
 .pf-ent:last-child { border-bottom: 0; }
 .pf-ct-tout { margin-top: 6px; }
+/* Contact long : 5 lignes, « … » sur la dernière (line-clamp) ; « lire la suite » le déplie. */
+.pf-ct-txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; line-clamp: 5; overflow: hidden; }
+.pf-ct-txt.ouvert { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; }
+.pf-ct-suite { border: 0; background: none; padding: 0; color: var(--link-fg); font: inherit; font-size: .92em; cursor: pointer; text-decoration: underline; }
+.pf-ct-suite[hidden] { display: none; }
+@media print { .pf-ct-txt { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; } .pf-ct-suite { display: none; } }
 .pf-clic { cursor: pointer; } .pf-clic:hover { background: var(--paper); }
 .pf-d { font-family: var(--font-mono); font-size: 12px; color: var(--pencil); padding-top: 2px; }
 .pf-ty { font-weight: 700; color: var(--ink-deep); }
@@ -3796,8 +3802,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.80.5';
-const APP_BUILD_DATE = '2026-11-02T21:18:23Z';
+const APP_VERSION    = '1.80.6';
+const APP_BUILD_DATE = '2026-11-02T21:27:14Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9526,6 +9532,7 @@ function _ficheRender() {
     : vue === 'faits' && col ? _ficheFaitsHTML(cls, stu, col)
     : col ? _ficheTableauHTML(cls, stu, col, ed) : `<div class="fi-cols">${secs}</div>`;
   box.querySelectorAll('textarea.pf-ta, textarea.ta-auto').forEach(_autoTaille);
+  _ficheCtMesurer(box);
   _pfMasonry(box.querySelector('.pf-grid'));
   _fichePhotoFill(stu.id);
   const f = box.querySelector('[data-fi-focus]');
@@ -9546,6 +9553,7 @@ function _pfMasonry(grid) {
   let t = 0;
   const poser = () => {
     if (!grid.isConnected) return;
+    _ficheCtMesurer(grid);   // la largeur a pu changer : un contact déborde ou ne déborde plus
     const cartes = [...grid.children];
     const n = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
     const spans = cartes.map(c => Math.max(1, Math.ceil((c.getBoundingClientRect().height + 12) / 4)));
@@ -12228,6 +12236,27 @@ function _ficheCourbeHTML(cls, stu, col) {
 // fenêtre pendant qu'on fait défiler les cartes (CSS `sticky`, au plus la moitié de la hauteur, défile en lui-même),
 // et ▾ le replie tout entier sur son titre (retenu sur le poste, comme ses parties).
 const FICHE_CT_N = 4;   // contacts montrés dans la carte avant « n plus anciens »
+// Un contact long coupé à 5 lignes, « … » à la fin (v1.80.6, l'utilisateur : « quand la description devient volumineuse,
+// qu'elle ne fasse plus que 4-5 lignes, avec des points de suspension ») ; « lire la suite » le déplie, pour la session.
+// Le bouton n'apparaît que si le texte déborde : mesuré après rendu (`_ficheCtMesurer`), et à chaque changement de
+// largeur des cartes (la maçonnerie le rappelle).
+const _ficheCtOuverts = new Set();
+function _ficheCtMesurer(root) {
+  if (!root) return;
+  root.querySelectorAll('.pf-ct-txt').forEach(t => {
+    const b = t.nextElementSibling;
+    if (b && b.classList.contains('pf-ct-suite')) b.hidden = !(t.classList.contains('ouvert') || t.scrollHeight > t.clientHeight + 1);
+  });
+}
+function ficheContactSuiteUI(btn, id) {
+  const t = btn && btn.previousElementSibling;
+  if (!t) return;
+  const ouvert = !t.classList.contains('ouvert');
+  t.classList.toggle('ouvert', ouvert);
+  if (ouvert) _ficheCtOuverts.add(id); else _ficheCtOuverts.delete(id);
+  btn.textContent = ouvert ? '▴ réduire' : '… lire la suite';
+  btn.setAttribute('aria-expanded', String(ouvert));
+}
 function ficheContactsToutUI() { _fichePliSet('ctTout', !_fichePlis().ctTout); _ficheRender(); }
 function _ficheBilanBas(html) { return `<div class="pf-bas${_fichePlis().tout ? ' plie' : ''}">${html}</div>`; }
 function ficheBasToutUI(btn) {
@@ -12316,7 +12345,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
     ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length, pen('mbn', 'Retirer une observation MBN importée par erreur — toute l\'année')) + (ouEdit('mbn') ? `<div class="pf-edbox">${_obsMbnOf(sid).length ? _obsMbnOf(sid).map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''} <button class="btn btn-d btn-sm" onclick="obsMbnRemoveUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}')" title="Retirer cette observation (Ctrl+Z la rend)">🗑 Supprimer</button></span></div>`).join('') : '<p class="pf-empty">Aucune observation MBN.</p>'}</div>` : mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
     ${_ficheSuivisCarteHTML(cls, stu, col)}
-    ${card('contact', 'Contacts avec la famille', ctTous.length ? `${ctTous.length}${ctMoment !== ctTous.length ? ` · ${ctMoment} sur la période` : ''}` : '', (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_mdMini(x.texte || '', true)}${_journalPjLiensHTML(stu.id, x)}</span></div>`).join('')
+    ${card('contact', 'Contacts avec la famille', ctTous.length ? `${ctTous.length}${ctMoment !== ctTous.length ? ` · ${ctMoment} sur la période` : ''}` : '', (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><div class="pf-ct-txt${_ficheCtOuverts.has(x.id) ? ' ouvert' : ''}"><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_mdMini(x.texte || '', true)}</div><button class="pf-ct-suite" hidden onclick="ficheContactSuiteUI(this,'${_escJsAttr(x.id)}')" aria-expanded="${_ficheCtOuverts.has(x.id)}">${_ficheCtOuverts.has(x.id) ? '▴ réduire' : '… lire la suite'}</button>${_journalPjLiensHTML(stu.id, x)}</span></div>`).join('')
       + (ctTous.length > FICHE_CT_N ? `<button class="btn btn-g btn-sm pf-ct-tout" onclick="ficheContactsToutUI()" aria-expanded="${ctOuvert}">${ctOuvert ? '▴ Réduire aux plus récents' : `▾ ${(n => n > 1 ? `${n} contacts plus anciens` : '1 contact plus ancien')(ctTous.length - FICHE_CT_N)}`}</button>` : '')
       : '<p class="pf-empty">Aucun contact noté avec la famille.</p>'), add('ficheVersContacts()', 'Noter un contact') + penF('ficheVersContacts()', 'Voir, corriger ou supprimer les contacts — toute l\'année'))}
     ${card('moy', 'Moyennes', '', moyT)}

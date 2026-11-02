@@ -50,3 +50,20 @@ test('pas de bouton quand tout tient ; carte vide explicite', () => {
   ev('S.eleves.s1.journal = []');
   assert.match(carte('bil:conseil:0'), /Aucun contact noté avec la famille/);
 });
+
+// v1.80.6 (l'utilisateur : « quand la description devient volumineuse, qu'elle ne fasse plus que 4-5 lignes, avec des
+// points de suspension ») : chaque texte coupé à 5 lignes par line-clamp, « lire la suite » le déplie. Le bouton naît
+// caché (il n'apparaît que si le texte déborde, mesuré dans le navigateur) ; un contact déplié le reste au re-rendu.
+test('texte d’un contact : coupé à 5 lignes, « lire la suite » caché tant qu’on n’a rien mesuré, déplié retenu', () => {
+  monter(1);
+  let c = carte('bil:conseil:0');
+  assert.match(c, /<div class="pf-ct-txt"><span class="pf-ty">appel téléphonique<\/span> · [^]*?<\/div><button class="pf-ct-suite" hidden onclick="ficheContactSuiteUI\(this,'j0'\)" aria-expanded="false">… lire la suite<\/button>/);
+  ev('_ficheCtOuverts.add("j0")');
+  c = carte('bil:conseil:0');
+  assert.match(c, /class="pf-ct-txt ouvert"/);
+  assert.match(c, /aria-expanded="true">▴ réduire</);
+  ev('_ficheCtOuverts.clear()');
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  assert.match(src, /\.pf-ct-txt \{[^}]*-webkit-line-clamp: 5/, 'cinq lignes à l’écran');
+  assert.match(src, /@media print \{ \.pf-ct-txt \{[^}]*line-clamp: none/, 'jamais coupé sur le papier');
+});
