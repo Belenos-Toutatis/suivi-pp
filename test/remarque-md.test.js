@@ -59,10 +59,12 @@ test('contact : en ligne s’il n’a qu’un paragraphe, en bloc dès une liste
   assert.match(md2('> décalé'), /^<div class="md"><p class="md-r1">/);
 });
 
+// ⚠️ Daté dans les BORNES du moment, pas à sa `date` : le jour proposé pour le bilan de mi-période peut tomber après la
+// fin du moment (le 02/11 pour une mi-S1 qui finit le 31/10) — le test échouait selon le jour où on le lançait.
 test('contact : la fiche le met en forme, la fenêtre des contacts a sa barre (le champ où est le curseur)', () => {
   ev(`S = _emptyState(); postLoadHook(); S.classes.c = { id: 'c', nom: '5C', eleves: ['s'], ord: 0 }; S.cur = 'c';
       S.eleves.s = { id: 's', nom: 'X', prenom: 'Y', classe_id: 'c', tags: [] };
-      journalAdd('s', _ficheMoments(getCls())[0].date, 'appel', '**Mère** jointe :\\n- carnet\\n- devoirs');`);
+      journalAdd('s', _ficheBornes(getCls(), _ficheMoments(getCls())[0]).end, 'appel', '**Mère** jointe :\\n- carnet\\n- devoirs');`);
   const h = ev(`(() => { const cls = getCls(), col = _ficheMoments(cls)[0]; return _ficheTableauHTML(cls, S.eleves.s, col, {}); })()`);
   assert.match(h, /appel téléphonique<\/span> · <div class="md"><p><strong>Mère<\/strong> jointe :<\/p><ul><li>carnet<\/li><li>devoirs<\/li><\/ul><\/div>/);
   assert.match(ev(`_mdBarreHTML('@')`), /mdOutil\('@','ul'\)[\s\S]*dans le texte où est le curseur/);
