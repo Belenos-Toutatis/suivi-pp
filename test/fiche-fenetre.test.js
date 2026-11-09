@@ -93,7 +93,51 @@ test('barre de la fiche : « Depuis » et la date de fin dite', () => {
   assert.match(h, /aria-label="Depuis"/);
   assert.match(h, /onclick="ficheDepuisSet\('annee'\)"[^>]*>rentrée</);
   assert.match(h, /aria-label="Jusqu&#39;au"|aria-label="Jusqu'au"/);
-  assert.match(h, /<span class="pf-mu"[^>]*>10\/11<\/span>/);
+  assert.match(h, /id="fi-datebil" value="2026-11-10"/, 'la date du bilan, dans son champ');
+  assert.doesNotMatch(h, /fiche jusqu/, 'la fiche s’arrête à cette date : rien de plus à dire');
+});
+
+// v1.81.2 — l'utilisateur : « il faudrait que je puisse choisir la date du bilan, ce serait plus simple ». Arbitré : une
+// date par MOMENT pour toute la classe (`cls.datesBilan`), qui redate les bilans déjà écrits et date les suivants.
+test('date du bilan pour la classe : redate les bilans du moment, pas les autres ; refuse une date hors du moment', () => {
+  monter([bil('miperiode', '2026-10-25'), bil('conseil', '2026-12-15')]);
+  ev(`S.classes.c1.eleves.push('s2'); S.eleves.s2 = { id: 's2', nom: 'Durand', prenom: 'Paul', classe_id: 'c1', bilans: [{ id: 'b2', date: '2026-10-28', ts: 1, type: 'miperiode', texte: 'B.' }] }`);
+  const mode = `{ type: 'miperiode', date: '2026-10-25' }`;
+  assert.strictEqual(ev(`dateBilanSet(S.classes.c1, ${mode}, '2026-11-10')`), 2, 'deux bilans redatés');
+  assert.deepStrictEqual(JSON.parse(ev(`JSON.stringify([S.eleves.s1.bilans.map(b => b.date), S.eleves.s2.bilans[0].date, S.classes.c1.datesBilan])`)),
+    [['2026-11-10', '2026-12-15'], '2026-11-10', [{ type: 'miperiode', date: '2026-11-10' }]], 'le conseil garde sa date');
+  assert.strictEqual(ev(`dateBilanSet(S.classes.c1, ${mode}, '2026-11-10')`), 0, 'rien à redater');
+  assert.strictEqual(ev(`S.classes.c1.datesBilan.length`), 1, 'une seule date par moment');
+  assert.strictEqual(ev(`dateBilanSet(S.classes.c1, ${mode}, '2027-02-10')`), false, 'une autre période : refusé');
+  assert.strictEqual(ev(`dateBilanSet(S.classes.c1, { type: 'mois', date: '2026-11-15' }, '2026-12-02')`), false, 'un point de novembre daté de décembre : refusé');
+  assert.strictEqual(ev(`S.eleves.s1.bilans[0].date`), '2026-11-10', 'rien n’a bougé');
+  assert.strictEqual(ev(`dateBilanSet(S.classes.c1, ${mode}, '')`), 0, 'vide : la date est retirée');
+  assert.strictEqual(ev(`S.classes.c1.datesBilan`), undefined);
+  assert.strictEqual(ev(`S.eleves.s1.bilans[0].date`), '2026-11-10', 'les bilans gardent la leur');
+});
+
+test('date du bilan pour la classe : c’est la date du moment (bilans à venir) et la fin de la fiche d’un élève sans bilan', () => {
+  monter([]);
+  ev(`localStorage.removeItem(_LS_FICHE_JUSQUA); S.classes.c1.datesBilan = [{ type: 'miperiode', date: '2026-11-12' }]`);
+  assert.strictEqual(ev(`${COL('bil:miperiode:0')}.date`), '2026-11-12', 'un bilan écrit ensuite prend cette date');
+  const f = fen('bil:miperiode:0');
+  assert.deepStrictEqual([f.end, f.pourquoi], ['2026-11-12', 'bilan'], 'élève sans bilan : la fiche s’arrête à la date de la classe');
+  ev(`localStorage.setItem(_LS_FICHE_JUSQUA, 'auj')`);
+  assert.notStrictEqual(fen('bil:miperiode:0').pourquoi, 'bilan', '« aujourd’hui » l’ignore');
+  assert.doesNotMatch(ev(`_ficheBarHTML(S.classes.c1, S.eleves.s1, ${COL('bil:miperiode:0')})`), /fi-datebil/, 'le champ n’est là qu’avec « date du bilan »');
+  ev(`localStorage.removeItem(_LS_FICHE_JUSQUA)`);
+  const h = ev(`_ficheBarHTML(S.classes.c1, S.eleves.s1, ${COL('bil:miperiode:0')})`);
+  assert.match(h, /id="fi-datebil" value="2026-11-12" min="2026-08-01" max="2027-01-31" onchange="_dateChamp\(event,\(\)=>ficheDateBilanUI\(this\)\)" onblur="_dateChamp/);
+  assert.match(ev(`_ficheBarHTML(S.classes.c1, S.eleves.s1, ${COL('bil:mois:2026-11')})`), /min="2026-11-01" max="2026-11-30"/, 'un point du mois : son mois');
+});
+
+test('date du bilan pour la classe : normalisée au chargement (entrée illisible écartée, type inconnu écarté)', () => {
+  monter([]);
+  ev(`S.classes.c1.datesBilan = [{ type: 'miperiode', date: '2026-11-12' }, { type: 'miperiode', date: 'nimporte' }, { type: 'autre', date: '2026-11-12' }, 'x', null]`);
+  ev(`_sanitizeCoreSections(); _sanitizeImbrique()`);
+  assert.deepStrictEqual(JSON.parse(ev(`JSON.stringify(S.classes.c1.datesBilan)`)), [{ type: 'miperiode', date: '2026-11-12' }]);
+  ev(`S.classes.c1.datesBilan = 'x'; _sanitizeCoreSections(); _sanitizeImbrique()`);
+  assert.strictEqual(ev(`S.classes.c1.datesBilan`), undefined);
 });
 
 // v1.81.1 — l'utilisateur : « j'ai commencé à écrire les bilans plus tôt, mais j'aimerais que ça tienne compte de tout ce

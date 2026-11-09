@@ -162,6 +162,9 @@ cls = {
   ecoDelegues: { … même forme … },   // éco-délégués désignés sans vote (v1.27.0)
   // Heures de vie de classe (v1.28.0) — journal de la CLASSE ; date future = thème « à venir ». Aucun sid.
   vieClasse: [ { id, date: 'YYYY-MM-DD', ts, titre, texte } ],
+  // Date du bilan d'un MOMENT pour toute la classe (v1.82.0) — une par moment (`_momentEst`) ; absent = aucune.
+  // La poser redate les bilans de la classe pour ce moment ; arrête la fiche (« Jusqu'au : date du bilan »).
+  datesBilan: [ { type: 'conseil'|'miperiode'|'mois', date: 'YYYY-MM-DD' } ],
 }
 
 salle = {

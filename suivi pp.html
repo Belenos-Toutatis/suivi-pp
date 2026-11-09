@@ -1911,6 +1911,8 @@ html[data-theme="dark"] .pf-star { color: #e6b450; }
 .pf-tl .lane { stroke: var(--rule-line-soft); }
 .pf-tl .mid { stroke: var(--margin-red); stroke-dasharray: 3 3; }
 .pf-tl .deb { stroke: var(--ink-deep); stroke-dasharray: 2 4; }
+.pf-datebil { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; }
+.pf-datebil input { font: inherit; font-size: 12.5px; padding: 1px 4px; }
 .pf-tl .mk { cursor: pointer; } .pf-tl .mk:hover { opacity: .75; }
 .pf-jr { display: grid; grid-template-columns: 62px 22px 1fr; gap: 2px 8px; padding-block: 6px; border-bottom: 1px solid var(--rule-line-soft); font-size: 13.5px; }
 .pf-jr .pf-sw { width: 12px; height: 12px; border-radius: 3px; margin-top: 4px; }
@@ -3806,8 +3808,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.81.1';
-const APP_BUILD_DATE = '2026-11-09T00:37:06Z';
+const APP_VERSION    = '1.82.0';
+const APP_BUILD_DATE = '2026-11-09T00:51:07Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -4807,6 +4809,8 @@ function _sanitizeCoreSections() {
     if (!_isPlainObj(c.rooms)) c.rooms = {};
     if (!Array.isArray(c.vieClasse)) c.vieClasse = [];
     c.vieClasse = c.vieClasse.filter(_isPlainObj);
+    // Dates des bilans par moment (v1.81.2) : absent = aucune ; une entrée illisible est écartée.
+    if (c.datesBilan !== undefined) { if (Array.isArray(c.datesBilan)) c.datesBilan = c.datesBilan.filter(x => _isPlainObj(x) && _ymdValid(x.date) && _BILAN_TYPES.some(t => t.key === x.type)); else delete c.datesBilan; }
     // Synthèses de la classe par une IA (v1.71.0) : absent = aucune ; une entrée illisible est écartée.
     if (c.synthClasse !== undefined) { if (Array.isArray(c.synthClasse)) c.synthClasse = c.synthClasse.filter(x => _isPlainObj(x) && _ymdValid(x.date) && typeof x.texte === 'string' && x.texte.trim()); else delete c.synthClasse; }
     for (const [sid, room] of Object.entries(c.rooms)) {
@@ -6437,6 +6441,29 @@ function _bilansOf(sid) {
   if (!stu || !Array.isArray(stu.bilans)) return [];
   return stu.bilans.slice().sort((a, b) =>
     String(b.date || '').localeCompare(String(a.date || '')) || ((b.ts || 0) - (a.ts || 0)));
+}
+// La DATE DU BILAN d'un moment, pour TOUTE la classe (v1.81.2, l'utilisateur : « il faudrait que je puisse choisir la date
+// du bilan, ce serait plus simple » ; arbitré : une date par moment pour la classe, pas élève par élève — une saisie pour
+// 25 bilans). `cls.datesBilan = [{ type, date }]`, absent = aucune ; une par moment (`_momentEst`, comme les décisions).
+// Elle DATE les bilans du moment (ceux déjà écrits sont redatés, les suivants la prennent : `_bilanColonnes` en fait la
+// date du moment) et ARRÊTE la fiche (« Jusqu'au : date du bilan », `_ficheCourbeFin`), même pour un élève sans bilan.
+function _datesBilanOf(cls) { return cls && Array.isArray(cls.datesBilan) ? cls.datesBilan.filter(_isPlainObj) : []; }
+function _dateBilanCible(cls, mode) { return mode ? _datesBilanOf(cls).find(e => _momentEst(cls, e, mode)) || null : null; }
+// Les bilans de la classe pour ce moment qui ne portent pas encore la date `ymd`.
+function _bilansARedater(cls, mode, ymd) { return (cls?.eleves || []).map(sid => _bilanCible(cls, sid, mode)).filter(b => b && b.date !== ymd); }
+// Pose la date du moment `mode` et redate les bilans de la classe pour ce moment ; `ymd` vide retire la date (les bilans
+// gardent la leur). Sans pushUndo ni save. → le nombre de bilans redatés, ou false : date illisible, ou HORS du moment
+// (une autre période, un autre mois pour un point du mois : ce serait le bilan d'un autre moment).
+function dateBilanSet(cls, mode, ymd) {
+  if (!cls || !mode) return false;
+  const e = _dateBilanCible(cls, mode);
+  if (!ymd) { if (!e) return false; cls.datesBilan = cls.datesBilan.filter(x => x !== e); if (!cls.datesBilan.length) delete cls.datesBilan; return 0; }
+  if (!_ymdValid(ymd) || !_momentEst(cls, { type: mode.type, date: ymd }, mode)) return false;
+  const bs = _bilansARedater(cls, mode, ymd);
+  bs.forEach(b => { b.date = ymd; });
+  if (e) e.date = ymd;
+  else { if (!Array.isArray(cls.datesBilan)) cls.datesBilan = []; cls.datesBilan.push({ type: _bilanType(mode.type).key, date: ymd }); }
+  return bs.length;
 }
 // Sans pushUndo ni save : l'appelant s'en charge. Refuse une date illisible ou un texte vide.
 function bilanAdd(sid, { date, type, texte }) {
@@ -8088,6 +8115,9 @@ function _bilanColonnes(cls, pIdx, ajout) {
   const milieu = (() => { const a = new Date(p.start + 'T12:00:00'), b = new Date(p.end + 'T12:00:00'); return _todayYmd(new Date((a.getTime() + b.getTime()) / 2)); })();
   return [...m.values()].map(c => {
     let date = c.premiere;
+    // La date choisie pour la classe (v1.81.2, `cls.datesBilan`) : les bilans écrits ensuite la prennent.
+    const fixe = _datesBilanOf(cls).find(e => e.type === c.type && e.date >= p.start && e.date <= p.end && (c.type !== 'mois' || e.date.slice(0, 7) === c.ym));
+    if (fixe) date = fixe.date;
     if (!date) {
       if (c.type === 'mois') { const a = c.ym + '-01', b = c.ym + '-28'; date = borne(auj.slice(0, 7) === c.ym ? auj : c.ym + '-15', a, b); }
       else date = borne(auj, p.start, p.end);
@@ -9741,12 +9771,40 @@ function ficheDepuisSet(k) {
 // de tout ce qui a lieu jusqu'à la date ») : la date du bilan (défaut) fige la fiche au jour où le bilan est daté — un bilan
 // commencé le 25/10 arrêtait la mi-S1 au 31/10 ; « aujourd'hui » l'ignore, le temps de rédiger. Retenu sur le poste ; la
 // courbe, la fiche imprimée et la synthèse IA d'un élève suivent (`_ficheCourbeFin`).
-const _LS_FICHE_JUSQUA = 'suiviPP_ficheJusqua', FICHE_JUSQUA = [['bilan', 'date du bilan', 'Jusqu\'à la date du bilan écrit pour ce moment (sinon aujourd\'hui) : relu plus tard, il garde les données de son jour'], ['auj', 'aujourd\'hui', 'Jusqu\'à aujourd\'hui, quelle que soit la date des bilans : pour rédiger avec tout ce qui s\'est passé']];
+const _LS_FICHE_JUSQUA = 'suiviPP_ficheJusqua', FICHE_JUSQUA = [['bilan', 'date du bilan', 'Jusqu\'à la date du bilan de ce moment (le champ à côté la règle pour toute la classe) : relu plus tard, il garde les données de son jour'], ['auj', 'aujourd\'hui', 'Jusqu\'à aujourd\'hui, quelle que soit la date des bilans : pour rédiger avec tout ce qui s\'est passé']];
 function _ficheJusqua() { try { return localStorage.getItem(_LS_FICHE_JUSQUA) === 'auj' ? 'auj' : 'bilan'; } catch (_) { return 'bilan'; } }
 function ficheJusquaSet(k) {
   const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); if (document.activeElement?.id === 'fi-dec') ficheDecisionSave();
   try { if (k === 'auj') localStorage.setItem(_LS_FICHE_JUSQUA, 'auj'); else localStorage.removeItem(_LS_FICHE_JUSQUA); } catch (_) { }
   _ficheRender();
+}
+// La date du bilan du moment, pour toute la classe (v1.81.2) : la date choisie, sinon celle du moment (le premier bilan écrit).
+function _ficheDateBilanVal(cls, col) { return _dateBilanCible(cls, { type: col.type, date: col.date })?.date || col.date; }
+// Bornes du champ : la période, le mois pour un point du mois — au-delà, ce serait le bilan d'un autre moment.
+function _ficheDateBilanHTML(cls, col) {
+  const B = _ficheBornes(cls, col);
+  if (!B) return '';
+  const lo = col.type === 'mois' ? B.start : B.p.start, hi = col.type === 'mois' ? B.end : B.p.end;
+  return `<label class="pf-mu pf-datebil" title="Pour toute la classe : les bilans de ce moment déjà écrits prennent cette date, les suivants aussi ; la fiche s'arrête là">bilan du <input type="date" id="fi-datebil" value="${_escAttr(_ficheDateBilanVal(cls, col))}" min="${_escAttr(lo)}" max="${_escAttr(hi)}" onchange="_dateChamp(event,()=>ficheDateBilanUI(this))" onblur="_dateChamp(event,()=>ficheDateBilanUI(this))"></label>`;
+}
+function ficheDateBilanUI(inp) {
+  const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id], col = cls && _ficheMomentCourant(cls);
+  if (!cls || !col) return;
+  const mode = { type: col.type, date: col.date }, avant = _ficheDateBilanVal(cls, col);
+  const v = _dateChampLire(inp, avant);
+  if (v === undefined) return;
+  if (!_momentEst(cls, { type: col.type, date: v }, mode)) {
+    toast(`⚠️ Le ${_fmtDateFr(v)} n'est pas dans ${col.type === 'mois' ? 'ce mois' : 'cette période'} : ce serait le bilan d'un autre moment. L'ancienne date est gardée.`, 'warn');
+    inp.value = avant; return;
+  }
+  const n = _bilansARedater(cls, mode, v).length;
+  if (_dateBilanCible(cls, mode)?.date === v && !n) return;   // rien à changer : pas de cran d'undo
+  pushUndo();
+  dateBilanSet(cls, mode, v);
+  save();
+  toast(`${col.long} : bilan du ${_fmtDateFr(v)} pour toute la classe${n ? ` — ${n} bilan${n > 1 ? 's' : ''} redaté${n > 1 ? 's' : ''}` : ''}. Ctrl+Z pour annuler.`);
+  _ficheRender();
+  if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
 }
 // Une entrée d'avant le moment (historique) : la classe qui la met en retrait.
 function _ficheAvant(b, d) { return d && b && d < b.mStart ? ' pf-avant' : ''; }
@@ -9900,7 +9958,7 @@ function _ficheBarHTML(cls, stu, col) {
   return `<span class="pf-grp">${_chaleurMomentsPickHTML(cls, 'fi')}<span class="pf-seg">${ms.map((c, k) => `${k && ms[k - 1].pIdx !== c.pIdx ? '' : ''}<button class="${col && c.key === col.key ? 'on' : ''}" aria-pressed="${!!col && c.key === col.key}" onclick="ficheMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span></span>
     ${col ? (W => { const dep = _ficheDepuis(), jq = _ficheJusqua(), fin = W ? `${_fmtDateFr(W.end).slice(0, 5)}${W.pourquoi === 'moment' ? ' (fin du moment)' : W.pourquoi === 'periode' ? ' (fin de période)' : W.pourquoi === 'aujourdhui' && jq === 'bilan' ? ' (pas de bilan)' : ''}` : '';
       return `<span class="pf-grp"><span class="pf-sl">Depuis</span><span class="pf-seg" role="group" aria-label="Depuis">${FICHE_DEPUIS.map(([k, l, t]) => `<button class="${dep === k ? 'on' : ''}" aria-pressed="${dep === k}" onclick="ficheDepuisSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span></span>
-    <span class="pf-grp"><span class="pf-sl">Jusqu'au</span><span class="pf-seg" role="group" aria-label="Jusqu'au">${FICHE_JUSQUA.map(([k, l, t]) => `<button class="${jq === k ? 'on' : ''}" aria-pressed="${jq === k}" onclick="ficheJusquaSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>${fin ? `<span class="pf-mu" title="Jamais avant la fin du moment, jamais après la fin de la période">${_escName(fin)}</span>` : ''}</span>`; })(_ficheFenetre(cls, stu.id, col)) : ''}
+    <span class="pf-grp"><span class="pf-sl">Jusqu'au</span><span class="pf-seg" role="group" aria-label="Jusqu'au">${FICHE_JUSQUA.map(([k, l, t]) => `<button class="${jq === k ? 'on' : ''}" aria-pressed="${jq === k}" onclick="ficheJusquaSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>${jq === 'bilan' ? _ficheDateBilanHTML(cls, col) : ''}${fin && !(jq === 'bilan' && W.end === _ficheDateBilanVal(cls, col)) ? `<span class="pf-mu" title="Jamais avant la fin du moment, jamais après la fin de la période">${jq === 'bilan' ? 'fiche jusqu\'au ' : ''}${_escName(fin)}</span>` : ''}</span>`; })(_ficheFenetre(cls, stu.id, col)) : ''}
     <span class="pf-seg" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     <span class="pf-sp"></span>
     <span class="pf-nav"><button onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="pf-n">${i + 1}/${o.length}</span><button onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>
@@ -12239,7 +12297,10 @@ function _ficheCourbePoints(cls, sid, p, src) {
 function _ficheCourbeFin(cls, sid, col, auj) {
   const p = _ficheBornes(cls, col)?.p;
   if (!p) return null;
-  const bil = _ficheJusqua() === 'auj' ? null : _bilanCible(cls, sid, { type: col.type, date: col.date });   // « Jusqu'au : aujourd'hui » (v1.81.1)
+  // « Jusqu'au : aujourd'hui » (v1.81.1) ignore les dates ; sinon le bilan de l'élève, à défaut la date du moment choisie
+  // pour la classe (v1.81.2) : la fiche d'un élève dont le bilan n'est pas encore écrit s'arrête au même jour.
+  const mode = { type: col.type, date: col.date };
+  const bil = _ficheJusqua() === 'auj' ? null : _bilanCible(cls, sid, mode) || _dateBilanCible(cls, mode);
   const d = bil ? bil.date : (auj || _todayYmd());
   if (d > p.end) return { fin: p.end, pourquoi: 'periode' };
   if (d < p.start) return { fin: p.start, pourquoi: bil ? 'bilan' : 'aujourdhui' };
@@ -27094,6 +27155,8 @@ function createDemo(opts) {
     const s = S.eleves[sids[i]];
     if (s) (s.decisions = s.decisions || []).push({ id: `demo_d${String(k + 1).padStart(2, '0')}`, ts: Date.parse(D(md) + 'T12:00:00'), date: D(md), type, texte });
   });
+  // ── La date du bilan de mi-S1 pour toute la classe (v1.81.2) : celle des bilans de mi-période écrits.
+  cls.datesBilan = [{ type: 'miperiode', date: D('11-15') }];
   // ── Une synthèse de la classe par une IA (v1.71.0), au conseil du S1.
   cls.synthClasse = [{ id: 'demo_sc01', ia: true, ts: Date.parse(D('01-19') + 'T12:00:00'), date: D('01-20'), type: 'conseil',
     texte: 'Une classe vivante et plutôt agréable, qui participe volontiers à l\'oral mais dont le travail personnel reste inégal : la moyenne de la classe est correcte, avec un petit groupe en réelle difficulté que le carnet et les incidents désignent aussi.\n\nL\'esprit de la classe est bon — délégués investis, entraide visible en heure de vie de classe —, mais les bavardages pèsent sur certains cours. À suivre au second semestre : la régularité du travail à la maison et le calme en demi-groupe.' }];
