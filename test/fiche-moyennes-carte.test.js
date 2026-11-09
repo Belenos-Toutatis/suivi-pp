@@ -77,7 +77,7 @@ test('la bulle : toutes les matières à la date de l’import, l’écart avec 
 test('la carte prépare la bulle : une entrée par ligne, Générale au bout, gestionnaires sur le tableau', () => {
   ev(`S = _emptyState(); postLoadHook(); createDemo({ force: true }); postLoadHook()`);
   const h = ev(`(() => { const cls = S.classes[S.cur], col = _chaleurMomentsTous(cls).find(c => c.key === 'bil:conseil:0'); return _ficheTableauHTML(cls, S.eleves[cls.eleves[10]], col, {}); })()`);
-  assert.match(h, /<table class="pf-mini pf-moyc" onpointermove="ficheMoyBulle\(event\)" onpointerleave="ficheMoyBulleFin\(\)">/);
+  assert.match(h, /<table class="pf-mini pf-moyc" onpointermove="ficheMoyBulle\(event\)" onpointerleave="ficheBulleFin\(\)">/);
   const D = JSON.parse(ev(`JSON.stringify(_ficheMoyBul)`));
   assert.ok(D.rows.length > 2);
   assert.deepStrictEqual(D.rows.at(-1).gen, true);

@@ -174,7 +174,10 @@ test('Fiche : la courbe s\'arrête à la date du bilan du moment, sinon aujourd\
   const html = ev(`_ficheCourbeHTML(getCls(), S.eleves[${JSON.stringify(sid)}], ${col})`);
   assert.match(html, /jusqu'au .*\(bilan\)/);
   // Aucun point après la fin.
-  const dates = [...html.matchAll(/<title>(\d\d)\/(\d\d)\/(\d{4})/g)].map(m => `${m[3]}-${m[2]}-${m[1]}`);
+  // v1.82.3 : plus de <title> par point ; les dates des points sont dans les données de la bulle (`data-bul`).
+  const bul = JSON.parse(html.match(/data-bul="([^"]*)"/)[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
+  const dates = bul.pts.map(x => x.date);
+  assert.strictEqual(dates.length, (html.match(/<circle class="pt"/g) || []).length, 'un point de données par point dessiné');
   assert.ok(dates.length && dates.every(x => x <= d));
 });
 

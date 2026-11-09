@@ -1827,21 +1827,23 @@ img.ch-ph:not([src]) { visibility: hidden; }
   font-family: var(--font-sans); font-size: 12.5px; font-weight: 400; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; text-align: left; }
 #bulle[hidden] { display: none; }
 @media print { #bulle { display: none !important; } }
-/* La bulle de la carte Moyennes (v1.82.2) : toutes les matières à la date de l'import survolé ; l'allure de #bulle. */
-#bulle-moy { position: fixed; z-index: 2147483000; pointer-events: none; max-width: min(300px, calc(100vw - 16px)); padding: 6px 9px; border-radius: 6px;
+/* La bulle des courbes de la fiche (v1.82.2 moyennes, v1.82.3 observations) : tout ce qu'on sait au point survolé ; l'allure de #bulle. */
+#bulle-fi { position: fixed; z-index: 2147483000; pointer-events: none; max-width: min(300px, calc(100vw - 16px)); padding: 6px 9px; border-radius: 6px;
   background: var(--bulle-bg); color: var(--bulle-fg); border: 1px solid var(--bulle-bd); box-shadow: var(--shadow-pop);
   font-family: var(--font-sans); font-size: 12.5px; font-weight: 400; line-height: 1.4; text-align: left; }
-#bulle-moy[hidden] { display: none; }
-@media print { #bulle-moy { display: none !important; } }
-#bulle-moy .bm-t { font-weight: 700; margin-bottom: 3px; }
-#bulle-moy .bm-p { font-weight: 400; font-size: 11px; opacity: .85; }
-#bulle-moy .bm { border-collapse: collapse; }
-#bulle-moy .bm td { padding: 1px 6px 1px 0; white-space: nowrap; }
-#bulle-moy .bm td.v, #bulle-moy .bm td.d { text-align: right; font-family: var(--font-mono); font-size: 12px; }
-#bulle-moy .bm td.d { font-size: 11px; padding-right: 0; }
-#bulle-moy .bm tr.on td { font-weight: 700; }
-#bulle-moy .bm tr.gen td { font-weight: 700; border-top: 1px solid var(--bulle-fg); padding-top: 3px; }
-#bulle-moy .pf-mv { font-size: 12px; padding: 0 4px; }
+#bulle-fi[hidden] { display: none; }
+@media print { #bulle-fi { display: none !important; } }
+#bulle-fi .bm-t { font-weight: 700; margin-bottom: 3px; }
+#bulle-fi .bm-p { font-weight: 400; font-size: 11px; opacity: .85; }
+#bulle-fi .bm { border-collapse: collapse; }
+#bulle-fi .bm td { padding: 1px 6px 1px 0; white-space: nowrap; }
+#bulle-fi .bm td.v, #bulle-fi .bm td.d { text-align: right; font-family: var(--font-mono); font-size: 12px; }
+#bulle-fi .bm td.d { font-size: 11px; padding-right: 0; }
+#bulle-fi .bm tr.on td { font-weight: 700; }
+#bulle-fi .bm tr.gen td { font-weight: 700; border-top: 1px solid var(--bulle-fg); padding-top: 3px; }
+#bulle-fi .pf-mv { font-size: 12px; padding: 0 4px; }
+#bulle-fi .bm-l { margin-top: 4px; font-size: 11.5px; }
+#bulle-fi .bm-ul { margin: 0; padding-left: 14px; font-size: 11.5px; }
 .pf-p { margin: 0; }
 /* Les décisions d'un moment (v1.46.13), sous le bilan. */
 .pf-lab-dec { margin-top: 10px; }
@@ -1926,6 +1928,10 @@ html[data-theme="dark"] .pf-star { color: #e6b450; }
 .pf-chart .pt { fill: var(--pf-card); stroke: var(--i-obs); stroke-width: 2; }
 .pf-chart .mid { stroke: var(--margin-red); stroke-dasharray: 3 3; }
 .pf-chart .lb { fill: var(--ink-deep); font-size: 10.5px; }
+.pf-chart[onpointermove] { cursor: crosshair; }
+.pf-chart .guide { stroke: var(--ink-deep); stroke-width: 1; visibility: hidden; }
+.pf-chart.survol .guide { visibility: visible; }
+.pf-chart .pt.on { fill: var(--i-obs); }
 .pf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0 12px; }
 .pf-kpi { background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; padding: 8px 10px; }
 .pf-kpi small { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--pencil); }
@@ -3836,8 +3842,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.82.2';
-const APP_BUILD_DATE = '2026-11-09T01:12:05Z';
+const APP_VERSION    = '1.82.3';
+const APP_BUILD_DATE = '2026-11-09T01:19:19Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12353,10 +12359,16 @@ function _ficheCourbeHTML(cls, stu, col) {
   const X = d => (x0 + (t(d) - ta) / (tb - ta) * (x1 - x0)).toFixed(1);
   const mx = Math.max(10, ...pts.map(q => q[1])), Y = v => (y0 - v / mx * (y0 - y1)).toFixed(1);
   const mi = _ficheBornes(cls, { ...col, type: 'miperiode' }).end;
-  let g = `<svg class="pf-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du cumul d'observations${quoi ? ' (' + quoi + ')' : ''}, période ${_escAttr(p.label)}">`;
+  // La bulle au survol (v1.82.3, `ficheObsBulle`) : ce qu'on sait à chaque point, porté par la courbe elle-même.
+  const rm = _relMap(cls.id) || {}, an = _periods(cls)[0]?.start || p.start, mbnAn = src.mbn ? _obsMbnOf(stu.id).filter(e => e.date >= an) : [];
+  const bul = { carnet: !!src.carnet, mbn: !!src.mbn, pts: pts.map(([d]) => ({ date: d,
+    carnet: src.carnet ? _cumulAu(cls.id, stu.id, d) : null, mbn: src.mbn ? mbnAn.filter(e => e.date <= d).length : null,
+    releve: !!rm[d] && typeof _relValue(rm[d], stu.id) === 'number', label: (rm[d] && rm[d].label) || '',
+    jour: mbnAn.filter(e => e.date === d).map(e => ({ motif: e.motif || e.type || 'observation', par: e.par || '' })) })) };
+  let g = `<svg class="pf-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du cumul d'observations${quoi ? ' (' + quoi + ')' : ''}, période ${_escAttr(p.label)}" data-bul="${_escAttr(JSON.stringify(bul))}" onpointermove="ficheObsBulle(event)" onpointerleave="ficheBulleFin()">`;
   const zFin = b.end < p.end ? b.end : p.end, zDeb = b.start > p.start ? b.start : p.start;
   if (zDeb <= zFin) g += `<rect class="ar" x="${X(zDeb)}" y="${y1}" width="${Math.max(2, X(zFin) - X(zDeb))}" height="${y0 - y1}"/>`;
-  g += `<line class="ax" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/>`;
+  g += `<line class="ax" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}"/><line class="guide" x1="-9" x2="-9" y1="${y1}" y2="${y0}"/>`;
   if (mi <= p.end) g += `<line class="mid" x1="${X(mi)}" y1="${y1}" x2="${X(mi)}" y2="${y0}"/><text x="${+X(mi) + 3}" y="${y1 + 9}">mi-${_escName(p.label)}</text>`;
   _moisDe(p).forEach(([ym, l]) => { g += `<text x="${X(ym + '-01' < p.start ? p.start : ym + '-01')}" y="${H - 6}">${_escName(l)}</text>`; });
   // Graduations : tous les 5 jusqu'à 100, puis un pas « rond » (1, 2, 5 × 10ⁿ) qui en garde une dizaine au plus —
@@ -12365,7 +12377,7 @@ function _ficheCourbeHTML(cls, stu, col) {
   if (mx > 100) { const brut = mx / 10, e = Math.pow(10, Math.floor(Math.log10(brut))); pas = [1, 2, 5, 10].map(m => m * e).find(z => z >= brut) || brut; }
   for (let v = 0, n = 0; v <= mx && n < 25; v += pas, n++) g += `<text x="2" y="${+Y(v) + 3}">${v}</text>`;
   g += `<polyline class="ln" points="${pts.map(q => X(q[0]) + ',' + Y(q[1])).join(' ')}"/>`;
-  pts.forEach((q, k) => { const d = k ? q[1] - pts[k - 1][1] : 0; g += `<circle class="pt" cx="${X(q[0])}" cy="${Y(q[1])}" r="3.5"><title>${_escName(_fmtDateFr(q[0]))} : ${q[1]}</title></circle>${d > 0 ? `<text class="lb" x="${+X(q[0]) - 6}" y="${+Y(q[1]) - 7}">+${d}</text>` : ''}`; });
+  pts.forEach((q, k) => { const d = k ? q[1] - pts[k - 1][1] : 0; g += `<circle class="pt" data-k="${k}" cx="${X(q[0])}" cy="${Y(q[1])}" r="3.5"/>${d > 0 ? `<text class="lb" x="${+X(q[0]) - 6}" y="${+Y(q[1]) - 7}">+${d}</text>` : ''}`; });
   // Ce que la courbe additionne et où elle s'arrête : en légende au-dessus, pas dans le
   // dessin (le repère de mi-période y occupe déjà le haut).
   return (quoi ? `<div class="pf-mu pf-chart-cap">${_escName(quoi)}</div>` : '') + g + '</svg>';
@@ -12443,7 +12455,7 @@ function _ficheMoySparkHTML(nom, list, vals) {
 // l'import précédent ; un repère vertical relie cet import sur toutes les courbes. Tout de suite, sans le délai des
 // infobulles (`_bulleMontrer`) : on balaie la courbe. Mêmes tokens que les infobulles (`--bulle-*`) ; sous 10 en pastille
 // `.pf-mv.lo`, qui porte son propre fond (contraste garanti sur la bulle sombre comme claire).
-let _ficheMoyBul = null, _ficheMoyBulCle = '';
+let _ficheMoyBul = null;
 function _ficheMoyBulleHTML(D, i, r) {
   const v1 = v => v === null || v === undefined ? '–' : typeof v === 'number' ? `<span class="pf-mv${v < 10 ? ' lo' : ''}">${_escName(_fmtNote(v, 1))}</span>` : `<em>${_escName(v)}</em>`;
   const lignes = D.rows.map((x, k) => { const v = x.vals[i], av = i > 0 ? x.vals[i - 1] : null;
@@ -12451,28 +12463,65 @@ function _ficheMoyBulleHTML(D, i, r) {
     return `<tr class="${k === r ? 'on' : ''}${x.gen ? ' gen' : ''}"><td>${k === r ? '▸ ' : ''}${_escName(x.nom)}</td><td class="v">${v1(v)}</td><td class="d">${_escName(d)}</td></tr>`; }).join('');
   return `<div class="bm-t">Moyennes au ${_escName(_fmtDateFr(D.list[i].date))}${i > 0 ? ` <span class="bm-p">écart depuis le ${_escName(_fmtDateFr(D.list[i - 1].date).slice(0, 5))}</span>` : ''}</div><table class="bm">${lignes}</table>`;
 }
+// La bulle des courbes de la fiche, commune aux moyennes et aux observations (v1.82.3) : `cle` dit le point survolé ;
+// `html()` et `marquer()` ne sont appelés que quand il change.
+let _ficheBulleCle = '';
+function _ficheBulleMontrer(cle, html, marquer, carte, e) {
+  let el = document.getElementById('bulle-fi');
+  if (!el) { el = document.createElement('div'); el.id = 'bulle-fi'; el.setAttribute('role', 'tooltip'); el.hidden = true; document.body.appendChild(el); }
+  if (cle !== _ficheBulleCle || el.hidden) { _ficheBulleCle = cle; el.innerHTML = html(); marquer(); el.hidden = false; }
+  const q = _ficheMoyBullePlace(carte ? carte.getBoundingClientRect() : null, e.clientX, e.clientY, el.offsetWidth, el.offsetHeight, innerWidth, innerHeight);
+  el.style.left = q.left + 'px'; el.style.top = q.top + 'px';
+}
 function ficheMoyBulle(e) {
   const D = _ficheMoyBul, td = e && e.target && e.target.closest ? e.target.closest('td.pf-spc') : null;
   const tbl = td && td.closest('table');
   const ref = td && (td.querySelector('.pf-spark') || tbl.querySelector('.pf-spark'));
-  if (!D || !D.list.length || !ref) return ficheMoyBulleFin();
+  if (!D || !D.list.length || !ref) return ficheBulleFin();
   const b = ref.getBoundingClientRect(), n = D.list.length, { W, px } = FICHE_SPARK;
   const u = (e.clientX - b.left) / (b.width || 1) * W;
   const i = n > 1 ? Math.max(0, Math.min(n - 1, Math.round((u - px) / ((W - 2 * px) / (n - 1))))) : 0;
-  const r = +td.dataset.r, cle = `${i}:${r}`;
-  let el = document.getElementById('bulle-moy');
-  if (!el) { el = document.createElement('div'); el.id = 'bulle-moy'; el.setAttribute('role', 'tooltip'); el.hidden = true; document.body.appendChild(el); }
-  if (cle !== _ficheMoyBulCle || el.hidden) {
-    _ficheMoyBulCle = cle;
-    el.innerHTML = _ficheMoyBulleHTML(D, i, r);
+  const r = +td.dataset.r;
+  _ficheBulleMontrer(`m:${i}:${r}`, () => _ficheMoyBulleHTML(D, i, r), () => {
     const x = _ficheSparkX(i, n).toFixed(1);
     tbl.querySelectorAll('.pf-spark .guide').forEach(l => { l.setAttribute('x1', x); l.setAttribute('x2', x); });
     tbl.querySelectorAll('.pf-spark .pt').forEach(c => c.classList.toggle('on', +c.dataset.i === i));
     tbl.classList.add('survol');
-    el.hidden = false;
-  }
-  const q = _ficheMoyBullePlace(tbl.closest('.pf-card')?.getBoundingClientRect() || null, e.clientX, e.clientY, el.offsetWidth, el.offsetHeight, innerWidth, innerHeight);
-  el.style.left = q.left + 'px'; el.style.top = q.top + 'px';
+  }, tbl.closest('.pf-card'), e);
+}
+// La courbe des observations (v1.82.3, l'utilisateur : « ça pourrait faire la même chose pour les observations ») : le
+// point le plus proche du curseur ; la bulle dit, à cette date, le cumul du carnet et son relevé, les observations MBN
+// depuis la rentrée, le total, l'écart avec le point précédent, et les observations MBN de ce jour-là. Les données sont
+// DANS la courbe (`data-bul`, préparées par `_ficheCourbeHTML`) : la fiche imprimée dessine aussi cette courbe, un
+// état partagé serait réécrit par un autre élève.
+function _ficheObsBulleHTML(D, k) {
+  const P = D.pts[k], av = k > 0 ? D.pts[k - 1] : null;
+  if (!P) return '';
+  const ec = (a, b) => typeof a === 'number' && typeof b === 'number' ? (a === b ? '=' : (a > b ? '+' : '−') + Math.abs(a - b)) : '';
+  const ligne = (l, v, d, gen) => `<tr${gen ? ' class="gen"' : ''}><td>${l}</td><td class="v">${v === null || v === undefined ? '–' : _escName(String(v))}</td><td class="d">${_escName(d)}</td></tr>`;
+  const deux = D.carnet && D.mbn;
+  const lignes = (D.carnet ? ligne(P.releve ? 'Carnet (relevé)' : 'Carnet', P.carnet, av ? ec(P.carnet, av.carnet) : '') : '')
+    + (D.mbn ? ligne('MBN', P.mbn, av ? ec(P.mbn, av.mbn) : '') : '')
+    + (deux ? ligne('Total', (P.carnet || 0) + P.mbn, av ? ec((P.carnet || 0) + P.mbn, (av.carnet || 0) + av.mbn) : '', true) : '');
+  const N = 6, jour = P.jour || [];
+  const liste = jour.length ? `<div class="bm-l">Ce jour-là dans MBN :</div><ul class="bm-ul">${jour.slice(0, N).map(x => `<li>${_escName(x.motif)}${x.par ? ` — ${_escName(x.par)}` : ''}</li>`).join('')}${jour.length > N ? `<li>et ${jour.length - N} autre${jour.length - N > 1 ? 's' : ''}</li>` : ''}</ul>` : '';
+  return `<div class="bm-t">Au ${_escName(_fmtDateFr(P.date))}${P.label ? ` <span class="bm-p">· ${_escName(P.label)}</span>` : ''}${av ? `<div class="bm-p">écart depuis le ${_escName(_fmtDateFr(av.date).slice(0, 5))}</div>` : ''}</div><table class="bm">${lignes}</table>${liste}`;
+}
+function ficheObsBulle(e) {
+  const svg = e && e.currentTarget;
+  const cs = svg && svg.querySelectorAll ? [...svg.querySelectorAll('circle.pt')] : [];
+  let D = null;
+  try { D = JSON.parse(svg.getAttribute('data-bul') || 'null'); } catch (_) { D = null; }
+  if (!D || !Array.isArray(D.pts) || !cs.length) return ficheBulleFin();
+  let c = cs[0], best = Infinity;
+  cs.forEach(x => { const r = x.getBoundingClientRect(), dx = Math.abs(r.left + r.width / 2 - e.clientX); if (dx < best) { best = dx; c = x; } });
+  const k = +c.dataset.k;
+  _ficheBulleMontrer(`o:${k}`, () => _ficheObsBulleHTML(D, k), () => {
+    const gl = svg.querySelector('.guide');
+    if (gl) { gl.setAttribute('x1', c.getAttribute('cx')); gl.setAttribute('x2', c.getAttribute('cx')); }
+    cs.forEach(x => x.classList.toggle('on', x === c));
+    svg.classList.add('survol');
+  }, svg.closest('.pf-card'), e);
 }
 // Où poser la bulle : À CÔTÉ de la carte (à gauche, sinon à droite), à hauteur du curseur, pour qu'elle ne cache pas les
 // courbes qu'on balaie ; sinon (une seule colonne de cartes) sous le curseur, comme les infobulles. PUR.
@@ -12482,13 +12531,13 @@ function _ficheMoyBullePlace(carte, x, y, w, h, vw, vh) {
   if (carte && carte.right + 8 + w <= vw - 8) return { left: carte.right + 8, top };
   return _bullePlace(x, y, w, h, vw, vh, false);
 }
-function ficheMoyBulleFin() {
-  const el = document.getElementById('bulle-moy');
+function ficheBulleFin() {
+  const el = document.getElementById('bulle-fi');
   if (el) el.hidden = true;
-  _ficheMoyBulCle = '';
-  document.querySelectorAll('.pf-moyc.survol').forEach(t => { t.classList.remove('survol'); t.querySelectorAll('.pf-spark .pt.on').forEach(c => c.classList.remove('on')); });
+  _ficheBulleCle = '';
+  document.querySelectorAll('.pf-moyc.survol, .pf-chart.survol').forEach(t => { t.classList.remove('survol'); t.querySelectorAll('.pt.on').forEach(c => c.classList.remove('on')); });
 }
-for (const ev of ['pointerdown', 'keydown', 'wheel', 'scroll']) document.addEventListener(ev, () => { if (!document.getElementById('bulle-moy')?.hidden) ficheMoyBulleFin(); }, { passive: true, capture: true });
+for (const ev of ['pointerdown', 'keydown', 'wheel', 'scroll']) document.addEventListener(ev, () => { const el = document.getElementById('bulle-fi'); if (el && !el.hidden) ficheBulleFin(); }, { passive: true, capture: true });
 function _ficheTableauHTML(cls, stu, col, ed) {
   ed = Object.assign({ places: [], els: [], elsHTML: '', docsInfo: [], dateInp: () => '', presence: '', age: null }, ed || {});
   // La fenêtre (v1.81.0) : les listes vont de « Depuis » à la date du bilan (sinon aujourd'hui), l'historique en retrait ;
@@ -12528,7 +12577,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     const ligne = (nom, vals, gras) => { const v = vals[vals.length - 1], nums = vals.filter(x => typeof x === 'number'); const d = typeof v === 'number' && nums.length > 1 ? v - nums[0] : null;
       const r = _ficheMoyBul.rows.push({ nom, vals, gen: !!gras }) - 1;
       return `<tr${gras ? ' class="pf-gen"' : ''}><td class="pf-mat">${_escName(nom)}</td><td class="pf-spc" data-r="${r}">${_ficheMoySparkHTML(nom, m.list, vals)}</td><td class="r">${v === null || v === undefined ? '–' : typeof v === 'number' ? `<span class="pf-mv${v < 10 ? ' lo' : ''}">${_escName(_fmtNote(v, 1))}</span>` : `<em>${_escName(v)}</em>`}</td><td class="r">${d !== null ? `<span class="pf-dm${d <= -0.3 ? ' neg' : d >= 0.3 ? ' pos' : ''}">${_escName(_fmtDelta(_round2(d)))}</span>` : ''}</td></tr>`; };
-    moyT = `<table class="pf-mini pf-moyc" onpointermove="ficheMoyBulle(event)" onpointerleave="ficheMoyBulleFin()"><thead><tr><th>Matière</th><th title="${_escAttr(m.list.map(j5).join(' · '))}">${m.list.length > 1 ? `${m.list.length} imports depuis le ${_escName(j5(m.list[0]))}` : ''}</th><th class="r">${_escName(j5(der))}</th><th class="r">Δ</th></tr></thead><tbody>${
+    moyT = `<table class="pf-mini pf-moyc" onpointermove="ficheMoyBulle(event)" onpointerleave="ficheBulleFin()"><thead><tr><th>Matière</th><th title="${_escAttr(m.list.map(j5).join(' · '))}">${m.list.length > 1 ? `${m.list.length} imports depuis le ${_escName(j5(m.list[0]))}` : ''}</th><th class="r">${_escName(j5(der))}</th><th class="r">Δ</th></tr></thead><tbody>${
       mats.map(mt => ligne(_moyAbbr(mt.nom), m.list.map(r => _moyVal(r, sid, mt.id)), false)).join('')}${ligne('Générale', m.list.map(r => _moyGen(r, sid)), true)}</tbody></table>`;
   }
   // Avis : un onglet par feuille de la période ; d'office celle du moment.
