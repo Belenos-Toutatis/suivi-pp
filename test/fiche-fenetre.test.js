@@ -92,5 +92,27 @@ test('barre de la fiche : « Depuis » et la date de fin dite', () => {
   const h = ev(`_ficheBarHTML(S.classes.c1, S.eleves.s1, ${COL('bil:miperiode:0')})`);
   assert.match(h, /aria-label="Depuis"/);
   assert.match(h, /onclick="ficheDepuisSet\('annee'\)"[^>]*>rentrée</);
-  assert.match(h, /jusqu&#39;au 10\/11 \(bilan\)|jusqu'au 10\/11 \(bilan\)/);
+  assert.match(h, /aria-label="Jusqu&#39;au"|aria-label="Jusqu'au"/);
+  assert.match(h, /<span class="pf-mu"[^>]*>10\/11<\/span>/);
+});
+
+// v1.81.1 — l'utilisateur : « j'ai commencé à écrire les bilans plus tôt, mais j'aimerais que ça tienne compte de tout ce
+// qui a lieu jusqu'à la date ». « Jusqu'au : aujourd'hui » ignore la date du bilan (retenu sur le poste).
+test('« Jusqu’au » : la date du bilan (défaut) ou aujourd’hui, quelle que soit la date du bilan', () => {
+  monter([bil('miperiode', '2026-10-25')]);
+  ev(`localStorage.removeItem(_LS_FICHE_JUSQUA)`);
+  assert.strictEqual(ev(`_ficheJusqua()`), 'bilan');
+  let f = fen('bil:miperiode:0');
+  assert.deepStrictEqual([f.end, f.pourquoi], ['2026-10-31', 'moment'], 'bilan commencé le 25/10 : la fiche s’arrête à la fin du moment');
+  ev(`localStorage.setItem(_LS_FICHE_JUSQUA, 'auj')`);
+  const auj = ev(`_todayYmd()`), fin = auj > '2027-01-31' ? '2027-01-31' : auj < '2026-10-31' ? '2026-10-31' : auj;
+  f = fen('bil:miperiode:0');
+  assert.strictEqual(f.end, fin, 'aujourd’hui (borné à la période, jamais avant la fin du moment)');
+  const c = ev(`_ficheCourbeFin(S.classes.c1, 's1', ${COL('bil:miperiode:0')}, '2026-11-20')`);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(c)), { fin: '2026-11-20', pourquoi: 'aujourdhui' }, 'la courbe suit');
+  const h = ev(`_ficheBarHTML(S.classes.c1, S.eleves.s1, ${COL('bil:miperiode:0')})`);
+  assert.match(h, /class="on" aria-pressed="true" onclick="ficheJusquaSet\('auj'\)"/);
+  ev(`localStorage.setItem(_LS_FICHE_JUSQUA, 'n_importe')`);
+  assert.strictEqual(ev(`_ficheJusqua()`), 'bilan');
+  ev(`localStorage.removeItem(_LS_FICHE_JUSQUA)`);
 });

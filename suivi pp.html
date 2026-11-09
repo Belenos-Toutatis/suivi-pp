@@ -3806,8 +3806,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.81.0';
-const APP_BUILD_DATE = '2026-11-09T00:22:00Z';
+const APP_VERSION    = '1.81.1';
+const APP_BUILD_DATE = '2026-11-09T00:37:06Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9737,6 +9737,17 @@ function ficheDepuisSet(k) {
   try { if (k === 'moment') localStorage.removeItem(_LS_FICHE_DEPUIS); else localStorage.setItem(_LS_FICHE_DEPUIS, k); } catch (_) { }
   _ficheRender();
 }
+// « Jusqu'au » (v1.81.1, l'utilisateur : « j'ai commencé à écrire les bilans plus tôt, mais j'aimerais que ça tienne compte
+// de tout ce qui a lieu jusqu'à la date ») : la date du bilan (défaut) fige la fiche au jour où le bilan est daté — un bilan
+// commencé le 25/10 arrêtait la mi-S1 au 31/10 ; « aujourd'hui » l'ignore, le temps de rédiger. Retenu sur le poste ; la
+// courbe, la fiche imprimée et la synthèse IA d'un élève suivent (`_ficheCourbeFin`).
+const _LS_FICHE_JUSQUA = 'suiviPP_ficheJusqua', FICHE_JUSQUA = [['bilan', 'date du bilan', 'Jusqu\'à la date du bilan écrit pour ce moment (sinon aujourd\'hui) : relu plus tard, il garde les données de son jour'], ['auj', 'aujourd\'hui', 'Jusqu\'à aujourd\'hui, quelle que soit la date des bilans : pour rédiger avec tout ce qui s\'est passé']];
+function _ficheJusqua() { try { return localStorage.getItem(_LS_FICHE_JUSQUA) === 'auj' ? 'auj' : 'bilan'; } catch (_) { return 'bilan'; } }
+function ficheJusquaSet(k) {
+  const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); if (document.activeElement?.id === 'fi-dec') ficheDecisionSave();
+  try { if (k === 'auj') localStorage.setItem(_LS_FICHE_JUSQUA, 'auj'); else localStorage.removeItem(_LS_FICHE_JUSQUA); } catch (_) { }
+  _ficheRender();
+}
 // Une entrée d'avant le moment (historique) : la classe qui la met en retrait.
 function _ficheAvant(b, d) { return d && b && d < b.mStart ? ' pf-avant' : ''; }
 // Le cumul d'observations au jour dit : le dernier relevé chiffré à cette date ou avant.
@@ -9887,8 +9898,9 @@ function _ficheBarHTML(cls, stu, col) {
   const vue = _ficheVue(), cote = _ficheOuverture() === 'cote';
   const ms = _ficheMoments(cls);
   return `<span class="pf-grp">${_chaleurMomentsPickHTML(cls, 'fi')}<span class="pf-seg">${ms.map((c, k) => `${k && ms[k - 1].pIdx !== c.pIdx ? '' : ''}<button class="${col && c.key === col.key ? 'on' : ''}" aria-pressed="${!!col && c.key === col.key}" onclick="ficheMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span></span>
-    ${col ? (W => { const dep = _ficheDepuis(), fin = W ? `jusqu'au ${_fmtDateFr(W.end).slice(0, 5)}${W.pourquoi === 'bilan' ? ' (bilan)' : W.pourquoi === 'aujourdhui' ? ' (aujourd\'hui)' : W.pourquoi === 'periode' ? ' (fin de période)' : ''}` : '';
-      return `<span class="pf-grp"><span class="pf-sl">Depuis</span><span class="pf-seg" role="group" aria-label="Depuis">${FICHE_DEPUIS.map(([k, l, t]) => `<button class="${dep === k ? 'on' : ''}" aria-pressed="${dep === k}" onclick="ficheDepuisSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>${fin ? `<span class="pf-mu" title="La fiche s'arrête à la date du bilan écrit pour ce moment, sinon aujourd'hui">${_escName(fin)}</span>` : ''}</span>`; })(_ficheFenetre(cls, stu.id, col)) : ''}
+    ${col ? (W => { const dep = _ficheDepuis(), jq = _ficheJusqua(), fin = W ? `${_fmtDateFr(W.end).slice(0, 5)}${W.pourquoi === 'moment' ? ' (fin du moment)' : W.pourquoi === 'periode' ? ' (fin de période)' : W.pourquoi === 'aujourdhui' && jq === 'bilan' ? ' (pas de bilan)' : ''}` : '';
+      return `<span class="pf-grp"><span class="pf-sl">Depuis</span><span class="pf-seg" role="group" aria-label="Depuis">${FICHE_DEPUIS.map(([k, l, t]) => `<button class="${dep === k ? 'on' : ''}" aria-pressed="${dep === k}" onclick="ficheDepuisSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span></span>
+    <span class="pf-grp"><span class="pf-sl">Jusqu'au</span><span class="pf-seg" role="group" aria-label="Jusqu'au">${FICHE_JUSQUA.map(([k, l, t]) => `<button class="${jq === k ? 'on' : ''}" aria-pressed="${jq === k}" onclick="ficheJusquaSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>${fin ? `<span class="pf-mu" title="Jamais avant la fin du moment, jamais après la fin de la période">${_escName(fin)}</span>` : ''}</span>`; })(_ficheFenetre(cls, stu.id, col)) : ''}
     <span class="pf-seg" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     <span class="pf-sp"></span>
     <span class="pf-nav"><button onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="pf-n">${i + 1}/${o.length}</span><button onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>
@@ -12227,7 +12239,7 @@ function _ficheCourbePoints(cls, sid, p, src) {
 function _ficheCourbeFin(cls, sid, col, auj) {
   const p = _ficheBornes(cls, col)?.p;
   if (!p) return null;
-  const bil = _bilanCible(cls, sid, { type: col.type, date: col.date });
+  const bil = _ficheJusqua() === 'auj' ? null : _bilanCible(cls, sid, { type: col.type, date: col.date });   // « Jusqu'au : aujourd'hui » (v1.81.1)
   const d = bil ? bil.date : (auj || _todayYmd());
   if (d > p.end) return { fin: p.end, pourquoi: 'periode' };
   if (d < p.start) return { fin: p.start, pourquoi: bil ? 'bilan' : 'aujourdhui' };
