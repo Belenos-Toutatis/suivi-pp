@@ -292,6 +292,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
   --radius-sm: 3px;
   --radius-md: 5px;
   --radius-lg: 8px;
+  --pf-col: 370px;   /* largeur minimale d'une colonne de cartes de la fiche, lue AUSSI par la maçonnerie (`_pfNbColonnes`) */
   --shadow-card: 0 1px 0 rgba(11, 22, 32, 0.04), 0 2px 8px rgba(11, 22, 32, 0.05);
   --shadow-pop:  0 4px 16px rgba(11, 22, 32, 0.12), 0 1px 2px rgba(11, 22, 32, 0.06);
 }
@@ -1737,7 +1738,7 @@ img.ch-ph:not([src]) { visibility: hidden; }
    l'une après l'autre, dans l'ordre, à hauteurs aussi égales que possible (`_pfMasonry` / `_pfColonnes` : la hauteur
    de chaque carte en rangées de 4 px, sa colonne et sa rangée posées par le script). Les colonnes CSS d'avant
    s'équilibraient mal : une colonne restait vide à droite. Sans le script, une simple grille. */
-.pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); gap: 12px; align-items: start; }
+.pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--pf-col), 100%), 1fr)); gap: 12px; align-items: start; }
 .pf-grid.mason { grid-auto-rows: 4px; row-gap: 0; }
 .pf-grid > .pf-card { margin: 0; }
 .pf-card { background: var(--pf-card); border: 1px solid var(--rule-line); border-radius: 8px; padding: 10px 12px; min-width: 0; font-size: 14px; }
@@ -3842,8 +3843,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.82.3';
-const APP_BUILD_DATE = '2026-11-09T01:19:19Z';
+const APP_VERSION    = '1.82.4';
+const APP_BUILD_DATE = '2026-11-09T01:27:11Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9623,7 +9624,16 @@ function _pfMasonry(grid) {
     if (!grid.isConnected) return;
     _ficheCtMesurer(grid);   // la largeur a pu changer : un contact déborde ou ne déborde plus
     const cartes = [...grid.children];
-    const n = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+    // ⚠️ v1.82.4 — le nombre de colonnes se CALCULE d'après la largeur, il ne se lit plus dans `gridTemplateColumns`
+    // (l'utilisateur : « ça clignote en permanence », en format vertical, à l'ouverture d'une fiche). Grille pas encore
+    // dessinée : le navigateur rend le texte de la règle (« repeat(auto-fill, minmax(min(370px, 100%), 1fr)) »), soit
+    // quatre morceaux → quatre colonnes ; les cartes posées en colonnes 3 et 4 créaient des pistes IMPLICITES (26 px),
+    // que la lecture suivante comptait à leur tour : la grille ne revenait jamais à ses deux vraies colonnes, et les
+    // hauteurs des cartes coincées dans 26 px relançaient l'observateur sans fin (490 écritures par seconde, mesuré).
+    const cs = getComputedStyle(grid);
+    const n = _pfNbColonnes(grid.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - 1,
+      parseFloat(cs.getPropertyValue('--pf-col')) || 370, parseFloat(cs.columnGap) || 0);
+    if (!n) return;   // pas encore dessinée : l'observateur rappellera quand les cartes auront une taille
     const spans = cartes.map(c => Math.max(1, Math.ceil((c.getBoundingClientRect().height + 12) / 4)));
     const col = _pfColonnes(spans, n), bas = new Array(n).fill(0);
     cartes.forEach((c, i) => {
@@ -9641,6 +9651,13 @@ function _pfMasonry(grid) {
   grid.classList.add('mason');
   suivre(); poser();
   _pfMasonObs = [ro, mo].filter(Boolean);
+}
+// Le nombre de colonnes de `repeat(auto-fill, minmax(min(<min>, 100%), 1fr))` pour une largeur donnée — pur (testé).
+// La largeur passée est ARRONDIE PAR DÉFAUT (−1 px) : au pire une colonne de moins que la grille (la dernière reste
+// vide), jamais une de plus (elle naîtrait implicite, étroite, hors de la carte). 0 : grille pas encore dessinée.
+function _pfNbColonnes(largeur, min, gap) {
+  if (!(largeur > 0)) return 0;
+  return Math.max(1, Math.floor((largeur + gap) / (Math.min(min, largeur) + gap)));
 }
 // La colonne de chaque carte — pure (testée) : la suite des hauteurs coupée en `n` morceaux CONSÉCUTIFS (au plus un
 // par carte, aucun vide), la plus haute colonne la plus basse possible ; à égalité, la coupe la plus tardive (les

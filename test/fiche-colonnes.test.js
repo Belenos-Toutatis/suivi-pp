@@ -27,3 +27,29 @@ test('la plus haute colonne la plus basse possible ; aucune colonne vide', () =>
   const r3 = col(H, 3), haut = Math.max(...[0, 1, 2].map(k => H.filter((_, i) => r3[i] === k).reduce((x, y) => x + y, 0)));
   assert.strictEqual(haut, best);
 });
+
+// v1.82.4 — l'utilisateur : « ça clignote en permanence », en format vertical, à l'ouverture d'une fiche. La maçonnerie
+// lisait le nombre de colonnes dans `gridTemplateColumns` : grille pas encore dessinée, c'était le texte de la règle
+// (quatre morceaux), puis les pistes implicites que ses propres cartes avaient créées. Il se calcule désormais.
+test('nombre de colonnes : calculé d’après la largeur, comme repeat(auto-fill, minmax(min(370px, 100%), 1fr))', () => {
+  const nb = (w, min = 370, gap = 12) => app.__TESTEVAL(`_pfNbColonnes(${w}, ${min}, ${gap})`);
+  assert.strictEqual(nb(0), 0, 'pas encore dessinée : rien à poser');
+  assert.strictEqual(nb(-5), 0);
+  assert.strictEqual(nb(300), 1, 'plus étroit qu’une colonne : une colonne de toute la largeur');
+  assert.strictEqual(nb(751), 1);
+  assert.strictEqual(nb(752), 2, '2 × 370 + 12');
+  assert.strictEqual(nb(826), 2, 'le format vertical du panneau : deux colonnes, pas quatre');
+  assert.strictEqual(nb(1133), 2);
+  assert.strictEqual(nb(1134), 3);
+  assert.strictEqual(nb(1516), 4);
+});
+
+test('la maçonnerie ne lit plus gridTemplateColumns, et la règle CSS et le calcul partagent --pf-col', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'suivi pp.html'), 'utf8');
+  const fn = src.slice(src.indexOf('function _pfMasonry'), src.indexOf('function _pfNbColonnes'));
+  assert.ok(fn.length > 100);
+  assert.doesNotMatch(fn.replace(/\/\/.*$/gm, ''), /gridTemplateColumns/, 'hors commentaires');
+  assert.match(fn, /_pfNbColonnes\(/);
+  assert.match(src, /\n  --pf-col: 370px;/, 'déclaré dans :root');
+  assert.match(src, /\.pf-grid \{[^}]*minmax\(min\(var\(--pf-col\), 100%\), 1fr\)/);
+});
