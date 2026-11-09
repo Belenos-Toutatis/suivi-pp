@@ -26,8 +26,14 @@ test('un contact postérieur au moment affiché reste dans la carte (mi-S1 finit
   const c = carte('bil:miperiode:0');
   assert.match(c, /Contact n0/);
   assert.match(c, /02\/11/);
-  assert.match(c, /1 · 0 sur la période/, 'le total, et combien tombent dans le moment');
   assert.doesNotMatch(c, /Aucun contact/);
+  // v1.81.0 : la fenêtre de la fiche va jusqu'à la date du bilan (sinon aujourd'hui) — dates fixées par un bilan écrit,
+  // pour ne pas dépendre du jour où tourne le test.
+  ev(`S.eleves.s1.bilans = [{ id: 'b1', date: '2026-10-30', ts: 1, type: 'miperiode', texte: 'x' }]`);
+  assert.match(carte('bil:miperiode:0'), /1 · 0 sur la période/, 'bilan écrit le 30/10 : le contact du 02/11 est hors du moment');
+  ev(`S.eleves.s1.bilans[0].date = '2026-11-05'`);
+  assert.match(carte('bil:miperiode:0'), /<span class="pf-k">1<\/span>/, 'bilan écrit le 05/11 : le moment court jusque-là, le contact y tombe');
+  ev(`delete S.eleves.s1.bilans`);
 });
 
 test('les plus récents d’abord, réduits à FICHE_CT_N lignes, « n plus anciens » déplie et se retient', () => {

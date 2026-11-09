@@ -1866,6 +1866,9 @@ img.ch-ph:not([src]) { visibility: hidden; }
 .pf-clic { cursor: pointer; } .pf-clic:hover { background: var(--paper); }
 .pf-d { font-family: var(--font-mono); font-size: 12px; color: var(--pencil); padding-top: 2px; }
 .pf-ty { font-weight: 700; color: var(--ink-deep); }
+/* L'historique (« Depuis » la période ou la rentrée, v1.81.0) : ce qui précède le moment, en retrait. */
+.pf-ent.pf-avant, .pf-jr.pf-avant, .pf-avant .pf-ty { color: var(--pencil); }
+.pf-ent.pf-avant, .pf-jr.pf-avant { border-left: 3px solid var(--rule-line); padding-left: 6px; }
 .pf-tog { border: 0; background: none; padding: 0; font: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
 .pf-tog.ok { color: var(--ok-fg); } .pf-tog.ko { color: var(--danger-fg); font-weight: 700; }
 .pf-empty { color: var(--pencil); font-style: italic; font-size: 13px; margin: 2px 0; }
@@ -1907,6 +1910,7 @@ html[data-theme="dark"] .pf-star { color: #e6b450; }
 .pf-tl .pf-mois { fill: var(--pencil); font-size: 10.5px; }
 .pf-tl .lane { stroke: var(--rule-line-soft); }
 .pf-tl .mid { stroke: var(--margin-red); stroke-dasharray: 3 3; }
+.pf-tl .deb { stroke: var(--ink-deep); stroke-dasharray: 2 4; }
 .pf-tl .mk { cursor: pointer; } .pf-tl .mk:hover { opacity: .75; }
 .pf-jr { display: grid; grid-template-columns: 62px 22px 1fr; gap: 2px 8px; padding-block: 6px; border-bottom: 1px solid var(--rule-line-soft); font-size: 13.5px; }
 .pf-jr .pf-sw { width: 12px; height: 12px; border-radius: 3px; margin-top: 4px; }
@@ -3802,8 +3806,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.80.6';
-const APP_BUILD_DATE = '2026-11-02T21:27:14Z';
+const APP_VERSION    = '1.81.0';
+const APP_BUILD_DATE = '2026-11-09T00:22:00Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -9702,6 +9706,39 @@ function _ficheBornes(cls, col) {
   }
   return { start: p.start, end: p.end, p };
 }
+// La FENÊTRE de la fiche (v1.81.0, l'utilisateur : « si le bilan, je le fais le 10 novembre avec ma principale, j'ai
+// besoin des notes jusqu'à maintenant » ; « je veux peut-être aussi avoir l'historique ») : le moment choisit le BILAN
+// qu'on écrit, il ne coupe plus ce qu'on regarde. Arbitré :
+//  · FIN = la date du bilan écrit pour ce moment, sinon aujourd'hui (la règle de la courbe, `_ficheCourbeFin`), bornée
+//    à la période ; rouverte plus tard, la fiche montre ce qu'on avait sous les yeux le jour du bilan. ⚠️ La fenêtre
+//    PROLONGE le moment, elle ne le raccourcit jamais : jamais avant la fin du moment (un conseil écrit le 20/01 garde
+//    les décisions du 25/01 et les papiers prévus d'ici le 31/01 ; un moment en cours ou à venir garde ses bornes).
+//  · DÉBUT = au choix « Depuis » (`_ficheDepuis`, retenu sur le poste) : le début du moment (défaut), de la période,
+//    ou la rentrée. Ce qui précède le moment est l'HISTORIQUE (`pf-avant`, en retrait) ; les compteurs des cartes,
+//    les faits qu'on insère et la synthèse de l'IA portent sur le moment seul (`mStart` → `end`).
+// → { start, end, p, mStart, mEnd, pourquoi: 'bilan' | 'aujourdhui' | 'periode' | 'moment' }. PUR (lit S et le poste).
+function _ficheFenetre(cls, sid, col, depuis) {
+  const m = _ficheBornes(cls, col);
+  if (!m) return null;
+  const F = _ficheCourbeFin(cls, sid, col);
+  let end = F ? F.fin : m.end, pourquoi = F ? F.pourquoi : 'moment';
+  if (end <= m.end) { end = m.end; pourquoi = 'moment'; }
+  const dep = depuis || _ficheDepuis();
+  const an = _periods(cls)[0]?.start || m.p.start;
+  const start = dep === 'annee' ? (an < m.start ? an : m.start) : dep === 'periode' ? m.p.start : m.start;
+  return { start, end, p: m.p, mStart: m.start, mEnd: m.end, pourquoi };
+}
+// La même, réduite au moment (`start` = début du moment) : faits, IA, courbe, fiches de suivi, fiche imprimée.
+function _ficheFenetreMoment(cls, sid, col) { const f = _ficheFenetre(cls, sid, col, 'moment'); return f && { ...f, start: f.mStart }; }
+const _LS_FICHE_DEPUIS = 'suiviPP_ficheDepuis', FICHE_DEPUIS = [['moment', 'moment', 'Depuis le début du moment choisi'], ['periode', 'période', 'Depuis le début de la période : ce qui précède le moment, en retrait'], ['annee', 'rentrée', 'Depuis la rentrée : ce qui précède le moment, en retrait']];
+function _ficheDepuis() { try { const v = localStorage.getItem(_LS_FICHE_DEPUIS); return FICHE_DEPUIS.some(x => x[0] === v) ? v : 'moment'; } catch (_) { return 'moment'; } }
+function ficheDepuisSet(k) {
+  const ta = document.getElementById('fi-bil'); if (ta && document.activeElement === ta) ficheBilanSave(); if (document.activeElement?.id === 'fi-dec') ficheDecisionSave();
+  try { if (k === 'moment') localStorage.removeItem(_LS_FICHE_DEPUIS); else localStorage.setItem(_LS_FICHE_DEPUIS, k); } catch (_) { }
+  _ficheRender();
+}
+// Une entrée d'avant le moment (historique) : la classe qui la met en retrait.
+function _ficheAvant(b, d) { return d && b && d < b.mStart ? ' pf-avant' : ''; }
 // Le cumul d'observations au jour dit : le dernier relevé chiffré à cette date ou avant.
 function _cumulAu(cid, sid, ymd) {
   const m = _relMap(cid);
@@ -9782,7 +9819,7 @@ function _avisMotsFrequents(items, cols) {
 // Les FAITS d'un moment, en phrases : [{ k, html, phrase }] — `phrase` est ce qu'on insère
 // dans le bilan (en minuscule, sans point), vide quand le fait ne se dit pas. PUR (lit S).
 function _ficheFaits(cls, stu, col) {
-  const b = _ficheBornes(cls, col);
+  const b = _ficheFenetreMoment(cls, stu.id, col);
   if (!b) return [];
   const cid = cls.id, sid = stu.id, F = [];
   const e = t => _escName(t);
@@ -9850,6 +9887,8 @@ function _ficheBarHTML(cls, stu, col) {
   const vue = _ficheVue(), cote = _ficheOuverture() === 'cote';
   const ms = _ficheMoments(cls);
   return `<span class="pf-grp">${_chaleurMomentsPickHTML(cls, 'fi')}<span class="pf-seg">${ms.map((c, k) => `${k && ms[k - 1].pIdx !== c.pIdx ? '' : ''}<button class="${col && c.key === col.key ? 'on' : ''}" aria-pressed="${!!col && c.key === col.key}" onclick="ficheMomentSet('${_escJsAttr(c.key)}')" title="${_escAttr(c.long)}">${_escName(c.court)}</button>`).join('')}</span></span>
+    ${col ? (W => { const dep = _ficheDepuis(), fin = W ? `jusqu'au ${_fmtDateFr(W.end).slice(0, 5)}${W.pourquoi === 'bilan' ? ' (bilan)' : W.pourquoi === 'aujourdhui' ? ' (aujourd\'hui)' : W.pourquoi === 'periode' ? ' (fin de période)' : ''}` : '';
+      return `<span class="pf-grp"><span class="pf-sl">Depuis</span><span class="pf-seg" role="group" aria-label="Depuis">${FICHE_DEPUIS.map(([k, l, t]) => `<button class="${dep === k ? 'on' : ''}" aria-pressed="${dep === k}" onclick="ficheDepuisSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>${fin ? `<span class="pf-mu" title="La fiche s'arrête à la date du bilan écrit pour ce moment, sinon aujourd'hui">${_escName(fin)}</span>` : ''}</span>`; })(_ficheFenetre(cls, stu.id, col)) : ''}
     <span class="pf-seg" role="group" aria-label="Vue de la fiche">${FICHE_VUES.map(([k, l, t]) => `<button class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}" onclick="ficheVueSet('${k}')" title="${_escAttr(t)}">${l}</button>`).join('')}</span>
     <span class="pf-sp"></span>
     <span class="pf-nav"><button onclick="ficheNav(-1)"${i <= 0 ? ' disabled' : ''} title="Élève précédent (←)">◀</button><span class="pf-n">${i + 1}/${o.length}</span><button onclick="ficheNav(1)"${i < 0 || i >= o.length - 1 ? ' disabled' : ''} title="Élève suivant (→)">▶</button></span>
@@ -10217,7 +10256,8 @@ function _iaPersonnes(cls, stu, codes) {
 // → { texte, ok } ; `ok` = les mots des libellés écrits par l'app, jamais « à vérifier ».
 // `repere` (toute la classe d'un coup) : « [Élève n] » au lieu de « [Élève] », et le moment dit une seule fois, en tête du lot.
 function _iaDonnees(cls, stu, col, blocs, repere) {
-  const b = _ficheBornes(cls, col);
+  // Un élève (sans repère) : la fenêtre de sa fiche (v1.81.0) ; le lot de la classe (repère « [Élève n] ») garde les bornes du moment.
+  const b = repere ? _ficheBornes(cls, col) : _ficheFenetreMoment(cls, stu.id, col);
   if (!b) return { texte: '', ok: new Set() };
   const on = k => blocs.has(k), cid = cls.id, sid = stu.id, civ = _civOf(sid), ok = new Set(), parts = [];
   // Les mots, et les mots composés entiers (« Physique-Chimie » est un seul mot pour `_iaSuspects`).
@@ -12199,7 +12239,7 @@ function _ficheCourbeFin(cls, sid, col, auj) {
 function _debutUtile(ymd) { return /^\d{4}-08-/.test(ymd) ? ymd.slice(0, 4) + '-09-01' : ymd; }
 // La courbe de la période jusqu'à `_ficheCourbeFin`, la zone du moment en clair, la mi-période marquée.
 function _ficheCourbeHTML(cls, stu, col) {
-  const b = _ficheBornes(cls, col), F = _ficheCourbeFin(cls, stu.id, col), p = { ...b.p, start: _debutUtile(b.p.start), end: F.fin };
+  const b = _ficheFenetreMoment(cls, stu.id, col), F = _ficheCourbeFin(cls, stu.id, col), p = { ...b.p, start: _debutUtile(b.p.start), end: F.fin };
   const avecMbn = _obsMbnClasseAny(cls);
   const src = { carnet: _ficheCourbeSrc.carnet, mbn: avecMbn && _ficheCourbeSrc.mbn };
   if (!src.carnet && !src.mbn) return '<p class="pf-empty">Aucune source cochée : cochez « Relevés du carnet » ou « Notées dans MBN ».</p>';
@@ -12269,26 +12309,28 @@ function ficheBasToutUI(btn) {
 }
 function _ficheTableauHTML(cls, stu, col, ed) {
   ed = Object.assign({ places: [], els: [], elsHTML: '', docsInfo: [], dateInp: () => '', presence: '', age: null }, ed || {});
-  const b = _ficheBornes(cls, col), sid = stu.id;
-  const dans = d => d && d >= b.start && d <= b.end;
-  const o = _obsEntre(cls.id, sid, b.start, b.end);
-  const mbn = _obsMbnEntre(sid, b.start, b.end), avecMbn = _obsMbnClasseAny(cls);
+  // La fenêtre (v1.81.0) : les listes vont de « Depuis » à la date du bilan (sinon aujourd'hui), l'historique en retrait ;
+  // les compteurs portent sur le moment (`mStart` → `end`).
+  const b = _ficheFenetre(cls, stu.id, col), sid = stu.id;
+  const dans = d => d && d >= b.start && d <= b.end, dansM = d => d && d >= b.mStart && d <= b.end;
+  const o = _obsEntre(cls.id, sid, b.mStart, b.end);
+  const mbn = _obsMbnEntre(sid, b.start, b.end), mbnM = mbn.filter(x => dansM(x.date)).length, avecMbn = _obsMbnClasseAny(cls);
   // Carnet + MBN (v1.46.1) : deux sections sous la courbe, chacune avec sa coche « additionnée
   // dans le graphique » ; le détail des relevés du carnet faits à la main sur le moment.
   const srcH = (k, titre, n, crayon) => `<h3 class="pf-h3b"><label class="pf-src" title="Additionnées dans le graphique — décocher pour n'afficher que l'autre source"><input type="checkbox"${_ficheCourbeSrc[k] ? ' checked' : ''} onchange="ficheCourbeSrcUI('${k}', this.checked)"> ${titre}</label>${crayon ? ' ' + crayon : ''}<span class="pf-k">${n}</span></h3>`;
   const rm = _relMap(cls.id) || {};
   const rels = _relDates(cls.id).filter(dans).filter(d => _relValue(rm[d], sid) !== null);
   const relevesHTML = rels.length ? rels.map(d => { const v = _relValue(rm[d], sid), x = _relDelta(cls.id, d, sid);
-    return `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(d).slice(0, 5))}</span><span>${v === REL_ABSENT ? '<span class="pf-mu">absent au relevé</span>' : `cumul <span class="pf-ty">${v}</span>${x && x.prev !== null && x.delta ? ` <span class="pf-mu">(${x.delta > 0 ? '+' : ''}${x.delta})</span>` : ''}`}${rm[d]?.label ? ` · ${_escName(rm[d].label)}` : ''}</span></div>`; }).join('')
+    return `<div class="pf-ent${_ficheAvant(b, d)}"><span class="pf-d">${_escName(_fmtDateFr(d).slice(0, 5))}</span><span>${v === REL_ABSENT ? '<span class="pf-mu">absent au relevé</span>' : `cumul <span class="pf-ty">${v}</span>${x && x.prev !== null && x.delta ? ` <span class="pf-mu">(${x.delta > 0 ? '+' : ''}${x.delta})</span>` : ''}`}${rm[d]?.label ? ` · ${_escName(rm[d].label)}` : ''}</span></div>`; }).join('')
     : '<p class="pf-empty">Aucun relevé sur la période.</p>';
   const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   // Contacts : TOUS, quel que soit le moment (v1.80.5, l'utilisateur : « il n'y a pas lieu qu'ils soient pour des moments
   // différents, ils devraient tout le temps être affichés ») — un contact noté le 02/11 disparaissait d'une fiche ouverte
   // sur la mi-S1 (01/08 → 31/10). Les plus récents d'abord, réduits à FICHE_CT_N lignes ; « n plus anciens » déplie
   // (retenu sur le poste, `ctTout` dans les plis de la fiche).
-  const ctTous = _journalOf(sid).filter(_isPlainObj), ctMoment = ctTous.filter(x => dans(x.date)).length;
+  const ctTous = _journalOf(sid).filter(_isPlainObj), ctMoment = ctTous.filter(x => dansM(x.date)).length;
   const ctOuvert = !!_fichePlis().ctTout, ct = ctOuvert ? ctTous : ctTous.slice(0, FICHE_CT_N);
-  const absR = _absMbnClasseAny(cls) ? _absMbnResume(sid, b.start, b.end) : null;
+  const absR = _absMbnClasseAny(cls) ? _absMbnResume(sid, b.start, b.end) : null, absM = absR && _absMbnResume(sid, b.mStart, b.end);
   const docs = _docsOfCurrent().filter(d => (d.classIds || []).includes(cls.id) && (!d.dateDistribution || d.dateDistribution <= b.end) && _docExpected(d).some(x => x.id === sid));
   const manq = docs.filter(d => !d.archive && d.suiviRetour !== false && _papierDistribue(d) && !_retour(d, sid).rendu);   // comme la liste et la synthèse
   // Moyennes : matières en lignes, imports en colonnes, Δ du premier au dernier.
@@ -12341,9 +12383,9 @@ function _ficheTableauHTML(cls, stu, col, ed) {
     ${card('', 'Identité et repères', '', ident, `<span class="pf-k"></span><button class="btn btn-g btn-sm" onclick="ficheVersEdition()" title="Tout modifier dans une fenêtre : nom, civilité, groupe, options, régimes, aménagements, dates">✏️ Tout modifier</button><button class="btn btn-d btn-sm" onclick="ficheSupprimer()" title="Supprimer l'élève (récupérable par Ctrl+Z)">🗑 Supprimer</button>`)}
     ${card('', 'Papiers', manq.length ? `${manq.length} à rendre` : 'tout est rendu', ouEdit('papiers') ? `<div class="pf-edbox">${ed.docsHTML}</div>` : docs.length ? docs.map(d => { const r = _retour(d, sid), suivi = d.suiviRetour !== false, ch = choixDoc(d.id);
       return `<div class="pf-ent"><span class="pf-d">${d.dateDistribution ? _escName(_fmtDateFr(d.dateDistribution).slice(0, 5)) : ''}</span><span>${_escName(d.titre)} · ${!suivi ? '<span class="pf-mu">rien à rendre</span>' : (d.archive && !r.rendu) ? '<span class="pf-mu">(archivé)</span>' /* rangé : pas un manquant (le compteur l'exclut) */ : (!r.rendu && !_papierDistribue(d)) ? '<span class="pf-mu">pas encore distribué</span>' /* à venir : pas un manquant non plus */ : `${d.archive ? '<span class="pf-mu">(archivé)</span> ' : ''}<button class="pf-tog ${r.rendu ? 'ok' : 'ko'}" onclick="ficheToggleRendu('${_escJsAttr(d.id)}')" title="Clic : ${r.rendu ? 'décocher' : 'cocher rendu aujourd\'hui'}">${r.rendu ? `✓ rendu${r.dateRetour ? ' le ' + _escName(_fmtDateFr(r.dateRetour).slice(0, 5)) : ''}` : '☐ pas rendu'}</button>`}${ch ? `<br><span class="pf-mu">${_escName(ch)}</span>` : ''}</span></div>`; }).join('') : '<p class="pf-empty">Aucun papier.</p>', pen('papiers', 'Corriger les réponses, la date de retour, la note — tous les documents, archivés compris'))}
-    ${absR ? card('', '🕒 Absences et retards', absR.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absR))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
-    ${card('incid', 'Incidents', inc.length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
-    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbn.length} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbn.length, pen('mbn', 'Retirer une observation MBN importée par erreur — toute l\'année')) + (ouEdit('mbn') ? `<div class="pf-edbox">${_obsMbnOf(sid).length ? _obsMbnOf(sid).map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''} <button class="btn btn-d btn-sm" onclick="obsMbnRemoveUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}')" title="Retirer cette observation (Ctrl+Z la rend)">🗑 Supprimer</button></span></div>`).join('') : '<p class="pf-empty">Aucune observation MBN.</p>'}</div>` : mbn.length ? mbn.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
+    ${absR ? card('', '🕒 Absences et retards', absM.list.length || '', `<p class="pf-mu" style="margin:0 0 4px">${_escName(_absResumeTexte(absM))}</p>` + (absR.list.length ? absR.list.map(x => `<div class="pf-ent${_ficheAvant(b, x.debut)}"><span class="pf-d">${_escName(_fmtDateFr(x.debut).slice(0, 5))}</span><span>${_escName(_absMbnTexte(x, true))}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>')) : ''}
+    ${card('incid', 'Incidents', inc.filter(x => dansM(x.date)).length, ouEdit('incidents') ? `<div class="pf-edbox">${ed.incHTML}</div>` : inc.length ? inc.map(x => `<div class="pf-ent pf-clic${_ficheAvant(b, x.date)}" role="button" tabindex="0" onclick="ficheVersIncident('${_escJsAttr(x.id)}')" onkeydown="if(event.key==='Enter')this.click()" title="Modifier cette entrée"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(_instanceOf(x.type).label)}</span>${x.pdf ? ` <a href="#" onclick="event.stopPropagation();pjOpenUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}');return false" title="Ouvrir le PDF joint">📎</a>` : ''}<br>${_escName(x.objet || '')}</span></div>`).join('') : '<p class="pf-empty">Aucun incident sur la période.</p>', add('ficheVersIncident()', 'Noter un incident') + pen('incidents', 'Modifier ou supprimer un incident — toute l\'année, avec les PDF joints'))}
+    ${card('obs', avecMbn ? 'Observations' : 'Carnet', avecMbn ? `${(o || 0) + mbnM} sur la période` : o === null ? '' : `${o} sur la période`, _ficheCourbeHTML(cls, stu, col) + (avecMbn ? srcH('carnet', 'Relevés du carnet', o === null ? 0 : o, pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')) : `<h3 class="pf-h3b">Relevés du carnet ${pen('releves', 'Corriger un cumul relevé — tous les relevés de l\'année')}<span class="pf-k">${o === null ? 0 : o}</span></h3>`) + (_ficheEdit === 'releves' ? ed.relevesHTML : relevesHTML) + (avecMbn ? srcH('mbn', 'Notées dans MBN', mbnM, pen('mbn', 'Retirer une observation MBN importée par erreur — toute l\'année')) + (ouEdit('mbn') ? `<div class="pf-edbox">${_obsMbnOf(sid).length ? _obsMbnOf(sid).map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''} <button class="btn btn-d btn-sm" onclick="obsMbnRemoveUI('${_escJsAttr(sid)}','${_escJsAttr(x.id)}')" title="Retirer cette observation (Ctrl+Z la rend)">🗑 Supprimer</button></span></div>`).join('') : '<p class="pf-empty">Aucune observation MBN.</p>'}</div>` : mbn.length ? mbn.map(x => `<div class="pf-ent${_ficheAvant(b, x.date)}"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><span class="pf-ty">${_escName(x.motif || x.type || 'observation')}</span>${x.par ? ' · ' + _escName(x.par) : ''}${x.info ? `<br>${_escName(x.info)}` : ''}</span></div>`).join('') : '<p class="pf-empty">Aucune sur la période.</p>') : ''))}
     ${_ficheSuivisCarteHTML(cls, stu, col)}
     ${card('contact', 'Contacts avec la famille', ctTous.length ? `${ctTous.length}${ctMoment !== ctTous.length ? ` · ${ctMoment} sur la période` : ''}` : '', (ct.length ? ct.map(x => `<div class="pf-ent"><span class="pf-d">${_escName(_fmtDateFr(x.date).slice(0, 5))}</span><span><div class="pf-ct-txt${_ficheCtOuverts.has(x.id) ? ' ouvert' : ''}"><span class="pf-ty">${_escName(_journalType(x.type).label.toLowerCase())}</span> · ${_mdMini(x.texte || '', true)}</div><button class="pf-ct-suite" hidden onclick="ficheContactSuiteUI(this,'${_escJsAttr(x.id)}')" aria-expanded="${_ficheCtOuverts.has(x.id)}">${_ficheCtOuverts.has(x.id) ? '▴ réduire' : '… lire la suite'}</button>${_journalPjLiensHTML(stu.id, x)}</span></div>`).join('')
       + (ctTous.length > FICHE_CT_N ? `<button class="btn btn-g btn-sm pf-ct-tout" onclick="ficheContactsToutUI()" aria-expanded="${ctOuvert}">${ctOuvert ? '▴ Réduire aux plus récents' : `▾ ${(n => n > 1 ? `${n} contacts plus anciens` : '1 contact plus ancien')(ctTous.length - FICHE_CT_N)}`}</button>` : '')
@@ -12355,7 +12397,7 @@ function _ficheTableauHTML(cls, stu, col, ed) {
 }
 // ── Vue « Faits et rédaction » ──
 function _ficheFaitsHTML(cls, stu, col) {
-  const b = _ficheBornes(cls, col);
+  const b = _ficheFenetreMoment(cls, stu.id, col);
   const F = _ficheFaits(cls, stu, col);
   const av = _ficheAvis(cls, stu.id, col);
   const faits = F.map((f, i) => `<div class="pf-fact">${_pfSw(f.k)}<span>${f.html}</span>${f.phrase ? `<button class="pf-ins" onclick="ficheInsererFait(${i})" title="Ajouter à la fin du bilan">＋ insérer</button>` : '<span></span>'}</div>`).join('');
@@ -12368,7 +12410,7 @@ function _ficheFaitsHTML(cls, stu, col) {
 }
 // ── Vue « Chronologie » ── tout ce qui s'est passé dans les bornes du moment, daté.
 function _ficheEvenements(cls, stu, col) {
-  const b = _ficheBornes(cls, col), E = [], sid = stu.id, cid = cls.id;
+  const b = _ficheFenetre(cls, stu.id, col), E = [], sid = stu.id, cid = cls.id;
   const dans = d => d && d >= b.start && d <= b.end;
   const m = _relMap(cid) || {};
   _relDates(cid).filter(dans).forEach(d => { const x = _relDelta(cid, d, sid); if (x && x.delta > 0) E.push({ date: d, k: 'obs', n: x.delta, html: `Carnet : +${x.delta} (cumul ${x.n})` }); else if (_relValue(m[d], sid) === REL_ABSENT) E.push({ date: d, k: 'obs', n: 0, html: 'Carnet : absent au relevé' }); });
@@ -12388,12 +12430,13 @@ function _ficheEvenements(cls, stu, col) {
   return E.sort((x, y) => x.date.localeCompare(y.date)).map((x, i) => ({ ...x, i }));
 }
 function _ficheChronoHTML(cls, stu, col) {
-  const b = _ficheBornes(cls, col), E = _ficheEvenements(cls, stu, col);
-  const o = _obsEntre(cls.id, stu.id, b.start, b.end), m = _ficheMoy(cls, stu.id, col, b), av = _ficheAvis(cls, stu.id, col);
-  const nb = k => E.filter(x => x.k === k).length;
+  // Frise et journal : la fenêtre (historique en retrait) ; les chiffres du haut : le moment (v1.81.0).
+  const b = _ficheFenetre(cls, stu.id, col), E = _ficheEvenements(cls, stu, col);
+  const o = _obsEntre(cls.id, stu.id, b.mStart, b.end), m = _ficheMoy(cls, stu.id, col, b), av = _ficheAvis(cls, stu.id, col);
+  const nb = k => E.filter(x => x.k === k && x.date >= b.mStart).length;
   const nr = _ficheFaits(cls, stu, col).find(f => f.k === 'papier');
   const kpi = (l, v, sub) => `<div class="pf-kpi"><small>${l}</small><b>${v}</b><span>${sub || ''}</span></div>`;
-  const kpis = `<div class="pf-kpis">${kpi('Carnet', o ?? '–', (n => n ? `+ ${n} dans MBN` : 'observations sur la période')(_obsMbnEntre(stu.id, b.start, b.end).length))}${kpi('Moyenne', m && m.g !== null ? _escName(_fmtNote(m.g, 1)) : '–', m ? `${m.delta !== null ? _escName(_fmtDelta(m.delta)) + ' · ' : ''}${m.mats.filter(x => typeof x.v === 'number' && x.v < 10).length} sous 10` : 'pas encore d\'import')}${
+  const kpis = `<div class="pf-kpis">${kpi('Carnet', o ?? '–', (n => n ? `+ ${n} dans MBN` : 'observations sur la période')(_obsMbnEntre(stu.id, b.mStart, b.end).length))}${kpi('Moyenne', m && m.g !== null ? _escName(_fmtNote(m.g, 1)) : '–', m ? `${m.delta !== null ? _escName(_fmtDelta(m.delta)) + ' · ' : ''}${m.mats.filter(x => typeof x.v === 'number' && x.v < 10).length} sous 10` : 'pas encore d\'import')}${
     kpi('Incidents', nb('incid'), '')}${kpi('Contacts', nb('contact'), 'avec la famille')}${kpi('Avis', av ? `${av.items.length}/${av.camp.disciplines.length}` : '–', av && (av.camp.cibles || []).includes(stu.id) ? '★ demandé' : 'disciplines')}${kpi('Papiers', nr ? nr.n : 0, 'à rendre')}</div>`;
   const LANES = [['obs', 'Carnet'], ['moy', 'Moyennes'], ['avis', 'Avis'], ['incid', 'Incidents'], ['contact', 'Contacts'], ['bilan', 'Bilans'], ['papier', 'Papiers']];
   const W = 1000, L = 100, R = 14, LH = 26, H = 22 + LANES.length * LH;
@@ -12405,6 +12448,8 @@ function _ficheChronoHTML(cls, stu, col) {
   _moisDe({ start: d0, end: b.end }).forEach(([ym, l]) => { const d = ym + '-01' < d0 ? d0 : ym + '-01'; g += `<text class="pf-mois" x="${+X(d) + 2}" y="12">${_escName(l)}</text><line class="lane" x1="${X(d)}" y1="16" x2="${X(d)}" y2="${H}"/>`; });
   const mi = _ficheBornes(cls, { ...col, type: 'miperiode' }).end;
   if (mi > b.start && mi < b.end) g += `<line class="mid" x1="${X(mi)}" y1="16" x2="${X(mi)}" y2="${H}"/><text class="pf-mois" x="${+X(mi) + 3}" y="${H - 3}">mi-${_escName(b.p.label)}</text>`;
+  // Historique affiché (« Depuis » la période ou la rentrée) : le début du moment marqué.
+  if (b.mStart > d0 && b.mStart < b.end && b.mStart !== mi) g += `<line class="deb" x1="${X(b.mStart)}" y1="16" x2="${X(b.mStart)}" y2="${H}"/><text class="pf-mois" x="${+X(b.mStart) + 3}" y="${H - 15}">${_escName(col.court)}</text>`;   /* une ligne au-dessus de « mi-S1 », souvent voisine */
   LANES.forEach(([k, l], j) => { const y = 22 + j * LH + LH / 2; g += `<text x="0" y="${y + 4}">${l}</text><line class="lane" x1="${L}" y1="${y}" x2="${W - R}" y2="${y}"/>`; });
   E.forEach(e => {
     const j = LANES.findIndex(x => x[0] === e.k), y = 22 + j * LH + LH / 2, x = X(e.date);
@@ -12415,7 +12460,7 @@ function _ficheChronoHTML(cls, stu, col) {
       : `<circle class="mk" fill="${PF_ICO[e.k]}" fill-opacity="${e.k === 'obs' ? .75 : 1}" onclick="ficheSaut(${e.i})" cx="${x}" cy="${y}" r="${r}">${tip}</circle>`;
   });
   g += '</svg>';
-  const journal = E.length ? E.map(e => `<div class="pf-jr" id="fi-ev-${e.i}"><span class="pf-d">${_escName(_fmtDateFr(e.date).slice(0, 5))}</span>${_pfSw(e.k)}<span>${e.html}${e.detail ? `<details class="pf-lire"><summary class="pf-mu">Lire les avis</summary>${e.detail}</details>` : ''}</span></div>`).join('')
+  const journal = E.length ? E.map(e => `<div class="pf-jr${_ficheAvant(b, e.date)}" id="fi-ev-${e.i}"><span class="pf-d">${_escName(_fmtDateFr(e.date).slice(0, 5))}</span>${_pfSw(e.k)}<span>${e.html}${e.detail ? `<details class="pf-lire"><summary class="pf-mu">Lire les avis</summary>${e.detail}</details>` : ''}</span></div>`).join('')
     : '<p class="pf-empty">Rien sur la période.</p>';
   return `${kpis}<div class="pf-tl">${g}</div>
     <div><section class="pf-card"><h3>Journal de la période <span class="pf-k">${E.length} événement${E.length > 1 ? 's' : ''}, du plus ancien au plus récent</span></h3>${journal}</section></div>
@@ -23317,7 +23362,7 @@ function _fichePrintEleves(cls, col) {
 }
 // Une page : la fiche d'UN élève pour UN moment. `photo` = URL déjà lue (ou null). Tout est échappé.
 function _fichePrintHTML(cls, sid, col, opts, photo) {
-  const stu = S.eleves[sid], b = cls && col ? _ficheBornes(cls, col) : null;
+  const stu = S.eleves[sid], b = cls && col ? _ficheFenetreMoment(cls, sid, col) : null;   // comme à l'écran (v1.81.0)
   if (!stu || !b) return '';
   const o = Object.assign({}, _fichePrintOpts, opts || {});
   const on = k => o.parts.includes(k);
@@ -26478,7 +26523,7 @@ function _suivisCorpsHTML(r, papier) {
 // la fiche — un bilan en cours de frappe n'est pas touché.
 function _ficheSuivisCarteHTML(cls, stu, col) {
   if (!_suivisAUnSuivi(cls)) return '';
-  const b = _ficheBornes(cls, col), r = _suivisResume(cls, stu, b);
+  const b = _ficheFenetreMoment(cls, stu.id, col), r = _suivisResume(cls, stu, b);
   if (r && r.absent) return '';
   const k = r && !r.attente && !r.erreur && !r.horsPeriode ? [r.indiv?.[0]?.avis.titre, r.coll ? 'collectif ' + _svPct(r.coll.moy) : '', r.classe ? _svNb(r.classe.neg, 'incident') : ''].filter(Boolean).join(' · ') : '';
   return `<section class="pf-card" id="pf-suivis-carte"><h3>${_pfSw('suivi')}Fiches de suivi${k ? `<span class="pf-k">${_escName(k)}</span>` : '<span class="pf-k"></span>'}<button class="btn btn-g btn-sm" onclick="ficheVersSuivis()" title="Ouvrir la synthèse de cet élève dans l'onglet 📋 Suivis">↗ Ouvrir</button></h3>${_suivisCorpsHTML(r, false)}</section>`;
