@@ -1273,6 +1273,15 @@ td.rel-delta.hot  { background: var(--alert-bg);   color: var(--alert-fg); }
 .moy-table td.moy-c.low { background: var(--alert-bg); color: var(--alert-fg); }
 .moy-table td.moy-c.low .moy-d { color: var(--alert-fg); }
 .moy-table td.moy-c.code { color: var(--pencil); font-style: italic; }
+/* La petite courbe devant la note (v1.83.0) : encre de la case (currentColor), donc lisible sur le fond d'alerte. */
+.moy-table td.moy-c.spk { white-space: nowrap; }
+.moy-spk, .moy-spk-vide { display: inline-block; vertical-align: middle; width: 26px; height: 14px; margin-right: 4px; }
+.moy-spk { overflow: visible; cursor: crosshair; }
+.moy-vd { display: inline-block; vertical-align: middle; }
+.moy-spk .ln { fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linejoin: round; stroke-linecap: round; opacity: .6; }
+.moy-spk .pt { fill: currentColor; }
+.moy-spk .dix { stroke: currentColor; stroke-width: .8; stroke-dasharray: 2 2; opacity: .4; }
+.moy-spk .pt.on { stroke: currentColor; stroke-width: 2.2; }
 .moy-table td.moy-gen, .moy-table th.moy-gen { border-left: 2px solid var(--rule-line); }
 .moy-table td.moy-gen .moy-v { font-weight: 800; }
 .moy-table td.moy-s10 { text-align: center; font-family: var(--font-mono); font-weight: 700; }
@@ -3843,8 +3852,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.82.5';
-const APP_BUILD_DATE = '2026-11-09T04:18:24Z';
+const APP_VERSION    = '1.83.0';
+const APP_BUILD_DATE = '2026-11-09T04:47:54Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -12552,7 +12561,7 @@ function ficheBulleFin() {
   const el = document.getElementById('bulle-fi');
   if (el) el.hidden = true;
   _ficheBulleCle = '';
-  document.querySelectorAll('.pf-moyc.survol, .pf-chart.survol').forEach(t => { t.classList.remove('survol'); t.querySelectorAll('.pt.on').forEach(c => c.classList.remove('on')); });
+  document.querySelectorAll('.pf-moyc.survol, .pf-chart.survol, .moy-spk.survol').forEach(t => { t.classList.remove('survol'); t.querySelectorAll('.pt.on').forEach(c => c.classList.remove('on')); });
 }
 for (const ev of ['pointerdown', 'keydown', 'wheel', 'scroll']) document.addEventListener(ev, () => { const el = document.getElementById('bulle-fi'); if (el && !el.hidden) ficheBulleFin(); }, { passive: true, capture: true });
 function _ficheTableauHTML(cls, stu, col, ed) {
@@ -19956,7 +19965,7 @@ function _moyRelLabel(rel) {
   return `${_fmtDateFr(rel.date)}${rel.label ? ' — ' + rel.label : ''}`;
 }
 
-function _moyCellHTML(cls, rel, sid, mid, extraCls) {
+function _moyCellHTML(cls, rel, sid, mid, extraCls, list) {
   const xc = extraCls ? ' ' + extraCls : '';
   const v = mid === null ? _moyGen(rel, sid) : _moyVal(rel, sid, mid);
   if (v === null) return `<td class="moy-c empty${xc}" title="Pas de moyenne"><span class="tb-hint">—</span></td>`;
@@ -19964,7 +19973,81 @@ function _moyCellHTML(cls, rel, sid, mid, extraCls) {
   const d = _moyDelta(cls.id, rel.id, sid, mid);
   const tip = `${_fmtNote(v)}${d ? ` · ${_fmtDelta(d.delta)} depuis le ${_fmtDateFr(d.prevDate)} (${_fmtNote(d.prev)})` : ''}`;
   const dCls = !d ? '' : d.delta > 0 ? ' up' : d.delta < 0 ? ' down' : '';
-  return `<td class="moy-c${v < 10 ? ' low' : ''}${xc}" title="${_escAttr(tip)}"><span class="moy-v">${_escName(_fmtNote(v))}</span><span class="moy-d${dCls}">${d ? _escName(_fmtDelta(d.delta)) : ''}</span></td>`;
+  // La petite courbe (v1.83.0) : devant la note, ou sa place gardée (les notes d'une colonne restent alignées) dès que
+  // la COLONNE existe dans deux imports jusqu'à celui affiché. Premier import, colonne « nouvelle » : rien, la case reste
+  // centrée comme avant (une place gardée pour une courbe qui ne peut pas exister décalait toute la colonne).
+  const L = list || _moyReleves(cls.id, rel.periode), serie = _moySerie(rel, L, sid, mid);
+  const colN = L.slice(0, serie.length).filter(r => mid === null ? Object.keys(r.generale || {}).length : (r.matieres || []).includes(mid)).length;
+  const sp = colN > 1 ? (_moySparkHTML(serie, sid, mid) || '<span class="moy-spk-vide"></span>') : '';
+  const vd = `<span class="moy-v">${_escName(_fmtNote(v))}</span><span class="moy-d${dCls}">${d ? _escName(_fmtDelta(d.delta)) : ''}</span>`;
+  return `<td class="moy-c${v < 10 ? ' low' : ''}${xc}${sp ? ' spk' : ''}" title="${_escAttr(tip)}">${sp ? `${sp}<span class="moy-vd">${vd}</span>` : vd}</td>`;
+}
+
+// ── La petite courbe devant chaque moyenne ── (v1.83.0, l'utilisateur : « devant chaque note du relevé des moyennes,
+// il pourrait y avoir une mini courbe qui permet de voir l'évolution, avec affichage de la note en cas de survol »).
+// Les imports de la période JUSQU'À celui affiché : le tableau est une photographie à cette date (← → la font grandir
+// ou rétrécir), et une moyenne de période repart de zéro à la période suivante. Même abscisse dans toutes les cases
+// (les imports s'alignent d'une colonne à l'autre) ; échelle propre à la case, d'au moins 4 points (comme la carte de
+// la fiche : 13,3 → 13,7 reste presque plat) ; un code (Abs, Disp…) ou un vide coupe le trait ; le seuil de 10 en
+// pointillé quand la courbe le traverse ; le dernier point, la note affichée, plus gros. Moins de deux notes : rien.
+// ⚠️ Encre = celle de la case (`currentColor`) : lisible sur le fond d'alerte (sous 10) comme sur le papier, de jour
+// comme de nuit, sans token de plus. Écran seulement : la feuille imprimée a son propre tableau (`_moyFeuilleHTML`).
+const MOY_SPARK = { W: 26, H: 14, px: 2.5 };
+function _moySerie(rel, list, sid, mid) {
+  const i = list.indexOf(rel);
+  return i < 0 ? [] : list.slice(0, i + 1).map(r => mid === null ? _moyGen(r, sid) : _moyVal(r, sid, mid));
+}
+function _moySparkX(i, n) { const { W, px } = MOY_SPARK; return n > 1 ? px + i * (W - 2 * px) / (n - 1) : W / 2; }
+function _moySparkHTML(vals, sid, mid) {
+  const { W, H } = MOY_SPARK, n = vals.length;
+  const nums = vals.map((v, i) => typeof v === 'number' ? [i, v] : null).filter(Boolean);
+  if (nums.length < 2) return '';
+  let lo = Math.min(...nums.map(q => q[1])), hi = Math.max(...nums.map(q => q[1]));
+  if (hi - lo < 4) { const c = (hi + lo) / 2; lo = c - 2; hi = c + 2; }
+  const X = i => _moySparkX(i, n).toFixed(1);
+  const Y = v => (H - 2.5 - (v - lo) / (hi - lo) * (H - 5)).toFixed(1);
+  let g = '', seg = [];
+  const trait = () => { if (seg.length > 1) g += `<polyline class="ln" points="${seg.join(' ')}"/>`; seg = []; };
+  vals.forEach((v, i) => { if (typeof v === 'number') seg.push(`${X(i)},${Y(v)}`); else trait(); });
+  trait();
+  if (lo < 10 && hi > 10) g = `<line class="dix" x1="0" x2="${W}" y1="${Y(10)}" y2="${Y(10)}"/>` + g;
+  nums.forEach(([i, v]) => { g += `<circle class="pt" data-i="${i}" cx="${X(i)}" cy="${Y(v)}" r="${i === n - 1 ? 2 : 1.3}"/>`; });
+  // `data-bulle=""` : sur la courbe, l'infobulle de la case (450 ms) se tait, la bulle de la courbe parle tout de suite.
+  // `aria-hidden` : la case dit déjà la note et l'écart (title) ; trois cents courbes lues à voix haute n'apprennent rien.
+  return `<svg class="moy-spk" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" data-s="${_escAttr(sid)}" data-m="${mid === null ? '' : _escAttr(mid)}" data-bulle="" aria-hidden="true">${g}</svg>`;
+}
+// La bulle d'une petite courbe : le point le plus proche du curseur ; l'élève et la matière, puis chaque import jusqu'à
+// celui affiché (date, moyenne, écart avec la note chiffrée précédente — celui de la case), le point survolé marqué ▸.
+// C'est la bulle des courbes de la fiche (`#bulle-fi`, `_ficheBulleMontrer`, mêmes fermetures), posée sous le curseur.
+// ⚠️ La plus RÉCENTE en haut, la plus ancienne en bas (l'utilisateur, à la première livraison) : on lit d'abord la note
+// de la case. Les écarts se calculent dans l'ordre chronologique, puis les lignes se retournent.
+function _moyBulleHTML(titre, sous, list, vals, i) {
+  const v1 = v => v === null || v === undefined ? '–' : typeof v === 'number' ? `<span class="pf-mv${v < 10 ? ' lo' : ''}">${_escName(_fmtNote(v))}</span>` : `<em>${_escName(v)}</em>`;
+  let av = null;
+  const lignes = vals.map((v, k) => {
+    const d = typeof v === 'number' && av !== null ? _fmtDelta(_round2(v - av)) : '';
+    if (typeof v === 'number') av = v;
+    const r = list[k] || {};
+    return `<tr${k === i ? ' class="on"' : ''}><td>${k === i ? '▸ ' : ''}${_escName(_fmtDateFr(r.date))}${r.label ? ` <span class="bm-p">${_escName(r.label)}</span>` : ''}</td><td class="v">${v1(v)}</td><td class="d">${_escName(d)}</td></tr>`;
+  }).reverse().join('');
+  return `<div class="bm-t">${_escName(titre)} <span class="bm-p">· ${_escName(sous)}</span></div><table class="bm">${lignes}</table>`;
+}
+function moyCourbeBulle(e) {
+  const svg = e && e.target && e.target.closest ? e.target.closest('svg.moy-spk') : null;
+  if (!svg) { if (_ficheBulleCle.startsWith('c:')) ficheBulleFin(); return; }
+  const cls = getCls(), C = cls && _moyCourant(cls);
+  const sid = svg.getAttribute('data-s'), mid = svg.getAttribute('data-m') || null, stu = S.eleves[sid];
+  const cs = [...svg.querySelectorAll('circle.pt')];
+  if (!C || !C.rel || !stu || !cs.length) return ficheBulleFin();
+  let c = cs[0], best = Infinity;
+  cs.forEach(x => { const r = x.getBoundingClientRect(), dx = Math.abs(r.left + r.width / 2 - e.clientX); if (dx < best) { best = dx; c = x; } });
+  const i = +c.dataset.i;
+  const mat = mid === null ? 'Moyenne générale' : (S.matieres[mid]?.nom || mid);
+  _ficheBulleMontrer(`c:${sid}:${mid}:${i}`, () => _moyBulleHTML(mat, `${stu.nom} ${stu.prenom}`.trim(), C.list, _moySerie(C.rel, C.list, sid, mid), i), () => {
+    document.querySelectorAll('.moy-spk.survol').forEach(x => { x.classList.remove('survol'); x.querySelectorAll('.pt.on').forEach(p => p.classList.remove('on')); });
+    cs.forEach(x => x.classList.toggle('on', x === c));
+    svg.classList.add('survol');
+  }, null, e);
 }
 
 function _moySortRows(cls, rel, rows) {
@@ -20070,8 +20153,8 @@ function _moyTableauHTML(cls, rel, list, roster, cols, hasGen) {
     return `<tr${inactive ? ' class="inactive"' : ''}>
       <td class="rel-name">${_vignetteHTML(s.id, avecPh)}${_nomFicheHTML(s.id, s.nom, s.prenom)}${inactive ? ' <span class="tb-hint">(parti)</span>' : ''}${
         !rel.notes?.[s.id] && _moyGen(rel, s.id) === null ? ' <span class="tb-hint" title="Absent du fichier importé">(absent du fichier)</span>' : ''}</td>
-      ${cols.map(m => _moyCellHTML(cls, rel, s.id, m.id)).join('')}
-      ${hasGen ? _moyCellHTML(cls, rel, s.id, null, 'moy-gen') : ''}
+      ${cols.map(m => _moyCellHTML(cls, rel, s.id, m.id, '', list)).join('')}
+      ${hasGen ? _moyCellHTML(cls, rel, s.id, null, 'moy-gen', list) : ''}
       <td class="moy-s10${n10 ? ' warn' : ''}">${n10 || '<span class="tb-hint">0</span>'}</td></tr>`;
   }).join('');
   // Statistiques de colonne, avec l'évolution de la MOYENNE de classe en regard.
@@ -20092,7 +20175,7 @@ function _moyTableauHTML(cls, rel, list, roster, cols, hasGen) {
           d !== null ? `<span class="moy-d${d > 0 ? ' up' : d < 0 ? ' down' : ''}" title="Évolution de la moyenne de classe depuis l'import précédent">${_escName(_fmtDelta(d))}</span>` : ''}</td>`;
       }).join('')}<td></td></tr>`).join('');
   // Posé dans le .rel-wrap frozen de renderMoyennes (cadre figé + _wrapScrollKeep).
-  return [`<table class="dt rel-table moy-table"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table>`,
+  return [`<table class="dt rel-table moy-table" onpointermove="moyCourbeBulle(event)" onpointerleave="ficheBulleFin()"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table>`,
     `<div class="tb-hint" style="margin-top:6px">Cases rouges : moyenne sous 10 · <em>Abs</em>, <em>Disp</em>… : codes du bureau numérique, hors statistiques · — : pas de moyenne · Écart type de la classe (σ).${
       rel.fichier ? ` · Fichier : ${_escName(rel.fichier)}` : ''}</div>`];
 }
