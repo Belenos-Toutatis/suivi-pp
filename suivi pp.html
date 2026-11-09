@@ -3843,8 +3843,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.82.4';
-const APP_BUILD_DATE = '2026-11-09T01:27:11Z';
+const APP_VERSION    = '1.82.5';
+const APP_BUILD_DATE = '2026-11-09T04:18:24Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -19918,6 +19918,21 @@ const _MOY_STATS = [
 function setMoyVue(v) { _moyVue = v === 'evolution' ? 'evolution' : 'tableau'; renderMoyennes(); }
 function setMoyPeriode(v) { _moyPeriodeSel = v; _moyRidSel = null; renderMoyennes(); }
 function setMoyRid(v) { _moyRidSel = v; renderMoyennes(); }
+// ← → dans la vue Tableau : l'import précédent ou suivant (v1.82.5, demandé par l'utilisateur). Au bout d'une
+// période, on passe à la voisine : ordre des périodes (`_moyPeriodes`), puis des dates dans chacune — celui du
+// menu « Import du ». Rend null hors de propos (autre vue, aucun import), false au bout, true si l'import change.
+function moyNav(k) {
+  const cls = getCls();
+  if (!cls || _moyVue !== 'tableau') return null;
+  const { periodes, rel } = _moyCourant(cls);
+  if (!rel) return null;
+  const tous = periodes.flatMap(p => _moyReleves(cls.id, p));
+  const n = tous[tous.indexOf(rel) + k];
+  if (!n) return false;
+  _moyPeriodeSel = n.periode; _moyRidSel = n.id;
+  renderMoyennes();
+  return true;
+}
 function setMoyEvoStat(v) { _moyEvoStat = _MOY_STATS.some(s => s.key === v) ? v : 'moyenne'; renderMoyennes(); }
 
 // Période et import affichés : le choix de l'utilisateur s'il existe encore, sinon le
@@ -19992,7 +20007,7 @@ function renderMoyennes() {
   const selPer = periodes.length > 1 ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Période
       <select onchange="setMoyPeriode(this.value)" style="font-size:.95em;padding:2px 6px">${
         periodes.map(p => `<option value="${_escAttr(p)}"${p === periode ? ' selected' : ''}>${_escName(p)}</option>`).join('')}</select></label>` : '';
-  const selRel = _moyVue === 'tableau' ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px">Import du
+  const selRel = _moyVue === 'tableau' ? `<label class="tb-hint" style="display:flex;align-items:center;gap:5px" title="Flèches ← → du clavier : import précédent ou suivant">Import du
       <select onchange="setMoyRid(this.value)" style="font-size:.95em;padding:2px 6px">${
         list.map(r => `<option value="${_escAttr(r.id)}"${r.id === rel.id ? ' selected' : ''}>${_escName(_moyRelLabel(r))}</option>`).join('')}</select></label>
       <button class="btn btn-g btn-sm" onclick="openMoyEdit('${_escJsAttr(rel.id)}')" title="Corriger la date, le libellé ou la période de cet import — ou le supprimer">✏️ Corriger</button>` : '';
@@ -27016,6 +27031,15 @@ document.addEventListener('keydown', e => {
 
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
+  // ← → dans 📈 Moyennes, vue Tableau : l'import précédent ou suivant (moyNav). Jamais sous une modale (la fiche
+  // a ses propres flèches : les deux partaient), ni dans un menu déroulant, un bouton radio ou un curseur, dont les
+  // flèches sont natives. Au bout de la liste, la flèche ne fait rien (et ne fait pas défiler la grille non plus).
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !ctrl && !e.altKey && !e.shiftKey
+      && document.querySelector('.tab.on')?.id === 'tab-moyennes' && !document.querySelector('.mo.on')
+      && !(e.target?.tagName === 'SELECT' || ['radio', 'range'].includes(e.target?.type))) {
+    if (moyNav(e.key === 'ArrowRight' ? 1 : -1) !== null) e.preventDefault();
+    return;
+  }
   if (ctrl && !e.shiftKey && k === 'z') { e.preventDefault(); undoLast(); return; }
   if ((ctrl && k === 'y') || (ctrl && e.shiftKey && k === 'z')) { e.preventDefault(); redoLast(); return; }
   // Ctrl+P → l'impression qui a du sens dans l'onglet courant (orientation imposée par la
