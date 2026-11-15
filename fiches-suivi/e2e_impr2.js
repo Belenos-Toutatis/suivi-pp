@@ -38,6 +38,20 @@ const NOMS = ["SCHWARTZENBERGER Jean-Baptiste", "DE LA ROCHEFOUCAULD Marie-Amél
   // semaine avec férié : le jour sans cours n'est pas imprimé
   const rw = await pdf("semaine46", await page.evaluate(() => fichesSemaine(semaines(S)[2])));
   ok(rw.n === 4, `fiches de la semaine 46 (11/11 férié) : ${rw.n} pages`);
+  // fiche individuelle (v1.90.1) : toujours UNE page, le cadre du bilan compris, même avec un en-tête long (consigne de 4 lignes,
+  // règle de retenue complète, objectifs sur 2 lignes) — cas rencontré : le bilan partait sur une 2e page
+  const consigne = "À présenter à chaque enseignant en début de cours et à récupérer auprès de lui à la fin du cours.\nChaque soir, l’enseignant du dernier cours garde la fiche et la dépose dans le casier de [référent] ; le lendemain matin, [référent] la pose sur le bureau de l’enseignant de la première heure, dans sa salle. La fiche ne quitte pas le collège.\nLe [jour], la famille reçoit le bilan par Mon Bureau Numérique ; la nouvelle fiche est déposée le [reprise] matin sur le bureau de [premier enseignant].";
+  await page.evaluate(consigne => { S.retenueIndiv = { i: 4, heures: 1, nonRendue: 1, max: 2, reussite: 75, hReussite: 1 }; S.consignesIndiv.push({ label: "Casier", texte: consigne }); }, consigne);
+  for (const [nom, nobj, tous] of [["indiv-3obj-long", 3, false], ["indiv-4obj-tous", 4, true], ["indiv-1obj", 1, false]]) {
+    const ri = await pdf(nom, await page.evaluate((nobj, tous) => { S.creneauMidi = tous; S.creneauS4 = tous; S.creneauS5 = tous; const ind = S.individuels[1]; ind.consigne = S.consignesIndiv.length;
+      ind.objectifs = ["Je ne bavarde pas en classe.", "Je termine le travail écrit demandé.", "Je note les devoirs dans mon agenda.", "Je lève la main pour prendre la parole."].slice(0, nobj);
+      return [indivHTML(ind, cyclesIndiv(ind)[2], false)]; }, nobj, tous));
+    ok(ri.n === 1 && /Bilan du professeur/.test(ri.txt) && /Attention/.test(ri.txt) && /premier cours/.test(ri.txt), `fiche individuelle, ${nobj} objectif(s), consigne de 4 lignes${tous ? ", tous les créneaux" : ""} : ${ri.n} page, bilan compris`); }
+  await page.evaluate(() => { S.creneauMidi = false; S.creneauS4 = false; S.creneauS5 = false; });
+  const rs = await pdf("indiv-semaine", await page.evaluate(() => S.individuels.map(i => indivHTML(i, cyclesIndiv(i)[2], false))));
+  ok(rs.n === 3, `fiches individuelles de la semaine, 3 élèves : ${rs.n} pages`);
+  const rfam = await pdf("indiv-famille", await page.evaluate(() => { const ind = S.individuels[1], c = cyclesIndiv(ind)[2]; return [bilanFamilleHTML(ind, c), indivHTML(ind, c, false, true)]; }));
+  ok(rfam.n === 2, `bilan pour la famille : ${rfam.n} pages (le bilan, puis la fiche)`);
   execSync(`pdftoppm -r 60 -png -f 1 -l 1 "${OUT}/fiche-long-9.pdf" "${OUT}/fl9"; pdftoppm -r 60 -png "${OUT}/tot9.pdf" "${OUT}/t9"; pdftoppm -r 60 -png "${OUT}/bilan12.pdf" "${OUT}/b12"; pdftoppm -r 60 -png "${OUT}/noms.pdf" "${OUT}/noms"`);
   await browser.close(); fs.rmSync(prof, { recursive: true, force: true });
 })();
