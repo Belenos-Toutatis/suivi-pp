@@ -24,7 +24,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.click("details.modeles summary"); await wait(100);
   await p.$eval('textarea[data-path="consignesIndiv.2.texte"]', t => { t.value = "Ligne une.\nLigne deux le [jour]."; t.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);
   await go("#indiv/demo-bridge");
-  ok(await p.$eval(".f-consigne", e => e.innerText.split("\n").length === 2 && e.innerText.startsWith("Ligne une.")), "consigne modifiée : imprimée sur deux lignes");
+  ok(await p.$eval(".f-consigne", e => e.innerText.split("\n").filter(l => !/^Attention/.test(l)).length === 2 && e.innerText.startsWith("Ligne une.")), "consigne modifiée : imprimée sur deux lignes (plus la ligne de la règle de retenue)");
   // objectifs types
   await go("#reglages/suivisIndiv");
   ok(await p.evaluate(() => document.querySelectorAll('input[data-path^="banqueObjectifs."][data-path$=".texte"]').length === BANQUE_OBJ_DEFAUT.length), "liste des objectifs types modifiable dans les réglages");

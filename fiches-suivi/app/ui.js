@@ -84,7 +84,7 @@ function decrireChangement(a, b) {
     ["matieres", "matières et enseignants"], ["absencesProf", "absences longues"], ["changementsProf", "changements d’enseignant"], ["edt", "emploi du temps"], ["edtSuivants", "emploi du temps"],
     ["vacances", "calendrier"], ["joursSansCours", "calendrier"], ["debut", "période du suivi"], ["fin", "période du suivi"], ["typesForces", "semaines A et B"], ["decoupage", "trimestres ou semestres"],
     ["horaires", "horaires"], ["horairesBase", "horaires"], ["horairesJours", "horaires"], ["seuils", "seuils des pastilles"], ["pastillesVertes", "pastilles vertes"], ["codage", "codes des niveaux"],
-    ["codesClasse", "codes de la fiche de classe"], ["retenueClasse", "règle de retenue"], ["consignes", "consignes"], ["consignesIndiv", "consignes"], ["etablissement", "établissement"],
+    ["codesClasse", "codes de la fiche de classe"], ["retenueClasse", "règle de retenue"], ["retenueIndiv", "règle de retenue des fiches individuelles"], ["consignes", "consignes"], ["consignesIndiv", "consignes"], ["etablissement", "établissement"],
     ["classe", "nom de la classe"], ["referent", "professeur principal"], ["courrielIndiv", "modèle de courriel"]];
   for (const [k, l] of noms) if (diff(a[k], b[k]) && !lib.includes(l)) lib.push(l);
   if (!lib.length && diff(a, b)) lib.push("réglages");
@@ -1368,7 +1368,7 @@ function rubriquesReglages() {
     "Fiches individuelles et collectives",
     ["pastilles", "Codes et pastilles", `${S.codage.map(c => c.code).join(" ")} · rouge ${t.rouge} · vert clair ${t.vert}`, true],
     "Suivis individuels",
-    ["suivisIndiv", "Fiches individuelles", `remise le ${JOURS_REMISE[(S.remiseIndiv || 5) - 1]} · ${S.individuels.length} suivi${S.individuels.length > 1 ? "s" : ""}`, true],
+    ["suivisIndiv", "Fiches individuelles", `remise le ${JOURS_REMISE[(S.remiseIndiv || 5) - 1]}${S.retenueIndiv.i ? ` · ${S.retenueIndiv.i} ${S.codage[3].code} = ${S.retenueIndiv.heures} h` : ""} · ${S.individuels.length} suivi${S.individuels.length > 1 ? "s" : ""}`, true],
     "Suivi collectif",
     ["eleves", "Élèves du suivi collectif", nbEl ? `${nbEl} élève${nbEl > 1 ? "s" : ""}` : "aucun élève", nbEl > 0],
     ["fiche", "Fiche collective", `consigne, ${nbObj(S)} objectif${nbObj(S) > 1 ? "s" : ""}`, true],
@@ -1467,6 +1467,12 @@ function rubriqueHTML(cle) {
     return `<div class="card"><h2>Remise des fiches individuelles</h2>
     <div class="champs"><label class="champ" title="Jour de remise par défaut\nL’élève dépose sa fiche ce jour-là en fin de journée ; la suivante commence au jour de cours suivant (le lundi après un vendredi, la rentrée après des vacances).\n• ex. jeudi si le professeur principal ne travaille pas le vendredi\n• un suivi peut avoir son propre jour">Jour de remise <select data-num="remiseIndiv" aria-label="Jour de remise des fiches individuelles">${JOURS_REMISE.map((j, k) => `<option value="${k + 1}" ${(S.remiseIndiv || 5) === k + 1 ? "selected" : ""}>${j}</option>`).join("")}</select></label></div>
     <p class="hint">Chaque fiche couvre les jours de cours jusqu’au jour de remise (vacances sautées). La page de chaque suivi rappelle l’enseignant du dernier cours le jour de remise et celui du premier cours le jour où la fiche suivante commence (casier où la déposer la veille), d’après l’emploi du temps. ${S.individuels.filter(i => i.remise).length ? `Suivi${S.individuels.filter(i => i.remise).length > 1 ? "s" : ""} avec un jour propre : ${S.individuels.filter(i => i.remise).map(i => `${esc(i.nom)} (${JOURS_REMISE[i.remise - 1]})`).join(", ")}.` : "Tous les suivis utilisent ce jour."}</p></div>
+  <div class="card"><h2>Retenue des fiches individuelles</h2>
+    <div class="champs"><label class="champ" title="Nombre de « ${esc(S.codage[3].code)} » par retenue\nCompté sur toute la fiche, tous objectifs confondus ; chaque palier atteint ajoute la durée.\n0 : pas de retenue pour les « ${esc(S.codage[3].code)} ».">« ${esc(S.codage[3].code)} » sur la fiche <input type="number" min="0" max="20" data-num="retenueIndiv.i" value="${S.retenueIndiv.i}" style="width:70px" aria-label="Nombre de codes ${esc(S.codage[3].code)} par retenue"></label>
+      <label class="champ" title="Durée de la retenue, par palier">= heures de retenue <input type="number" min="1" max="4" data-num="retenueIndiv.heures" value="${S.retenueIndiv.heures}" style="width:60px" aria-label="Heures de retenue par palier"></label>
+      <label class="champ" title="Fiche non rendue le jour de remise\nHeures de retenue ; 0 : pas de retenue.\nLa fiche se marque « non rendue » sur la page du suivi.">Fiche non rendue = heures <input type="number" min="0" max="4" data-num="retenueIndiv.nonRendue" value="${S.retenueIndiv.nonRendue}" style="width:60px" aria-label="Heures de retenue pour une fiche non rendue"></label></div>
+    ${regleRetenueIndiv({}) ? `<p class="apercu"><b>Imprimé sur la fiche :</b> Attention : ${esc(regleRetenueIndiv({}))}.</p>` : `<p class="hint">Aucune règle : rien n’est imprimé ni annoncé.</p>`}
+    <p class="hint">Seuls les « ${esc(S.codage[3].code)} » comptent (pas les « ${esc(S.codage[2].code)} »), et seulement pour des cours qui ont eu lieu. La retenue prévue s’affiche sur la page du suivi et sur sa carte, et figure dans le bilan pour la famille et le courriel ; l’application ne pose rien elle-même. ${S.individuels.filter(i => i.retenue).length ? `Suivi${S.individuels.filter(i => i.retenue).length > 1 ? "s" : ""} avec une règle propre : ${S.individuels.filter(i => i.retenue).map(i => `${esc(i.nom)} (${esc(regleRetenueIndiv(i) || "aucune retenue")})`).join(", ")}.` : "Chaque suivi peut avoir sa règle (ses réglages)."}</p></div>
   <div class="card"><h2>Consigne imprimée sur les fiches individuelles</h2>
     <div class="champs"><label class="champ" title="Consigne choisie\nImprimée sous le nom de l’élève, sur chaque fiche individuelle.\n• les modèles se modifient juste en dessous">Consigne choisie <select data-num="consigneIndivChoisie" aria-label="Consigne des fiches individuelles">${S.consignesIndiv.map((m, i) => `<option value="${i}" ${i === S.consigneIndivChoisie ? "selected" : ""}>${esc(m.label.trim() || "Modèle " + (i + 1))}</option>`).join("")}</select></label></div>
     ${ex && c ? `<p class="apercu" style="white-space:pre-line"><b>Aperçu (${esc(ex.nom)}) :</b>\n<i>${esc(consigneIndiv({ ...ex, consigne: 0 }, c))}</i></p>` : ""}
@@ -2513,7 +2519,11 @@ async function onChange(e) {
       if (bouges.length) toast(`Seuils remis dans l’ordre (rouge ≤ orange ≤ vert clair ≤ vert) : ${bouges.map(k => `${lib[k]} ${S.seuils[k] < Number(avant[k]) ? "ramené" : "porté"} à ${S.seuils[k]} %`).join(", ")}.`, 6000);
       else if (borne) toast(`Seuil ${lib[cle]} : ${borne === "nombre entier" ? "arrondi" : "ramené"} à ${S.seuils[cle]} %${borne === "nombre entier" ? "" : ` (${borne} %)`}.`); }
     else if (borne) toast(`${nomChamp(t)} : valeur ${borne === "nombre entier" ? "arrondie" : "ramenée"} à ${nbSigne(v)}${borne === "nombre entier" ? "" : ` (${borne})`}.`);
-    if (/^(finSuiviIndiv|retenueClasse|seuilBilanClasse|horairesBase|horairesJours)\b/.test(t.dataset.num)) { const k = t.dataset.num.split(".")[0]; S[k] = normalizeState({ ...S, [k]: S[k] })[k]; } commit(); }
+    if (/^(finSuiviIndiv|retenueClasse|retenueIndiv|seuilBilanClasse|horairesBase|horairesJours)\b/.test(t.dataset.num)) { const k = t.dataset.num.split(".")[0]; S[k] = normalizeState({ ...S, [k]: S[k] })[k]; } commit(); }
+  else if (t.dataset.nr) { const [k, fin] = t.dataset.nr.split("|"), ind = S.individuels[Number(k)]; if (!ind) return;   /* fiche non rendue */
+    ind.nonRendues = ind.nonRendues || {}; if (t.checked) ind.nonRendues[fin] = true; else delete ind.nonRendues[fin]; commit(); }
+  else if (t.dataset.retPropre !== undefined) { const ind = S.individuels[Number(t.dataset.retPropre)]; if (!ind) return;   /* règle de retenue propre au suivi : part de celle des réglages */
+    ind.retenue = t.checked ? { ...S.retenueIndiv } : null; commit(); }
   else if (t.dataset.bool) { setPath(S, t.dataset.bool, t.checked);
     if (/^creneau/.test(t.dataset.bool)) { const b = S.horairesBase, act = creneauxActifs(S);   // une récréation placée après un créneau retiré revient à sa place habituelle
       if (!act.includes(b.recreMatinApres)) b.recreMatinApres = HORAIRES_BASE.recreMatinApres;
@@ -2599,7 +2609,7 @@ async function doNouvelleAnnee() {
   const cal = CALENDRIERS[an]; n.fin = cal ? addDays(cal.ete, -1) : `${an + 1}-07-03`; n.vacances = vacancesAnnee(an, a.zone) || []; n.joursSansCours = feriesAnnee(an, a.alsaceMoselle);
   if (r.etab) { n.etablissement = copie(a.etablissement); n.referent = a.referent; }
   if (r.mat) n.matieres = copie(a.matieres).map(m => ({ ...m, prof: profDe(a, m.nom, "9999-12-31") || m.prof }));   // avec les enseignants en poste (changements datés)
-  if (r.reg) for (const k of ["codage", "seuils", "consignes", "consigneChoisie", "objectifs", "codesClasse", "retenueClasse", "seuilBilanClasse", "pastillesVertes", "consignesIndiv", "consigneIndivChoisie", "remiseIndiv", "finSuiviIndiv", "courrielIndiv", "banqueObjectifs"]) if (k in a) n[k] = copie(a[k]);
+  if (r.reg) for (const k of ["codage", "seuils", "consignes", "consigneChoisie", "objectifs", "codesClasse", "retenueClasse", "seuilBilanClasse", "pastillesVertes", "consignesIndiv", "consigneIndivChoisie", "remiseIndiv", "retenueIndiv", "finSuiviIndiv", "courrielIndiv", "banqueObjectifs"]) if (k in a) n[k] = copie(a[k]);
   if (r.edt) {                     // le dernier emploi du temps en vigueur, avec ses créneaux et ses horaires
     const der = a.edtSuivants.length ? a.edtSuivants[a.edtSuivants.length - 1] : a.edt; n.edt = copie({ A: der.A, B: der.B });
     for (const k of ["horaires", "horairesBase", "horairesJours", "creneauMidi", "creneauS4", "creneauS5", "samedi"]) if (k in a) n[k] = copie(a[k]); }

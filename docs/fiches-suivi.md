@@ -81,3 +81,13 @@ Le jour de remise (réglage commun ou propre à un suivi) existait ; la **consig
 - **Mots remplacés** `[premier enseignant]` (premier cours du jour où la fiche suivante commence) et `[dernier enseignant]` (dernier cours du jour de remise) : « Mme Carpe (Allemand, premier cours) », à défaut « l’enseignant du premier cours (Allemand) ». Lus dans l'emploi du temps par `coursBordIndiv` : groupe de l'élève (`coursPour`), cours annulés, enseignant absent ce jour-là (cours suivant), remplaçant d'un jour ou d'une absence longue, changement d'enseignant daté.
 - **Rappel au PP** (écran seulement, `relaisIndivHTML`) : sur la page du suivi, « D’une fiche à la suivante » — qui a l'élève au dernier cours du jour de remise, et dans quel casier déposer la nouvelle fiche la veille (« c’est vous » si le premier cours est celui du référent) ; sur chaque carte, une ligne « 📥 nouvelle fiche → … ».
 - Démonstration : MOSTOWSKI (remise le jeudi) a la consigne *Dernier enseignant, le jour de remise*. Test : `fiches-suivi/e2e_relais.js`.
+
+### Retenue des fiches individuelles (v1.85.0)
+
+Sur le modèle de la règle de la fiche de classe. **Sans règle par défaut** (`RETENUE_INDIV_DEFAUT` : `i: 0`, `nonRendue: 0`) : un suivi existant ne change pas de règle sans qu'on le décide.
+
+- `S.retenueIndiv = { i, heures, nonRendue }` : `i` « I » sur la fiche, tous objectifs confondus = `heures` de retenue par palier (`floor(nI / i) × heures`) ; fiche non rendue le jour de remise = `nonRendue` heures. Seuls les « I » comptent (un « À » n'est pas une faute) et seulement pour des cours qui ont eu lieu (`statsIndiv`). `0` = pas de règle. Bornes : `retenueNormale`.
+- **Règle propre à un suivi** : `ind.retenue` (`null` = celle des réglages ; cochée, elle part de celle des réglages).
+- **Fiche non rendue** : `ind.nonRendues = { [fin de la fiche]: true }`, case sur la page du suivi ; la marque suit sa fiche quand le jour de remise change (`recalerBilans`).
+- **Où elle se dit** : une ligne « Attention : … » sous la consigne de la fiche imprimée (vérifié : 4 objectifs, consigne de 3 lignes, tous les créneaux = 1 page) ; page du suivi (« Retenue », écran seulement) ; carte (« ⚠ retenue n h », dernière fiche remise) ; bilan pour la famille et courriel, seulement s'il y a une retenue. L'application n'en pose aucune : elle l'annonce, la vie scolaire la pose.
+- Démonstration : 3 « I » = 1 heure, fiche non rendue = 1 heure ; PODEANU, fiche du 20/11 non rendue. Test : `fiches-suivi/e2e_retenue_indiv.js`.

@@ -86,7 +86,7 @@ function demoState() {
   jour(st, "2026-11-30", true).clr[rang("KÖPRÜLÜ Mikail")] = "Oublis de matériel répétés : mot dans le carnet.";
   // ----- suivis individuels hebdomadaires : objectifs propres, résultats qui progressent -----
   const indiv = (nom, objectifs, debut, prof) => {
-    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, courriel: "", saisies: {}, bilans: {} };
+    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, nonRendues: {} };
     sems.forEach((w, wi) => { if (w.jours[4] < debut) return;
       w.jours.forEach(date => { if (sansCours(st, date)) return;
         for (let p = 0; p < 7; p++) { const cr = creneau(st, sems, date, p); if (!cr.mat || cr.absent || r2() < 0.08) continue;
@@ -114,6 +114,10 @@ function demoState() {
     (k) => [[0.45, 0.4, 0.12, 0.03], [0.35, 0.4, 0.2, 0.05], [0.25, 0.35, 0.3, 0.1], [0.15, 0.3, 0.37, 0.18]][Math.min(k, 3)]);
   pd.courriel = "famille.podeanu@exemple.fr";
   pd.bilans = { "2026-11-13": "Plutôt bien partie.", "2026-11-27": "Décroche depuis deux semaines : à revoir avec la famille." };
+  // règle de retenue des fiches individuelles, et une fiche non rendue (sans codes, donc) pour PODEANU
+  st.retenueIndiv = { i: 3, heures: 1, nonRendue: 1 };
+  for (const k of Object.keys(pd.saisies)) if (k >= "2026-11-16" && k < "2026-11-21") delete pd.saisies[k];
+  pd.nonRendues = { "2026-11-20": true }; pd.bilans["2026-11-20"] = "Fiche non rendue : une heure de retenue, la famille est prévenue.";
   st.individuels = [b, m, pd];
   // ----- groupes et options : demi-groupes en sciences le lundi (semaine A), option latin le mercredi en M4 -----
   st.groupes = [{ nom: "Groupe 1" }, { nom: "Groupe 2" }, { nom: "Latin" }];

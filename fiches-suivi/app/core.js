@@ -144,6 +144,12 @@ const peuDe = (n, unite, mini = 5) => (n && n < mini ? `\n• ⚠ seulement ${n}
 /** Élève de la classe présent dans la classe ce jour-là (arrivée et départ en cours d'année). */
 const presentClasse = (e, d) => !!e && (!e.debut || d >= e.debut) && (!e.fin || d <= e.fin);
 const MAX_INDIV = 40;              // suivis individuels au plus (une classe entière)
+/** Règle de retenue des fiches individuelles (v1.85.0) : i « I » sur une fiche = heures de retenue (0 : pas de règle) ;
+    fiche non rendue le jour de remise = nonRendue heures (0 : pas de règle). Sans règle par défaut : un suivi ne change pas de règle sans qu'on le décide. */
+const RETENUE_INDIV_DEFAUT = { i: 0, heures: 1, nonRendue: 0 };
+/** Règle de retenue lue dans un fichier : bornée, valeurs par défaut pour ce qui manque. */
+function retenueNormale(r0) { const r = r0 && typeof r0 === "object" && !Array.isArray(r0) ? r0 : {}, n = (v, a, b, d) => v !== undefined && v !== null && v !== "" && Number.isFinite(Number(v)) ? Math.min(b, Math.max(a, Math.round(Number(v)))) : d;
+  return { i: n(r.i, 0, 20, RETENUE_INDIV_DEFAUT.i), heures: n(r.heures, 1, 4, RETENUE_INDIV_DEFAUT.heures), nonRendue: n(r.nonRendue, 0, 4, RETENUE_INDIV_DEFAUT.nonRendue) }; }
 const codePositif = c => { const l = typeof S !== "undefined" && S && S.codesClasse; const x = l && l.find(k => k.code === c); return x ? !!x.positif : c === "+"; };
 /** Consigne imprimée sur les fiches individuelles : [référent], [jour] (jour de remise), [reprise] (jour de la fiche suivante),
     [premier enseignant] (1er cours du jour de reprise) et [dernier enseignant] (dernier cours du jour de remise) sont remplacés. */
@@ -270,7 +276,7 @@ function newState() {
     consignes: DEFAULTS.consignes.map(([label, texte]) => ({ label, texte })), consigneChoisie: 0,
     codage: DEFAULTS.codage.map(([code, sens]) => ({ code, sens })), seuils: { ...SEUILS_DEFAUT },
     horaires: PERIODS_N.map(() => ({ debut: "", fin: "" })),
-    groupes: [], classeEleves: [], codesClasse: CODES_CLASSE_DEFAUT.map(([code, sens]) => ({ code, sens, positif: code === "+" })), individuels: [], consignesIndiv: CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })), consignesIndivV: 2, consigneIndivChoisie: 0, retenueClasse: { remarques: 3, heures: 1, positifAnnule: true }, seuilBilanClasse: 30, pastillesVertes: false, etablissement: { nom: "", logo: "" }, creneauMidi: false, creneauS4: false, creneauS5: false, samedi: false, horairesBase: { ...HORAIRES_BASE }, horairesJours: DAYS.map((_, d) => ({ mode: d === 2 ? "decale" : "", decalage: d === 2 ? 30 : 0, matinSeul: d === 2, libre: PERIODS.map(() => ({ debut: "", fin: "" })) })), /* comme au collège : le mercredi matin décalé de 30 min */ absencesProf: [], edtSuivants: [], changementsProf: [], remiseIndiv: 5, finSuiviIndiv: { seuil: 90, fiches: 3, sansI: true }, courrielIndiv: { ...COURRIEL_INDIV_DEFAUT }, banqueObjectifs: BANQUE_OBJ_DEFAUT.map(([groupe, texte]) => ({ groupe, texte })),
+    groupes: [], classeEleves: [], codesClasse: CODES_CLASSE_DEFAUT.map(([code, sens]) => ({ code, sens, positif: code === "+" })), individuels: [], consignesIndiv: CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })), consignesIndivV: 2, consigneIndivChoisie: 0, retenueClasse: { remarques: 3, heures: 1, positifAnnule: true }, seuilBilanClasse: 30, pastillesVertes: false, etablissement: { nom: "", logo: "" }, creneauMidi: false, creneauS4: false, creneauS5: false, samedi: false, horairesBase: { ...HORAIRES_BASE }, horairesJours: DAYS.map((_, d) => ({ mode: d === 2 ? "decale" : "", decalage: d === 2 ? 30 : 0, matinSeul: d === 2, libre: PERIODS.map(() => ({ debut: "", fin: "" })) })), /* comme au collège : le mercredi matin décalé de 30 min */ absencesProf: [], edtSuivants: [], changementsProf: [], remiseIndiv: 5, retenueIndiv: { ...RETENUE_INDIV_DEFAUT }, finSuiviIndiv: { seuil: 90, fiches: 3, sansI: true }, courrielIndiv: { ...COURRIEL_INDIV_DEFAUT }, banqueObjectifs: BANQUE_OBJ_DEFAUT.map(([groupe, texte]) => ({ groupe, texte })),
     objectifs: DEFAULTS.objectifs.map(([court, desc]) => ({ court, desc })),
     matieres: DEFAULTS.matieres.map(nom => ({ nom, prof: "" })),
     edt: emptyEdt(),
@@ -361,7 +367,9 @@ function normalizeState(st) {
     const bilans = {}; for (const [l, t] of Object.entries(obj(i.bilans))) if (date(l) && str(t).trim()) bilans[l] = str(t);
     const remise = [1, 2, 3, 4, 5].includes(Number(i.remise)) ? Number(i.remise) : 0;     // jour de remise propre au suivi : 1 = lundi … 5 = vendredi ; 0 = celui des réglages
     const consigne = Number.isInteger(Number(i.consigne)) && Number(i.consigne) > 0 ? Number(i.consigne) : 0;   /* consigne propre au suivi : n = modèle n (à partir de 1) ; 0 = celle des réglages (bornée plus bas) */
-    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, courriel: str(i.courriel).trim(), saisies, bilans }; });
+    const nonRendues = {}; for (const [l, v] of Object.entries(obj(i.nonRendues))) if (date(l) && v === true) nonRendues[l] = true;   /* fiches non rendues, par leur dernier jour */
+    const retenue = i.retenue && typeof i.retenue === "object" && !Array.isArray(i.retenue) ? retenueNormale(i.retenue) : null;     /* règle propre au suivi ; null = celle des réglages */
+    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, nonRendues }; });
   out.consignesIndiv = (Array.isArray(st.consignesIndiv) && st.consignesIndiv.length ? st.consignesIndiv : CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })))
     .slice(0, 20).map(c => ({ label: str(obj(c).label), texte: str(obj(c).texte) }));
   /* modèles ajoutés après coup (CONSIGNES_INDIV_V2) : proposés UNE fois aux suivis plus anciens, à la suite des leurs ; supprimés ensuite, ils ne reviennent pas */
@@ -376,6 +384,7 @@ function normalizeState(st) {
   out.pastillesVertes = st.pastillesVertes === undefined ? (() => { try { return localStorage.getItem("fiche-suivi-collective-totaux-verts") === "1"; } catch (e) { return false; } })() : st.pastillesVertes === true;
   { const v = Number(st.seuilBilanClasse); out.seuilBilanClasse = st.seuilBilanClasse !== undefined && st.seuilBilanClasse !== "" && Number.isFinite(v) ? Math.min(300, Math.max(0, Math.round(v))) : 30; }
   out.remiseIndiv = [1, 2, 3, 4, 5].includes(Number(st.remiseIndiv)) ? Number(st.remiseIndiv) : 5;
+  out.retenueIndiv = retenueNormale(st.retenueIndiv);
   { const f = obj(st.finSuiviIndiv), n = (v, a, b, d) => Number.isFinite(Number(v)) && v !== "" && v !== null ? Math.min(b, Math.max(a, Math.round(Number(v)))) : d;
     out.finSuiviIndiv = { seuil: n(f.seuil, 50, 100, 90), fiches: n(f.fiches, 1, 10, 3), sansI: f.sansI !== false }; }
   out.banqueObjectifs = (Array.isArray(st.banqueObjectifs) ? st.banqueObjectifs : BANQUE_OBJ_DEFAUT.map(([groupe, texte]) => ({ groupe, texte })))
