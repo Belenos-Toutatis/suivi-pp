@@ -71,3 +71,13 @@ balise de fin de script dans une chaîne du script de l'app : elle le fermerait 
 - Dans la fiche, les champs communs portent un trait bleu et l'infobulle le dit (`marquerCommunsHote`).
 
 **Apparence de Suivi PP pour les deux** (`fiches-suivi/app/theme.css`) et **ses polices** embarquées (`python3 scripts/gen_fonts.py --fiches` → `fiches-suivi/app/polices.css`, mêmes familles, sous-ensemble élargi) : Andika à l'écran, Latin Modern au papier, réglables ; les feuilles affichées à l'écran prennent la police d'impression, un bouton **Aa** les bascule (arbitré). Dans Suivi PP, l'onglet suit les réglages de police de Données (pas de second réglage).
+
+### Circulation d'une fiche individuelle (v1.84.0)
+
+Le jour de remise (réglage commun ou propre à un suivi) existait ; la **consigne** imprimée (qui garde la fiche, qui la dépose, quand) était commune à tous les suivis. Désormais :
+
+- **Consigne propre à un suivi** : `ind.consigne` = n° du modèle (à partir de 1), `0` = celle des réglages (même convention que `ind.remise`). Supprimer un modèle décale les numéros ou renvoie à la consigne des réglages ; « Revenir aux modèles proposés » retrouve la consigne d'un suivi par son intitulé. `normalizeState` ramène un numéro hors liste à `0`.
+- **Trois modèles ajoutés** (`CONSIGNES_INDIV_V2`) : *Dernier enseignant, le jour de remise* (l'élève qui fait disparaître ses documents ne repart pas avec la fiche), *Dernier enseignant, chaque soir* (vie scolaire, la fiche ne quitte pas le collège), *Chaque soir à la maison* (signée par les parents, rapportée le lendemain). Proposés **une fois** aux suivis plus anciens (marqueur `consignesIndivV: 2`) : supprimés ensuite, ils ne reviennent pas ; un modèle du même intitulé n'est pas doublé.
+- **Mots remplacés** `[premier enseignant]` (premier cours du jour où la fiche suivante commence) et `[dernier enseignant]` (dernier cours du jour de remise) : « Mme Carpe (Allemand, premier cours) », à défaut « l’enseignant du premier cours (Allemand) ». Lus dans l'emploi du temps par `coursBordIndiv` : groupe de l'élève (`coursPour`), cours annulés, enseignant absent ce jour-là (cours suivant), remplaçant d'un jour ou d'une absence longue, changement d'enseignant daté.
+- **Rappel au PP** (écran seulement, `relaisIndivHTML`) : sur la page du suivi, « D’une fiche à la suivante » — qui a l'élève au dernier cours du jour de remise, et dans quel casier déposer la nouvelle fiche la veille (« c’est vous » si le premier cours est celui du référent) ; sur chaque carte, une ligne « 📥 nouvelle fiche → … ».
+- Démonstration : MOSTOWSKI (remise le jeudi) a la consigne *Dernier enseignant, le jour de remise*. Test : `fiches-suivi/e2e_relais.js`.

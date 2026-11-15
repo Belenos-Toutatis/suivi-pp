@@ -45,6 +45,8 @@ if "--autonome" not in sys.argv:
                f'<script type="application/octet-stream" id="fiches-suivi-app" data-octets="{len(integ)}" data-empreinte="{emp}">{b64}</script>\n{fin}')
     if debut in s:
         a, b = s.index(debut), s.index(fin) + len(fin)
+        # garde-fou : entre les marqueurs, rien d'autre que la fiche (le favori MBN y avait été posé en v1.77.0 et s'effaçait au réassemblage)
+        assert s[a:b].count("<script") == 1 and 'id="fiches-suivi-app"' in s[a:b], "suivi pp.html : autre chose que la fiche entre FICHES-SUIVI-DEBUT et FICHES-SUIVI-FIN, à sortir des marqueurs"
         s = s[:a] + nouveau + s[b:]
     else:   # première fois : juste avant le script de l'application (le harnais des tests prend le DERNIER script)
         ancre = '<div id="app-version-tag"'

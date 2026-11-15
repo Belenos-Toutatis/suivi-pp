@@ -1012,6 +1012,7 @@ table.recap-inc td.tot .pn { min-width: 26px; display: inline-block; }
 a.btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); text-decoration: none; font-size: 14px; }
 a.btn:hover { border-color: var(--accent); }
 ol.etapes-remise { margin: 6px 0 0; padding-left: 20px; } ol.etapes-remise li { margin: 6px 0; }
+ul.relais { margin: 6px 0 0; padding-left: 0; list-style: none; } ul.relais li { margin: 6px 0; }   /* passage d'une fiche à la suivante (relaisIndivHTML) */
 .f-consigne { font-size: 12px; margin: 2px 0 4px; font-style: italic; }
 @page portrait { size: A4 portrait; margin: 14mm; }
 @media print { #print-area .page:has(.bilan-famille) { page: portrait; } }
@@ -1296,6 +1297,7 @@ table.evol.clb td.sep, table.evol.clb th.sep { border-left: 2px solid var(--ink)
 .ic2 .up { color: var(--pa-v-t); } .ic2 .dn { color: var(--pa-r-t); }
 .ic2 .ic-objs { padding: 6px 16px 8px; } .ic2 .ic-obj { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; font-size: 12.5px; margin: 6px 0; }
 .ic2 .barre { grid-column: 1 / -1; height: 7px; border-radius: 4px; background: var(--surface2); overflow: hidden; } .ic2 .barre i { display: block; height: 100%; border-radius: 4px; }
+.ic2 .ic-relais { padding: 0 16px 8px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ic2 .ic-pied { display: flex; gap: 10px; align-items: center; margin-top: auto; border-top: 1px solid var(--line); padding: 10px 16px; background: var(--surface2); font-size: 12.5px; color: var(--muted); }
 .ic2 .ic-pied .btn { margin-left: auto; } .btn.s { height: 30px; padding: 0 10px; font-size: 13px; }
 .ic2 .ic-pied .btn { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
@@ -1701,7 +1703,8 @@ const peuDe = (n, unite, mini = 5) => (n && n < mini ? `\n• ⚠ seulement ${n}
 const presentClasse = (e, d) => !!e && (!e.debut || d >= e.debut) && (!e.fin || d <= e.fin);
 const MAX_INDIV = 40;              // suivis individuels au plus (une classe entière)
 const codePositif = c => { const l = typeof S !== "undefined" && S && S.codesClasse; const x = l && l.find(k => k.code === c); return x ? !!x.positif : c === "+"; };
-/** Consigne imprimée sur les fiches individuelles : [référent] et [jour] (jour de remise) sont remplacés. */
+/** Consigne imprimée sur les fiches individuelles : [référent], [jour] (jour de remise), [reprise] (jour de la fiche suivante),
+    [premier enseignant] (1er cours du jour de reprise) et [dernier enseignant] (dernier cours du jour de remise) sont remplacés. */
 /** Banque d'objectifs types pour les suivis individuels (formulés du point de vue de l'élève), à choisir puis adapter. */
 const BANQUE_OBJ_DEFAUT = [
   ["Mise au travail", "Je commence le travail dès la consigne donnée."], ["Mise au travail", "Je termine le travail demandé en classe."],
@@ -1722,7 +1725,13 @@ const CONSIGNES_INDIV_DEFAUT = [
   ["Sur le bureau de l’enseignant", "Je pose ma fiche sur le bureau de l’enseignant en début de cours et je la reprends à la fin du cours.\nJe la dépose chez [référent] le [jour] avant de partir ; je reçois une nouvelle fiche le [reprise] matin."],
   ["Remise à la vie scolaire", "À présenter à chaque enseignant en début de cours et à récupérer auprès de lui à la fin du cours.\nÀ remettre à la vie scolaire le [jour] en fin de journée ; [référent] envoie le bilan à la famille par courriel."],
   ["Signature des parents", "À présenter à chaque enseignant en début de cours et à récupérer auprès de lui à la fin du cours.\nÀ faire signer par mes parents chaque soir et à rendre à [référent] le [jour]."],
-  ["Courte", "À présenter en début de cours, à récupérer en fin de cours. À rendre à [référent] le [jour]."]];
+  ["Courte", "À présenter en début de cours, à récupérer en fin de cours. À rendre à [référent] le [jour]."],
+  /* ajoutés le 15/11/2026 (CONSIGNES_INDIV_V2) : une circulation qui ne dépend pas de l'élève, ou qui passe chaque soir par la famille */
+  ["Dernier enseignant, le jour de remise", "À présenter à chaque enseignant en début de cours et à récupérer auprès de lui à la fin du cours.\nLe [jour], [dernier enseignant] garde la fiche et la dépose dans le casier de [référent]. La nouvelle fiche m’est donnée le [reprise] par [premier enseignant]."],
+  ["Dernier enseignant, chaque soir", "À présenter à chaque enseignant en début de cours et à récupérer auprès de lui à la fin du cours.\nChaque soir, l’enseignant du dernier cours garde la fiche et la dépose à la vie scolaire ; je la reprends à la vie scolaire le lendemain matin.\nLe [jour], [dernier enseignant] la dépose dans le casier de [référent] ; la nouvelle fiche m’est donnée le [reprise] par [premier enseignant]."],
+  ["Chaque soir à la maison", "À présenter à chaque enseignant en début de cours et à récupérer auprès de lui à la fin du cours.\nChaque soir, je la montre à mes parents, qui la signent, et je reviens avec le lendemain matin.\nJe la remets à [référent] le [jour] ; la nouvelle fiche m’est donnée le [reprise] par [premier enseignant]."]];
+/** Intitulés des modèles ajoutés après coup : proposés une fois aux suivis plus anciens (normalizeState, consignesIndivV). */
+const CONSIGNES_INDIV_V2 = ["Dernier enseignant, le jour de remise", "Dernier enseignant, chaque soir", "Chaque soir à la maison"];
 /* ---------- calendrier scolaire officiel (métropole) : vacances par zone, pont de l'Ascension ; [début (samedi), reprise] ----------
    Sources : arrêtés du calendrier scolaire (2025-2026, 2026-2027, 2027-2028). Année = celle de la rentrée. */
 const CALENDRIERS = {
@@ -1819,7 +1828,7 @@ function newState() {
     consignes: DEFAULTS.consignes.map(([label, texte]) => ({ label, texte })), consigneChoisie: 0,
     codage: DEFAULTS.codage.map(([code, sens]) => ({ code, sens })), seuils: { ...SEUILS_DEFAUT },
     horaires: PERIODS_N.map(() => ({ debut: "", fin: "" })),
-    groupes: [], classeEleves: [], codesClasse: CODES_CLASSE_DEFAUT.map(([code, sens]) => ({ code, sens, positif: code === "+" })), individuels: [], consignesIndiv: CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })), consigneIndivChoisie: 0, retenueClasse: { remarques: 3, heures: 1, positifAnnule: true }, seuilBilanClasse: 30, pastillesVertes: false, etablissement: { nom: "", logo: "" }, creneauMidi: false, creneauS4: false, creneauS5: false, samedi: false, horairesBase: { ...HORAIRES_BASE }, horairesJours: DAYS.map((_, d) => ({ mode: d === 2 ? "decale" : "", decalage: d === 2 ? 30 : 0, matinSeul: d === 2, libre: PERIODS.map(() => ({ debut: "", fin: "" })) })), /* comme au collège : le mercredi matin décalé de 30 min */ absencesProf: [], edtSuivants: [], changementsProf: [], remiseIndiv: 5, finSuiviIndiv: { seuil: 90, fiches: 3, sansI: true }, courrielIndiv: { ...COURRIEL_INDIV_DEFAUT }, banqueObjectifs: BANQUE_OBJ_DEFAUT.map(([groupe, texte]) => ({ groupe, texte })),
+    groupes: [], classeEleves: [], codesClasse: CODES_CLASSE_DEFAUT.map(([code, sens]) => ({ code, sens, positif: code === "+" })), individuels: [], consignesIndiv: CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })), consignesIndivV: 2, consigneIndivChoisie: 0, retenueClasse: { remarques: 3, heures: 1, positifAnnule: true }, seuilBilanClasse: 30, pastillesVertes: false, etablissement: { nom: "", logo: "" }, creneauMidi: false, creneauS4: false, creneauS5: false, samedi: false, horairesBase: { ...HORAIRES_BASE }, horairesJours: DAYS.map((_, d) => ({ mode: d === 2 ? "decale" : "", decalage: d === 2 ? 30 : 0, matinSeul: d === 2, libre: PERIODS.map(() => ({ debut: "", fin: "" })) })), /* comme au collège : le mercredi matin décalé de 30 min */ absencesProf: [], edtSuivants: [], changementsProf: [], remiseIndiv: 5, finSuiviIndiv: { seuil: 90, fiches: 3, sansI: true }, courrielIndiv: { ...COURRIEL_INDIV_DEFAUT }, banqueObjectifs: BANQUE_OBJ_DEFAUT.map(([groupe, texte]) => ({ groupe, texte })),
     objectifs: DEFAULTS.objectifs.map(([court, desc]) => ({ court, desc })),
     matieres: DEFAULTS.matieres.map(nom => ({ nom, prof: "" })),
     edt: emptyEdt(),
@@ -1909,9 +1918,15 @@ function normalizeState(st) {
       if (c.some(x => x !== null) || str(e.r).trim()) saisies[`${d}.${p}`] = { c, r: str(e.r) }; }
     const bilans = {}; for (const [l, t] of Object.entries(obj(i.bilans))) if (date(l) && str(t).trim()) bilans[l] = str(t);
     const remise = [1, 2, 3, 4, 5].includes(Number(i.remise)) ? Number(i.remise) : 0;     // jour de remise propre au suivi : 1 = lundi … 5 = vendredi ; 0 = celui des réglages
-    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, courriel: str(i.courriel).trim(), saisies, bilans }; });
+    const consigne = Number.isInteger(Number(i.consigne)) && Number(i.consigne) > 0 ? Number(i.consigne) : 0;   /* consigne propre au suivi : n = modèle n (à partir de 1) ; 0 = celle des réglages (bornée plus bas) */
+    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, courriel: str(i.courriel).trim(), saisies, bilans }; });
   out.consignesIndiv = (Array.isArray(st.consignesIndiv) && st.consignesIndiv.length ? st.consignesIndiv : CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })))
     .slice(0, 20).map(c => ({ label: str(obj(c).label), texte: str(obj(c).texte) }));
+  /* modèles ajoutés après coup (CONSIGNES_INDIV_V2) : proposés UNE fois aux suivis plus anciens, à la suite des leurs ; supprimés ensuite, ils ne reviennent pas */
+  if (Array.isArray(st.consignesIndiv) && st.consignesIndiv.length && !(Number(st.consignesIndivV) >= 2))
+    for (const [label, texte] of CONSIGNES_INDIV_DEFAUT) if (CONSIGNES_INDIV_V2.includes(label) && out.consignesIndiv.length < 20 && !out.consignesIndiv.some(c => c.label.trim() === label)) out.consignesIndiv.push({ label, texte });
+  out.consignesIndivV = 2;
+  for (const i of out.individuels) if (i.consigne > out.consignesIndiv.length) i.consigne = 0;
   out.consigneIndivChoisie = Math.min(Math.max(0, Math.floor(Number(st.consigneIndivChoisie) || 0)), out.consignesIndiv.length - 1);
   { const r = obj(st.retenueClasse), n = (v, a, b, d) => v !== undefined && v !== null && v !== "" && Number.isFinite(Number(v)) ? Math.min(b, Math.max(a, Math.round(Number(v)))) : d;
     out.retenueClasse = { remarques: n(r.remarques, 0, 20, 3), heures: n(r.heures, 1, 4, 1), positifAnnule: r.positifAnnule !== false }; }
@@ -2365,7 +2380,7 @@ function demoState() {
   jour(st, "2026-11-30", true).clr[rang("KÖPRÜLÜ Mikail")] = "Oublis de matériel répétés : mot dans le carnet.";
   // ----- suivis individuels hebdomadaires : objectifs propres, résultats qui progressent -----
   const indiv = (nom, objectifs, debut, prof) => {
-    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, courriel: "", saisies: {}, bilans: {} };
+    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, courriel: "", saisies: {}, bilans: {} };
     sems.forEach((w, wi) => { if (w.jours[4] < debut) return;
       w.jours.forEach(date => { if (sansCours(st, date)) return;
         for (let p = 0; p < 7; p++) { const cr = creneau(st, sems, date, p); if (!cr.mat || cr.absent || r2() < 0.08) continue;
@@ -2383,8 +2398,10 @@ function demoState() {
     "2026-11-20": "Progrès nets en prise de parole. Rencontre avec la famille le 20/11.", "2026-11-27": "Semaine encourageante, à poursuivre." };
   const m = indiv("MOSTOWSKI Michał", ["Je reste assis à ma place pendant le cours.", "Je parle poliment aux adultes."], "2026-11-16",
     (k) => [[0.25, 0.4, 0.25, 0.1], [0.45, 0.45, 0.08, 0.02], [0.66, 0.34, 0, 0], [0.66, 0.34, 0, 0]][Math.min(k, 3)]);   // objectifs atteints au bout de 3 fiches
-  // exemple de jour propre à un suivi : fiche remise le jeudi, la suivante est donnée le vendredi matin
+  // exemple de jour propre à un suivi : fiche remise le jeudi, la suivante est donnée le vendredi matin ;
+  // et de consigne propre : c'est l'enseignant du dernier cours qui dépose la fiche (elle ne repart pas avec l'élève)
   m.remise = 4; m.courriel = "famille.mostowski@exemple.fr";
+  m.consigne = CONSIGNES_INDIV_DEFAUT.findIndex(([l]) => l === "Dernier enseignant, le jour de remise") + 1;
   m.bilans = { "2026-11-19": "Objectifs fixés avec l’élève et sa famille le 13/11. Bon départ.", "2026-11-26": "Reste assis plus souvent ; encore des écarts de langage." };
   // un 3e suivi qui se dégrade, pour comparer les évolutions en parallèle
   const pd = indiv("PODEANU Mihaela", ["Je fais le travail demandé en classe.", "Je laisse mes camarades travailler."], "2026-11-09",
@@ -3880,12 +3897,13 @@ function rubriqueHTML(cle) {
     const m = S.courrielIndiv, ex = S.individuels[0], cy = ex ? cyclesIndiv(ex) : [], c = cycleCourant(cy);
     return `<div class="card"><h2>Remise des fiches individuelles</h2>
     <div class="champs"><label class="champ" title="Jour de remise par défaut\nL’élève dépose sa fiche ce jour-là en fin de journée ; la suivante commence au jour de cours suivant (le lundi après un vendredi, la rentrée après des vacances).\n• ex. jeudi si le professeur principal ne travaille pas le vendredi\n• un suivi peut avoir son propre jour">Jour de remise <select data-num="remiseIndiv" aria-label="Jour de remise des fiches individuelles">${JOURS_REMISE.map((j, k) => `<option value="${k + 1}" ${(S.remiseIndiv || 5) === k + 1 ? "selected" : ""}>${j}</option>`).join("")}</select></label></div>
-    <p class="hint">Chaque fiche couvre les jours de cours jusqu’au jour de remise (vacances sautées). ${S.individuels.filter(i => i.remise).length ? `Suivi${S.individuels.filter(i => i.remise).length > 1 ? "s" : ""} avec un jour propre : ${S.individuels.filter(i => i.remise).map(i => `${esc(i.nom)} (${JOURS_REMISE[i.remise - 1]})`).join(", ")}.` : "Tous les suivis utilisent ce jour."}</p></div>
+    <p class="hint">Chaque fiche couvre les jours de cours jusqu’au jour de remise (vacances sautées). La page de chaque suivi rappelle l’enseignant du dernier cours le jour de remise et celui du premier cours le jour où la fiche suivante commence (casier où la déposer la veille), d’après l’emploi du temps. ${S.individuels.filter(i => i.remise).length ? `Suivi${S.individuels.filter(i => i.remise).length > 1 ? "s" : ""} avec un jour propre : ${S.individuels.filter(i => i.remise).map(i => `${esc(i.nom)} (${JOURS_REMISE[i.remise - 1]})`).join(", ")}.` : "Tous les suivis utilisent ce jour."}</p></div>
   <div class="card"><h2>Consigne imprimée sur les fiches individuelles</h2>
     <div class="champs"><label class="champ" title="Consigne choisie\nImprimée sous le nom de l’élève, sur chaque fiche individuelle.\n• les modèles se modifient juste en dessous">Consigne choisie <select data-num="consigneIndivChoisie" aria-label="Consigne des fiches individuelles">${S.consignesIndiv.map((m, i) => `<option value="${i}" ${i === S.consigneIndivChoisie ? "selected" : ""}>${esc(m.label.trim() || "Modèle " + (i + 1))}</option>`).join("")}</select></label></div>
-    ${ex && c ? `<p class="apercu" style="white-space:pre-line"><b>Aperçu (${esc(ex.nom)}) :</b>\n<i>${esc(consigneIndiv(ex, c))}</i></p>` : ""}
-    <details class="modeles"><summary>Modifier les modèles de consigne (${S.consignesIndiv.length})</summary><p class="hint">Mots remplacés : « [référent] » par le nom du professeur principal, « [jour] » par le jour de remise de la fiche, « [reprise] » par le jour où l’élève reçoit la fiche suivante (1er jour de cours après la remise : le lundi après un vendredi, la rentrée après des vacances). Un retour à la ligne = une nouvelle ligne sur la fiche.</p>
-    ${S.consignesIndiv.map((m, i) => `<div class="lrow lc">${inp(`consignesIndiv.${i}.label`, 'title="Intitulé du modèle\nAffiché dans la liste « Consigne choisie »."', `Intitulé du modèle ${i + 1}`)}<textarea rows="4" data-path="consignesIndiv.${i}.texte" aria-label="Texte du modèle ${i + 1}" title="Texte imprimé\n• [référent] : nom du professeur principal\n• [jour] : jour de remise de la fiche\n• [reprise] : jour où l’élève reçoit la fiche suivante">${esc(m.texte)}</textarea><button class="ghost danger" data-del="consignesIndiv.${i}" ${S.consignesIndiv.length > 1 ? "" : "disabled"} title="Supprimer ce modèle de consigne" aria-label="Supprimer le modèle ${i + 1}">✕</button></div>`).join("")}
+    ${ex && c ? `<p class="apercu" style="white-space:pre-line"><b>Aperçu (${esc(ex.nom)}) :</b>\n<i>${esc(consigneIndiv({ ...ex, consigne: 0 }, c))}</i></p>` : ""}
+    <p class="hint">${S.individuels.filter(i => i.consigne).length ? `Suivi${S.individuels.filter(i => i.consigne).length > 1 ? "s" : ""} avec une consigne propre : ${S.individuels.filter(i => i.consigne).map(i => `${esc(i.nom)} (${esc((S.consignesIndiv[i.consigne - 1] || {}).label || "")})`).join(", ")}.` : "Tous les suivis utilisent cette consigne ; chaque suivi peut avoir la sienne (ses réglages, « Consigne »)."}</p>
+    <details class="modeles"><summary>Modifier les modèles de consigne (${S.consignesIndiv.length})</summary><p class="hint">Mots remplacés : « [référent] » par le nom du professeur principal, « [jour] » par le jour de remise de la fiche, « [reprise] » par le jour où l’élève reçoit la fiche suivante (1er jour de cours après la remise : le lundi après un vendredi, la rentrée après des vacances), « [premier enseignant] » par l’enseignant du premier cours de ce jour-là et « [dernier enseignant] » par celui du dernier cours du jour de remise (d’après l’emploi du temps : « Mme Carpe (Allemand, premier cours) »). Un retour à la ligne = une nouvelle ligne sur la fiche.</p>
+    ${S.consignesIndiv.map((m, i) => `<div class="lrow lc">${inp(`consignesIndiv.${i}.label`, 'title="Intitulé du modèle\nAffiché dans la liste « Consigne choisie »."', `Intitulé du modèle ${i + 1}`)}<textarea rows="4" data-path="consignesIndiv.${i}.texte" aria-label="Texte du modèle ${i + 1}" title="Texte imprimé\n• [référent] : nom du professeur principal\n• [jour] : jour de remise de la fiche\n• [reprise] : jour où l’élève reçoit la fiche suivante\n• [premier enseignant] : enseignant du premier cours, ce jour-là\n• [dernier enseignant] : enseignant du dernier cours, le jour de remise">${esc(m.texte)}</textarea><button class="ghost danger" data-del="consignesIndiv.${i}" ${S.consignesIndiv.length > 1 ? "" : "disabled"} title="Supprimer ce modèle de consigne" aria-label="Supprimer le modèle ${i + 1}">✕</button></div>`).join("")}
     <div class="row"><button data-add="consignesIndiv" ${S.consignesIndiv.length < 20 ? "" : "disabled"}>+ Ajouter un modèle</button><span class="spacer"></span><button class="ghost" data-act="consignes-indiv-defaut" title="Revenir aux modèles proposés\nRemplace les modèles actuels par les ${CONSIGNES_INDIV_DEFAUT.length} modèles proposés (Ctrl+Z pour annuler).">Revenir aux modèles proposés</button></div></details></div>
   <div class="card"><h2>Fin d’un suivi individuel</h2><p class="hint">Aide à la décision affichée sur chaque suivi (« Évolution d’une fiche à l’autre ») : la fin du suivi est jugée envisageable quand chaque objectif atteint le seuil sur plusieurs fiches de suite. La décision revient à l’équipe.</p>
     <div class="champs"><label class="champ" title="Seuil de réussite\nPour chaque objectif, sur chaque fiche.">Réussite d’au moins <span class="row" style="gap:4px"><input type="number" min="50" max="100" step="5" data-num="finSuiviIndiv.seuil" value="${S.finSuiviIndiv.seuil}" style="width:70px" aria-label="Seuil de réussite pour la fin du suivi"> %</span></label>
@@ -4735,6 +4753,7 @@ document.addEventListener("click", async e => {
     S[key].splice(Number(i), 1);
     if (key === "consignes" && S.consigneChoisie >= S.consignes.length) S.consigneChoisie = 0;
     if (key === "consignesIndiv" && S.consigneIndivChoisie >= Number(i) && S.consigneIndivChoisie > 0) S.consigneIndivChoisie--;
+    if (key === "consignesIndiv") for (const ind of S.individuels) { if (ind.consigne === Number(i) + 1) ind.consigne = 0; else if (ind.consigne > Number(i) + 1) ind.consigne--; }   /* consigne propre d'un suivi : le modèle supprimé → celle des réglages */
     commit();
     if (key === "classeEleves") toast("Élève retiré de la liste de la classe. Ctrl+Z pour annuler.");
   } else {
@@ -4761,7 +4780,9 @@ document.addEventListener("click", async e => {
     else if (act === "el-coller") collerEleves();
     else if (act === "el-fichier") importerFichier("eleves");
     else if (act === "cl-fichier") importerFichier("classeEleves");
-    else if (act === "consignes-indiv-defaut") { if (await demander("Revenir aux modèles proposés", `Les ${S.consignesIndiv.length} modèles de consigne actuels seront remplacés par les ${CONSIGNES_INDIV_DEFAUT.length} modèles proposés.\n\nCtrl+Z permet d’annuler.`, { ok: "Remplacer", danger: true })) { S.consignesIndiv = CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })); S.consigneIndivChoisie = 0; commit(); } }
+    else if (act === "consignes-indiv-defaut") { if (await demander("Revenir aux modèles proposés", `Les ${S.consignesIndiv.length} modèles de consigne actuels seront remplacés par les ${CONSIGNES_INDIV_DEFAUT.length} modèles proposés.\n\nCtrl+Z permet d’annuler.`, { ok: "Remplacer", danger: true })) { const avant = S.consignesIndiv; S.consignesIndiv = CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })); S.consigneIndivChoisie = 0;
+      for (const ind of S.individuels) if (ind.consigne) { const l = ((avant[ind.consigne - 1] || {}).label || "").trim(), k = S.consignesIndiv.findIndex(m => m.label === l); ind.consigne = k + 1; }   /* consigne propre : retrouvée par son intitulé, sinon celle des réglages */
+      commit(); } }
     else if (act === "courriel-indiv-defaut") { S.courrielIndiv = { ...COURRIEL_INDIV_DEFAUT }; commit(); }
     else if (act === "banque-defaut") { if (await demander("Revenir à la liste proposée", `La liste actuelle des objectifs types (${S.banqueObjectifs.length}) sera remplacée par les ${BANQUE_OBJ_DEFAUT.length} objectifs proposés.\n\nLes suivis déjà créés ne changent pas. Ctrl+Z permet d’annuler.`, { ok: "Remplacer", danger: true })) { S.banqueObjectifs = BANQUE_OBJ_DEFAUT.map(([groupe, texte]) => ({ groupe, texte })); commit(); } }
     else if (act === "cl-coller") collerEleves("classeEleves");
@@ -5946,19 +5967,55 @@ function statsIndiv(ind, c) {
     s.c.forEach((x, o) => { if (x === null || x === undefined || !r[o]) return; r[o][1]++; r[o][3][x]++; if (x < 2) r[o][0]++; if (x === 3) r[o][2]++; }); }
   return r;
 }
-/** Jour où l'élève reçoit la fiche suivante : 1er jour de cours après la remise (lundi après un vendredi, rentrée après des vacances). */
 /** Jour de remise réel d'une fiche : son dernier jour de cours (le jour de remise peut être férié, ex. Vendredi saint, pont). */
 const remiseCycle = c => [...c.jours].reverse().find(d => !sansCours(S, d)) || c.fin;
-function repriseIndiv(ind, c) {
+/** Date (AAAA-MM-JJ) où l'élève reçoit la fiche suivante : 1er jour de cours après la remise (lundi après un vendredi, rentrée après des vacances) ; "" si introuvable. */
+function repriseDateIndiv(ind, c) {
   const cy = cyclesIndiv(ind), k = cy.findIndex(x => x.fin === c.fin), suiv = k >= 0 && cy[k + 1], d1 = suiv && suiv.jours.find(d => !sansCours(S, d));
-  if (d1) return fmtLong(d1).replace(/ \d{4}$/, "");
+  if (d1) return d1;
   if (suiv) c = suiv;                 // fiche suivante sans aucun jour de cours : on cherche après elle
   // dernière fiche de la période : 1er jour de semaine sans vacances ni jour férié, même au-delà de la période
   for (let d = addDays(c.fin, 1), i = 0; i < 120; d = addDays(d, 1), i++)
-    if (jourSemaine(d) <= 5 && !S.joursSansCours.some(j => j.date === d) && !vacancesDu(S, d)) return fmtLong(d).replace(/ \d{4}$/, "");
-  return "jour de cours suivant";
+    if (jourSemaine(d) <= 5 && !S.joursSansCours.some(j => j.date === d) && !vacancesDu(S, d)) return d;
+  return "";
 }
-const consigneIndiv = (ind, c) => ((S.consignesIndiv[S.consigneIndivChoisie] || S.consignesIndiv[0] || {}).texte || "").replace(/\[reprise\]/gi, () => repriseIndiv(ind, c)).replace(/\[r[ée]f[ée]rent\]/gi, S.referent || "le professeur principal").replace(/\[jour\]/gi, () => fmtLong(remiseCycle(c)).replace(/ \d{4}$/, ""));   /* casse et accents indifférents */
+const repriseIndiv = (ind, c) => { const d = repriseDateIndiv(ind, c); return d ? fmtLong(d).replace(/ \d{4}$/, "") : "jour de cours suivant"; };
+/** Premier (ou dernier) cours de l'élève un jour donné, d'après l'emploi du temps : son groupe, les cours annulés, les remplaçants
+    et les enseignants absents comptent. { d, p, mat, prof } ; null si aucun cours connu (jour hors période, emploi du temps vide). */
+function coursBordIndiv(ind, d, dernier) {
+  if (!d || sansCours(S, d)) return null;
+  const sems = semaines(S), grs = groupesDe(S, ind.nom), ps = creneauxDu(S, d);
+  for (const p of dernier ? [...ps].reverse() : ps) { const cr = coursPour(creneau(S, sems, d, p), grs); if (cr.mat && !cr.absent) return { d, p, mat: cr.mat, prof: cr.prof || "" }; }
+  return null;
+}
+/** Passage d'une fiche à la suivante : dernier cours du jour de remise, premier cours du jour où la fiche suivante commence. */
+function relaisIndiv(ind, c) {
+  const remise = remiseCycle(c), reprise = repriseDateIndiv(ind, c);
+  return { remise, dernier: coursBordIndiv(ind, remise, true), reprise, premier: coursBordIndiv(ind, reprise, false) };
+}
+/** L'enseignant d'un cours, pour la consigne : « Mme Carpe (Allemand, premier cours) », à défaut « l’enseignant du premier cours (Allemand) ». */
+const enseignantCours = (x, role) => (!x ? `l’enseignant du ${role}` : x.prof ? `${x.prof} (${x.mat}, ${role})` : `l’enseignant du ${role} (${x.mat})`);
+/** Heure de début d'un cours trouvé par coursBordIndiv (« 8 h 00 »), ou "". */
+const heureCours = x => (x ? horaire(x.p, jourIdx(x.d)).split(" – ")[0] : "");
+/** Modèle de consigne d'un suivi : le sien (ind.consigne = n° du modèle à partir de 1), sinon celui des réglages. */
+const modeleConsigneIndiv = ind => (ind && ind.consigne && S.consignesIndiv[ind.consigne - 1]) || S.consignesIndiv[S.consigneIndivChoisie] || S.consignesIndiv[0] || {};
+function consigneIndiv(ind, c) {   /* casse et accents indifférents */
+  let r = null; const rel = () => r || (r = relaisIndiv(ind, c));
+  return (modeleConsigneIndiv(ind).texte || "").replace(/\[reprise\]/gi, () => repriseIndiv(ind, c)).replace(/\[r[ée]f[ée]rent\]/gi, S.referent || "le professeur principal")
+    .replace(/\[jour\]/gi, () => fmtLong(remiseCycle(c)).replace(/ \d{4}$/, ""))
+    .replace(/\[premi[eè]re? (?:enseignant|enseignante|prof)\]/gi, () => enseignantCours(rel().premier, "premier cours"))
+    .replace(/\[derni[eè]re? (?:enseignant|enseignante|prof)\]/gi, () => enseignantCours(rel().dernier, "dernier cours"));
+}
+/** Rappel pour le professeur principal : qui récupère la fiche, dans quel casier déposer la nouvelle. court : une ligne pour la carte du suivi. */
+function relaisIndivHTML(ind, c, court = false) {
+  const r = relaisIndiv(ind, c), pp = String(S.referent || "").trim(), moi = x => !!(x && pp && x.prof.trim() === pp);
+  const nomJ = d => [...JOURS_REMISE, "samedi", "dimanche"][jourSemaine(d) - 1], jourC = d => `${nomJ(d)} ${fmtDM(d)}`;
+  const qui = x => (x ? `${x.prof ? `<b>${esc(x.prof)}</b>, ` : ""}${esc(x.mat)}${heureCours(x) ? ` à ${heureCours(x)}` : ""}` : "<i>emploi du temps inconnu ce jour-là</i>");
+  if (court) return r.reprise ? `<div class="ic-relais small" title="Nouvelle fiche\nPremier cours de l’élève le ${jourC(r.reprise)}, d’après l’emploi du temps : la fiche peut être déposée la veille dans le casier de cet enseignant.">📥 nouvelle fiche → ${r.premier ? `${esc(r.premier.prof || r.premier.mat)} (${nomJ(r.reprise).slice(0, 3)}. ${fmtDM(r.reprise)}${heureCours(r.premier) ? ", " + heureCours(r.premier) : ""})` : jourC(r.reprise)}</div>` : "";
+  return `<h3 style="margin-top:14px">D’une fiche à la suivante</h3><ul class="relais">
+    <li>📤 <b>Remise le ${jourC(r.remise)}</b> · dernier cours : ${qui(r.dernier)}${moi(r.dernier) ? " — c’est vous" : ""}</li>
+    ${r.reprise ? `<li>📥 <b>Nouvelle fiche le ${jourC(r.reprise)}</b> · premier cours : ${qui(r.premier)}${moi(r.premier) ? " — c’est vous : donnez-la directement à l’élève" : r.premier && r.premier.prof ? ` — à déposer la veille dans son casier si vous ne voyez pas l’élève avant` : ""}</li>` : ""}</ul>`;
+}
 /** Fiche individuelle. famille = true : jointe au bilan pour la famille, sans le pied (bilan et visa déjà en page 1). */
 /** Semaine(s) d'une fiche individuelle : « semaine 45 (B) », ou « semaines 47 et 48 » si elle est à cheval ; court : « S45 », « S47-48 ». */
 function semainesCycle(c, court = false) {
@@ -6302,7 +6359,7 @@ function carteIndiv(i) {
     <span class="ic-bande" aria-hidden="true"></span>
     <div class="ic-haut"><span class="ic-av" aria-hidden="true">${esc(initiales(i.nom))}</span><div><b>${esc(i.nom) || "<i>élève à indiquer</i>"}</b><span class="avis-chip ${a.niv}">${a.titre}</span></div></div>
     <div class="ic-gros">${der ? `<div><div class="ic-val" style="color:${COUL_NIV_TXT[nivG] || "var(--ink)"}">${pctTxt(der.g)}</div><small class="muted">fiche du ${fmtDM(der.c.debut)} ${dl === null ? "" : `<b class="${dl > 0 ? "up" : dl < 0 ? "dn" : ""}">${dl > 0 ? "▲ " : dl < 0 ? "▼ " : "= "}${ptsTxt(dl)}</b>`}</small></div><div class="ic-spark">${sparkIndiv(serie)}</div>` : `<small class="muted">Aucune fiche remplie pour l’instant.</small>`}</div>
-    <div class="ic-objs">${objs}</div>
+    <div class="ic-objs">${objs}</div>${pro ? relaisIndivHTML(i, pro, true) : ""}
     <div class="ic-pied"><span>📅 ${pro ? `remise le ${JOURS_REMISE[jourSemaine(remiseCycle(pro)) - 1]} ${fmtDM(remiseCycle(pro))}` : "aucune fiche à venir"}</span><span class="small">${serie.length} fiche${serie.length > 1 ? "s" : ""} remplie${serie.length > 1 ? "s" : ""}</span><span class="btn s">Ouvrir</span></div></a>`;
 }
 function viewIndivTous() {
@@ -6490,9 +6547,10 @@ function viewIndiv(arg) {
   const c = cy.find(x => x.fin === fin) || cycleCourant(cy);
   const ii = S.individuels.indexOf(ind);
   const ouvert = regIndOuvert.has(ind.id) || !ind.nom.trim() || ind.objectifs.every(x => !x.trim());
-  const reglages = `<details class="card reg-ind no-print" data-regind="${esc(ind.id)}"${ouvert ? " open" : ""}><summary><svg class="ic" aria-hidden="true"><use href="#i-reglages"/></svg>Réglages du suivi <small>élève, ${ind.objectifs.length} objectif${ind.objectifs.length > 1 ? "s" : ""}, remise le ${JOURS_REMISE[remiseDe(ind) - 1]}, dates, courriel de la famille</small></summary><div class="reg-ind-corps">
+  const reglages = `<details class="card reg-ind no-print" data-regind="${esc(ind.id)}"${ouvert ? " open" : ""}><summary><svg class="ic" aria-hidden="true"><use href="#i-reglages"/></svg>Réglages du suivi <small>élève, ${ind.objectifs.length} objectif${ind.objectifs.length > 1 ? "s" : ""}, remise le ${JOURS_REMISE[remiseDe(ind) - 1]}, consigne, dates, courriel de la famille</small></summary><div class="reg-ind-corps">
       <div class="champs"><label class="champ" title="Élève\nNOM Prénom, imprimé sur la fiche.">Élève <input type="text" data-path="individuels.${ii}.nom" value="${esc(ind.nom)}" list="liste-classe" aria-label="Élève"></label>
         <label class="champ" title="Jour de remise\nL’élève dépose sa fiche ce jour-là en fin de journée ; la suivante commence au jour de cours suivant (le lundi après un vendredi).\n• par défaut, celui des réglages (Réglages › Fiches individuelles)">Remise le <select data-num="individuels.${ii}.remise" aria-label="Jour de remise de la fiche"><option value="0" ${ind.remise ? "" : "selected"}>comme les réglages (${JOURS_REMISE[(S.remiseIndiv || 5) - 1]})</option>${JOURS_REMISE.map((j, k) => `<option value="${k + 1}" ${ind.remise === k + 1 ? "selected" : ""}>${j}</option>`).join("")}</select></label>
+        <label class="champ" title="Consigne imprimée sur la fiche\nQui garde la fiche, qui la dépose, et quand : pour cet élève seulement.\n• par défaut, celle des réglages (Réglages › Fiches individuelles)\n• un élève qui fait disparaître ses documents : « Dernier enseignant… » (la fiche ne repart pas avec lui)\n• l’enseignant du premier et du dernier cours sont lus dans l’emploi du temps">Consigne <select data-num="individuels.${ii}.consigne" aria-label="Consigne de la fiche de cet élève"><option value="0" ${ind.consigne ? "" : "selected"}>comme les réglages (${esc((S.consignesIndiv[S.consigneIndivChoisie] || {}).label || "Modèle " + (S.consigneIndivChoisie + 1))})</option>${S.consignesIndiv.map((m, k) => `<option value="${k + 1}" ${ind.consigne === k + 1 ? "selected" : ""}>${esc(m.label.trim() || "Modèle " + (k + 1))}</option>`).join("")}</select></label>
         <label class="champ" title="Début du suivi individuel">Depuis le <input type="date" data-path="individuels.${ii}.debut" value="${esc(ind.debut)}" aria-label="Début du suivi individuel"></label>
         <label class="champ" title="Fin du suivi individuel\nVide : jusqu’à la fin de la période.">Jusqu’au <input type="date" data-path="individuels.${ii}.fin" value="${esc(ind.fin)}" aria-label="Fin du suivi individuel"></label>
         <label class="champ" title="Courriel de la famille\nPour envoyer le bilan ; il ne quitte pas cet ordinateur.">Courriel de la famille <input type="email" data-path="individuels.${ii}.courriel" value="${esc(ind.courriel)}" placeholder="parents@exemple.fr" aria-label="Courriel de la famille"></label></div>
@@ -6517,6 +6575,7 @@ function viewIndiv(arg) {
   ${reglages}
   <div class="ind-haut ind-seul no-print">
     <div class="card"><h2>Fiche en bref</h2><ol class="resume">${resume}</ol>
+      ${relaisIndivHTML(ind, c)}
       <h3 style="margin-top:14px">Le ${JOURS_REMISE[jourSemaine(remiseCycle(c)) - 1]} ${fmtDM(remiseCycle(c))}, après la remise</h3>
       <ol class="etapes-remise"><li><a href="#grille-indiv" data-vers="grille-indiv">Saisir les codes et les remarques</a> dans la fiche ci-dessous, puis le bilan.</li>
         <li><button class="primary" data-act="print-famille" data-ind="${esc(ind.id)}" data-w="${c.fin}" title="Bilan pour la famille (PDF)\n• page 1 : objectifs, remarques, bilan\n• page 2 : la fiche remplie\nChoisissez « Enregistrer en PDF » dans la fenêtre d’impression.">Bilan pour la famille (PDF)</button></li>
@@ -6645,7 +6704,7 @@ document.addEventListener("click", async e => {
     if (nom === null) return;
     if (nom !== "__autre__" && nom.trim() && dejaSuivi(nom)) { informer("Déjà suivi", `${nom.trim()} a déjà un suivi individuel : ouvrez-le plutôt (un seul suivi par élève).`); return; }
     if (nom === "__autre__") nom = "";
-    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, courriel: "", saisies: {}, bilans: {} };
+    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, courriel: "", saisies: {}, bilans: {} };
     S.individuels.push(ind); commit(false); location.hash = "#indiv/" + ind.id;
     setTimeout(() => { const c = document.querySelector(`input[data-path="individuels.${S.individuels.length - 1}.${nom ? "objectifs.0" : "nom"}"]`); if (c) c.focus(); }, 100);
     return;

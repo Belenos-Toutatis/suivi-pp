@@ -17,7 +17,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(apres[0] !== avant[0] && new Date(apres[0]).getDay() === 4 && apres[1] === avant[1], `remise le jeudi : BRIDGE (comme les réglages) suit ${avant[0]} → ${apres[0]}, MOSTOWSKI garde son jour`);
   // consignes types
   const nb = await p.$$eval('select[data-num="consigneIndivChoisie"] option', o => o.length);
-  ok(nb === 5, "5 modèles de consigne proposés");
+  ok(nb === 8, "8 modèles de consigne proposés");
   ok(await p.evaluate(() => consigneIndiv(S.individuels[0], cyclesIndiv(S.individuels[0])[0]).includes("en début de cours et à récupérer")), "consigne par défaut : présenter en début de cours, récupérer à la fin");
   await p.select('select[data-num="consigneIndivChoisie"]', "2"); await wait(300);
   ok(await p.$eval(".apercu i", e => e.textContent.includes("vie scolaire") && e.textContent.includes("M. ROUGET") && /jeudi/.test(e.textContent)), "modèle « vie scolaire » : aperçu avec le référent et le jour de remise");

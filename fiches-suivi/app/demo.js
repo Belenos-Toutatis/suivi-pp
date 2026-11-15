@@ -86,7 +86,7 @@ function demoState() {
   jour(st, "2026-11-30", true).clr[rang("KÖPRÜLÜ Mikail")] = "Oublis de matériel répétés : mot dans le carnet.";
   // ----- suivis individuels hebdomadaires : objectifs propres, résultats qui progressent -----
   const indiv = (nom, objectifs, debut, prof) => {
-    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, courriel: "", saisies: {}, bilans: {} };
+    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, courriel: "", saisies: {}, bilans: {} };
     sems.forEach((w, wi) => { if (w.jours[4] < debut) return;
       w.jours.forEach(date => { if (sansCours(st, date)) return;
         for (let p = 0; p < 7; p++) { const cr = creneau(st, sems, date, p); if (!cr.mat || cr.absent || r2() < 0.08) continue;
@@ -104,8 +104,10 @@ function demoState() {
     "2026-11-20": "Progrès nets en prise de parole. Rencontre avec la famille le 20/11.", "2026-11-27": "Semaine encourageante, à poursuivre." };
   const m = indiv("MOSTOWSKI Michał", ["Je reste assis à ma place pendant le cours.", "Je parle poliment aux adultes."], "2026-11-16",
     (k) => [[0.25, 0.4, 0.25, 0.1], [0.45, 0.45, 0.08, 0.02], [0.66, 0.34, 0, 0], [0.66, 0.34, 0, 0]][Math.min(k, 3)]);   // objectifs atteints au bout de 3 fiches
-  // exemple de jour propre à un suivi : fiche remise le jeudi, la suivante est donnée le vendredi matin
+  // exemple de jour propre à un suivi : fiche remise le jeudi, la suivante est donnée le vendredi matin ;
+  // et de consigne propre : c'est l'enseignant du dernier cours qui dépose la fiche (elle ne repart pas avec l'élève)
   m.remise = 4; m.courriel = "famille.mostowski@exemple.fr";
+  m.consigne = CONSIGNES_INDIV_DEFAUT.findIndex(([l]) => l === "Dernier enseignant, le jour de remise") + 1;
   m.bilans = { "2026-11-19": "Objectifs fixés avec l’élève et sa famille le 13/11. Bon départ.", "2026-11-26": "Reste assis plus souvent ; encore des écarts de langage." };
   // un 3e suivi qui se dégrade, pour comparer les évolutions en parallèle
   const pd = indiv("PODEANU Mihaela", ["Je fais le travail demandé en classe.", "Je laisse mes camarades travailler."], "2026-11-09",
