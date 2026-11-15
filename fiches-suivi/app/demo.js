@@ -115,7 +115,7 @@ function demoState() {
   pd.courriel = "famille.podeanu@exemple.fr";
   pd.bilans = { "2026-11-13": "Plutôt bien partie.", "2026-11-27": "Décroche depuis deux semaines : à revoir avec la famille." };
   // règle de retenue des fiches individuelles, et une fiche non rendue (sans codes, donc) pour PODEANU
-  st.retenueIndiv = { i: 3, heures: 1, nonRendue: 1 };
+  st.retenueIndiv = { i: 3, heures: 1, nonRendue: 1, max: 2 };
   for (const k of Object.keys(pd.saisies)) if (k >= "2026-11-16" && k < "2026-11-21") delete pd.saisies[k];
   pd.nonRendues = { "2026-11-20": true }; pd.bilans["2026-11-20"] = "Fiche non rendue : une heure de retenue, la famille est prévenue.";
   st.individuels = [b, m, pd];

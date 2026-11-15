@@ -22,17 +22,23 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     return cy.map(c => { const x = retenueFiche(ind, c), nI = statsIndiv(ind, c).reduce((a, s) => a + s[2], 0); return { nI, hI: x.hI, attendu: Math.floor(nI / 3) }; }); });
   ok(calc.length > 2 && calc.every(x => x.hI === x.attendu), `BRIDGE : heures = paliers de 3 « I » sur chaque fiche (${calc.map(x => `${x.nI} I → ${x.hI} h`).join(", ")})`);
   ok(calc.some(x => x.hI > 0), "au moins une fiche de la démonstration avec une retenue");
+  // ----- plafond par fiche (v1.86.0) -----
+  const pl = await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-bridge"), c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).hI > 2), x = retenueFiche(ind, c);
+    const ph = phraseRetenue(ind, c); S.retenueIndiv.max = 0; const sans = retenueFiche(ind, c).total; S.retenueIndiv.max = 2; return { x, ph, sans }; });
+  ok(pl.x.total === 2 && pl.x.plafond && pl.sans === pl.x.brut && pl.x.brut > 2, `plafond de 2 heures : ${pl.x.brut} h ramenées à 2 ; sans plafond (0) : ${pl.sans} h`);
+  ok(/Retenue prévue : 2 heures \(\d+ « I » sur la fiche ; plafond de la fiche atteint, la règle en donnerait \d+\)\./.test(pl.ph), `phrase : « ${pl.ph} »`);
+  ok(await p.evaluate(() => normalizeState({ retenueIndiv: { i: 3 } }).retenueIndiv.max === 2 && normalizeState({ retenueIndiv: { max: 99 } }).retenueIndiv.max === 12 && normalizeState({ retenueIndiv: { max: 0 } }).retenueIndiv.max === 0), "plafond : 2 heures si absent, borné à 12, 0 = pas de plafond");
   const pd = await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-podeanu"), c = cyclesIndiv(ind).find(x => x.fin === "2026-11-20"), x = retenueFiche(ind, c); return { x, ph: phraseRetenue(ind, c) }; });
   ok(pd.x.nonRendue && pd.x.hNR === 1 && pd.x.total === 1 && pd.ph === "Retenue prévue : 1 heure (fiche non rendue le jour de remise).", `PODEANU, fiche du 20/11 non rendue : « ${pd.ph} »`);
 
   // ----- fiche imprimée : la règle sous la consigne -----
   await go("#indiv/demo-bridge");
-  ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*3\s*«\s*I\s*»\s*sur la fiche = 1 heure de retenue · fiche non rendue le jour de remise = 1 heure de retenue\./.test(e.innerText)), "fiche : « Attention : 3 « I » sur la fiche = 1 heure de retenue · fiche non rendue… »");
+  ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*3\s*«\s*I\s*»\s*sur la fiche = 1 heure de retenue · fiche non rendue le jour de remise = 1 heure de retenue · 2 heures au plus par fiche\./.test(e.innerText)), "fiche : « Attention : 3 « I » sur la fiche = 1 heure de retenue · fiche non rendue… · 2 heures au plus par fiche »");
 
   // ----- page du suivi : phrase, case « non rendue » -----
   const finB = await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-bridge"), cy = cyclesIndiv(ind); return cy.find(c => retenueFiche(ind, c).hI > 0).fin; });
   await go("#indiv/demo-bridge:" + finB);
-  ok(await p.evaluate(() => { const r = document.querySelector(".retenue-ind"); return !!r && /Retenue prévue\s*:\s*\d+ heures? \(\d+\s*«\s*I\s*»\s*sur la fiche\)/.test(r.innerText) && !!r.querySelector(".ret-oui") && !!r.closest(".no-print"); }), "page du suivi : « ⚠ Retenue prévue : … (n « I » sur la fiche) », écran seulement");
+  ok(await p.evaluate(() => { const r = document.querySelector(".retenue-ind"); return !!r && /Retenue prévue\s*:\s*\d+ heures? \(\d+\s*«\s*I\s*»\s*sur la fiche\s*[;)]/.test(r.innerText) && !!r.querySelector(".ret-oui") && !!r.closest(".no-print"); }), "page du suivi : « ⚠ Retenue prévue : … (n « I » sur la fiche) », écran seulement");
   await p.click('input[data-nr^="0|"]'); await wait(300);
   ok(await p.evaluate(fin => S.individuels[0].nonRendues[fin] === true && retenueFiche(S.individuels[0], cyclesIndiv(S.individuels[0]).find(c => c.fin === fin)).hNR === 1 && /fiche non rendue/.test(document.querySelector(".retenue-ind").innerText), finB), "case « Fiche non rendue » cochée : une heure de plus, dite dans la phrase");
   await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await wait(300);
@@ -55,10 +61,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(() => { document.querySelector("details.reg-ind").open = true; }); await wait(100);
   await p.$eval('input[data-num="individuels.1.retenue.i"]', e => { e.value = "2"; e.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);
   await p.$eval('input[data-num="individuels.1.retenue.nonRendue"]', e => { e.value = "0"; e.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);
-  ok(await p.evaluate(() => S.individuels[1].retenue.i === 2 && S.individuels[1].retenue.nonRendue === 0 && S.retenueIndiv.i === 3 && regleRetenueIndiv(S.individuels[1]) === "2 « I » sur la fiche = 1 heure de retenue"), "règle propre : 2 « I » = 1 heure, sans retenue pour une fiche non rendue ; celle des réglages inchangée");
+  ok(await p.evaluate(() => S.individuels[1].retenue.i === 2 && S.individuels[1].retenue.nonRendue === 0 && S.retenueIndiv.i === 3 && regleRetenueIndiv(S.individuels[1]) === "2 « I » sur la fiche = 1 heure de retenue · 2 heures au plus par fiche"), "règle propre : 2 « I » = 1 heure, sans retenue pour une fiche non rendue ; celle des réglages inchangée");
   ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*2\s*«\s*I\s*»/.test(e.innerText) && !/non rendue/.test(e.innerText)), "fiche de ce suivi : sa règle imprimée");
   await go("#reglages/suivisIndiv");
-  ok(await p.evaluate(() => /règle propre\s*:\s*MOSTOWSKI Michał \(2\s*«\s*I\s*»\s*sur la fiche = 1 heure de retenue\)/.test(document.body.innerText)), "Réglages : le suivi à règle propre est listé");
+  ok(await p.evaluate(() => /règle propre\s*:\s*MOSTOWSKI Michał \(2\s*«\s*I\s*»\s*sur la fiche = 1 heure de retenue · 2 heures au plus par fiche\)/.test(document.body.innerText)), "Réglages : le suivi à règle propre est listé");
   // règle commune modifiée : le suivi à règle propre ne bouge pas
   await p.$eval('input[data-num="retenueIndiv.i"]', e => { e.value = "4"; e.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);
   ok(await p.evaluate(() => S.retenueIndiv.i === 4 && S.individuels[1].retenue.i === 2 && regleRetenueIndiv(S.individuels[0]).startsWith("4 « I »")), "règle des réglages à 4 : BRIDGE suit, MOSTOWSKI garde la sienne");

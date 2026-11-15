@@ -145,11 +145,12 @@ const peuDe = (n, unite, mini = 5) => (n && n < mini ? `\n• ⚠ seulement ${n}
 const presentClasse = (e, d) => !!e && (!e.debut || d >= e.debut) && (!e.fin || d <= e.fin);
 const MAX_INDIV = 40;              // suivis individuels au plus (une classe entière)
 /** Règle de retenue des fiches individuelles (v1.85.0) : i « I » sur une fiche = heures de retenue (0 : pas de règle) ;
-    fiche non rendue le jour de remise = nonRendue heures (0 : pas de règle). Sans règle par défaut : un suivi ne change pas de règle sans qu'on le décide. */
-const RETENUE_INDIV_DEFAUT = { i: 0, heures: 1, nonRendue: 0 };
+    fiche non rendue le jour de remise = nonRendue heures (0 : pas de règle) ; max : plafond par fiche, en heures (0 : pas de plafond ; v1.86.0).
+    Sans règle par défaut : un suivi ne change pas de règle sans qu'on le décide. */
+const RETENUE_INDIV_DEFAUT = { i: 0, heures: 1, nonRendue: 0, max: 2 };
 /** Règle de retenue lue dans un fichier : bornée, valeurs par défaut pour ce qui manque. */
 function retenueNormale(r0) { const r = r0 && typeof r0 === "object" && !Array.isArray(r0) ? r0 : {}, n = (v, a, b, d) => v !== undefined && v !== null && v !== "" && Number.isFinite(Number(v)) ? Math.min(b, Math.max(a, Math.round(Number(v)))) : d;
-  return { i: n(r.i, 0, 20, RETENUE_INDIV_DEFAUT.i), heures: n(r.heures, 1, 4, RETENUE_INDIV_DEFAUT.heures), nonRendue: n(r.nonRendue, 0, 4, RETENUE_INDIV_DEFAUT.nonRendue) }; }
+  return { i: n(r.i, 0, 20, RETENUE_INDIV_DEFAUT.i), heures: n(r.heures, 1, 4, RETENUE_INDIV_DEFAUT.heures), nonRendue: n(r.nonRendue, 0, 4, RETENUE_INDIV_DEFAUT.nonRendue), max: n(r.max, 0, 12, RETENUE_INDIV_DEFAUT.max) }; }
 const codePositif = c => { const l = typeof S !== "undefined" && S && S.codesClasse; const x = l && l.find(k => k.code === c); return x ? !!x.positif : c === "+"; };
 /** Consigne imprimée sur les fiches individuelles : [référent], [jour] (jour de remise), [reprise] (jour de la fiche suivante),
     [premier enseignant] (1er cours du jour de reprise) et [dernier enseignant] (dernier cours du jour de remise) sont remplacés. */
