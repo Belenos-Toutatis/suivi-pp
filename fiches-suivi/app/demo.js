@@ -114,10 +114,8 @@ function demoState() {
     (k) => [[0.45, 0.4, 0.12, 0.03], [0.35, 0.4, 0.2, 0.05], [0.25, 0.35, 0.3, 0.1], [0.15, 0.3, 0.37, 0.18]][Math.min(k, 3)]);
   pd.courriel = "famille.podeanu@exemple.fr";
   pd.bilans = { "2026-11-13": "Plutôt bien partie.", "2026-11-27": "Décroche depuis deux semaines : à revoir avec la famille." };
-  // règle de retenue des fiches individuelles, et une fiche non rendue (sans codes, donc) pour PODEANU
-  st.retenueIndiv = { i: 3, heures: 1, nonRendue: 1, max: 2 };
-  for (const k of Object.keys(pd.saisies)) if (k >= "2026-11-16" && k < "2026-11-21") delete pd.saisies[k];
-  pd.nonRendues = { "2026-11-20": true }; pd.bilans["2026-11-20"] = "Fiche non rendue : une heure de retenue, la famille est prévenue.";
+  // règle de retenue des fiches individuelles, et une fiche perdue (sans codes, donc) pour PODEANU
+  st.retenueIndiv = { i: 3, heures: 1, nonRendue: 1, max: 2, reussite: 75, hReussite: 1 };
   st.individuels = [b, m, pd];
   // ----- groupes et options : demi-groupes en sciences le lundi (semaine A), option latin le mercredi en M4 -----
   st.groupes = [{ nom: "Groupe 1" }, { nom: "Groupe 2" }, { nom: "Latin" }];
@@ -136,5 +134,9 @@ function demoState() {
       st.classeEleves.forEach((e, s) => { if (!coursPour(cr, e.groupes || []).mat) delete (j.cl || {})[`${s}.${p}`]; });
       for (const i of st.individuels) { const c = coursPour(cr, groupesDe(st, i.nom)); if (!c.mat) delete i.saisies[`${date}.${p}`];
         else if (!i.saisies[`${date}.${p}`] && (!i.debut || date >= i.debut)) i.saisies[`${date}.${p}`] = { c: i.objectifs.map(() => r3() < 0.45 ? 0 : r3() < 0.6 ? 1 : 2), r: "" }; } } }
+  /* fiche perdue de PODEANU (semaine du 16/11) : aucun code, retirés en dernier (les cours de latin en ajoutaient plus haut) */
+  const pdF = st.individuels.find(i => i.id === "demo-podeanu");
+  for (const k of Object.keys(pdF.saisies)) if (k >= "2026-11-16" && k < "2026-11-21") delete pdF.saisies[k];
+  pdF.nonRendues = { "2026-11-20": true }; pdF.bilans["2026-11-20"] = "Fiche perdue : une heure de retenue, la famille est prévenue.";
   return st;
 }

@@ -100,3 +100,9 @@ Sur le modèle de la règle de la fiche de classe. **Sans règle par défaut** (
 - Un suivi existant **garde son codage** (`normalizeState` ne remplace que ce qui manque). Bouton **« Revenir au codage proposé »** (Réglages › Codes et pastilles) : la confirmation montre l'ancien et le nouveau codage, dit que les saisies (rangées par niveau, 0-3) s'affichent sous les nouveaux noms et que les seuils ne bougent pas ; Ctrl+Z ; grisé quand le codage proposé est en place.
 - La retenue des fiches individuelles compte le niveau le plus bas : « TI » avec ce codage. Raccourcis en lettres perdus (TB et TI commencent par T) : les chiffres 1 à 4 restent.
 - Test : `fiches-suivi/e2e_codage_defaut.js`.
+
+### Retenue : critère de réussite, « fiche perdue » (v1.88.0)
+
+- **Troisième critère** : réussite de la fiche (part des cases notées dans les deux niveaux du haut, tous objectifs, cours qui ont eu lieu) **strictement sous** `reussite` % = `hReussite` heures. Seuil **75 %** par défaut (au plus un avis négatif sur quatre ; 50 % a été jugé inadmissible), critère désactivé tant que `hReussite` vaut 0 : une règle existante ne se met pas à donner des retenues d'elle-même. Comparaison sur la réussite **arrondie**, celle qui s'affiche (`pctArrondi`). Une fiche sans aucun code (perdue) n'a pas de réussite. Les trois critères se cumulent dans la limite du plafond.
+- **« Fiche perdue »** remplace « fiche non rendue » à l'affichage : perdue en route ou pas rendue le jour de remise ; le professeur principal peut redonner un exemplaire en cours de semaine (« Imprimer la fiche »). Le champ garde son nom (`nonRendue`, `nonRendues`) : on ne renomme pas un champ enregistré.
+- Démonstration : réussite sous 75 % = 1 heure ; la fiche perdue de PODEANU est vidée de ses codes en toute fin de `demo.js` (les cours de latin en ajoutaient après coup).
