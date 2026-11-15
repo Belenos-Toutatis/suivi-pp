@@ -2921,8 +2921,8 @@ document.addEventListener("keydown", e => {
     if (S) setTimeout(async () => { await (e.shiftKey && MODE_ENREG === "json" ? exporterJson() : saveFile(e.shiftKey)); const r = f && document.contains(f) ? f : null; if (r && document.activeElement === document.body) r.focus({ preventScroll: true }); }, 0); return; }
   if (mod && k === "o") { e.preventDefault(); openFile(); return; }
   if (mod && k === "p") { e.preventDefault(); imprimerVue(); return; }
-  if (e.key === "Escape") { if ($("#m-file").open) { fermerMenu(); $("#m-file summary").focus(); }
-    for (const id of ["#m-fiche", "#m-print", "#m-seuils"]) { const m = $(id); if (m && m.open) { m.open = false; if (id === "#m-seuils") seuilsOuvert = false; m.querySelector("summary").focus(); } } return; }
+  if (e.key === "Escape") { if ($("#m-file").open) { e.preventDefault(); fermerMenu(); $("#m-file summary").focus(); }   /* menu fermé : Échap a servi (preventDefault), il ne quitte pas aussi la page */
+    for (const id of ["#m-fiche", "#m-print", "#m-seuils"]) { const m = $(id); if (m && m.open) { e.preventDefault(); m.open = false; if (id === "#m-seuils") seuilsOuvert = false; m.querySelector("summary").focus(); } } return; }
   if (mod || e.altKey || e.shiftKey || !S) return;
   const t = e.target;
   if (t.closest && t.closest("input,select,textarea,[contenteditable],td[data-x]")) return;

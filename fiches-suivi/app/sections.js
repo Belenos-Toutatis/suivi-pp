@@ -803,7 +803,8 @@ function carteIndiv(i) {
   const faites = serie.filter(f => f.c.debut <= today), der = faites.length ? faites[faites.length - 1] : serie[serie.length - 1];
   const prec = der ? serie[serie.indexOf(der) - 1] : null, dl = der && prec && der.g !== null && prec.g !== null ? Math.round(der.g * 100) - Math.round(prec.g * 100) : null;
   const pro = cy.find(c => c.fin >= today) || cy[cy.length - 1];
-  const rendue = cy.filter(c => remiseCycle(c) <= today).pop(), retDer = rendue ? retenueFiche(i, rendue) : null;   /* dernière fiche remise */
+  /* retenue de la fiche AFFICHÉE sur la carte (v1.91.1 ; avant : la dernière fiche remise, qui n'était pas celle du pourcentage) — « en cours » avant son jour de remise */
+  const rendue = der ? der.c : null, retDer = rendue ? retenueFiche(i, rendue) : null, retEnCours = rendue && remiseCycle(rendue) > today;
   const nivG = der ? niveauReussite(S, der.g, der.gI) : "";
   const objs = i.objectifs.map((o, k) => { const v = der ? der.v[k] : null, nv = v === null ? "" : niveauReussite(S, v, der.nI[k]);
     return `<div class="ic-obj"><span>${NUM_OBJ[k]} ${esc(o) || "<i>objectif à écrire</i>"}</span>${v === null ? `<span class="muted small">—</span>` : `<span class="pn${NIV_CLASSE[nv] || ""}">${pctTxt(v)}</span>`}
@@ -813,7 +814,7 @@ function carteIndiv(i) {
     <div class="ic-haut"><span class="ic-av" aria-hidden="true">${esc(initiales(i.nom))}</span><div><b>${esc(i.nom) || "<i>élève à indiquer</i>"}</b><span class="avis-chip ${a.niv}">${a.titre}</span></div></div>
     <div class="ic-gros">${der ? `<div><div class="ic-val" style="color:${COUL_NIV_TXT[nivG] || "var(--ink)"}">${pctTxt(der.g)}</div><small class="muted">fiche du ${fmtDM(der.c.debut)} ${dl === null ? "" : `<b class="${dl > 0 ? "up" : dl < 0 ? "dn" : ""}">${dl > 0 ? "▲ " : dl < 0 ? "▼ " : "= "}${ptsTxt(dl)}</b>`}</small></div><div class="ic-spark">${sparkIndiv(serie)}</div>` : `<small class="muted">Aucune fiche remplie pour l’instant.</small>`}</div>
     <div class="ic-objs">${objs}</div>${pro ? relaisIndivHTML(i, pro, true) : ""}
-    <div class="ic-pied"><span>📅 ${pro ? `remise le ${JOURS_REMISE[jourSemaine(remiseCycle(pro)) - 1]} ${fmtDM(remiseCycle(pro))}` : "aucune fiche à venir"}</span><span class="small">${serie.length} fiche${serie.length > 1 ? "s" : ""} remplie${serie.length > 1 ? "s" : ""}</span>${retDer && retDer.total ? `<span class="ic-ret" title="Retenue prévue\nFiche remise le ${fmtDM(remiseCycle(rendue))} : ${esc(phraseRetenue(i, rendue))}">⚠ retenue ${retDer.total} h</span>` : ""}<span class="btn s">Ouvrir</span></div></a>`;
+    <div class="ic-pied"><span>📅 ${pro ? `remise le ${JOURS_REMISE[jourSemaine(remiseCycle(pro)) - 1]} ${fmtDM(remiseCycle(pro))}` : "aucune fiche à venir"}</span><span class="small">${serie.length} fiche${serie.length > 1 ? "s" : ""} remplie${serie.length > 1 ? "s" : ""}</span>${retDer && retDer.total ? `<span class="ic-ret" title="Retenue ${retEnCours ? "en cours" : "prévue"}\nFiche du ${fmtDM(rendue.debut)} au ${fmtDM(rendue.fin)} : ${esc(ligneRetenue(i, rendue))}">⚠ retenue ${retDer.total} h${retEnCours ? " (en cours)" : ""}</span>` : ""}<span class="btn s">Ouvrir</span></div></a>`;
 }
 function viewIndivTous() {
   return `<div class="page-tete"><div class="titres"><span class="surtitre">Suivis individuels · tous les élèves suivis</span><h1 data-titre>Tous les suivis côte à côte</h1></div>
@@ -1188,6 +1189,10 @@ document.addEventListener("click", async e => {
 document.addEventListener("keydown", e => {
   if (!S || current.view !== "indiv") return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  /* Échap sur la page d'un suivi (v1.91.1) : retour à la liste des suivis individuels — sauf si Échap a déjà servi (menu, fenêtre,
+     tutoriel : defaultPrevented), pendant la frappe (remarque, bilan, réglage) ou si une fenêtre ou un menu est ouvert */
+  if (e.key === "Escape" && current.arg && !e.defaultPrevented && !(typeof tuto !== "undefined" && tuto) && !document.querySelector("#boite[open], details.menu[open]") && !(e.target.closest && e.target.closest("input, textarea, select, [contenteditable]"))) {
+    e.preventDefault(); location.hash = "#indiv"; return; }
   const rq = e.target.closest && e.target.closest("input[data-ir]");
   if (rq && (e.key === "Enter" || e.key === "Escape")) {      // remarque : Entrée → 1re case encore vide du cours, sinon cours suivant ; Échap → cases du cours
     e.preventDefault(); const [ii, d, p] = rq.dataset.ir.split("."), ordre = ordreIndiv(), ici = ordre.filter(k => k.startsWith(`${ii}.${d}.${p}.`));

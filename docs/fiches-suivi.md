@@ -122,3 +122,8 @@ Les lignes du tableau avaient une hauteur fixe (`--rhi`, 16 mm au plus) : un en-
 ### La retenue en tête du bilan du professeur principal (v1.91.0)
 
 Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur principal » : sur la fiche (écran et papier), dans le bilan pour la famille (en tête du bilan, à la place de l'ancienne partie « Retenue ») et dans le courriel. Elle est **calculée, jamais écrite dans `ind.bilans`** : recalculée à chaque code (`commit()` redessine), elle ne s'efface pas par erreur et ne devient pas fausse. Avant le jour de remise : « … En cours : la retenue sera fixée le jeudi 26 novembre. » ; à partir du jour de remise, sans mention. Sans retenue mais avec une règle : « Pas de retenue : … » ; sans règle ni perte : pas de ligne. La fiche imprimée tient toujours sur une page avec elle.
+
+### Carte du suivi et touche Échap (v1.91.1)
+
+- **Carte** : la pastille « ⚠ retenue n h » porte sur la fiche **affichée** sur la carte (celle du pourcentage, la dernière commencée et remplie), avec « (en cours) » avant son jour de remise. Avant, elle ne regardait que la dernière fiche déjà remise : une retenue de la fiche en cours n'y apparaissait pas.
+- **Échap** sur la page d'un suivi individuel ramène à la liste des suivis (`#indiv`) — sauf quand Échap a déjà servi (menu fermé : `preventDefault` posé par le gestionnaire commun ; fenêtre ouverte ; tutoriel) ou pendant la frappe (remarque, bilan, champ). Test : `fiches-suivi/e2e_echap_indiv.js`.

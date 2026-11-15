@@ -88,8 +88,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   // ----- carte -----
   await go("#indiv");
-  ok(await p.evaluate(() => [...document.querySelectorAll(".ind-carte")].every(a => { const ind = S.individuels.find(i => a.getAttribute("href") === "#indiv/" + i.id), cy = cyclesIndiv(ind), r = cy.filter(c => remiseCycle(c) <= aujourdhui()).pop(), t = r ? retenueFiche(ind, r).total : 0;
-    return t ? (a.querySelector(".ic-ret") || {}).textContent === `⚠ retenue ${t} h` : !a.querySelector(".ic-ret"); })), "cartes : « ⚠ retenue n h » pour la dernière fiche remise, rien sinon");
+  ok(await p.evaluate(() => [...document.querySelectorAll(".ind-carte")].every(a => { const ind = S.individuels.find(i => a.getAttribute("href") === "#indiv/" + i.id), serie = serieIndiv(ind), auj = aujourdhui();
+    const faites = serie.filter(f => f.c.debut <= auj), der = faites.length ? faites[faites.length - 1] : serie[serie.length - 1], t = der ? retenueFiche(ind, der.c).total : 0, enc = der && remiseCycle(der.c) > auj;
+    return t ? (a.querySelector(".ic-ret") || {}).textContent === `⚠ retenue ${t} h${enc ? " (en cours)" : ""}` : !a.querySelector(".ic-ret"); })), "cartes : « ⚠ retenue n h » pour la fiche AFFICHÉE sur la carte (celle du pourcentage), « (en cours) » avant sa remise");
 
   // ----- règle propre à un suivi -----
   await go("#indiv/demo-mostowski"); await p.evaluate(() => { document.querySelector("details.reg-ind").open = true; }); await wait(150);
