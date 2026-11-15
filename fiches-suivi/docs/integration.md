@@ -11,9 +11,14 @@ est propre passe par `HOTE` (ui.js, bloc « hôte »). Le côté Suivi PP est d�
   navigation). Mais en `srcdoc` la base est l'adresse de Suivi PP (un `href="#edt"` y chargerait Suivi PP) et `<base>` est refusé
   par sa politique (`base-uri 'self'`) : la fiche intercepte ses liens `#…` (écouteur `click` sur `window`, en dernier).
 - **Messages** (postMessage, `app: "suivi-pp"` → fiche, `app: "fiche-suivi"` → Suivi PP, vérifiés par leur source). Suivi PP envoie
-  `charger` (`cle` = la classe, `etat`, `classe` = la liste, `demo`, `theme`, `polices`, `pile`, `raison` : `annuler` / `retablir`),
+  `charger` (`cle` = la classe, `etat`, `classe` = la liste, `demo`, `famille`, `theme`, `polices`, `pile`, `raison` : `annuler` / `retablir`),
   `apparence`, `pile`, `imprimer` (Ctrl+P), `commun`, `aller` (`#eleve/…`). La fiche envoie `pret`, `etat` (`cle`, l'enveloppe,
-  `etape`, `retirer`, `version`), `annuler` (`sens`) et `autonome`.
+  `etape`, `retirer`, `version`), `annuler` (`sens`), `autonome` et `famille` (`cle`, `famille`).
+  - **Page d'ouverture** (v1.89.0) : à chaque page d'une famille (`FAMILLE_VUES` : individuel, collectif, classe ; pas les pages
+    communes), la fiche envoie `famille` ; Suivi PP la retient par classe dans `suiviPP_suivisFamille` (préférence de ce poste, hors de
+    `S` et de la sync ; classe inconnue ou famille inconnue refusées) et la rend dans `charger`. À l'ouverture (F5) ou au changement de
+    classe, la fiche va à `PREMIERE_PAGE` de cette famille (`#indiv`, `#sommaire`, `#classesem`), à défaut de celle dont la dernière
+    saisie est la plus récente (`familleRecente`), à défaut au sommaire (`pageOuverture`). Avant : toujours le sommaire.
   - `charger` porte un numéro (`version`), retenu (`hoteVersion`) APRÈS la frappe en attente qu'il fait partir : chaque `etat` le
     répète, et Suivi PP écarte un suivi fondé sur un état qu'il a remplacé depuis.
 - **Rien ne s'enregistre dans la fiche** : `persist()` envoie l'état (s'il a changé) ; aucune clé `localStorage` propre à la page

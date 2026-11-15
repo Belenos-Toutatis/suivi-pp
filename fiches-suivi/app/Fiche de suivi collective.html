@@ -2463,7 +2463,7 @@ let hoteEtape = false;       // memoriser() a ouvert un cran d'annulation, pas e
 let hoteRetirer = false;     // … puis l'a refermé (saisie refusée) après l'avoir transmis : Suivi PP retire le sien
 let hoteDernier = null;      // le suivi tel que Suivi PP l'a (JSON) : on n'envoie que ce qui a changé
 let hoteClasse = null;       // la classe dans Suivi PP : { nom, annee, eleves: [{ nom, groupes, debut, fin }], groupes, renommer }
-let hoteCle = null;          // la classe affichée (id de Suivi PP) : en changer ramène au sommaire
+let hoteCle = null;          // la classe affichée (id de Suivi PP) : en changer ramène à la page d’ouverture (pageOuverture)
 let hoteDemo = false;        // données de démonstration de Suivi PP : la démonstration des fiches y est permise
 let hotePile = {};           // { annuler, retablir } : la pile de Suivi PP
 let hotePolices = null;      // { ecran, papier } : les polices réglées dans Suivi PP (💾 Données)
@@ -2969,6 +2969,22 @@ let current = { view: "sommaire", arg: null };
 let ficheDate = null;          // date de la fiche affichée
 const absEdit = new Set();     // élèves dont on règle l'absence créneau par créneau (« date.élève »)
 const NOMS_VUES = { eleve: "Fiche élève", conseil: "Conseil de classe", sommaire: "Sommaire", fiche: "Fiche collective", classe: "Fiche de classe", classesem: "Fiche de classe de la semaine", classesuivi: "Classe semaine après semaine", classebilan: "Bilan par matière de la classe", indivtous: "Tous les suivis individuels", totaux: "Totaux", bilan: "Bilan", edt: "Emploi du temps", reglages: "Réglages", indiv: "Suivis individuels" };
+/* ---------- page d'ouverture de la version intégrée (v1.89.0) : la première page de la famille en cours ----------
+   F5 ou changement de classe dans Suivi PP : la fiche rouvrait toujours le sommaire du suivi collectif. Elle rouvre maintenant la
+   PREMIÈRE page de la famille où l'on était (Suivi PP la retient par classe, sur ce poste : message « famille »), à défaut celle
+   dont la dernière saisie est la plus récente. Les pages communes (élève, conseil, emploi du temps, réglages) ne changent pas la famille. */
+const FAMILLE_VUES = { indiv: "indiv", indivtous: "indiv", sommaire: "collectif", fiche: "collectif", totaux: "collectif", bilan: "collectif", classesem: "classe", classesuivi: "classe", classebilan: "classe" };
+const PREMIERE_PAGE = { indiv: "#indiv", collectif: "#sommaire", classe: "#classesem" };
+/** Famille dont la dernière saisie (jusqu'à aujourd'hui) est la plus récente ; "" si aucune saisie. À égalité : individuel, collectif, classe. */
+function familleRecente(st) {
+  const auj = aujourdhui(), der = { indiv: "", collectif: "", classe: "" }, maj = (f, d) => { if (d <= auj && d > der[f]) der[f] = d; };
+  for (const i of st.individuels || []) for (const [k, v] of Object.entries(i.saisies || {})) if ((v.c || []).some(x => x !== null && x !== undefined) || (v.r || "").trim()) maj("indiv", k.split(".")[0]);
+  for (const [d, j] of Object.entries(st.jours || {})) { if (Object.keys(j.x || {}).length) maj("collectif", d); if (Object.keys(j.cl || {}).length) maj("classe", d); }
+  return ["indiv", "collectif", "classe"].reduce((a, f) => (der[f] && (!a || der[f] > der[a]) ? f : a), "");
+}
+/** Page d'ouverture : la première page de la famille retenue par Suivi PP, sinon de la plus récemment saisie, sinon le sommaire. */
+const pageOuverture = (st, famille) => PREMIERE_PAGE[PREMIERE_PAGE[famille] ? famille : familleRecente(st)] || "#sommaire";
+let hoteFamille = null;                  // dernière famille envoyée à Suivi PP
 function route() {
   const [v, arg] = location.hash.replace(/^#/, "").split("/");
   if (v === "classe" && S) {            // ancienne fiche de classe du jour : la fiche de la semaine qui contient ce jour
@@ -2980,6 +2996,7 @@ function route() {
   current = { view: v || "sommaire", arg: arg ?? null };
   if (autreVue && (current.view === "indiv" || current.view === "classesem")) { codeIndiv = null; codeCl = null; }   // à l'ouverture d'une fiche : aucun code choisi
   if (S && !HOTE) try { localStorage.setItem(CLE_PAGE + "-page", JSON.stringify({ id: S.id, hash: location.hash })); } catch (e) { /* sans stockage */ }   // rouvrir sur la dernière page vue
+  if (S && HOTE && FAMILLE_VUES[current.view] && FAMILLE_VUES[current.view] !== hoteFamille) { hoteFamille = FAMILLE_VUES[current.view]; hoteEnvoyer({ type: "famille", cle: hoteCle, famille: hoteFamille }); }   /* intégrée : Suivi PP retient la famille (page d'ouverture) */
   render();
   // changement de page : le focus perdu va au titre de la page (lecteurs d'écran, clavier) ; on remonte en haut si la vue change
   if (!document.activeElement || document.activeElement === document.body) {
@@ -5446,7 +5463,8 @@ function hoteCharger(m) {
     const quoi = avant && S ? decrireChangement(avant, S) : avant && !S ? "le suivi de la classe" : !avant && S ? "le suivi de la classe" : "";
     toast(`${m.raison === "annuler" ? "Annulé" : "Rétabli"}${quoi ? " : " + quoi : " (une modification faite dans Suivi PP)"}. ${m.raison === "annuler" ? "Ctrl+Y pour rétablir." : "Ctrl+Z pour annuler."}`, 5000);
   }
-  const voulu = S ? (autreClasse || premier || !location.hash ? "#sommaire" : location.hash) : "";
+  if (premier || autreClasse) hoteFamille = PREMIERE_PAGE[m.famille] ? m.famille : null;
+  const voulu = S ? (autreClasse || premier || !location.hash ? pageOuverture(S, m.famille) : location.hash) : "";
   if ((location.hash || "") !== voulu && (autreClasse || premier || !S)) location.hash = voulu; else { if (premier || autreClasse) route(); else render(); }
   updateStatus();
   if (change) hoteEnvoyerEtat();          // liste de la classe mise à jour, démonstration : rangées sans cran d'annulation

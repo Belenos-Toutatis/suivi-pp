@@ -34,7 +34,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const an = await h(() => getCls().annee.slice(0, 4));
   ok(e.etat.S.anneeScolaire === Number(an) && e.etat.S.debut.startsWith(an), `démonstration déplacée dans l'année de la classe (${an})`);
   ok(await h(() => undoStack.length === 0), "fabriquer la démonstration ne pose pas de cran d'annulation");
-  ok(await f(() => location.hash === "#sommaire" && /Suivi PP/.test(document.getElementById("status").textContent) && document.documentElement.classList.contains("integree")), "la fiche s'ouvre sur son sommaire, « dans Suivi PP »");
+  ok(await f(() => location.hash === pageOuverture(S, null) && /Suivi PP/.test(document.getElementById("status").textContent) && document.documentElement.classList.contains("integree")), "la fiche s'ouvre sur la première page de la famille la plus récemment saisie, « dans Suivi PP »");
+  ok(await f(() => ["#indiv", "#sommaire", "#classesem"].includes(location.hash)), "… une première page de famille (individuel, collectif ou classe)");
   ok(await f(() => ["#b-save", "#b-new", "#b-demo", "#b-annee", "#theme"].every(s => { const el = document.querySelector(s); return !el || getComputedStyle(el.closest("label") || el).display === "none"; })), "pas d'Enregistrer, de nouveau suivi, de démonstration, de nouvelle année ni de thème dans la fiche");
   ok(await h(() => !Object.keys(localStorage).some(k => k.startsWith("fiche-suivi-collective:"))), "la fiche n'écrit pas de copie à elle dans le navigateur");
   ok(await f(async () => { await document.fonts.ready; return ["Andika", "Latin Modern Roman", "JetBrains Mono"].every(x => document.fonts.check(`1em "${x}"`)); }), "polices de Suivi PP dans le cadre");
@@ -99,7 +100,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(e.etat && e.etat.S.consignes && e.etat.S.classeEleves[0].nom === "TRUITE Jean-Pierre" && e.etat.S.eleves[0].nom === "TRUITE Jean-Pierre" && e.etat.S.referent === await h(() => S.prefs.avisNom) && e.etat.S.classe === "4e B", "suivi repris d'un fichier : rangé dans la classe, « Jean-Pierre TRUITE » devient « TRUITE Jean-Pierre » partout ; classe et référent, ceux de Suivi PP");
   ok(e.etat.S.classeEleves[0].groupes && e.etat.S.classeEleves[0].groupes.includes("Groupe 2") && await h(u => undoStack.length === u + 1, u0), "… avec son groupe de Suivi PP, en un cran d'annulation");
   await h(() => switchClass("5C")); await wait(800);
-  ok(await f(() => location.hash === "#sommaire") && (await fiche()).etat.S.demo && await h(() => S.fichesSuivi["4B"].etat.S.eleves[0].nom === "TRUITE Jean-Pierre"), "retour à la 5e C : son suivi ; celui de la 4e B intact");
+  const fam5C = await h(() => (JSON.parse(localStorage.getItem("suiviPP_suivisFamille")) || {})["5C"]);
+  ok(await f(fam => location.hash === PREMIERE_PAGE[fam], fam5C) && (await fiche()).etat.S.demo && await h(() => S.fichesSuivi["4B"].etat.S.eleves[0].nom === "TRUITE Jean-Pierre"), `retour à la 5e C : son suivi, sur la première page de sa famille (${fam5C}) ; celui de la 4e B intact`);
 
   // 5 bis. la fiche élève de Suivi PP : la carte « 📋 Fiches de suivi », calculée par l'appli des fiches, et « ↗ Ouvrir »
   const ind = await h(() => { const e = S.fichesSuivi["5C"]; const nom = e.etat.S.individuels[0].nom; return { nom, sid: Object.keys(e.noms).find(k => e.noms[k] === nom) }; });
@@ -147,9 +149,26 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const com = await f(() => { const t = document.querySelector("textarea[data-com]"); return t ? t.dataset.com : null; });
   if (com !== null) { await fr.click(`textarea[data-com="${com}"]`); await fr.type(`textarea[data-com="${com}"]`, "Oubli de cahier"); }
   await p.reload(); await wait(1500); fr = null; await cadre(); await wait(2000);
+  ok(await f(() => location.hash === "#sommaire") && await h(() => JSON.parse(localStorage.getItem("suiviPP_suivisFamille"))["5C"] === "collectif"), "F5 depuis une fiche collective : la fiche rouvre le sommaire du suivi collectif (famille retenue par Suivi PP pour la 5e C)");
   e = await fiche();
   ok(!!fr && e.etat.S.eleves.some(x => x.nom === nouveauNom), "page rechargée : l'onglet 📋 Suivis rouvre la fiche, avec ses données");
   ok(com !== null && ((e.etat.S.jours[jourFiche] || {}).com || {})[com] === "Oubli de cahier", "un commentaire tapé juste avant de fermer la page n'est pas perdu (frappe pas encore envoyée)");
+  // 6. page d'ouverture (v1.89.0) : F5 rouvre la PREMIÈRE page de la famille où l'on était ; les pages communes ne la changent pas
+  await f(() => { location.hash = "#indivtous"; }); await wait(500);
+  await f(() => { location.hash = "#reglages"; }); await wait(500);
+  ok(await h(() => JSON.parse(localStorage.getItem("suiviPP_suivisFamille"))["5C"] === "indiv"), "page des suivis individuels, puis réglages : la famille retenue reste « individuel »");
+  await p.reload(); await wait(1500); fr = null; await cadre(); await wait(2000);
+  ok(await f(() => location.hash === "#indiv"), "F5 : la fiche rouvre la liste des suivis individuels (pas le sommaire, pas les réglages)");
+  await f(() => { location.hash = "#classesuivi"; }); await wait(500);
+  await p.reload(); await wait(1500); fr = null; await cadre(); await wait(2000);
+  ok(await f(() => location.hash === "#classesem"), "depuis le suivi de la classe, F5 : la fiche de classe de la semaine");
+  // chaque classe a la sienne
+  await h(() => switchClass("4B")); await wait(900);
+  const fam4B = await h(() => (JSON.parse(localStorage.getItem("suiviPP_suivisFamille")) || {})["4B"]);
+  ok(await f(fam => location.hash === pageOuverture(S, fam), fam4B), `4e B : sa propre page d'ouverture (${fam4B || "déduite des saisies"})`);
+  await h(() => switchClass("5C")); await wait(900);
+  ok(await f(() => location.hash === "#classesem"), "retour à la 5e C : la fiche de classe, comme on l'avait laissée");
+  ok(await h(() => _suivisFamilleEcrire("__proto__", "indiv") === false && _suivisFamilleEcrire("5C", "autre") === false && _suivisFamilleLire("inconnue") === null), "Suivi PP : classe inconnue ou famille inconnue refusées");
   ok(!errs.length && !ferr.length, "aucune erreur JS" + (errs.length || ferr.length ? " : " + [...errs, ...ferr].join(" | ") : ""));
   await b.close(); fs.rmSync(prof, { recursive: true, force: true });
 })();
