@@ -105,7 +105,9 @@ const DEFAULTS = {
     ["Participer et s’impliquer", "réalise les tâches demandées, participe à l’oral, travail complet et soigné, efforts réguliers."],
     ["Ne pas perturber les autres", "contribue à une ambiance sereine, ne pas « faire le clown »."],
     ["Être respectueux", "pas d’insolence, ton correct, politesse."]],
-  codage: [["TB", "Très bien"], ["S", "Satisfaisant"], ["À", "À améliorer"], ["I", "Insuffisant"]],
+  /* v1.87.0 : TB · B · I · TI (avant : TB · S · À · I) — « À améliorer » était lu comme positif par des parents ; les deux niveaux
+     du bas (hors « réussite ») sont maintenant tous deux nettement négatifs. Un suivi existant garde son codage (bouton « Revenir au codage proposé »). */
+  codage: [["TB", "Très bien"], ["B", "Bien"], ["I", "Insuffisant"], ["TI", "Très insuffisant"]],
   consignes: [
     ["Élève responsable → référent, le soir", "L’élève responsable transporte la fiche entre les cours, la fait remplir par chaque enseignant, puis la remet à [référent] en fin de journée."],
     ["Délégué de classe → référent, le soir", "Le délégué de classe transporte la fiche entre les cours, la fait remplir par chaque enseignant, puis la remet à [référent] en fin de journée."],

@@ -92,3 +92,11 @@ Sur le modèle de la règle de la fiche de classe. **Sans règle par défaut** (
 - **Fiche non rendue** : `ind.nonRendues = { [fin de la fiche]: true }`, case sur la page du suivi ; la marque suit sa fiche quand le jour de remise change (`recalerBilans`).
 - **Où elle se dit** : une ligne « Attention : … » sous la consigne de la fiche imprimée (vérifié : 4 objectifs, consigne de 3 lignes, tous les créneaux = 1 page) ; page du suivi (« Retenue », écran seulement) ; carte (« ⚠ retenue n h », dernière fiche remise) ; bilan pour la famille et courriel, seulement s'il y a une retenue. L'application n'en pose aucune : elle l'annonce, la vie scolaire la pose.
 - Démonstration : 3 « I » = 1 heure, fiche non rendue = 1 heure ; PODEANU, fiche du 20/11 non rendue. Test : `fiches-suivi/e2e_retenue_indiv.js`.
+
+### Codes des niveaux proposés (v1.87.0)
+
+`DEFAULTS.codage` passe de **TB · S · À · I** à **TB Très bien · B Bien · I Insuffisant · TI Très insuffisant** : des parents lisaient « À améliorer » comme un encouragement, alors que ce niveau est hors de la « réussite ». Les deux niveaux du bas sont maintenant tous deux nettement négatifs.
+
+- Un suivi existant **garde son codage** (`normalizeState` ne remplace que ce qui manque). Bouton **« Revenir au codage proposé »** (Réglages › Codes et pastilles) : la confirmation montre l'ancien et le nouveau codage, dit que les saisies (rangées par niveau, 0-3) s'affichent sous les nouveaux noms et que les seuils ne bougent pas ; Ctrl+Z ; grisé quand le codage proposé est en place.
+- La retenue des fiches individuelles compte le niveau le plus bas : « TI » avec ce codage. Raccourcis en lettres perdus (TB et TI commencent par T) : les chiffres 1 à 4 restent.
+- Test : `fiches-suivi/e2e_codage_defaut.js`.

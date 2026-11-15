@@ -7,6 +7,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const errs = []; p.on("pageerror", e => errs.push(e.message));
   await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
   await p.evaluate(() => doDemo()); await wait(200);
+  /* codage proposé (v1.87.0) : TB et TI commencent par T, donc pas de raccourci T ; B et I restent */
+  ok(await p.evaluate(() => JSON.stringify(lettresIndiv()) === JSON.stringify({ B: 1, I: 2 })), "codage proposé TB B I TI : raccourcis B et I, pas de T (deux codes en T)");
+  /* la suite de ce test porte sur la frappe par lettres : codage à initiales toutes différentes (l'ancien codage proposé) */
+  await p.evaluate(() => { S.codage = [["TB", "Très bien"], ["S", "Satisfaisant"], ["À", "À améliorer"], ["I", "Insuffisant"]].map(([code, sens]) => ({ code, sens })); render(); }); await wait(200);
   await p.evaluate(() => { S.individuels[0].saisies = {}; commit(); location.hash = "#indiv/demo-bridge:2026-11-20"; }); await wait(400);
   const ordre = await p.evaluate(() => ordreIndiv());
   ok(ordre[0].endsWith("2026-11-16.0.0") && ordre[1].endsWith("2026-11-16.0.1") && ordre[3].split(".")[1] === "2026-11-16", "ordre de saisie : objectifs du 1er cours, puis cours suivant, jour par jour " + ordre.slice(0, 4).join(" "));

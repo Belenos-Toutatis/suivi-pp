@@ -7,6 +7,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const errs = []; p.on("pageerror", e => errs.push(e.message));
   await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
   await p.evaluate(() => doDemo());
+  await p.evaluate(() => { /* repère du niveau le plus bas : le test cherche « I » (ancien codage proposé) */ S.codage = [["TB", "Très bien"], ["S", "Satisfaisant"], ["À", "À améliorer"], ["I", "Insuffisant"]].map(([code, sens]) => ({ code, sens })); render(); });
   ok(JSON.stringify(await p.evaluate(() => seuils(S))) === '{"rouge":60,"orange":80,"vert":90,"vertFonce":95}', "seuils par défaut : rouge < 60, orange < 80, vert ≥ 90, vert foncé ≥ 95");
   const u = await p.evaluate(() => [[.96, 0], [.95, 0], [.94, 0], [.90, 0], [.89, 0], [.80, 0], [.99, 1], [.79, 0], [.60, 0], [.59, 0], [.24, 2]].map(([v, i]) => niveauReussite(S, v, i) || "·"));
   ok(u.join(" ") === "vf vf v v · · · o o r r", `règle : 96/95→vert foncé, 94/90→vert clair, 89/80→rien, 99 % avec 1 I→rien, 79/60→orange, 59/24→rouge (${u.join(" ")})`);

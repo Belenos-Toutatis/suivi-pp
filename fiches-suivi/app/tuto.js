@@ -71,7 +71,7 @@ const TUTO = [
       but: "Un jour où les cours commencent plus tard (le mercredi matin décalé de 30 min, par exemple) ou ont des horaires à part.",
       faire: "Pour ce jour, choisissez « décalés de… » (en minutes, toute la journée ou le matin seulement) ou « horaires libres » (chaque créneau à la main). Le jour est repéré par ⏱ dans l’emploi du temps." },
     { route: "#reglages/pastilles", cible: ".codage", titre: "15. Codes et pastilles",
-      but: "Les 4 niveaux (TB, S, À, I) servent aux fiches individuelles et au suivi collectif ; les seuils colorent les résultats (rouge, orange, vert). En noir et blanc, le rouge se reconnaît à son cadre plein, l’orange à son cadre pointillé.",
+      but: "Les 4 niveaux (proposés : TB, B, I, TI) servent aux fiches individuelles et au suivi collectif ; les seuils colorent les résultats (rouge, orange, vert). En noir et blanc, le rouge se reconnaît à son cadre plein, l’orange à son cadre pointillé.",
       faire: "Gardez les réglages proposés ou adaptez-les à votre établissement. Les seuils restent toujours dans l’ordre rouge, orange, vert clair, vert (le vert ne s’affiche que si « Pastilles vertes aussi » est coché) : un seuil tapé trop haut ou trop bas est corrigé, avec un message." }] },
   { id: "indiv", titre: "Suivis individuels", sous: "Créer un suivi, imprimer, saisir le jour de la remise, informer la famille.", etapes: [
     { route: "#indiv", cible: '[data-act="ind-ajout"]', titre: "1. Créer un suivi individuel",

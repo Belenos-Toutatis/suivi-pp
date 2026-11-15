@@ -56,7 +56,7 @@ const D = __dirname, ok = (c, m) => console.log((c ? "OK    " : "ÉCHEC ") + m),
   r = await p.evaluate(() => { S.seuils = { ...SEUILS_DEFAUT }; render(); const t = document.querySelector('input[data-num="seuils.vert"]'); t.value = "10"; t.dispatchEvent(new Event("change", { bubbles: true })); return [S.seuils.vert, document.querySelector("#toast").textContent]; });
   ok(r[0] === 80 && /vert clair porté à 80/.test(r[1]), "seuil vert clair tapé sous l’orange : remonté, et le message le dit (" + r[1] + ")");
   r = await p.evaluate(() => { const t = document.querySelector('input[data-path="codage.1.code"]'); t.value = "tb"; t.dispatchEvent(new Event("change", { bubbles: true })); return S.codage[1].code; });
-  ok(r === "S", "code de niveau en double refusé");
+  ok(r === "B", "code de niveau en double refusé");
   // audit 8
   await p.evaluate(() => { location.hash = "#reglages/classeEntiere"; }); await att(400);
   r = await p.evaluate(() => { const a = S.classeEleves[0].nom, b = S.classeEleves[1].nom, t = document.querySelector('input[data-path="classeEleves.0.nom"]'); t.value = b; t.dispatchEvent(new Event("change", { bubbles: true })); return S.classeEleves[0].nom === a; });
