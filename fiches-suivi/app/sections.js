@@ -337,10 +337,7 @@ function recalerBilans(ind, anciens) {
     const cle = cible && cible[1] ? cible[0].fin : c.fin;
     b[cle] = b[cle] ? b[cle] + "\n" + txt : txt; }
   ind.bilans = { ...reste, ...b };
-  /* fiches marquées perdues (champ nonRendues) : la marque suit la nouvelle fiche qui contient la plupart de ses jours */
-  const nr = {}; for (const c of anciens) { if (!(ind.nonRendues || {})[c.fin]) continue;
-    const cible = nouv.map(n => [n, n.jours.filter(d => c.jours.includes(d)).length]).sort((x, y) => y[1] - x[1])[0]; nr[cible && cible[1] ? cible[0].fin : c.fin] = true; }
-  ind.nonRendues = nr;
+  /* les pertes sont datées (ind.pertes) : chacune retombe d'elle-même dans la fiche qui contient son jour */
 }
 const bilanCycle = (ind, c) => ind.bilans[c.fin] ?? c.jours.map(d => ind.bilans[d]).find(Boolean) ?? "";
 /** Règle de retenue d'un suivi : la sienne, sinon celle des réglages. */
@@ -348,36 +345,42 @@ const regleRetenueDe = ind => (ind && ind.retenue) || S.retenueIndiv || RETENUE_
 const heuresTxt = h => `${h} heure${h > 1 ? "s" : ""}`;
 /** La règle en une phrase (« 3 « TI » sur la fiche = 1 heure de retenue · réussite de la fiche sous 75 % = 1 heure de retenue ·
     fiche perdue = 1 heure de retenue · 2 heures au plus par fiche ») ; "" sans règle.
-    « Fiche perdue » (v1.88.0, avant « non rendue ») : perdue en route ou pas rendue le jour de remise — le champ garde son nom, nonRendue(s). */
+    « Fiche perdue » (v1.88.0, avant « non rendue ») : perdue en route ou pas rendue le jour de remise — la règle garde son nom de champ, nonRendue ;
+    depuis la v1.90.0, une retenue PAR PERTE, chaque perte datée (ind.pertes). */
 function regleRetenueIndiv(ind) {
   const r = regleRetenueDe(ind), cI = (S.codage[3] || {}).code || "I", t = [];
   if (r.i) t.push(`${r.i} « ${cI} » sur la fiche = ${heuresTxt(r.heures)} de retenue`);
   if (r.hReussite) t.push(`réussite de la fiche sous ${r.reussite} % = ${heuresTxt(r.hReussite)} de retenue`);
-  if (r.nonRendue) t.push(`fiche perdue = ${heuresTxt(r.nonRendue)} de retenue`);
+  if (r.nonRendue) t.push(`fiche perdue = ${heuresTxt(r.nonRendue)} de retenue par perte`);
   if (t.length && r.max) t.push(`${heuresTxt(r.max)} au plus par fiche`);
   return t.join(" · ");
 }
-/** Retenue prévue pour une fiche : { regle, nI, hI, pct, hR, nonRendue, hNR, brut, plafond, total } (heures ; total = brut ramené au plafond de la fiche).
+/** Jours de perte d'une fiche (ind.pertes compris entre son premier et son dernier jour). */
+const pertesFiche = (ind, c) => (ind.pertes || []).filter(d => d >= c.debut && d <= c.fin);
+/** « le mardi 17/11 », « 2 fois : mardi 17/11 et jeudi 19/11 ». */
+const joursPerte = l => { const j = d => `${[...JOURS_REMISE, "samedi", "dimanche"][jourSemaine(d) - 1]} ${fmtDM(d)}`;
+  return l.length === 1 ? `le ${j(l[0])}` : `${l.length} fois : ${l.slice(0, -1).map(j).join(", ")} et ${j(l[l.length - 1])}`; };
+/** Retenue prévue pour une fiche : { regle, nI, hI, pct, hR, pertes, hNR, brut, plafond, total } (heures ; total = brut ramené au plafond de la fiche).
     Les « I » et la réussite ne comptent que les cours qui ont eu lieu (statsIndiv) ; pct = réussite arrondie, comme affichée, null si rien n'est noté. */
 function retenueFiche(ind, c) {
-  const r = regleRetenueDe(ind), st = statsIndiv(ind, c), nI = st.reduce((a, x) => a + x[2], 0), nonRendue = !!(ind.nonRendues || {})[c.fin];
+  const r = regleRetenueDe(ind), st = statsIndiv(ind, c), nI = st.reduce((a, x) => a + x[2], 0), pertes = pertesFiche(ind, c);
   const okN = st.reduce((a, x) => a + x[0], 0), tot = st.reduce((a, x) => a + x[1], 0), pct = tot ? pctArrondi(okN / tot) : null;
-  const hI = r.i ? Math.floor(nI / r.i) * r.heures : 0, hR = r.hReussite && pct !== null && pct < r.reussite ? r.hReussite : 0, hNR = nonRendue && r.nonRendue ? r.nonRendue : 0;
+  const hI = r.i ? Math.floor(nI / r.i) * r.heures : 0, hR = r.hReussite && pct !== null && pct < r.reussite ? r.hReussite : 0, hNR = pertes.length * r.nonRendue;
   const brut = hI + hR + hNR, total = r.max ? Math.min(brut, r.max) : brut;
-  return { regle: !!(r.i || r.hReussite || r.nonRendue), r, nI, hI, pct, hR, nonRendue, hNR, brut, plafond: brut > total, total };
+  return { regle: !!(r.i || r.hReussite || r.nonRendue), r, nI, hI, pct, hR, pertes, hNR, brut, plafond: brut > total, total };
 }
 /** La retenue d'une fiche en une phrase, pour la famille et le professeur principal ; "" sans règle ni fiche perdue. */
 function phraseRetenue(ind, c) {
   const x = retenueFiche(ind, c), cI = (S.codage[3] || {}).code || "I", raisons = [];
-  if (!x.regle && !x.nonRendue) return "";
+  if (!x.regle && !x.pertes.length) return "";
   if (x.hI) raisons.push(`${x.nI} « ${cI} » sur la fiche`);
   if (x.hR) raisons.push(`réussite de ${x.pct} %, sous le seuil de ${x.r.reussite} %`);
-  if (x.hNR) raisons.push("fiche perdue");
+  if (x.hNR) raisons.push(`fiche perdue ${joursPerte(x.pertes)}`);
   if (x.total) return `Retenue prévue : ${heuresTxt(x.total)} (${raisons.join(" ; ")}${x.plafond ? ` ; plafond de la fiche atteint, la règle en donnerait ${x.brut}` : ""}).`;
   const etat = [];
   if (x.r.i) etat.push(`${x.nI} « ${cI} » sur la fiche, la règle en prévoit une à partir de ${x.r.i}`);
   if (x.r.hReussite && x.pct !== null) etat.push(`réussite de ${x.pct} %, le seuil est de ${x.r.reussite} %`);
-  if (x.nonRendue) etat.push("fiche perdue");
+  if (x.pertes.length) etat.push(`fiche perdue ${joursPerte(x.pertes)}`);
   return `Pas de retenue${etat.length ? " : " + etat.join(" ; ") : ""}.`;
 }
 /** Réussite d'une fiche pour chaque objectif : [TB+S, total, nb I, nb par code]. */
@@ -430,12 +433,22 @@ function consigneIndiv(ind, c) {   /* casse et accents indifférents */
 }
 /** Retenue de la fiche affichée (page du suivi, écran) : la phrase, la case « fiche perdue », la règle. */
 function retenueIndivHTML(ind, c) {
-  const x = retenueFiche(ind, c), ii = S.individuels.indexOf(ind), jr = remiseCycle(c);
+  const x = retenueFiche(ind, c), ii = S.individuels.indexOf(ind), auj = aujourdhui();
+  const jours = c.jours.filter(d => !sansCours(S, d) && !x.pertes.includes(d)), defaut = jours.includes(auj) ? auj : jours.filter(d => d <= auj).pop() || jours[0];
+  const nomJ = d => `${[...JOURS_REMISE, "samedi", "dimanche"][jourSemaine(d) - 1]} ${fmtDM(d)}`, toutes = ind.pertes || [];
   return `<h3 style="margin-top:14px">Retenue</h3><div class="retenue-ind">
-    ${x.regle || x.nonRendue ? `<p class="${x.total ? "ret-oui" : ""}">${x.total ? "⚠ " : ""}${esc(phraseRetenue(ind, c))}</p>` : ""}
-    <label class="row" style="gap:8px" title="Fiche perdue\nPerdue en route ou pas rendue le jour de remise${x.r.nonRendue ? ` : ${heuresTxt(x.r.nonRendue)} de retenue d’après la règle` : " (aucune retenue prévue par la règle)"}.\n• un deuxième exemplaire se réimprime : « Imprimer la fiche » ; les codes déjà perdus ne se rattrapent pas"><input type="checkbox" data-nr="${ii}|${c.fin}" ${x.nonRendue ? "checked" : ""}> Fiche perdue</label>
+    ${x.regle || x.pertes.length ? `<p class="${x.total ? "ret-oui" : ""}">${x.total ? "⚠ " : ""}${esc(phraseRetenue(ind, c))}</p>` : ""}
+    <div class="pertes row" style="gap:6px;flex-wrap:wrap;align-items:center"><b>Fiche perdue :</b>
+      ${x.pertes.length ? x.pertes.map(d => `<span class="chip perte">le ${nomJ(d)} <button type="button" class="ghost s" data-perte-del="${ii}|${d}" title="Retirer cette perte\nLe ${nomJ(d)} : la fiche n’a finalement pas été perdue." aria-label="Retirer la perte du ${nomJ(d)}">✕</button></span>`).join("") : `<span class="muted small">aucune perte sur cette fiche</span>`}
+      ${jours.length ? `<select id="perte-jour-${ii}" aria-label="Jour de la perte">${jours.map(d => `<option value="${d}" ${d === defaut ? "selected" : ""}>${nomJ(d)}</option>`).join("")}</select><button type="button" data-perte-add="${ii}" title="Fiche perdue ce jour-là\nPerdue en route ou pas rendue le jour de remise${x.r.nonRendue ? ` : ${heuresTxt(x.r.nonRendue)} de retenue par perte d’après la règle` : " (aucune retenue prévue par la règle)"}.\n• un nouvel exemplaire se réimprime : « Imprimer la fiche » ; les codes de l’exemplaire perdu ne se rattrapent pas">+ Perte ce jour-là</button>` : ""}</div>
+    ${toutes.length ? `<p class="small" style="margin:6px 0 0">Depuis le début du suivi : ${nbMot(toutes.length, "perte")} — ${toutes.map(d => fmtDM(d)).join(", ")}.</p>` : ""}
     <p class="hint" style="margin:4px 0 0">${x.regle ? `Règle${ind.retenue ? " propre à ce suivi" : ""} : ${esc(regleRetenueIndiv(ind))}.` : "Aucune règle de retenue : Réglages › Fiches individuelles, ou les réglages du suivi."} L’application ne fait que l’annoncer : la retenue se pose à la vie scolaire.</p></div>`;
 }
+/* une perte de plus (jour choisi dans la liste des jours de la fiche), ou une de moins */
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-perte-add], [data-perte-del]"); if (!b || !S) return;
+  if (b.dataset.perteAdd !== undefined) { const ind = S.individuels[Number(b.dataset.perteAdd)], sel = document.getElementById("perte-jour-" + b.dataset.perteAdd); if (!ind || !sel || !sel.value) return;
+    ind.pertes = [...new Set([...(ind.pertes || []), sel.value])].sort(); commit(); toast(`Perte notée : le ${fmtLong(sel.value).replace(/ \d{4}$/, "")}. Ctrl+Z pour annuler.`); }
+  else { const [k, d] = b.dataset.perteDel.split("|"), ind = S.individuels[Number(k)]; if (!ind) return; ind.pertes = (ind.pertes || []).filter(x => x !== d); commit(); } });
 /** Rappel pour le professeur principal : qui récupère la fiche, dans quel casier déposer la nouvelle. court : une ligne pour la carte du suivi. */
 function relaisIndivHTML(ind, c, court = false) {
   const r = relaisIndiv(ind, c), pp = String(S.referent || "").trim(), moi = x => !!(x && pp && x.prof.trim() === pp);
@@ -994,7 +1007,7 @@ function viewIndiv(arg) {
         <label class="champ" title="Durée de la retenue">= heures <input type="number" min="1" max="4" data-num="individuels.${ii}.retenue.heures" value="${ind.retenue.heures}" style="width:60px" aria-label="Heures de retenue par palier"></label>
         <label class="champ" title="Réussite de la fiche sous le seuil\nPart des cases notées dans les deux niveaux du haut, tous objectifs confondus.\n75 % : au plus un avis négatif sur quatre.">Réussite sous (%) <input type="number" min="1" max="100" data-num="individuels.${ii}.retenue.reussite" value="${ind.retenue.reussite}" style="width:64px" aria-label="Seuil de réussite de la fiche, en pourcentage"></label>
         <label class="champ" title="Heures de retenue quand la réussite est sous le seuil\n0 : pas de retenue pour la réussite.">= heures <input type="number" min="0" max="4" data-num="individuels.${ii}.retenue.hReussite" value="${ind.retenue.hReussite}" style="width:60px" aria-label="Heures de retenue pour une réussite sous le seuil"></label>
-        <label class="champ" title="Fiche perdue\nPerdue en route ou pas rendue le jour de remise ; heures de retenue, 0 : pas de retenue.">Fiche perdue = heures <input type="number" min="0" max="4" data-num="individuels.${ii}.retenue.nonRendue" value="${ind.retenue.nonRendue}" style="width:60px" aria-label="Heures de retenue pour une fiche perdue"></label>
+        <label class="champ" title="Fiche perdue\nPerdue en route ou pas rendue le jour de remise ; heures de retenue pour CHAQUE perte, 0 : pas de retenue.">Perte de la fiche = heures <input type="number" min="0" max="4" data-num="individuels.${ii}.retenue.nonRendue" value="${ind.retenue.nonRendue}" style="width:60px" aria-label="Heures de retenue pour une fiche perdue"></label>
         <label class="champ" title="Plafond par fiche\nHeures de retenue au plus pour une fiche, tous critères compris.\n0 : pas de plafond.">Plafond (heures) <input type="number" min="0" max="12" data-num="individuels.${ii}.retenue.max" value="${ind.retenue.max}" style="width:60px" aria-label="Plafond de retenue par fiche, en heures"></label>`
         : `<span class="hint" style="align-self:end">${regleRetenueIndiv(ind) ? "Règle des réglages : " + esc(regleRetenueIndiv(ind)) + "." : "Aucune règle de retenue dans les réglages."}</span>`}</div>
       ${ind.fin && S.fin && ind.fin > S.fin ? `<p class="hint" style="margin:8px 0 0">⚠ Les fiches s’arrêtent à la fin de la période du suivi (${fmtDM(S.fin)}) : pour aller jusqu’au ${fmtDM(ind.fin)}, allongez-la dans <a href="#reglages/calendrier">Réglages › Période et calendrier</a>.</p>` : ""}
@@ -1148,7 +1161,7 @@ document.addEventListener("click", async e => {
     if (nom === null) return;
     if (nom !== "__autre__" && nom.trim() && dejaSuivi(nom)) { informer("Déjà suivi", `${nom.trim()} a déjà un suivi individuel : ouvrez-le plutôt (un seul suivi par élève).`); return; }
     if (nom === "__autre__") nom = "";
-    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, nonRendues: {} };
+    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [] };
     S.individuels.push(ind); commit(false); location.hash = "#indiv/" + ind.id;
     setTimeout(() => { const c = document.querySelector(`input[data-path="individuels.${S.individuels.length - 1}.${nom ? "objectifs.0" : "nom"}"]`); if (c) c.focus(); }, 100);
     return;

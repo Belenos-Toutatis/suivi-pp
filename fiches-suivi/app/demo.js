@@ -86,7 +86,7 @@ function demoState() {
   jour(st, "2026-11-30", true).clr[rang("KÖPRÜLÜ Mikail")] = "Oublis de matériel répétés : mot dans le carnet.";
   // ----- suivis individuels hebdomadaires : objectifs propres, résultats qui progressent -----
   const indiv = (nom, objectifs, debut, prof) => {
-    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, nonRendues: {} };
+    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [] };
     sems.forEach((w, wi) => { if (w.jours[4] < debut) return;
       w.jours.forEach(date => { if (sansCours(st, date)) return;
         for (let p = 0; p < 7; p++) { const cr = creneau(st, sems, date, p); if (!cr.mat || cr.absent || r2() < 0.08) continue;
@@ -134,9 +134,10 @@ function demoState() {
       st.classeEleves.forEach((e, s) => { if (!coursPour(cr, e.groupes || []).mat) delete (j.cl || {})[`${s}.${p}`]; });
       for (const i of st.individuels) { const c = coursPour(cr, groupesDe(st, i.nom)); if (!c.mat) delete i.saisies[`${date}.${p}`];
         else if (!i.saisies[`${date}.${p}`] && (!i.debut || date >= i.debut)) i.saisies[`${date}.${p}`] = { c: i.objectifs.map(() => r3() < 0.45 ? 0 : r3() < 0.6 ? 1 : 2), r: "" }; } } }
-  /* fiche perdue de PODEANU (semaine du 16/11) : aucun code, retirés en dernier (les cours de latin en ajoutaient plus haut) */
+  /* PODEANU, semaine du 16/11 : fiche perdue le mardi 17 et le jeudi 19 — les codes des exemplaires perdus (lundi à jeudi) disparaissent
+     avec eux, seul le vendredi reste ; retirés en dernier (les cours de latin en ajoutaient plus haut) */
   const pdF = st.individuels.find(i => i.id === "demo-podeanu");
-  for (const k of Object.keys(pdF.saisies)) if (k >= "2026-11-16" && k < "2026-11-21") delete pdF.saisies[k];
-  pdF.nonRendues = { "2026-11-20": true }; pdF.bilans["2026-11-20"] = "Fiche perdue : une heure de retenue, la famille est prévenue.";
+  for (const k of Object.keys(pdF.saisies)) if (k >= "2026-11-16" && k < "2026-11-20") delete pdF.saisies[k];
+  pdF.pertes = ["2026-11-17", "2026-11-19"]; pdF.bilans["2026-11-20"] = "Fiche perdue deux fois : un nouvel exemplaire donné à chaque fois, la famille est prévenue.";
   return st;
 }

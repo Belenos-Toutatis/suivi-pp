@@ -1,4 +1,4 @@
-// Fiches individuelles : règle de retenue (n « TI » sur la fiche = h heures ; réussite sous un seuil = h heures ; fiche perdue = h heures), commune ou propre à un suivi,
+// Fiches individuelles : règle de retenue (n « TI » sur la fiche = h heures ; réussite sous un seuil = h heures ; fiche perdue = h heures par perte, chaque perte datée), commune ou propre à un suivi,
 // annoncée sur la fiche imprimée, la page du suivi, la carte, le bilan pour la famille et le courriel. L'application ne pose rien elle-même.
 const puppeteer = require("/usr/local/lib/node_modules/puppeteer"); const fs = require("fs"); const DIR = __dirname;
 const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m);
@@ -12,9 +12,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   // ----- sans règle : nouveau suivi et ancien fichier -----
   ok(await p.evaluate(() => { const n = normalizeState({}); return n.retenueIndiv.i === 0 && n.retenueIndiv.nonRendue === 0; }), "nouveau suivi : aucune règle de retenue par défaut");
-  ok(await p.evaluate(() => { const n = normalizeState({ individuels: [{ nom: "X", objectifs: ["a"] }] }); return n.retenueIndiv.i === 0 && n.individuels[0].retenue === null && JSON.stringify(n.individuels[0].nonRendues) === "{}"; }), "ancien fichier : pas de règle, pas de fiche non rendue");
-  ok(await p.evaluate(() => { const n = normalizeState({ retenueIndiv: { i: "99", heures: -3, nonRendue: "x" }, individuels: [{ nom: "X", objectifs: ["a"], retenue: { i: 2.6 }, nonRendues: { "2026-11-20": true, "pas une date": true, "2026-11-27": "oui" } }] });
-    return n.retenueIndiv.i === 20 && n.retenueIndiv.heures === 1 && n.retenueIndiv.nonRendue === 0 && n.individuels[0].retenue.i === 3 && Object.keys(n.individuels[0].nonRendues).join() === "2026-11-20"; }), "fichier abîmé : valeurs bornées, seules les vraies dates « true » gardées");
+  ok(await p.evaluate(() => { const n = normalizeState({ individuels: [{ nom: "X", objectifs: ["a"] }] }); return n.retenueIndiv.i === 0 && n.individuels[0].retenue === null && JSON.stringify(n.individuels[0].pertes) === "[]"; }), "ancien fichier : pas de règle, aucune perte");
+  ok(await p.evaluate(() => { const n = normalizeState({ retenueIndiv: { i: "99", heures: -3, nonRendue: "x" }, individuels: [{ nom: "X", objectifs: ["a"], retenue: { i: 2.6 }, pertes: ["2026-11-19", "2026-11-17", "2026-11-17", "pas une date", 3] }] });
+    return n.retenueIndiv.i === 20 && n.retenueIndiv.heures === 1 && n.retenueIndiv.nonRendue === 0 && n.individuels[0].retenue.i === 3 && n.individuels[0].pertes.join() === "2026-11-17,2026-11-19"; }), "fichier abîmé : valeurs bornées ; pertes triées, sans doublon, seules les vraies dates gardées");
+  ok(await p.evaluate(() => { const n = normalizeState({ individuels: [{ nom: "X", objectifs: ["a"], nonRendues: { "2026-11-20": true, "2026-11-27": "oui", "x": true }, pertes: ["2026-11-10"] }] }).individuels[0];
+    return n.pertes.join() === "2026-11-10,2026-11-20" && !("nonRendues" in n); }), "fichier v1.85-v1.89 : la case « fiche perdue » devient une perte datée du dernier jour de la fiche"); 
 
   await p.evaluate(() => doDemo()); await wait(200);
   // ----- démonstration : 3 « TI » = 1 heure, réussite sous 75 % = 1 heure, fiche perdue = 1 heure -----
@@ -43,20 +45,28 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(/Retenue prévue : 2 heures \(\d+ « TI » sur la fiche ; .*plafond de la fiche atteint, la règle en donnerait \d+\)\./.test(pl.ph), `phrase : « ${pl.ph} »`);
   ok(await p.evaluate(() => normalizeState({ retenueIndiv: { i: 3 } }).retenueIndiv.max === 2 && normalizeState({ retenueIndiv: { max: 99 } }).retenueIndiv.max === 12 && normalizeState({ retenueIndiv: { max: 0 } }).retenueIndiv.max === 0), "plafond : 2 heures si absent, borné à 12, 0 = pas de plafond");
   const pd = await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-podeanu"), c = cyclesIndiv(ind).find(x => x.fin === "2026-11-20"), x = retenueFiche(ind, c); return { x, ph: phraseRetenue(ind, c) }; });
-  ok(pd.x.nonRendue && pd.x.hNR === 1 && pd.x.total === 1 && pd.ph === "Retenue prévue : 1 heure (fiche perdue).", `PODEANU, fiche du 20/11 perdue (rien de noté, donc pas de réussite) : « ${pd.ph} »`);
+  ok(pd.x.pertes.join() === "2026-11-17,2026-11-19" && pd.x.hNR === 2 && /fiche perdue 2 fois : mardi 17\/11 et jeudi 19\/11/.test(pd.ph) && pd.x.total === 2, `PODEANU, perdue mardi et jeudi : 2 heures pour les pertes (une par perte, dans le plafond) — « ${pd.ph} »`);
 
   // ----- fiche imprimée : la règle sous la consigne -----
   await go("#indiv/demo-bridge");
-  ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*3\s*«\s*TI\s*»\s*sur la fiche = 1 heure de retenue · réussite de la fiche sous 75\s*% = 1 heure de retenue · fiche perdue = 1 heure de retenue · 2 heures au plus par fiche\./.test(e.innerText)), "fiche : « Attention : 3 « TI » sur la fiche = 1 heure de retenue · fiche non rendue… · 2 heures au plus par fiche »");
+  ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*3\s*«\s*TI\s*»\s*sur la fiche = 1 heure de retenue · réussite de la fiche sous 75\s*% = 1 heure de retenue · fiche perdue = 1 heure de retenue par perte · 2 heures au plus par fiche\./.test(e.innerText)), "fiche : « Attention : 3 « TI » sur la fiche = 1 heure de retenue · fiche non rendue… · 2 heures au plus par fiche »");
 
   // ----- page du suivi : phrase, case « fiche perdue » -----
   const finB = await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-bridge"), cy = cyclesIndiv(ind); return cy.find(c => retenueFiche(ind, c).hI > 0).fin; });
   await go("#indiv/demo-bridge:" + finB);
   ok(await p.evaluate(() => { const r = document.querySelector(".retenue-ind"); return !!r && /Retenue prévue\s*:\s*\d+ heures? \(\d+\s*«\s*TI\s*»\s*sur la fiche\s*[;)]/.test(r.innerText) && !!r.querySelector(".ret-oui") && !!r.closest(".no-print"); }), "page du suivi : « ⚠ Retenue prévue : … (n « TI » sur la fiche) », écran seulement");
-  await p.click('input[data-nr^="0|"]'); await wait(300);
-  ok(await p.evaluate(fin => S.individuels[0].nonRendues[fin] === true && retenueFiche(S.individuels[0], cyclesIndiv(S.individuels[0]).find(c => c.fin === fin)).hNR === 1 && /fiche perdue/.test(document.querySelector(".retenue-ind").innerText), finB), "case « Fiche non rendue » cochée : une heure de plus, dite dans la phrase");
+  const jr = await p.evaluate(() => document.getElementById("perte-jour-0").value);
+  await p.click('button[data-perte-add="0"]'); await wait(300);
+  ok(await p.evaluate((fin, jr) => S.individuels[0].pertes.includes(jr) && retenueFiche(S.individuels[0], cyclesIndiv(S.individuels[0]).find(c => c.fin === fin)).hNR === 1 && /fiche perdue le \S+ \d\d\/\d\d/.test(document.querySelector(".retenue-ind").innerText), finB, jr), `« + Perte ce jour-là » (${jr}) : une perte datée, une heure de plus, dite dans la phrase`);
+  ok(await p.evaluate(jr => !document.querySelector(`#perte-jour-0 option[value="${jr}"]`) && !!document.querySelector(`[data-perte-del="0|${jr}"]`), jr), "le jour noté sort de la liste et se retire par ✕");
+  await p.select("#perte-jour-0", await p.evaluate(() => document.querySelector("#perte-jour-0 option").value)); await p.click('button[data-perte-add="0"]'); await wait(300);
+  ok(await p.evaluate(fin => { const ind = S.individuels[0], x = retenueFiche(ind, cyclesIndiv(ind).find(c => c.fin === fin)); return x.pertes.length === 2 && x.hNR === 2 && /2 fois :/.test(phraseRetenue(ind, cyclesIndiv(ind).find(c => c.fin === fin))); }, finB), "deux pertes la même semaine : deux heures (une par perte)");
+  ok(await p.evaluate(() => /Depuis le début du suivi\s*:\s*2 pertes/.test(document.querySelector(".retenue-ind").innerText)), "cumul depuis le début du suivi : 2 pertes, avec leurs dates");
+  await p.click(`[data-perte-del="0|${jr}"]`); await wait(300);
+  ok(await p.evaluate(jr => !S.individuels[0].pertes.includes(jr) && S.individuels[0].pertes.length === 1, jr), "✕ : la perte est retirée");
   await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await wait(300);
-  ok(await p.evaluate(fin => !S.individuels[0].nonRendues[fin], finB), "Ctrl+Z : la fiche redevient rendue");
+  ok(await p.evaluate(jr => S.individuels[0].pertes.includes(jr), jr), "Ctrl+Z : la perte retirée revient");
+  await p.evaluate(() => { S.individuels[0].pertes = []; commit(); }); await wait(200);
 
   // ----- bilan pour la famille et courriel -----
   ok(await p.evaluate(fin => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => x.fin === fin); return /<h3>Retenue<\/h3><p class="bf-retenue">Retenue prévue/.test(bilanFamilleHTML(ind, c)); }, finB), "bilan pour la famille (PDF) : partie « Retenue »");
@@ -101,9 +111,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     const rf = await pdf("retenue-famille", await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total); return [bilanFamilleHTML(ind, c), indivHTML(ind, c, false, true)]; }));
     ok(rf.n === 2 && /Retenue prévue/.test(rf.txt), `bilan pour la famille avec la retenue : ${rf.n} pages`); }
 
-  // ----- changement du jour de remise : la marque « fiche perdue » suit sa fiche -----
+  // ----- changement du jour de remise : les pertes, datées, tombent dans la fiche qui contient leur jour -----
   await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-podeanu"); const av = cyclesIndiv(ind); ind.remise = 4; recalerBilans(ind, av); });
-  ok(await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-podeanu"), k = Object.keys(ind.nonRendues); return k.length === 1 && k[0] === "2026-11-19" && cyclesIndiv(ind).some(c => c.fin === k[0]); }), "remise passée au jeudi : la fiche non rendue du vendredi 20/11 devient celle du jeudi 19/11");
+  ok(await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-podeanu"), cy = cyclesIndiv(ind); return ind.pertes.join() === "2026-11-17,2026-11-19" && pertesFiche(ind, cy.find(c => c.fin === "2026-11-19")).length === 2; }), "remise passée au jeudi : les pertes du mardi 17 et du jeudi 19 restent sur la fiche qui finit le jeudi 19/11");
 
   await go("#indiv/demo-bridge:" + finB); await p.screenshot({ path: DIR + "/sorties/retenue-indiv.png" });
   ok(await p.evaluate(() => document.documentElement.scrollWidth <= 1024), "pas de défilement horizontal à 1024 px");

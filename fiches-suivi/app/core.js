@@ -147,7 +147,7 @@ const peuDe = (n, unite, mini = 5) => (n && n < mini ? `\n• ⚠ seulement ${n}
 const presentClasse = (e, d) => !!e && (!e.debut || d >= e.debut) && (!e.fin || d <= e.fin);
 const MAX_INDIV = 40;              // suivis individuels au plus (une classe entière)
 /** Règle de retenue des fiches individuelles (v1.85.0) : i « I » sur une fiche = heures de retenue (0 : pas de règle) ;
-    fiche perdue (« non rendue » jusqu'en v1.87.0, d'où le nom du champ) = nonRendue heures (0 : pas de règle) ; max : plafond par fiche, en heures (0 : pas de plafond ; v1.86.0) ;
+    fiche perdue (« non rendue » jusqu'en v1.87.0, d'où le nom du champ) = nonRendue heures PAR PERTE (v1.90.0 ; 0 : pas de règle) ; max : plafond par fiche, en heures (0 : pas de plafond ; v1.86.0) ;
     réussite de la fiche sous reussite % = hReussite heures (0 : pas de règle ; seuil 75 % par défaut, v1.88.0).
     Sans règle par défaut : un suivi ne change pas de règle sans qu'on le décide. */
 const RETENUE_INDIV_DEFAUT = { i: 0, heures: 1, nonRendue: 0, max: 2, reussite: 75, hReussite: 0 };
@@ -371,9 +371,11 @@ function normalizeState(st) {
     const bilans = {}; for (const [l, t] of Object.entries(obj(i.bilans))) if (date(l) && str(t).trim()) bilans[l] = str(t);
     const remise = [1, 2, 3, 4, 5].includes(Number(i.remise)) ? Number(i.remise) : 0;     // jour de remise propre au suivi : 1 = lundi … 5 = vendredi ; 0 = celui des réglages
     const consigne = Number.isInteger(Number(i.consigne)) && Number(i.consigne) > 0 ? Number(i.consigne) : 0;   /* consigne propre au suivi : n = modèle n (à partir de 1) ; 0 = celle des réglages (bornée plus bas) */
-    const nonRendues = {}; for (const [l, v] of Object.entries(obj(i.nonRendues))) if (date(l) && v === true) nonRendues[l] = true;   /* fiches perdues (ou non rendues), par leur dernier jour */
+    /* jours où la fiche a été perdue (v1.90.0) : une date par perte, triées, sans doublon ; l'ancienne case « fiche perdue »
+       (nonRendues, v1.85.0-v1.89.0 : { fin de la fiche: true }) devient une perte datée du dernier jour de cette fiche */
+    const pertes = [...new Set([...arr(i.pertes).map(date), ...Object.entries(obj(i.nonRendues)).filter(([, v]) => v === true).map(([l]) => date(l))].filter(Boolean))].sort();
     const retenue = i.retenue && typeof i.retenue === "object" && !Array.isArray(i.retenue) ? retenueNormale(i.retenue) : null;     /* règle propre au suivi ; null = celle des réglages */
-    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, nonRendues }; });
+    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, pertes }; });
   out.consignesIndiv = (Array.isArray(st.consignesIndiv) && st.consignesIndiv.length ? st.consignesIndiv : CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })))
     .slice(0, 20).map(c => ({ label: str(obj(c).label), texte: str(obj(c).texte) }));
   /* modèles ajoutés après coup (CONSIGNES_INDIV_V2) : proposés UNE fois aux suivis plus anciens, à la suite des leurs ; supprimés ensuite, ils ne reviennent pas */
