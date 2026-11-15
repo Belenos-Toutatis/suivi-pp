@@ -127,3 +127,20 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
 
 - **Carte** : la pastille « ⚠ retenue n h » porte sur la fiche **affichée** sur la carte (celle du pourcentage, la dernière commencée et remplie), avec « (en cours) » avant son jour de remise. Avant, elle ne regardait que la dernière fiche déjà remise : une retenue de la fiche en cours n'y apparaissait pas.
 - **Échap** sur la page d'un suivi individuel ramène à la liste des suivis (`#indiv`) — sauf quand Échap a déjà servi (menu fermé : `preventDefault` posé par le gestionnaire commun ; fenêtre ouverte ; tutoriel) ou pendant la frappe (remarque, bilan, champ). Test : `fiches-suivi/e2e_echap_indiv.js`.
+
+### Critère de retenue désactivé (v1.91.2)
+
+- Dans **Réglages › Fiches individuelles** et dans la **règle propre à un suivi**, un critère réglé à 0 porte la marque
+  « désactivé » sur la ligne de son libellé : nombre de « TI » à 0, heures pour la réussite à 0, heures par perte à 0. Un
+  plafond à 0 porte « sans plafond ». La durée par palier (1 à 4 h) et le seuil de réussite n'en ont jamais : ils ne
+  désactivent rien.
+- Raison : un seuil de réussite réglé (75 %) avec « = heures » à 0 ne donnait aucune retenue, sans que rien ne le signale
+  (cas rencontré avec une règle propre copiée des réglages). `retOff` (sections.js), style `label.champ em.ret-off`.
+  Test `e2e_ret_off`.
+
+### Codes de la réussite sur la fiche (v1.91.2)
+
+- La fiche individuelle (écran et papier) dit, après les codes que l'enseignant écrit : « Réussite = cases **TB** ou **B**. »
+  (les deux niveaux du haut de `S.codage`, quel que soit le codage choisi). Le seuil de la règle de retenue (« réussite de la
+  fiche sous 75 % ») se lit ainsi sur la même feuille. Le bilan pour la famille avait déjà sa légende
+  (« Réussite = part des cours notés … »). Test : `e2e_codage_defaut` (nouveau et ancien codage).
