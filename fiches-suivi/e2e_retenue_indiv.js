@@ -69,9 +69,22 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(() => { S.individuels[0].pertes = []; commit(); }); await wait(200);
 
   // ----- bilan pour la famille et courriel -----
-  ok(await p.evaluate(fin => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => x.fin === fin); return /<h3>Retenue<\/h3><p class="bf-retenue">Retenue prévue/.test(bilanFamilleHTML(ind, c)); }, finB), "bilan pour la famille (PDF) : partie « Retenue »");
+  ok(await p.evaluate(fin => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => x.fin === fin), h = bilanFamilleHTML(ind, c); return /<h3>Bilan du professeur principal<\/h3><div class="bf-bilan"><p class="bil-ret">Retenue prévue/.test(h) && !/<h3>Retenue<\/h3>/.test(h); }, finB), "bilan pour la famille (PDF) : la retenue en première ligne du bilan du professeur principal");
   ok(await p.evaluate(fin => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => x.fin === fin), m = S.courrielIndiv; return texteCourriel(m.texte, ind, c).includes("Retenue prévue") && texteCourriel(m.texte, ind, c, true).includes("<b>Retenue prévue"); }, finB), "courriel (texte et mis en forme) : la retenue prévue");
-  ok(await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total === 0 && statsIndiv(ind, x).some(s => s[1])); return !c || (!bilanFamilleHTML(ind, c).includes("<h3>Retenue</h3>") && !texteCourriel(S.courrielIndiv.texte, ind, c).includes("Retenue")); }), "fiche sans retenue : rien dans le bilan ni le courriel");
+  ok(await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total === 0 && statsIndiv(ind, x).some(s => s[1])); return !c || (/<p class="bil-ret">Pas de retenue/.test(bilanFamilleHTML(ind, c)) && texteCourriel(S.courrielIndiv.texte, ind, c).includes("Pas de retenue")); }), "fiche sans retenue, règle réglée : « Pas de retenue … » en tête du bilan et dans le courriel");
+  // ligne automatique en tête du bilan (v1.91.0) : sur la fiche, mise à jour à chaque code, « en cours » avant le jour de remise
+  ok(await p.evaluate(fin => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => x.fin === fin), t = (document.querySelector("table.indiv-pied .bil-ret") || {}).textContent || "";
+    const sp = x => x.replace(/[\u202F\u00A0]/g, " ").replace(/ +/g, " "); return sp(t) === sp(ligneRetenue(ind, c)) && /^Retenue prévue/.test(sp(t)) && !/En cours/.test(t); }, finB), "fiche affichée : la retenue en tête du cadre « Bilan du professeur principal » (fiche remise : pas de mention « en cours »)");
+  const avantCode = await p.evaluate(() => document.querySelector("table.indiv-pied .bil-ret").textContent);
+  await p.evaluate(fin => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => x.fin === fin), k = Object.keys(ind.saisies).find(k => c.jours.includes(k.split(".")[0]) && ind.saisies[k].c.some(v => v !== 3));
+    ind.saisies[k].c = ind.saisies[k].c.map(() => 3); commit(); }, finB); await wait(300);
+  const apresCode = await p.evaluate(() => document.querySelector("table.indiv-pied .bil-ret").textContent);
+  ok(apresCode !== avantCode && /«\s*TI\s*»/.test(apresCode), `un cours passé en « TI » : la ligne suit (« ${avantCode} » → « ${apresCode} »)`);
+  await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await wait(300);
+  const fut = await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => remiseCycle(x) > aujourdhui()); if (!c) return null; ind.saisies[c.jours[0] + ".0"] = { c: ind.objectifs.map(() => 3), r: "" };
+    const l = ligneRetenue(ind, c); delete ind.saisies[c.jours[0] + ".0"]; return { l, j: fmtLong(remiseCycle(c)).replace(/ \d{4}$/, "") }; });
+  ok(!fut || fut.l.endsWith(`En cours : la retenue sera fixée le ${fut.j}.`), `fiche pas encore remise : « … En cours : la retenue sera fixée le ${fut && fut.j}. »`);
+  ok(await p.evaluate(() => { const sv = S.retenueIndiv; S.retenueIndiv = { i: 0, heures: 1, nonRendue: 0, max: 2, reussite: 75, hReussite: 0 }; const ind = S.individuels[0], c = cyclesIndiv(ind)[0], ok = !ligneRetenue(ind, c) && !/bil-ret/.test(indivHTML(ind, c, false)); S.retenueIndiv = sv; return ok; }), "sans règle ni perte : pas de ligne");
 
   // ----- carte -----
   await go("#indiv");

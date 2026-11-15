@@ -383,6 +383,14 @@ function phraseRetenue(ind, c) {
   if (x.pertes.length) etat.push(`fiche perdue ${joursPerte(x.pertes)}`);
   return `Pas de retenue${etat.length ? " : " + etat.join(" ; ") : ""}.`;
 }
+/** Ligne automatique en tête du bilan du professeur principal (fiche, bilan pour la famille, courriel ; v1.91.0) : la retenue de la
+    fiche, recalculée à chaque code, jamais écrite dans le bilan (elle ne s'efface pas par erreur et ne devient jamais fausse).
+    Avant le jour de remise : « en cours », la retenue n'est fixée que ce jour-là. "" sans règle ni perte. */
+function ligneRetenue(ind, c) {
+  const ph = phraseRetenue(ind, c); if (!ph) return "";
+  const jr = remiseCycle(c), enCours = aujourdhui() < jr;
+  return enCours ? `${ph} En cours : la retenue sera fixée le ${fmtLong(jr).replace(/ \d{4}$/, "")}.` : ph;
+}
 /** Réussite d'une fiche pour chaque objectif : [TB+S, total, nb I, nb par code]. */
 /** Une saisie compte si le cours a bien lieu (comme sur la grille) : un jour sans cours, un cours annulé ou retiré de l'emploi du temps après coup ne comptent plus. */
 const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs); return !!cr.mat && !cr.absent; };
@@ -491,7 +499,7 @@ function indivHTML(ind, c, edit, famille = false) {
     return `<td class="g mat${edit ? " crn-b" : ""}"${edit ? ` data-crn="${d}|${p}" role="button" tabindex="0"` : ""} title="${esc(cr.mat)}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${edit ? "\nClic : enseignant absent ou remplacé" : ""}">${esc(abrege(cr.mat))}</td>${cases}<td class="rq">${edit ? `<input type="text" data-ir="${ii}.${d}.${p}" value="${esc(s.r)}" aria-label="Remarque ${nomJ} ${per}" title="Remarque\n${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}${s.r ? "\n" + esc(s.r) : ""}">` : s.r ? `<div class="rq-t">${esc(s.r)}</div>` : ""}</td>`;
   }).join("")}</tr>`).join("");
   const bilan = bilanCycle(ind, c);
-  const pied = `<table class="indiv-pied${!edit && bilanCycle(ind, c).length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
+  const pied = `<table class="indiv-pied${!edit && bilanCycle(ind, c).length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${ligneRetenue(ind, c) ? `<div class="bil-ret" title="Ligne automatique\nLa retenue de la fiche, recalculée à chaque code ; elle ne fait pas partie de votre bilan.">${esc(ligneRetenue(ind, c))}</div>` : ""}${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
   return `${head}<table class="indiv${c.jours.length * (no + 2) > 30 ? " dense" : ""}" style="--no:${no};--rhi:${Math.min(16, 112 / creneauxActifs(S).length).toFixed(1)}mm"><colgroup><col class="c-cr">${c.jours.map(() => `<col class="c-mat">${'<col class="c-cd">'.repeat(no)}<col class="c-rq">`).join("")}</colgroup>
     <thead><tr><th rowspan="2" class="cr" title="Créneau">Cr.</th>${jt}</tr><tr>${sous}</tr></thead><tbody>${lignes}</tbody></table>${famille ? "" : pied}`;
 }
@@ -512,8 +520,7 @@ function bilanFamilleHTML(ind, c) {
     <h3>Objectifs</h3><p class="petit">Réussite = part des cours notés « ${esc(S.codage[0].sens)} » ou « ${esc(S.codage[1].sens)} ». Codage : ${S.codage.map(x => `${esc(x.code)} ${esc(x.sens.toLowerCase())}`).join(" · ")}.</p>
     <table class="bf-obj"><thead><tr><th></th><th>Objectif</th><th>Réussite</th><th>Détail</th><th>${prec ? "Évolution" : ""}</th></tr></thead><tbody>${objs}</tbody></table>
     <h3>Remarques des enseignants</h3>${rem.length ? `<ul class="bf-rem">${rem.join("")}</ul>` : "<p>Aucune remarque sur cette période.</p>"}
-    ${retenueFiche(ind, c).total ? `<h3>Retenue</h3><p class="bf-retenue">${esc(phraseRetenue(ind, c))}</p>` : ""}
-    <h3>Bilan du professeur principal</h3><div class="bf-bilan">${esc(bilanCycle(ind, c)) || "&nbsp;"}</div>
+    <h3>Bilan du professeur principal</h3><div class="bf-bilan">${ligneRetenue(ind, c) ? `<p class="bil-ret">${esc(ligneRetenue(ind, c))}</p>` : ""}${esc(bilanCycle(ind, c)) || (ligneRetenue(ind, c) ? "" : "&nbsp;")}</div>
     <p class="petit bf-pied">La fiche remplie par les enseignants figure en page suivante.</p></div>`;
 }
 const nomPdfIndiv = (ind, cs, type = cs.length > 1 ? "Fiches" : "Fiche") => nomPdf("Suivi individuel", ind.nom || "élève", type, `${cs.length === 1 && semainesCycle(cs[0]) ? semainesCycle(cs[0]).replace(/ \([AB]\)$/, "") + " " : ""}du ${dateNom(cs[0].debut)} au ${dateNom(cs[cs.length - 1].fin)}`);
@@ -538,19 +545,17 @@ function bilanCourriel(ind, c, html) {
   const rem = [];
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
     rem.push({ quand: `${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${cr.mat}${cr.prof ? ` (${cr.prof})` : ""}`, r: s.r.trim() }); }
-  const ret = retenueFiche(ind, c).total ? phraseRetenue(ind, c) : "";
+  const ret = ligneRetenue(ind, c);
   const bilan = bilanCycle(ind, c).trim(), legende = `Réussite = part des cours notés « ${S.codage[0].sens} » ou « ${S.codage[1].sens} ».`;
   if (!html) return [`Objectifs (${legende.replace(/\.$/, "").replace(/^R/, "r")}) :`, ...objs.map((x, n) => `${n + 1}. ${x.o.replace(/[.\s]+$/, "")} : ${x.v === null ? "rien de noté" : `${pctTxt(x.v)} de réussite (${x.det})`}${x.evo ? `, ${x.evo}` : ""}`),
     "", "Remarques des enseignants :", ...(rem.length ? rem.map(r => `- ${r.quand} : ${r.r}`) : ["aucune remarque sur cette période"]),
-    ...(ret ? ["", ret] : []),
-    ...(bilan ? ["", "Bilan du professeur principal :", bilan] : [])].join("\n");
+    ...(bilan || ret ? ["", "Bilan du professeur principal :", ...(ret ? [ret] : []), ...(bilan ? [bilan] : [])] : [])].join("\n");
   const td = "border:1px solid #c9ced4;padding:4px 8px;vertical-align:top;";
   return `<p style="margin:0 0 4px"><b>Objectifs</b> <span style="color:#555">(${esc(legende)})</span></p>
 <table style="border-collapse:collapse;margin:0 0 10px"><tr><th style="${td}background:#eceef1;text-align:left">Objectif</th><th style="${td}background:#eceef1">Réussite</th><th style="${td}background:#eceef1;text-align:left">Détail</th>${prec ? `<th style="${td}background:#eceef1;text-align:left">Évolution</th>` : ""}</tr>
 ${objs.map((x, n) => { const col = COUL_NIV[x.niv]; return `<tr><td style="${td}">${n + 1}. ${esc(x.o)}</td><td style="${td}text-align:center;font-weight:600;${col ? `background:${col[0]};color:${col[1]}` : ""}">${x.v === null ? "—" : pctTxt(x.v)}</td><td style="${td}">${esc(x.det)}</td>${prec ? `<td style="${td}">${esc(x.evo)}</td>` : ""}</tr>`; }).join("\n")}</table>
 <p style="margin:0 0 4px"><b>Remarques des enseignants</b></p>${rem.length ? `<ul style="margin:0 0 10px">${rem.map(r => `<li><b>${esc(r.quand)}</b> : ${esc(r.r)}</li>`).join("")}</ul>` : `<p style="margin:0 0 10px">Aucune remarque sur cette période.</p>`}
-${ret ? `<p style="margin:0 0 10px"><b>${esc(ret)}</b></p>` : ""}
-${bilan ? `<p style="margin:0 0 4px"><b>Bilan du professeur principal</b></p><p style="margin:0 0 10px">${esc(bilan).replace(/\n/g, "<br>")}</p>` : ""}`;
+${bilan || ret ? `<p style="margin:0 0 4px"><b>Bilan du professeur principal</b></p>${ret ? `<p style="margin:0 0 6px"><b>${esc(ret)}</b></p>` : ""}${bilan ? `<p style="margin:0 0 10px">${esc(bilan).replace(/\n/g, "<br>")}</p>` : ""}` : ""}`;
 }
 function courrielFamille(ind, c) {
   const m = S.courrielIndiv || COURRIEL_INDIV_DEFAUT;

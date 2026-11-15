@@ -118,3 +118,7 @@ La case « Fiche perdue » devient la **liste des jours de perte** : `ind.pertes
 ### Fiche individuelle imprimée : toujours une page (v1.90.1)
 
 Les lignes du tableau avaient une hauteur fixe (`--rhi`, 16 mm au plus) : un en-tête long (consigne de 4 lignes, règle de retenue complète, objectifs sur 2 lignes) envoyait le cadre « Bilan du professeur principal » sur une 2e page. À l'impression, la page d'une fiche individuelle fait maintenant la hauteur utile du papier (192 mm sur 194 : paysage, marges de 8 mm) en colonne flex : en-tête et pied gardent leur taille, le tableau prend le reste (`flex: 1 1 0`) et ses lignes se le partagent, 5 mm au moins. Test : `fiches-suivi/e2e_impr2.js` (consigne « casier » de 4 lignes, 1, 3 et 4 objectifs, tous les créneaux, fiches de la semaine, bilan pour la famille).
+
+### La retenue en tête du bilan du professeur principal (v1.91.0)
+
+Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur principal » : sur la fiche (écran et papier), dans le bilan pour la famille (en tête du bilan, à la place de l'ancienne partie « Retenue ») et dans le courriel. Elle est **calculée, jamais écrite dans `ind.bilans`** : recalculée à chaque code (`commit()` redessine), elle ne s'efface pas par erreur et ne devient pas fausse. Avant le jour de remise : « … En cours : la retenue sera fixée le jeudi 26 novembre. » ; à partir du jour de remise, sans mention. Sans retenue mais avec une règle : « Pas de retenue : … » ; sans règle ni perte : pas de ligne. La fiche imprimée tient toujours sur une page avec elle.
