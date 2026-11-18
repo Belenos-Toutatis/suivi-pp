@@ -198,3 +198,12 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
   Totaux », « 2026-10-12 au 2026-12-18 - 5E - Conseil de classe 1er semestre ».
 - Dans Suivi PP, le nom passe par le titre de la page de Suivi PP le temps de l'impression (Chrome ne lit que celui-là) :
   messages `titre` / `titrePose`, `_suivisTitrePdf` (cf. `fiches-suivi/docs/integration.md`).
+
+### Un PDF par élève (v1.92.1)
+
+- La fenêtre **Fiches de la semaine…** a une case **« Un PDF par élève »** (décochée d'office) : la fenêtre d'impression s'ouvre
+  une fois par élève, l'une après l'autre, chacune avec le nom de l'élève (« 2026-11-20 - 5E - Fiche individuelle - BRIDGE
+  Michael ») ; « Enregistrer » à chaque fois. La case « Avec le bilan » vaut pour chaque PDF. Décochée : un seul PDF, comme avant.
+- Un navigateur ne peut pas enregistrer plusieurs PDF sans sa fenêtre d'impression (sauf bibliothèque extérieure, pages en
+  image) : une validation par fichier. `printPages` rend une promesse tenue à la fermeture de la fenêtre (dans Suivi PP, après
+  le message `titrePose`) : les impressions s'enchaînent. Tests : `e2e_imp_semaine`, `e2e_integre` § 6.

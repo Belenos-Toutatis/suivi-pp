@@ -148,6 +148,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(await f(() => window.__vu) === "2026-11-20 - 5E - Fiche individuelle - BRIDGE Michael", "impression depuis la fiche : Suivi PP porte le nom du PDF pendant l’impression");
   ok(await h(() => document.title) === titre0, `après l’impression : Suivi PP reprend son titre (« ${titre0} »)`);
   ok(await h(() => { _suivisTitrePdf('a/b:c*"<>|'); const t = document.title; _suivisTitrePdf(null); return t === "a-b-c-----"; }), "Suivi PP : caractères interdits dans un nom de fichier remplacés");
+  ok(JSON.stringify(await f(async () => { const vus = []; window.print = () => { vus.push(parent.document.title); };
+    for (const n of ["2026-11-20 - 5E - Fiche individuelle - A", "2026-11-20 - 5E - Fiche individuelle - B"]) await printPages(["<p>x</p>"], n); return vus; })) === JSON.stringify(["2026-11-20 - 5E - Fiche individuelle - A", "2026-11-20 - 5E - Fiche individuelle - B"]), "un PDF par élève dans Suivi PP : impressions enchaînées, chacune avec son nom (v1.92.1)");
   await f(() => { window.print = () => {}; });
   const ferr = await f(() => window.__errs);
   // une frappe pas encore envoyée (la fiche attend 0,4 s) au moment où la page se ferme : reprise par Suivi PP

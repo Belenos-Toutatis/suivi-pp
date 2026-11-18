@@ -1921,9 +1921,10 @@ function pagesAvecEtab(htmlPages) {
     @media print { #print-area .page.etab-marge { page: etabm; } #print-area .page.etab-marge:has(.evol-imp:not(.large)), #print-area .page.etab-marge:has(.synth-imp.portrait), #print-area .page.etab-marge:has(.bilan-famille) { page: etabmp; } #print-area .page.etab-marge:has(.classe-sem) { page: etabmc; } }` : "";
   return htmlPages.map(h => `<div class="page sheet${contenu && !/etab-tete|data-sans-etab/.test(h) ? " etab-marge" : ""}">${h}</div>`).join("");
 }
-function printPages(htmlPages, nom) {
+/** Imprime des pages ; rend une promesse tenue quand la fenêtre d'impression est refermée (impressions enchaînées, v1.92.1). */
+function printPages(htmlPages, nom) { return new Promise(fini => {
   htmlPages = htmlPages.filter(h => h);
-  if (!htmlPages.length) { informer("Rien à imprimer", "Aucune page à imprimer ici (par exemple : une semaine sans aucun jour de cours)."); return; }
+  if (!htmlPages.length) { informer("Rien à imprimer", "Aucune page à imprimer ici (par exemple : une semaine sans aucun jour de cours)."); fini(false); return; }
   const area = $("#print-area");
   area.innerHTML = pagesAvecEtab(htmlPages); typoNoeuds(area);
   const lancer = () => {
@@ -1933,13 +1934,14 @@ function printPages(htmlPages, nom) {
     impressionPreparee = false;
     updateStatus();                     // remet le titre habituel de la page
     if (HOTE && nom) hoteEnvoyer({ type: "titre", nom: null });   /* Suivi PP remet le sien */
+    fini(true);
   };
   /* Version intégrée : Chrome nomme le PDF d'après la page de Suivi PP. Suivi PP prend le nom le temps de l'impression et le dit
      (« titrePose ») ; window.print bloque la page, il faut donc attendre sa réponse (au plus 0,5 s) avant de lancer (v1.92.0). */
   if (HOTE && nom) { hoteTitreAttente = lancer; hoteEnvoyer({ type: "titre", nom });
     setTimeout(() => { if (hoteTitreAttente === lancer) { hoteTitreAttente = null; lancer(); } }, 500); return; }
   lancer();
-}
+}); }
 let hoteTitreAttente = null;
 /** Pages à imprimer pour la vue affichée (Ctrl+P ou menu Imprimer du navigateur), et nom proposé pour le PDF. */
 function pagesVueCourante() {

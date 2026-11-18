@@ -15,7 +15,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     const w1 = avec[0], w2 = avec[avec.length - 1], rem = i => fichesIndivSemaine(sems[i], S.individuels).map(([, c]) => remiseCycle(c));
     const jour = rem(w1).sort().at(-1); window.__vrai = aujourdhui; aujourdhui = () => jour;
     for (const i of [w1, w2]) for (const [ind, c] of fichesIndivSemaine(sems[i], S.individuels)) ind.bilans[c.fin] = "Bilan d’essai du professeur principal.";
-    printPages = pages => { window.__imp = pages; }; commit(); return { w1, w2, fini2: rem(w2).every(d => d <= jour), n1: fichesIndivSemaine(sems[w1], S.individuels).length }; });
+    window.__vraiPP = printPages; printPages = pages => { window.__imp = pages; }; commit(); return { w1, w2, fini2: rem(w2).every(d => d <= jour), n1: fichesIndivSemaine(sems[w1], S.individuels).length }; });
   ok(sem.w1 !== sem.w2 && !sem.fini2, `deux semaines de la démonstration : ${sem.w1} (fiches finies) et ${sem.w2} (fiches à venir)`);
   const bilans = () => p.evaluate(() => (window.__imp || []).map(h => /Bilan d’essai/.test(h)));
   /* geste dans la fenêtre, juste à son ouverture : f reçoit la fenêtre, rend ce qu'on veut noter */
@@ -47,6 +47,23 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(n === false, "semaine à venir choisie dans la liste : case décochée d’office");
   ok(bl.length > 0 && bl.every(x => !x), "semaine à venir, case laissée décochée : cadres vides (fiches à distribuer)");
   ok(await p.evaluate(() => Object.keys(impBilanChoix).length === 0), "l’impression groupée ne change pas la case de chaque suivi");
+
+  // v1.92.1 : « Un PDF par élève » — une fenêtre d'impression par élève, chacune avec le nom de l'élève, l'une après l'autre
+  const wm = await p.evaluate(() => { printPages = window.__vraiPP; window.__fen = []; window.print = () => { window.__fen.push([document.title, document.querySelectorAll("#print-area .page").length, /Bilan d’essai/.test(document.querySelector("#print-area").innerHTML)]); };
+    const sems = semaines(S); let best = 0; sems.forEach((w, i) => { if (fichesIndivSemaine(w, S.individuels).length > fichesIndivSemaine(sems[best], S.individuels).length) best = i; });
+    for (const [ind, c] of fichesIndivSemaine(sems[best], S.individuels)) ind.bilans[c.fin] = "Bilan d’essai du professeur principal."; commit();
+    return { wi: best, l: fichesIndivSemaine(sems[best], S.individuels).map(([ind, c]) => c.debut + " - 5E - Fiche individuelle - " + ind.nom) }; });
+  ok(wm.l.length >= 2, `une semaine avec ${wm.l.length} élèves suivis`);
+  rep = JSON.stringify({ "pis-sem": String(wm.wi), "pis-separe": true, "pis-bilan": true });
+  n = await ouvrir(`d => { const x = d.querySelector("#pis-separe"); return !!x && !x.checked && /Un PDF par élève/.test(x.closest("label").textContent); }`); await wait(400 * wm.l.length + 600);
+  ok(n === true, "fenêtre : case « Un PDF par élève », décochée d’office");
+  const fen = await p.evaluate(() => window.__fen);
+  ok(fen.length === wm.l.length && fen.every(x => x[1] === 1), `cochée : ${fen.length} impressions d’une page, une par élève`);
+  ok(JSON.stringify(fen.map(x => x[0])) === JSON.stringify(wm.l), "chaque PDF porte le nom de son élève : " + fen.map(x => "« " + x[0] + " »").join(", "));
+  ok(fen.every(x => x[2]), "la case « Avec le bilan » vaut pour chaque PDF");
+  rep = JSON.stringify({ "pis-sem": String(wm.wi) });
+  await p.evaluate(() => { window.__fen = []; }); await ouvrir(`d => null`); await wait(500);
+  ok(await p.evaluate(() => window.__fen.length === 1 && window.__fen[0][1] > 1 && / - Fiches individuelles - /.test(window.__fen[0][0])), "décochée : un seul PDF pour tous les élèves, comme avant");
   ok(await p.evaluate(() => { let ls = ""; try { ls = Object.keys(localStorage).join(); } catch (e) {} return !/pis-bilan|impBilan/.test(JSON.stringify(S) + ls); }), "le choix n’entre ni dans les données ni dans le stockage du navigateur");
   console.log(errs.length ? "ERREURS JS : " + errs.join(" | ") : "aucune erreur JS");
   await b.close(); fs.rmSync(prof, { recursive: true, force: true });

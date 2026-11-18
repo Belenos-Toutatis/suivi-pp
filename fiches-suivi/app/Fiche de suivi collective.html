@@ -4389,9 +4389,10 @@ function pagesAvecEtab(htmlPages) {
     @media print { #print-area .page.etab-marge { page: etabm; } #print-area .page.etab-marge:has(.evol-imp:not(.large)), #print-area .page.etab-marge:has(.synth-imp.portrait), #print-area .page.etab-marge:has(.bilan-famille) { page: etabmp; } #print-area .page.etab-marge:has(.classe-sem) { page: etabmc; } }` : "";
   return htmlPages.map(h => `<div class="page sheet${contenu && !/etab-tete|data-sans-etab/.test(h) ? " etab-marge" : ""}">${h}</div>`).join("");
 }
-function printPages(htmlPages, nom) {
+/** Imprime des pages ; rend une promesse tenue quand la fenêtre d'impression est refermée (impressions enchaînées, v1.92.1). */
+function printPages(htmlPages, nom) { return new Promise(fini => {
   htmlPages = htmlPages.filter(h => h);
-  if (!htmlPages.length) { informer("Rien à imprimer", "Aucune page à imprimer ici (par exemple : une semaine sans aucun jour de cours)."); return; }
+  if (!htmlPages.length) { informer("Rien à imprimer", "Aucune page à imprimer ici (par exemple : une semaine sans aucun jour de cours)."); fini(false); return; }
   const area = $("#print-area");
   area.innerHTML = pagesAvecEtab(htmlPages); typoNoeuds(area);
   const lancer = () => {
@@ -4401,13 +4402,14 @@ function printPages(htmlPages, nom) {
     impressionPreparee = false;
     updateStatus();                     // remet le titre habituel de la page
     if (HOTE && nom) hoteEnvoyer({ type: "titre", nom: null });   /* Suivi PP remet le sien */
+    fini(true);
   };
   /* Version intégrée : Chrome nomme le PDF d'après la page de Suivi PP. Suivi PP prend le nom le temps de l'impression et le dit
      (« titrePose ») ; window.print bloque la page, il faut donc attendre sa réponse (au plus 0,5 s) avant de lancer (v1.92.0). */
   if (HOTE && nom) { hoteTitreAttente = lancer; hoteEnvoyer({ type: "titre", nom });
     setTimeout(() => { if (hoteTitreAttente === lancer) { hoteTitreAttente = null; lancer(); } }, 500); return; }
   lancer();
-}
+}); }
 let hoteTitreAttente = null;
 /** Pages à imprimer pour la vue affichée (Ctrl+P ou menu Imprimer du navigateur), et nom proposé pour le PDF. */
 function pagesVueCourante() {
@@ -7121,15 +7123,18 @@ document.addEventListener("click", async e => { const b = e.target.closest && e.
   const html = `<label class="champ">Semaine <select id="pis-sem">${sems.map((w, i) => `<option value="${i}"${i === wi0 ? " selected" : ""}>Semaine ${w.num} (du ${fmtDM(w.lundi)} au ${fmtDM(w.jours.at(-1))})</option>`).join("")}</select></label>
     <p class="hint">Élèves :</p>${S.individuels.map((ind, i) => `<label class="na-case"><input type="checkbox" data-pis="${i}" checked> ${esc(ind.nom || "élève à indiquer")}</label>`).join("")}
     <p class="hint">Pour chaque élève : la fiche qui commence cette semaine-là (selon son jour de remise), sinon celle en cours.</p>
+    <label class="na-case" title="Un PDF par élève\nLa fenêtre d’impression s’ouvre une fois par élève, l’une après l’autre, avec le nom de l’élève dans le nom du PDF : « Enregistrer » à chaque fois.\n• décochée : un seul PDF (ou une seule impression) pour tous les élèves choisis"><input type="checkbox" id="pis-separe"> Un PDF par élève</label>
     <label class="na-case" title="Avec le bilan du professeur principal\nImprime, dans le cadre du bas de chaque fiche, la ligne de retenue et votre bilan.\n• cochée d’office quand le jour de remise de toutes les fiches de la semaine est arrivé\n• décochée : cadres vides, pour des fiches à distribuer"><input type="checkbox" id="pis-bilan"> Avec le bilan du professeur principal</label>`;
   /* v1.91.4 : case cochée d'office quand toutes les fiches de la semaine choisie ont atteint leur jour de remise ; suit le choix de la semaine tant qu'on n'y a pas touché */
   const bilanSemaine = wi => { const l = fichesIndivSemaine(sems[wi], S.individuels); return l.length > 0 && l.every(([ind, c]) => aujourdhui() >= remiseCycle(c)); };
   const r = await saisir("Imprimer les fiches individuelles", "Une page par élève, en un seul PDF.", { html, init: d => { const cb = d.querySelector("#pis-bilan"), sel = d.querySelector("#pis-sem"); let touche = false;
       cb.checked = bilanSemaine(Number(sel.value)); cb.addEventListener("change", () => { touche = true; }); sel.addEventListener("change", () => { if (!touche) cb.checked = bilanSemaine(Number(sel.value)); }); },
-    lire: d => ({ wi: Number(d.querySelector("#pis-sem").value), bilan: d.querySelector("#pis-bilan").checked, qui: [...d.querySelectorAll("[data-pis]")].filter(x => x.checked).map(x => Number(x.dataset.pis)) }) }, { ok: "Imprimer" });
+    lire: d => ({ wi: Number(d.querySelector("#pis-sem").value), bilan: d.querySelector("#pis-bilan").checked, separe: d.querySelector("#pis-separe").checked, qui: [...d.querySelectorAll("[data-pis]")].filter(x => x.checked).map(x => Number(x.dataset.pis)) }) }, { ok: "Imprimer" });
   if (!r || !r.qui.length) return;
   const w = sems[r.wi], l = fichesIndivSemaine(w, r.qui.map(i => S.individuels[i]));
   if (!l.length) { informer("Rien à imprimer", "Aucun des élèves choisis n’a de fiche cette semaine-là (suivi pas commencé ou terminé)."); return; }
+  /* Un PDF par élève (v1.92.1) : une fenêtre d'impression par élève, l'une après l'autre (chacune attend que la précédente soit refermée). */
+  if (r.separe && l.length > 1) { for (const [ind, c] of l) { await printPages([indivHTML(ind, c, false, false, r.bilan)], nomPdf(c.debut, "Fiche individuelle", elevesPdf([ind.nom]))); await new Promise(f => setTimeout(f, 300)); } return; }
   printPages(l.map(([ind, c]) => indivHTML(ind, c, false, false, r.bilan)), nomPdf(l.map(([, c]) => c.debut).sort()[0], l.length === 1 ? "Fiche individuelle" : "Fiches individuelles", elevesPdf(l.map(([ind]) => ind.nom))));
 });
 
