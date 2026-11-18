@@ -6141,7 +6141,7 @@ function relaisIndiv(ind, c) {
   return { remise, dernier: coursBordIndiv(ind, remise, true), reprise, premier: coursBordIndiv(ind, reprise, false) };
 }
 /** L'enseignant d'un cours, pour la consigne : « Mme Carpe (Allemand, premier cours) », à défaut « l’enseignant du premier cours (Allemand) ». */
-const enseignantCours = (x, role) => (!x ? `l’enseignant du ${role}` : x.prof ? `${x.prof} (${x.mat}, ${role}${x.salle ? ", " + salleTxt(x.salle) : ""})` : `l’enseignant du ${role} (${x.mat}${x.salle ? ", " + salleTxt(x.salle) : ""})`);
+const enseignantCours = (x, role) => (!x ? `l’enseignant du ${role}` : x.prof ? `${x.prof} (${x.mat}, ${role})` : `l’enseignant du ${role} (${x.mat})`);   /* sans la salle (arbitré v1.91.7 : la salle est dans le tableau) */
 /** « salle 104 » ; une salle déjà nommée (« Salle polyvalente ») garde son nom (v1.91.6). */
 const salleTxt = s => (/^salle\b/i.test(s) ? s : "salle " + s);
 /** Heure de début d'un cours trouvé par coursBordIndiv (« 8 h 00 »), ou "". */

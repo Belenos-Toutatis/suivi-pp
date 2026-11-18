@@ -184,7 +184,7 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
 - La fiche individuelle (écran et papier) donne la **salle** de chaque cours, en petit sous la matière, dans la case « Matière »
   (`td.mat .sal`) : celle de l'emploi du temps, du groupe de l'élève pour un cours en demi-groupes, ou celle changée pour ce jour.
   Pas de salle saisie : rien sous la matière.
-- La consigne nomme la salle avec l'enseignant : « [premier enseignant] » → « M. Carpe (Allemand, premier cours, salle 104) »
-  (`enseignantCours`, `salleTxt` : « salle 104 », une salle déjà nommée « Salle polyvalente » garde son nom). La page du suivi
-  (« D'une fiche à la suivante ») et la carte (« 📥 nouvelle fiche → ») la donnent aussi : c'est là qu'on dépose la fiche.
-  `coursBordIndiv` rend `salle`. Test : `e2e_relais`.
+- **La consigne imprimée ne la donne pas** (arbitré v1.91.7 : la salle est dans le tableau ; « [premier enseignant] » reste
+  « M. Carpe (Allemand, premier cours) »). À l'écran, la page du suivi (« D'une fiche à la suivante ») et la carte
+  (« 📥 nouvelle fiche → ») donnent la salle du premier cours, là où déposer la fiche (`salleTxt` : « salle 104 », une salle
+  déjà nommée « Salle polyvalente » garde son nom). `coursBordIndiv` rend `salle`. Tests : `e2e_relais`, `e2e_creneau`.

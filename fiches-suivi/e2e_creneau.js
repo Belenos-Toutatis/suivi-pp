@@ -20,7 +20,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(D => { location.hash = "#fiche/" + D; }, D); await wait(400);
   ok(await p.evaluate(() => document.querySelector("table.fiche").textContent.includes("M. LIMANDE")), "fiche collective du jour : le remplaçant apparaît");
   await p.evaluate(() => { location.hash = "#indiv/demo-bridge:2026-11-20"; }); await wait(400);
-  ok(await p.evaluate((D, P) => (document.querySelector(`table.indiv td[data-crn="${D}|${P}"]`) || {}).textContent === "Permanence", D, P), "fiche individuelle : la matière de remplacement apparaît");
+  ok(await p.evaluate((D, P) => { const td = document.querySelector(`table.indiv td[data-crn="${D}|${P}"]`), sal = td && td.querySelector(".sal"), cr = creneau(S, semaines(S), D, P);
+    return !!td && td.firstChild.textContent === "Permanence" && (sal ? sal.textContent === cr.salle : !cr.salle); }, D, P), "fiche individuelle : la matière de remplacement apparaît (la salle du jour en dessous, v1.91.6)");
   // enseignant absent depuis la fiche individuelle
   await p.click(`table.indiv td[data-crn="${D}|${P}"]`); await wait(300);
   await p.click('#boite input[value="absent"]'); await p.click('#boite [data-r="oui"]'); await wait(300);

@@ -21,8 +21,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(m.consigne > 0 && m.label === "Dernier enseignant, le jour de remise", `MOSTOWSKI : consigne propre « ${m.label} »`);
   ok(m.jr === 4 && m.jp === 5, `remise le jeudi (${m.r.remise}), fiche suivante le vendredi (${m.r.reprise})`);
   ok(!!(m.r.dernier && m.r.dernier.prof && m.r.premier && m.r.premier.prof), `enseignants trouvés : dernier cours ${m.r.dernier && m.r.dernier.prof} (${m.r.dernier && m.r.dernier.mat}), premier cours ${m.r.premier && m.r.premier.prof} (${m.r.premier && m.r.premier.mat})`);
-  const sal = x => (x.salle ? ", salle " + x.salle : "");
-  ok(m.texte.includes(`${m.r.dernier.prof} (${m.r.dernier.mat}, dernier cours${sal(m.r.dernier)})`) && m.texte.includes(`${m.r.premier.prof} (${m.r.premier.mat}, premier cours${sal(m.r.premier)})`) && !/\[/.test(m.texte), "consigne : les deux enseignants nommés, avec leur salle, plus aucun mot entre crochets");
+  ok(m.texte.includes(`${m.r.dernier.prof} (${m.r.dernier.mat}, dernier cours)`) && m.texte.includes(`${m.r.premier.prof} (${m.r.premier.mat}, premier cours)`) && !/\[/.test(m.texte) && !/salle/i.test(m.texte), "consigne : les deux enseignants nommés, sans la salle (elle est dans le tableau, v1.91.7), plus aucun mot entre crochets");
   ok(!!(m.r.dernier.salle || m.r.premier.salle), `démonstration : la salle d’un cours de relais est connue (${m.r.dernier.salle || "—"} / ${m.r.premier.salle || "—"})`);
   // v1.91.6 : salles sur la fiche (case Matière), et dans « D’une fiche à la suivante »
   ok(await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind)[1], d = document.createElement("div"); d.innerHTML = indivHTML(ind, c, false);
