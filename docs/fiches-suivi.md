@@ -207,3 +207,10 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
 - Un navigateur ne peut pas enregistrer plusieurs PDF sans sa fenêtre d'impression (sauf bibliothèque extérieure, pages en
   image) : une validation par fichier. `printPages` rend une promesse tenue à la fermeture de la fenêtre (dans Suivi PP, après
   le message `titrePose`) : les impressions s'enchaînent. Tests : `e2e_imp_semaine`, `e2e_integre` § 6.
+
+### Bordure droite des feuilles imprimées (v1.92.2)
+
+- Les tableaux imprimés prennent toute la largeur de la page ; en bordures fusionnées, la moitié extérieure de leur bordure droite
+  tombait hors de la zone imprimable et Chrome la rognait : ligne de droite très fine, ou absente selon l'imprimante ou le PDF
+  (constaté sur une fiche du vendredi au jeudi, vrai de toutes les feuilles). `#print-area .page` a 1 px de marge intérieure à
+  gauche et à droite (fiche individuelle : 1 px tout autour). Test : `e2e_impr2` (tableau et cadre du bilan à l'intérieur de la page).

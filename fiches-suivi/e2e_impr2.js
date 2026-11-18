@@ -47,6 +47,13 @@ const NOMS = ["SCHWARTZENBERGER Jean-Baptiste", "DE LA ROCHEFOUCAULD Marie-Amél
       ind.objectifs = ["Je ne bavarde pas en classe.", "Je termine le travail écrit demandé.", "Je note les devoirs dans mon agenda.", "Je lève la main pour prendre la parole."].slice(0, nobj);
       return [indivHTML(ind, cyclesIndiv(ind)[2], false)]; }, nobj, tous));
     ok(ri.n === 1 && /Bilan du professeur/.test(ri.txt) && /Attention/.test(ri.txt) && /premier cours/.test(ri.txt), `fiche individuelle, ${nobj} objectif(s), consigne de 4 lignes${tous ? ", tous les créneaux" : ""} : ${ri.n} page, bilan compris`); }
+  // v1.92.2 : les tableaux restent à l'intérieur de la page (sinon la moitié extérieure de leur bordure droite est rognée à l'impression)
+  await page.evaluate(() => { const ind = S.individuels.find(i => i.remise === 4) || S.individuels[1]; document.querySelector("#print-area").innerHTML = `<div class="page sheet">${indivHTML(ind, cyclesIndiv(ind)[2], false)}</div>`; });
+  await page.emulateMediaType("print");
+  const bords = await page.evaluate(() => { const pg = document.querySelector("#print-area .page").getBoundingClientRect();
+    return [...document.querySelectorAll("#print-area table.indiv, #print-area table.indiv-pied")].map(t => { const r = t.getBoundingClientRect(); return [t.className, r.left - pg.left, pg.right - r.right]; }); });
+  await page.emulateMediaType("screen");
+  ok(bords.length === 2 && bords.every(([, g, d]) => g >= 0.5 && d >= 0.5), "fiche individuelle imprimée : tableau et cadre du bilan à l’intérieur de la page, bordure droite entière " + JSON.stringify(bords));
   await page.evaluate(() => { S.creneauMidi = false; S.creneauS4 = false; S.creneauS5 = false; });
   const rs = await pdf("indiv-semaine", await page.evaluate(() => S.individuels.map(i => indivHTML(i, cyclesIndiv(i)[2], false))));
   ok(rs.n === 3, `fiches individuelles de la semaine, 3 élèves : ${rs.n} pages`);

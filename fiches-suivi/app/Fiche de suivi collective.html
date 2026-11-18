@@ -402,7 +402,7 @@ table.edt tbody th { width: 46px; }
   body > *:not(#print-area) { display: none !important; }
   #print-area { display: block; }
   #print-area .sheet { border: 0; padding: 0; border-radius: 0; overflow: visible; }
-  #print-area .page { break-after: page; page-break-after: always; }
+  #print-area .page { break-after: page; page-break-after: always; padding-left: 1px; padding-right: 1px; }   /* 1px : un tableau à 100 % a la moitié extérieure de sa bordure droite hors de la zone imprimable, que Chrome rogne (v1.92.2) */
   #print-area .page:last-child { break-after: auto; page-break-after: auto; }
   .no-print { display: none !important; }
   table.fiche td.c:hover { outline: none; }
@@ -996,7 +996,7 @@ table.indiv-pied textarea { width: 100%; border: 0; background: transparent; fon
      de 4 lignes, règle de retenue, objectifs sur 2 lignes) poussait le cadre du bilan sur une 2e page. La page fait maintenant la hauteur
      utile du papier (194 mm en paysage, marges de 8 mm), en colonne ; en-tête et pied gardent leur taille, le tableau prend le reste et
      ses lignes se le partagent (5 mm au moins). */
-  #print-area .page:has(> table.indiv) { display: flex; flex-direction: column; height: 192mm; overflow: hidden; }
+  #print-area .page:has(> table.indiv) { display: flex; flex-direction: column; height: 192mm; overflow: hidden; padding: 1px; }   /* padding : la moitié extérieure des bordures des tableaux (bord droit) restait hors de la zone imprimable et Chrome la rognait — v1.92.2 */
   #print-area .page:has(> table.indiv) > * { flex: 0 0 auto; }
   #print-area .page:has(> table.indiv) > table.indiv { flex: 1 1 0; min-height: 0; }
   table.indiv td { height: 5mm; } }
