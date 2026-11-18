@@ -49,7 +49,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   // ----- fiche imprimée : la règle sous la consigne -----
   await go("#indiv/demo-bridge");
-  ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*3\s*«\s*TI\s*»\s*sur la fiche = 1 heure de retenue · réussite de la fiche sous 75\s*% = 1 heure de retenue · fiche perdue = 1 heure de retenue par perte · 2 heures au plus par fiche\./.test(e.innerText)), "fiche : « Attention : 3 « TI » sur la fiche = 1 heure de retenue · fiche non rendue… · 2 heures au plus par fiche »");
+  ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*3 TI sur la fiche = 1 heure de retenue\. Moins de 3 cases sur 4 en TB ou B = 1 heure de retenue\. Fiche perdue = 1 heure de retenue à chaque fois\. Jamais plus de 2 heures par fiche\./.test(e.innerText.replace(/\u202f/g, " "))), "fiche : « Attention : 3 TI sur la fiche = 1 heure de retenue. Moins de 3 cases sur 4 en TB ou B = … Jamais plus de 2 heures par fiche. » (v1.91.5)");
+  ok(await p.evaluate(() => [80, 70, 10, 75, 50, 25, 65, 85, 100].map(x => seuilCasesEleve(x, "TB", "B")).join(" | ") === "Moins de 8 cases sur 10 en TB ou B | Moins de 7 cases sur 10 en TB ou B | Moins de 1 case sur 10 en TB ou B | Moins de 3 cases sur 4 en TB ou B | Moins de 1 case sur 2 en TB ou B | Moins de 1 case sur 4 en TB ou B | Moins de 65 % des cases en TB ou B | Moins de 85 % des cases en TB ou B | Une case qui n’est ni TB ni B"), "seuil dit à l’élève : en cases quand c’est exact (80 % = 8 cases sur 10, 75 % = 3 sur 4), en pourcentage sinon (65 %)");
 
   // ----- page du suivi : phrase, case « fiche perdue » -----
   const finB = await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-bridge"), cy = cyclesIndiv(ind); return cy.find(c => retenueFiche(ind, c).hI > 0).fin; });
@@ -100,7 +101,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.$eval('input[data-num="individuels.1.retenue.i"]', e => { e.value = "2"; e.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);
   await p.$eval('input[data-num="individuels.1.retenue.nonRendue"]', e => { e.value = "0"; e.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);
   ok(await p.evaluate(() => S.individuels[1].retenue.i === 2 && S.individuels[1].retenue.nonRendue === 0 && S.retenueIndiv.i === 3 && regleRetenueIndiv(S.individuels[1]) === "2 « TI » sur la fiche = 1 heure de retenue · réussite de la fiche sous 75 % = 1 heure de retenue · 2 heures au plus par fiche"), "règle propre : 2 « TI » = 1 heure, sans retenue pour une fiche non rendue ; celle des réglages inchangée");
-  ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*2\s*«\s*TI\s*»/.test(e.innerText) && !/perdue/.test(e.innerText)), "fiche de ce suivi : sa règle imprimée");
+  ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*2 TI sur la fiche/.test(e.innerText) && !/perdue/.test(e.innerText)), "fiche de ce suivi : sa règle imprimée");
   await go("#reglages/suivisIndiv");
   ok(await p.evaluate(() => /règle propre\s*:\s*MOSTOWSKI Michał \(2\s*«\s*TI\s*»\s*sur la fiche = 1 heure de retenue · réussite de la fiche sous 75\s*% = 1 heure de retenue · 2 heures au plus par fiche\)/.test(document.body.innerText)), "Réglages : le suivi à règle propre est listé");
   // règle commune modifiée : le suivi à règle propre ne bouge pas
@@ -120,7 +121,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       ind.saisies = Object.fromEntries(Object.entries(ind.saisies).map(([k, v]) => [k, { c: [v.c[0], v.c[1], v.c[2], 3], r: v.r }])); ind.consigne = S.consignesIndiv.findIndex(m => m.label === "Dernier enseignant, chaque soir") + 1; });
     for (const tous of [false, true]) { await p.evaluate(t => { S.creneauMidi = t; S.creneauS4 = t; S.creneauS5 = t; }, tous);
       const r = await pdf(`retenue-fiche${tous ? "-tous" : ""}`, await p.evaluate(() => { const ind = S.individuels[0]; return [indivHTML(ind, cyclesIndiv(ind)[1], false)]; }));
-      ok(r.n === 1 && /Attention/.test(r.txt) && /perdue/.test(r.txt) && /75/.test(r.txt), `fiche imprimée, 4 objectifs, consigne de 3 lignes et règle${tous ? ", tous les créneaux" : ""} : ${r.n} page`); }
+      ok(r.n === 1 && /Attention/.test(r.txt) && /perdue/.test(r.txt) && /3 cases sur 4/.test(r.txt), `fiche imprimée, 4 objectifs, consigne de 3 lignes et règle${tous ? ", tous les créneaux" : ""} : ${r.n} page`); }
     await p.evaluate(() => { S.creneauMidi = false; S.creneauS4 = false; S.creneauS5 = false; });
     const rf = await pdf("retenue-famille", await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total); return [bilanFamilleHTML(ind, c), indivHTML(ind, c, false, true)]; }));
     ok(rf.n === 2 && /Retenue prévue/.test(rf.txt), `bilan pour la famille avec la retenue : ${rf.n} pages`);

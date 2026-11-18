@@ -357,6 +357,23 @@ function regleRetenueIndiv(ind) {
   if (t.length && r.max) t.push(`${heuresTxt(r.max)} au plus par fiche`);
   return t.join(" · ");
 }
+/** Règle de retenue écrite pour l'élève, imprimée sur la fiche après « Attention : » (v1.91.5) : phrases courtes, le seuil de
+    réussite dit en cases quand c'est exact (« moins de 8 cases sur 10 en TB ou B »), en pourcentage sinon (« moins de 65 % des
+    cases »). "" sans règle. Les réglages gardent la forme courte (regleRetenueIndiv). */
+function seuilCasesEleve(p, c0, c1) {
+  const bons = `${c0} ou ${c1}`;
+  if (p >= 100) return `Une case qui n’est ni ${c0} ni ${c1}`;
+  const f = p === 50 ? [1, 2] : p % 10 === 0 ? [p / 10, 10] : p === 25 ? [1, 4] : p === 75 ? [3, 4] : null;
+  return f ? `Moins de ${f[0]} case${f[0] > 1 ? "s" : ""} sur ${f[1]} en ${bons}` : `Moins de ${p} % des cases en ${bons}`;
+}
+function regleRetenueEleve(ind) {
+  const r = regleRetenueDe(ind), cI = (S.codage[3] || {}).code || "I", t = [];
+  if (r.i) t.push(`${r.i} ${cI} sur la fiche = ${heuresTxt(r.heures)} de retenue.`);
+  if (r.hReussite) t.push(`${seuilCasesEleve(r.reussite, (S.codage[0] || {}).code || "TB", (S.codage[1] || {}).code || "B")} = ${heuresTxt(r.hReussite)} de retenue.`);
+  if (r.nonRendue) t.push(`Fiche perdue = ${heuresTxt(r.nonRendue)} de retenue à chaque fois.`);
+  if (t.length && r.max) t.push(`Jamais plus de ${heuresTxt(r.max)} par fiche.`);
+  return t.join(" ");
+}
 /** Jours de perte d'une fiche (ind.pertes compris entre son premier et son dernier jour). */
 const pertesFiche = (ind, c) => (ind.pertes || []).filter(d => d >= c.debut && d <= c.fin);
 /** « le mardi 17/11 », « 2 fois : mardi 17/11 et jeudi 19/11 ». */
@@ -489,7 +506,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
   const objs = ind.objectifs.map((o, k) => `<b>${NUM_OBJ[k]}</b> ${esc(o) || "<i>objectif à écrire</i>"}`).join(" &nbsp; ");
   const head = `<div class="f-head">${enteteEtab(true)}<div class="f-title" role="heading" aria-level="2" data-titre>Fiche de suivi individuelle – ${periodeCycle(c)}</div><div>Semaine${types.length > 1 ? "s" : ""} ${types.join(" et ")}</div></div>
     <div class="f-line"><span><b>Élève :</b> ${esc(ind.nom)}${S.classe ? " – " + esc(S.classe) : ""}</span><span><b>Professeur principal :</b> ${esc(S.referent)}</span></div>
-    <div class="f-consigne">${esc(consigneIndiv(ind, c))}${regleRetenueIndiv(ind) ? `<br><b>Attention :</b> ${esc(regleRetenueIndiv(ind))}.` : ""}</div>
+    <div class="f-consigne">${esc(consigneIndiv(ind, c))}${regleRetenueEleve(ind) ? `<br><b>Attention :</b> ${esc(regleRetenueEleve(ind))}` : ""}</div>
     <div class="cadre-obj"><b>Mes objectifs :</b> ${objs}<span class="petit"> &nbsp; L’enseignant écrit le code : ${S.codage.map(x => `<b>${esc(x.code)}</b> ${esc(x.sens.toLowerCase())}`).join(" · ")}. <span class="leg-reussite">Réussite = cases <b>${esc(S.codage[0].code)}</b> ou <b>${esc(S.codage[1].code)}</b>.</span></span></div>`;
   const jt = c.jours.map(d => `<th colspan="${no + 2}" class="g${sansCours(S, d) ? " ferme" : ""}">${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}${!sansCours(S, d) && jourParticulier(jourIdx(d)) ? ` <small class="j-part">⏱ ${jourParticulier(jourIdx(d))}</small>` : ""}</th>`).join("");   /* les heures de la 1re colonne sont celles des jours habituels */
   const sous = c.jours.map(() => `<th class="g mat">${!edit && c.jours.length * (no + 2) > 30 ? "Mat." : "Matière"}</th>${ind.objectifs.map((_, k) => `<th class="cd" title="Objectif ${k + 1}\n${esc(ind.objectifs[k])}">${NUM_OBJ[k]}</th>`).join("")}${edit ? `<th class="rq" title="Remarque de l’enseignant\nClic dans la case : elle s’élargit pour écrire.">Rem.</th>` : `<th class="rq">${c.jours.length * (no + 2) > 30 ? "Rem. · visa" : "Remarque · visa"}</th>`}`).join("");

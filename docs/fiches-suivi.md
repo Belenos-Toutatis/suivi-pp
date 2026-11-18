@@ -167,3 +167,14 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
 - ⚠ La fenêtre prend, pour chaque élève, la fiche qui **commence** la semaine choisie. Avec une remise le jeudi, le jeudi, la
   semaine en cours propose la nouvelle fiche (du vendredi) : la fiche finie est celle de la semaine précédente.
   Test : `e2e_imp_semaine`.
+
+### Règle de retenue écrite pour l'élève (v1.91.5)
+
+- La ligne « Attention : » de la fiche imprimée (et l'aperçu « Imprimé sur la fiche » des réglages) est écrite pour l'élève, en
+  phrases courtes : « 5 TI sur la fiche = 1 heure de retenue. Moins de 8 cases sur 10 en TB ou B = 1 heure de retenue. Fiche
+  perdue = 1 heure de retenue à chaque fois. Jamais plus de 2 heures par fiche. » (`regleRetenueEleve`).
+- Le seuil de réussite se dit en cases quand c'est **exact** : multiple de 10 → « n cases sur 10 », 50 % → « 1 case sur 2 »,
+  25 % et 75 % → « 1 / 3 cases sur 4 » ; sinon le pourcentage reste (« moins de 65 % des cases en TB ou B ») ; 100 % → « une
+  case qui n'est ni TB ni B » (`seuilCasesEleve`). Jamais d'approximation (« environ 2 sur 3 ») : la retenue se décide sur le
+  chiffre exact. Le calcul ne change pas (réussite arrondie comparée au seuil).
+- Les réglages, la page du suivi, le bilan et le courriel gardent la forme courte (`regleRetenueIndiv`).
