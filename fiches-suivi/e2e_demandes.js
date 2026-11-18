@@ -11,7 +11,7 @@ const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m); const wait
   await go("#eleve/" + encodeURIComponent("BRIDGE Michael"));
   ok(await p.evaluate(() => [...document.querySelectorAll(".el-bloc h3")].map(h => h.textContent.split(" ")[0] + " " + h.textContent.split(" ")[1]).join(",") === "Suivi individuel,Suivi collectif,Classe entière"), "fiche élève (BRIDGE) : suivi individuel, suivi collectif et classe réunis, dans cet ordre");
   await p.click('[data-act="print-eleve"]'); await wait(300);
-  ok(await p.evaluate(() => window.__p[0].includes("Synthèse - BRIDGE Michael - Fiche élève") && window.__p[1] === 1), "fiche élève : imprimée sur une page — " + await p.evaluate(() => window.__p[0]));
+  ok(await p.evaluate(() => /^\d{4}-\d\d-\d\d( au \d{4}-\d\d-\d\d)? - 5E - Fiche élève( .+)? - BRIDGE Michael$/.test(window.__p[0]) && window.__p[1] === 1), "fiche élève : imprimée sur une page — " + await p.evaluate(() => window.__p[0]));
   await go("#conseil");
   ok(await p.evaluate(() => document.querySelectorAll("table.conseil-t tbody tr").length === S.classeEleves.length), "conseil de classe : un élève par ligne");
   await p.select("#synth-de", "0"); await wait(300); await p.select("#synth-a", "1"); await wait(400);
@@ -28,7 +28,7 @@ const ok = (c, m) => console.log((c ? "OK   " : "ÉCHEC") + " " + m); const wait
   ok(fam.indivSeul === "Élève,Suivi individuel", "fiches individuelles seules : seulement leur colonne — " + fam.indivSeul);
   // 2. fiches individuelles de la semaine, en un PDF
   rep = JSON.stringify({ "pis-sem": "4" }); await go("#indiv"); await p.click('[data-act="print-ind-semaine"]'); await wait(500); rep = null;
-  ok(await p.evaluate(() => window.__p[1] === S.individuels.length && /Fiches de tous les élèves - semaine/.test(window.__p[0])), "fiches individuelles de la semaine : une page par élève suivi, un seul PDF");
+  ok(await p.evaluate(() => window.__p[1] === S.individuels.length && /^\d{4}-\d\d-\d\d - 5E - Fiches individuelles - BRIDGE, MOSTOWSKI, PODEANU$/.test(window.__p[0])), "fiches individuelles de la semaine : une page par élève suivi, un seul PDF");
   // 4. fiche collective : 1 à 4, 0
   await go("#fiche/2026-11-16");
   const x0 = await p.evaluate(() => { const td = document.querySelector("td[data-x]"); td.focus(); return td.dataset.x; }); await p.keyboard.press("4"); await wait(200);

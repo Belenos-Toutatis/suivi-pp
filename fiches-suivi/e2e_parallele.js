@@ -16,7 +16,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(() => { location.hash = "#indivtous"; }); await wait(400);
   await p.click('[data-act="print-parallele"]'); await wait(300);
   const t = await p.evaluate(() => window.__t.pop());
-  ok(/^Suivi 5E - Suivi individuel - Tous les suivis - semaines 45 à 51 du 02-11-2026 au 18-12-2026$/.test(t[0]) && t[1] === 1, "impression : 1 page, « " + t[0] + " »");
+  ok(t[0] === "2026-11-02 au 2026-12-18 - 5E - Tous les suivis individuels" && t[1] === 1, "impression : 1 page, « " + t[0] + " »");
   ok(await p.evaluate(() => document.documentElement.scrollWidth <= 1024), "pas de défilement horizontal de la page à 1024 px");
   await p.evaluate(() => document.querySelector(".indiv-parallele").scrollIntoView()); await wait(200); await p.screenshot({ path: DIR + "/sorties/parallele.png" });
   await p.evaluate(() => { window.aujourdhui = () => "2026-12-18";   /* jour de remise : la fiche de la semaine compte */ location.hash = "#indiv"; }); await wait(400);

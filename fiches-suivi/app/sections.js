@@ -552,7 +552,7 @@ function bilanFamilleHTML(ind, c) {
     <h3>Bilan du professeur principal</h3><div class="bf-bilan">${ligneRetenue(ind, c) ? `<p class="bil-ret">${esc(ligneRetenue(ind, c))}</p>` : ""}${esc(bilanCycle(ind, c)) || (ligneRetenue(ind, c) ? "" : "&nbsp;")}</div>
     <p class="petit bf-pied">La fiche remplie par les enseignants figure en page suivante.</p></div>`;
 }
-const nomPdfIndiv = (ind, cs, type = cs.length > 1 ? "Fiches" : "Fiche") => nomPdf("Suivi individuel", ind.nom || "élève", type, `${cs.length === 1 && semainesCycle(cs[0]) ? semainesCycle(cs[0]).replace(/ \([AB]\)$/, "") + " " : ""}du ${dateNom(cs[0].debut)} au ${dateNom(cs[cs.length - 1].fin)}`);
+const nomPdfIndiv = (ind, cs, type = cs.length > 1 ? "Fiches individuelles" : "Fiche individuelle") => nomPdf(cs.length === 1 ? cs[0].debut : plagePdf(cs[0].debut, cs[cs.length - 1].fin), type, elevesPdf([ind.nom]));
 /** Texte du courriel à la famille (modèle des réglages) : [élève] (Prénom NOM), [période], [référent], [classe], [bilan] (résumé de la fiche).
     html = true : texte mis en forme (pour coller dans l'ENT ou une messagerie) ; **texte** = gras. */
 function texteCourriel(modele, ind, c, html = false) {
@@ -795,7 +795,7 @@ function paralleleIndivHTML(imprime) {
 }
 /** Tous les suivis individuels, à imprimer (bouton ou Ctrl+P). */
 function pagesParallele() { const d = donneesParallele(); if (!d.cols.length) return { pages: [] };
-  return { pages: [paralleleIndivHTML(true)], nom: nomPdf("Suivi individuel", "Tous les suivis", `semaines ${d.cols[0].w.num} à ${d.cols[d.cols.length - 1].w.num} du ${dateNom(d.cols[0].w.lundi)} au ${dateNom(d.cols[d.cols.length - 1].w.jours.at(-1))}`) }; }
+  return { pages: [paralleleIndivHTML(true)], nom: nomPdf(plagePdf(d.cols[0].w.lundi, d.cols[d.cols.length - 1].w.jours.at(-1)), "Tous les suivis individuels") }; }
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest('[data-act="print-parallele"]'); if (!b || !S) return;
   const p = pagesParallele(); printPages(p.pages, p.nom); });
 /** Bilans de la classe entière (semaine après semaine, bilan par matière) à imprimer : la page telle qu'elle est affichée
@@ -808,12 +808,11 @@ function pagesSynthClasse() {
   c.querySelectorAll("a").forEach(a => a.replaceWith(...a.childNodes));
   c.querySelectorAll(".survol").forEach(x => x.classList.remove("survol"));
   const sems = semaines(S), cols = [...src.querySelectorAll("thead th a[href^='#classesem/']")].map(a => sems[Number(a.getAttribute("href").split("/")[1])]).filter(Boolean);
-  const per = cols.length ? (cols.length === 1 ? periodeSemaine(cols[0]) : `semaines ${cols[0].num} à ${cols[cols.length - 1].num} du ${dateNom(cols[0].lundi)} au ${dateNom(cols[cols.length - 1].jours.at(-1))}`) : "";
   const bil = current.view === "classebilan", qui = bil && clbEleve >= 0 ? S.classeEleves[clbEleve].nom : "";
   const titre = bil ? `Classe entière – bilan par matière${qui ? " – " + esc(qui) : ""}` : "Classe entière – semaine après semaine";
   const sous = `<b>Classe :</b> ${esc(S.classe)} · <b>Professeur principal :</b> ${esc(S.referent)}${cols.length ? ` · <b>${cols.length === 1 ? `Semaine ${cols[0].num} du ${fmtDM(cols[0].lundi)} au ${fmtDM(cols[0].jours.at(-1))}` : `Semaines ${cols[0].num} à ${cols[cols.length - 1].num} du ${fmtDM(cols[0].lundi)} au ${fmtDM(cols[cols.length - 1].jours.at(-1))}`}</b>` : ""}${bil ? ` · <b>${clbMode === "taux" ? "Incidents pour 10 cours" : "Nombre d’incidents"}</b> · semaines retenues : ${!clbSel ? "toute la période" : clbSel[0] === clbSel[1] ? `S${sems[clbSel[0]].num}` : `S${sems[clbSel[0]].num} à S${sems[clbSel[1]].num}`} · signalement : moyenne + ${S.seuilBilanClasse} %` : ""}`;
   return { pages: [`<div class="synth-imp${c.classList.contains("nombreux") ? " nombreux" : ""}"><div class="f-head"><div class="f-title" role="heading" aria-level="2">${titre}</div></div><p class="synth-sous">${sous}</p>${c.innerHTML}</div>`],
-    nom: nomPdf("Classe entière", ...(qui ? [qui] : []), bil ? "Bilan par matière" : "Semaine après semaine", per) };
+    nom: nomPdf(cols.length ? plagePdf(cols[0].lundi, cols.length > 1 ? cols[cols.length - 1].jours.at(-1) : "") : "", bil ? "Fiches de classe - Bilan par matière" : "Fiches de classe - Semaine après semaine", ...(qui ? [qui] : [])) };
 }
 /* ---------- liste des suivis individuels : cartes enrichies (maquette A) ---------- */
 const COUL_NIV_TXT = { r: "var(--pa-r-t)", o: "var(--pa-o-t)", v: "var(--pa-v-t)", vf: "var(--pa-vf-t)" };
@@ -1210,10 +1209,10 @@ document.addEventListener("click", async e => {
     toast(ok ? (objet ? "Objet copié : collez-le dans l’objet du message (Ctrl+V)." : "Message copié, mis en forme : collez-le dans le message (Ctrl+V).") : "La copie n’a pas fonctionné : ouvrez « Voir le message » et copiez-le à la main.", 5000);
     return;
   }
-  if (t.dataset.act === "print-bmi") { const s = serieIndiv(ind); if (s.length) printPages([bilanMatiereIndivHTML(ind, c, true)], nomPdfIndiv(ind, [s[0].c, s[s.length - 1].c], "Bilan par matière")); return; }
-  if (t.dataset.act === "print-evol") { const s = serieIndiv(ind); if (s.length) printPages([evolutionIndivHTML(ind, c, true), bilanMatiereIndivHTML(ind, c, true)], nomPdfIndiv(ind, [s[0].c, s[s.length - 1].c], "Évolution")); return; }
+  if (t.dataset.act === "print-bmi") { const s = serieIndiv(ind); if (s.length) printPages([bilanMatiereIndivHTML(ind, c, true)], nomPdfIndiv(ind, [s[0].c, s[s.length - 1].c], "Suivi individuel - Bilan par matière")); return; }
+  if (t.dataset.act === "print-evol") { const s = serieIndiv(ind); if (s.length) printPages([evolutionIndivHTML(ind, c, true), bilanMatiereIndivHTML(ind, c, true)], nomPdfIndiv(ind, [s[0].c, s[s.length - 1].c], "Suivi individuel - Évolution")); return; }
   if (t.dataset.act === "print-ind") printPages([indivHTML(ind, c, false)], nomPdfIndiv(ind, [c]));
-  else if (t.dataset.act === "print-famille") printPages([bilanFamilleHTML(ind, c), indivHTML(ind, c, false, true)], nomPdfIndiv(ind, [c], "Bilan pour la famille"));
+  else if (t.dataset.act === "print-famille") printPages([bilanFamilleHTML(ind, c), indivHTML(ind, c, false, true)], nomPdfIndiv(ind, [c], "Bilan famille"));
   else { if (cy.length > 12 && !(await demander("Imprimer toutes les fiches ?", `${cy.length} fiches, une par période du suivi.`, { ok: `Imprimer ${cy.length} pages` }))) return; printPages(cy.map(x => indivHTML(ind, x, false)), nomPdfIndiv(ind, cy)); }
 });
 document.addEventListener("keydown", e => {
@@ -1403,9 +1402,9 @@ function viewConseil() {
 /** Impressions des synthèses (bouton ou Ctrl+P). */
 function pagesSynthese() {
   const sems = semaines(S); if (!sems.length) return { pages: [] }; const [a, b] = bornesSynth(sems), dc = periodesDecoupage(S, sems, "9999-12-31").find(([, r]) => r[0] === a && r[1] === b);
-  const per = (dc ? dc[0] + " - " : "") + (a === b ? periodeSemaine(sems[a]) : `semaines ${sems[a].num} à ${sems[b].num} du ${dateNom(sems[a].lundi)} au ${dateNom(sems[b].jours.at(-1))}`);   // « 1er semestre - semaines 36 à 4 du … »
-  if (current.view === "eleve") return { pages: [ficheEleveHTML(eleveVu, true)], nom: nomPdf("Synthèse", eleveVu, "Fiche élève", per) };
-  return { pages: [conseilHTML(true)], nom: nomPdf("Synthèse", "Conseil de classe", per) };
+  const date = plagePdf(sems[a].lundi, a === b ? "" : sems[b].jours.at(-1)), quand = dc ? " " + dc[0] : "";   /* « Conseil de classe 1er semestre » */
+  if (current.view === "eleve") return { pages: [ficheEleveHTML(eleveVu, true)], nom: nomPdf(date, "Fiche élève" + quand, eleveVu) };
+  return { pages: [conseilHTML(true)], nom: nomPdf(date, "Conseil de classe" + quand) };
 }
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest('[data-act="print-eleve"], [data-act="print-conseil"]'); if (!b || !S) return; const p = pagesSynthese(); printPages(p.pages, p.nom); });
 
@@ -1429,5 +1428,5 @@ document.addEventListener("click", async e => { const b = e.target.closest && e.
   if (!r || !r.qui.length) return;
   const w = sems[r.wi], l = fichesIndivSemaine(w, r.qui.map(i => S.individuels[i]));
   if (!l.length) { informer("Rien à imprimer", "Aucun des élèves choisis n’a de fiche cette semaine-là (suivi pas commencé ou terminé)."); return; }
-  printPages(l.map(([ind, c]) => indivHTML(ind, c, false, false, r.bilan)), nomPdf("Suivi individuel", ...(l.length === 1 ? [l[0][0].nom || "élève", "Fiche"] : [r.qui.length === S.individuels.length && l.length === r.qui.length ? "Fiches de tous les élèves" : `Fiches de ${l.length} élèves`]), periodeSemaine(w)));
+  printPages(l.map(([ind, c]) => indivHTML(ind, c, false, false, r.bilan)), nomPdf(l.map(([, c]) => c.debut).sort()[0], l.length === 1 ? "Fiche individuelle" : "Fiches individuelles", elevesPdf(l.map(([ind]) => ind.nom))));
 });

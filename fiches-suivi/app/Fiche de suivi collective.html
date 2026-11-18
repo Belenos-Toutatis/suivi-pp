@@ -4337,28 +4337,31 @@ const enteteEtab = (mini = false) => { const e = S.etablissement || {}; return e
 
 /* ---------- impression ---------- */
 let impressionPreparee = false;
-/* Nom proposé pour le PDF (Chrome reprend le titre de la page) : du plus général au plus précis.
-   Ex. « Suivi 5E - Suivi collectif - Fiche du jour - lundi 12-10-2026 », « Suivi 5E - Suivi individuel - BRIDGE Michael - Fiche - du … au … ». */
+/* Nom proposé pour le PDF : Chrome reprend le titre de la page (dans Suivi PP, celui de Suivi PP : message « titre »). */
 const dateNom = d => d.split("-").reverse().join("-");
-const suiviNom = () => "Suivi" + (S.classe && S.classe.trim() ? " " + S.classe.trim() : "");
-/* Ordre fixe : ce qui ne change pas d'une version à l'autre d'abord (suivi, famille de fiches, élève), puis le type de document, puis la période. */
-const nomPdf = (...parts) => [suiviNom(), ...parts].join(" - ").replace(/[\\/:*?"<>|]/g, "-");
+/* Noms de PDF, modèle arbitré le 2026-11-18 (v1.92.0) : « date - classe - type de fiche - élèves ». La date (AAAA-MM-JJ, premier
+   jour du document ; « AAAA-MM-JJ au AAAA-MM-JJ » s'il couvre plusieurs semaines) range les fichiers d'un dossier dans l'ordre ;
+   le type dit la famille (« Fiche individuelle », « Fiche collective », « Fiche de classe »…) ; les élèves : « NOM Prénom » pour
+   un seul, les noms de famille (« BRIDGE, MOSTOWSKI ») pour plusieurs. Ex. « 2026-11-20 - 5E - Fiche individuelle - BRIDGE Michael ». */
+const nomPdf = (date, type, ...eleves) => [date, (S.classe || "").trim(), type, ...eleves].filter(Boolean).join(" - ").replace(/[\\/:*?"<>|]/g, "-");
+const plagePdf = (a, b) => (!b || a === b ? a : `${a} au ${b}`);
+/** Noms de famille d'une liste d'élèves (« BRIDGE Michael » → « BRIDGE ») ; un seul élève : son nom complet. */
+const elevesPdf = noms => { const l = noms.map(n => String(n || "élève").trim()); if (l.length === 1) return l[0];
+  return l.map(n => n.split(/\s+/).filter(w => w.length > 1 && w === w.toUpperCase() && /\p{Lu}/u.test(w)).join(" ") || n).join(", "); };
 const periodeSemaine = w => `semaine ${w.num} du ${dateNom(w.lundi)} au ${dateNom(w.jours.at(-1))}`;
 const ficheImprimee = d => pagesFiche(d);   /* une ou plusieurs pages */
-const famillePdf = () => "Suivi collectif";
-const nomPdfFiches = jours => !jours.length ? nomPdf(famillePdf(), "Fiches") : jours.length === 1 ? nomPdf(famillePdf(), "Fiche du jour", `${fmtLong(jours[0]).split(" ")[0]} ${dateNom(jours[0])}`)
-  : nomPdf(famillePdf(), "Fiches", (() => { const sems = semaines(S), w = semaineDuJour(sems, jours[0]);
-      return w && w.jours.includes(jours[jours.length - 1]) ? periodeSemaine(w) : `du ${dateNom(jours[0])} au ${dateNom(jours[jours.length - 1])}`; })());
+const nomPdfFiches = jours => !jours.length ? nomPdf("", "Fiches collectives") : jours.length === 1 ? nomPdf(jours[0], "Fiche collective")
+  : nomPdf((() => { const w = semaineDuJour(semaines(S), jours[0]); return w && w.jours.includes(jours[jours.length - 1]) ? jours[0] : plagePdf(jours[0], jours[jours.length - 1]); })(), "Fiches collectives");
 function nomPdfBilan() {
   const toutes = semaines(S), [a, b] = bornesBilan(toutes), w0 = toutes[a], w1 = toutes[b];
-  return nomPdf("Suivi collectif", "Bilan par matière", a === b ? periodeSemaine(w0) : `semaines ${w0.num} à ${w1.num} du ${dateNom(w0.lundi)} au ${dateNom(w1.jours.at(-1))}`);
+  return nomPdf(a === b ? w0.lundi : plagePdf(w0.lundi, w1.jours.at(-1)), "Suivi collectif - Bilan par matière");
 }
-const nomPdfEdt = () => nomPdf("Emploi du temps", "semaines A et B" + (edtVersion && S.edtSuivants[edtVersion - 1] ? ` - à partir du ${dateNom(S.edtSuivants[edtVersion - 1].depuis)}` : ""));
+const nomPdfEdt = () => nomPdf(edtVersion && S.edtSuivants[edtVersion - 1] ? S.edtSuivants[edtVersion - 1].depuis : "", "Emploi du temps semaines A et B");
 /** Totaux à imprimer : le tableau des élèves du suivi collectif (le récapitulatif des incidents est avec la fiche de classe de la semaine). */
 /* plus de 8 élèves : deux pages équilibrées (la moitié des élèves sur chacune, l'en-tête répété, le groupe à la fin) */
 const pagesTotaux = wi => { const n = S.eleves.length, L = nbObj(S) + (nbObj(S) > 1 ? 1 : 0), N = n > 8 || (n + 1) * L > 46 ? Math.max(2, Math.ceil((n + 1) * L / 44)) : 1, per = Math.ceil(n / N);
   return N === 1 ? [totauxHTML(wi)] : [...Array(N).keys()].map(k => totauxHTML(wi, [k * per, Math.min(n, (k + 1) * per), k + 1, N])).filter((h, k) => k * per < n); };   // pages équilibrées selon la place
-const nomPdfTotaux = wi => nomPdf("Suivi collectif", "Totaux", periodeSemaine(semaines(S)[wi]));
+const nomPdfTotaux = wi => nomPdf(semaines(S)[wi].lundi, "Suivi collectif - Totaux");
 /* Logo et nom de l'établissement dans la marge haute des documents qui ne les ont pas déjà : ils ne prennent pas de place
    sur la page (les fiches à cocher les mettent dans la page, seulement s'il y a la place). Le logo est réduit à l'avance
    (image-set : sa hauteur imprimée est fixe, sa définition reste bonne). */
@@ -4391,19 +4394,28 @@ function printPages(htmlPages, nom) {
   if (!htmlPages.length) { informer("Rien à imprimer", "Aucune page à imprimer ici (par exemple : une semaine sans aucun jour de cours)."); return; }
   const area = $("#print-area");
   area.innerHTML = pagesAvecEtab(htmlPages); typoNoeuds(area);
-  impressionPreparee = true;
-  if (nom) document.title = nom;
-  window.print();
-  impressionPreparee = false;
-  updateStatus();                     // remet le titre habituel de la page
+  const lancer = () => {
+    impressionPreparee = true;
+    if (nom) document.title = nom;
+    window.print();
+    impressionPreparee = false;
+    updateStatus();                     // remet le titre habituel de la page
+    if (HOTE && nom) hoteEnvoyer({ type: "titre", nom: null });   /* Suivi PP remet le sien */
+  };
+  /* Version intégrée : Chrome nomme le PDF d'après la page de Suivi PP. Suivi PP prend le nom le temps de l'impression et le dit
+     (« titrePose ») ; window.print bloque la page, il faut donc attendre sa réponse (au plus 0,5 s) avant de lancer (v1.92.0). */
+  if (HOTE && nom) { hoteTitreAttente = lancer; hoteEnvoyer({ type: "titre", nom });
+    setTimeout(() => { if (hoteTitreAttente === lancer) { hoteTitreAttente = null; lancer(); } }, 500); return; }
+  lancer();
 }
+let hoteTitreAttente = null;
 /** Pages à imprimer pour la vue affichée (Ctrl+P ou menu Imprimer du navigateur), et nom proposé pour le PDF. */
 function pagesVueCourante() {
   if (!S) return { pages: [] };
   const sems = semaines(S);
   if (!sems.length) return { pages: [] };
   if (current.view === "fiche" && ficheDate) return { pages: pagesFiche(ficheDate), nom: nomPdfFiches([ficheDate]) };
-  if (current.view === "classesem") { const wi = Number.isInteger(Number(current.arg)) && sems[Number(current.arg)] ? Number(current.arg) : Math.max(0, sems.indexOf(semaineDuJour(sems, ficheDate))); return { pages: [classeSemaineHTML(wi, false)], nom: nomPdf("Classe entière", "Fiche de la semaine", periodeSemaine(sems[wi])) }; }
+  if (current.view === "classesem") { const wi = Number.isInteger(Number(current.arg)) && sems[Number(current.arg)] ? Number(current.arg) : Math.max(0, sems.indexOf(semaineDuJour(sems, ficheDate))); return { pages: [classeSemaineHTML(wi, false)], nom: nomPdf(sems[wi].lundi, "Fiche de classe") }; }
   if (current.view === "indiv") { const [id, l] = String(current.arg || "").split(":"), ind = indivParId(id);
     const cy = ind ? cyclesIndiv(ind) : [], c = cy.find(x => x.fin === l) || cycleCourant(cy);
     if (!c) return { pages: [] }; return { pages: [indivHTML(ind, c, false)], nom: nomPdfIndiv(ind, [c]) }; }
@@ -4832,7 +4844,7 @@ document.addEventListener("click", async e => {
       const mf = $("#m-fiche"); if (mf) mf.open = false;
       if (await demander("Effacer la journée", `Effacer toutes les croix du ${fmtLong(t.dataset.date)} ?\n\nLes commentaires et les absences sont gardés. Ctrl+Z permet d’annuler.`, { ok: "Effacer les croix", danger: true })) { const j = S.jours[t.dataset.date]; if (j) j.x = {}; commit(); }
     } else if (act === "print-synth") { const p = pagesSynthClasse(); printPages(p.pages, p.nom);
-    } else if (act === "print-cl-sem") { const sems = semaines(S); printPages([classeSemaineHTML(Number(t.dataset.w), false)], nomPdf("Classe entière", "Fiche de la semaine", periodeSemaine(sems[Number(t.dataset.w)]))); }
+    } else if (act === "print-cl-sem") { const sems = semaines(S); printPages([classeSemaineHTML(Number(t.dataset.w), false)], nomPdf(sems[Number(t.dataset.w)].lundi, "Fiche de classe")); }
     else if (act === "print-day") printPages(ficheImprimee(t.dataset.date), nomPdfFiches([t.dataset.date]));
     else if (act === "print-week") { const mp = $("#m-print"); if (mp) mp.open = false; const w = semaines(S)[Number(t.dataset.w)]; printPages(w.jours.filter(d => !sansCours(S, d)).flatMap(ficheImprimee), nomPdfFiches(w.jours.filter(d => !sansCours(S, d)))); }
     else if (act === "print-periode") imprimerPeriode();
@@ -5491,6 +5503,7 @@ window.addEventListener("message", e => {
   else if (m.type === "pile") { hotePile = m.pile || {}; majBoutonAnnuler(); }
   else if (m.type === "commun") { hoteCommun = m.commun || null; if (S && appliquerCommunHote(S, hoteCommun)) { reinitHistorique(); updateStatus(); render(); hoteEnvoyerEtat(); } else if (S) render(); }
   else if (m.type === "imprimer" && S) imprimerVue();
+  else if (m.type === "titrePose" && hoteTitreAttente) { const f = hoteTitreAttente; hoteTitreAttente = null; f(); }
   else if (m.type === "aller" && S && /^#[a-z]+(\/[^\s<>"]*)?$/.test(String(m.hash || ""))) location.hash = m.hash;   // « ↗ Ouvrir » depuis la fiche élève de Suivi PP
 });
 /* ⚠️ Chargée par srcdoc, la page a pour adresse de base celle de Suivi PP : un lien « #reglages » s'y résoudrait, et le cadre
@@ -6241,7 +6254,7 @@ function bilanFamilleHTML(ind, c) {
     <h3>Bilan du professeur principal</h3><div class="bf-bilan">${ligneRetenue(ind, c) ? `<p class="bil-ret">${esc(ligneRetenue(ind, c))}</p>` : ""}${esc(bilanCycle(ind, c)) || (ligneRetenue(ind, c) ? "" : "&nbsp;")}</div>
     <p class="petit bf-pied">La fiche remplie par les enseignants figure en page suivante.</p></div>`;
 }
-const nomPdfIndiv = (ind, cs, type = cs.length > 1 ? "Fiches" : "Fiche") => nomPdf("Suivi individuel", ind.nom || "élève", type, `${cs.length === 1 && semainesCycle(cs[0]) ? semainesCycle(cs[0]).replace(/ \([AB]\)$/, "") + " " : ""}du ${dateNom(cs[0].debut)} au ${dateNom(cs[cs.length - 1].fin)}`);
+const nomPdfIndiv = (ind, cs, type = cs.length > 1 ? "Fiches individuelles" : "Fiche individuelle") => nomPdf(cs.length === 1 ? cs[0].debut : plagePdf(cs[0].debut, cs[cs.length - 1].fin), type, elevesPdf([ind.nom]));
 /** Texte du courriel à la famille (modèle des réglages) : [élève] (Prénom NOM), [période], [référent], [classe], [bilan] (résumé de la fiche).
     html = true : texte mis en forme (pour coller dans l'ENT ou une messagerie) ; **texte** = gras. */
 function texteCourriel(modele, ind, c, html = false) {
@@ -6484,7 +6497,7 @@ function paralleleIndivHTML(imprime) {
 }
 /** Tous les suivis individuels, à imprimer (bouton ou Ctrl+P). */
 function pagesParallele() { const d = donneesParallele(); if (!d.cols.length) return { pages: [] };
-  return { pages: [paralleleIndivHTML(true)], nom: nomPdf("Suivi individuel", "Tous les suivis", `semaines ${d.cols[0].w.num} à ${d.cols[d.cols.length - 1].w.num} du ${dateNom(d.cols[0].w.lundi)} au ${dateNom(d.cols[d.cols.length - 1].w.jours.at(-1))}`) }; }
+  return { pages: [paralleleIndivHTML(true)], nom: nomPdf(plagePdf(d.cols[0].w.lundi, d.cols[d.cols.length - 1].w.jours.at(-1)), "Tous les suivis individuels") }; }
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest('[data-act="print-parallele"]'); if (!b || !S) return;
   const p = pagesParallele(); printPages(p.pages, p.nom); });
 /** Bilans de la classe entière (semaine après semaine, bilan par matière) à imprimer : la page telle qu'elle est affichée
@@ -6497,12 +6510,11 @@ function pagesSynthClasse() {
   c.querySelectorAll("a").forEach(a => a.replaceWith(...a.childNodes));
   c.querySelectorAll(".survol").forEach(x => x.classList.remove("survol"));
   const sems = semaines(S), cols = [...src.querySelectorAll("thead th a[href^='#classesem/']")].map(a => sems[Number(a.getAttribute("href").split("/")[1])]).filter(Boolean);
-  const per = cols.length ? (cols.length === 1 ? periodeSemaine(cols[0]) : `semaines ${cols[0].num} à ${cols[cols.length - 1].num} du ${dateNom(cols[0].lundi)} au ${dateNom(cols[cols.length - 1].jours.at(-1))}`) : "";
   const bil = current.view === "classebilan", qui = bil && clbEleve >= 0 ? S.classeEleves[clbEleve].nom : "";
   const titre = bil ? `Classe entière – bilan par matière${qui ? " – " + esc(qui) : ""}` : "Classe entière – semaine après semaine";
   const sous = `<b>Classe :</b> ${esc(S.classe)} · <b>Professeur principal :</b> ${esc(S.referent)}${cols.length ? ` · <b>${cols.length === 1 ? `Semaine ${cols[0].num} du ${fmtDM(cols[0].lundi)} au ${fmtDM(cols[0].jours.at(-1))}` : `Semaines ${cols[0].num} à ${cols[cols.length - 1].num} du ${fmtDM(cols[0].lundi)} au ${fmtDM(cols[cols.length - 1].jours.at(-1))}`}</b>` : ""}${bil ? ` · <b>${clbMode === "taux" ? "Incidents pour 10 cours" : "Nombre d’incidents"}</b> · semaines retenues : ${!clbSel ? "toute la période" : clbSel[0] === clbSel[1] ? `S${sems[clbSel[0]].num}` : `S${sems[clbSel[0]].num} à S${sems[clbSel[1]].num}`} · signalement : moyenne + ${S.seuilBilanClasse} %` : ""}`;
   return { pages: [`<div class="synth-imp${c.classList.contains("nombreux") ? " nombreux" : ""}"><div class="f-head"><div class="f-title" role="heading" aria-level="2">${titre}</div></div><p class="synth-sous">${sous}</p>${c.innerHTML}</div>`],
-    nom: nomPdf("Classe entière", ...(qui ? [qui] : []), bil ? "Bilan par matière" : "Semaine après semaine", per) };
+    nom: nomPdf(cols.length ? plagePdf(cols[0].lundi, cols.length > 1 ? cols[cols.length - 1].jours.at(-1) : "") : "", bil ? "Fiches de classe - Bilan par matière" : "Fiches de classe - Semaine après semaine", ...(qui ? [qui] : [])) };
 }
 /* ---------- liste des suivis individuels : cartes enrichies (maquette A) ---------- */
 const COUL_NIV_TXT = { r: "var(--pa-r-t)", o: "var(--pa-o-t)", v: "var(--pa-v-t)", vf: "var(--pa-vf-t)" };
@@ -6899,10 +6911,10 @@ document.addEventListener("click", async e => {
     toast(ok ? (objet ? "Objet copié : collez-le dans l’objet du message (Ctrl+V)." : "Message copié, mis en forme : collez-le dans le message (Ctrl+V).") : "La copie n’a pas fonctionné : ouvrez « Voir le message » et copiez-le à la main.", 5000);
     return;
   }
-  if (t.dataset.act === "print-bmi") { const s = serieIndiv(ind); if (s.length) printPages([bilanMatiereIndivHTML(ind, c, true)], nomPdfIndiv(ind, [s[0].c, s[s.length - 1].c], "Bilan par matière")); return; }
-  if (t.dataset.act === "print-evol") { const s = serieIndiv(ind); if (s.length) printPages([evolutionIndivHTML(ind, c, true), bilanMatiereIndivHTML(ind, c, true)], nomPdfIndiv(ind, [s[0].c, s[s.length - 1].c], "Évolution")); return; }
+  if (t.dataset.act === "print-bmi") { const s = serieIndiv(ind); if (s.length) printPages([bilanMatiereIndivHTML(ind, c, true)], nomPdfIndiv(ind, [s[0].c, s[s.length - 1].c], "Suivi individuel - Bilan par matière")); return; }
+  if (t.dataset.act === "print-evol") { const s = serieIndiv(ind); if (s.length) printPages([evolutionIndivHTML(ind, c, true), bilanMatiereIndivHTML(ind, c, true)], nomPdfIndiv(ind, [s[0].c, s[s.length - 1].c], "Suivi individuel - Évolution")); return; }
   if (t.dataset.act === "print-ind") printPages([indivHTML(ind, c, false)], nomPdfIndiv(ind, [c]));
-  else if (t.dataset.act === "print-famille") printPages([bilanFamilleHTML(ind, c), indivHTML(ind, c, false, true)], nomPdfIndiv(ind, [c], "Bilan pour la famille"));
+  else if (t.dataset.act === "print-famille") printPages([bilanFamilleHTML(ind, c), indivHTML(ind, c, false, true)], nomPdfIndiv(ind, [c], "Bilan famille"));
   else { if (cy.length > 12 && !(await demander("Imprimer toutes les fiches ?", `${cy.length} fiches, une par période du suivi.`, { ok: `Imprimer ${cy.length} pages` }))) return; printPages(cy.map(x => indivHTML(ind, x, false)), nomPdfIndiv(ind, cy)); }
 });
 document.addEventListener("keydown", e => {
@@ -7092,9 +7104,9 @@ function viewConseil() {
 /** Impressions des synthèses (bouton ou Ctrl+P). */
 function pagesSynthese() {
   const sems = semaines(S); if (!sems.length) return { pages: [] }; const [a, b] = bornesSynth(sems), dc = periodesDecoupage(S, sems, "9999-12-31").find(([, r]) => r[0] === a && r[1] === b);
-  const per = (dc ? dc[0] + " - " : "") + (a === b ? periodeSemaine(sems[a]) : `semaines ${sems[a].num} à ${sems[b].num} du ${dateNom(sems[a].lundi)} au ${dateNom(sems[b].jours.at(-1))}`);   // « 1er semestre - semaines 36 à 4 du … »
-  if (current.view === "eleve") return { pages: [ficheEleveHTML(eleveVu, true)], nom: nomPdf("Synthèse", eleveVu, "Fiche élève", per) };
-  return { pages: [conseilHTML(true)], nom: nomPdf("Synthèse", "Conseil de classe", per) };
+  const date = plagePdf(sems[a].lundi, a === b ? "" : sems[b].jours.at(-1)), quand = dc ? " " + dc[0] : "";   /* « Conseil de classe 1er semestre » */
+  if (current.view === "eleve") return { pages: [ficheEleveHTML(eleveVu, true)], nom: nomPdf(date, "Fiche élève" + quand, eleveVu) };
+  return { pages: [conseilHTML(true)], nom: nomPdf(date, "Conseil de classe" + quand) };
 }
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest('[data-act="print-eleve"], [data-act="print-conseil"]'); if (!b || !S) return; const p = pagesSynthese(); printPages(p.pages, p.nom); });
 
@@ -7118,7 +7130,7 @@ document.addEventListener("click", async e => { const b = e.target.closest && e.
   if (!r || !r.qui.length) return;
   const w = sems[r.wi], l = fichesIndivSemaine(w, r.qui.map(i => S.individuels[i]));
   if (!l.length) { informer("Rien à imprimer", "Aucun des élèves choisis n’a de fiche cette semaine-là (suivi pas commencé ou terminé)."); return; }
-  printPages(l.map(([ind, c]) => indivHTML(ind, c, false, false, r.bilan)), nomPdf("Suivi individuel", ...(l.length === 1 ? [l[0][0].nom || "élève", "Fiche"] : [r.qui.length === S.individuels.length && l.length === r.qui.length ? "Fiches de tous les élèves" : `Fiches de ${l.length} élèves`]), periodeSemaine(w)));
+  printPages(l.map(([ind, c]) => indivHTML(ind, c, false, false, r.bilan)), nomPdf(l.map(([, c]) => c.debut).sort()[0], l.length === 1 ? "Fiche individuelle" : "Fiches individuelles", elevesPdf(l.map(([ind]) => ind.nom))));
 });
 
 /* =====================================================================

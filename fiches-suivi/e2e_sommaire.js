@@ -16,7 +16,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.keyboard.press("ArrowLeft"); await wait(400);
   ok(await p.evaluate(() => location.hash === "#sommaire/4"), "flèche ← : semaine précédente");
   await p.click('.somm-sem [data-act="print-week"]'); await wait(200);
-  ok((await p.evaluate(() => window.__t.pop())) === "Suivi 5E - Suivi collectif - Fiches - semaine 48 du 23-11-2026 au 27-11-2026", "« Fiches de la semaine 48 » : nom du PDF");
+  ok((await p.evaluate(() => window.__t.pop())) === "2026-11-23 - 5E - Fiches collectives", "« Fiches de la semaine 48 » : nom du PDF « 2026-11-23 - 5E - Fiches collectives »");
   await p.click(".somm-sem .somm-jour"); await wait(400);
   ok(await p.evaluate(() => location.hash === "#fiche/2026-11-23"), "clic sur un jour : sa fiche collective");
   await p.evaluate(() => { location.hash = "#sommaire/3"; }); await wait(300);

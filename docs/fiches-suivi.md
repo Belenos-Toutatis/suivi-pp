@@ -188,3 +188,13 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
   « M. Carpe (Allemand, premier cours) »). À l'écran, la page du suivi (« D'une fiche à la suivante ») et la carte
   (« 📥 nouvelle fiche → ») donnent la salle du premier cours, là où déposer la fiche (`salleTxt` : « salle 104 », une salle
   déjà nommée « Salle polyvalente » garde son nom). `coursBordIndiv` rend `salle`. Tests : `e2e_relais`, `e2e_creneau`.
+
+### Noms des PDF (v1.92.0)
+
+- Modèle arbitré : **« date - classe - type de fiche - élèves »**, la date en AAAA-MM-JJ pour que les fichiers d'un dossier se
+  rangent seuls dans l'ordre. Ex. « 2026-11-20 - 5E - Fiche individuelle - BRIDGE Michael », « 2026-11-20 - 5E - Fiches
+  individuelles - BRIDGE, MOSTOWSKI, PODEANU » (plusieurs élèves : noms de famille), « 2026-11-20 - 5E - Bilan famille - … »,
+  « 2026-11-16 - 5E - Fiche collective », « 2026-11-16 - 5E - Fiche de classe », « 2026-11-30 - 5E - Suivi collectif -
+  Totaux », « 2026-10-12 au 2026-12-18 - 5E - Conseil de classe 1er semestre ».
+- Dans Suivi PP, le nom passe par le titre de la page de Suivi PP le temps de l'impression (Chrome ne lit que celui-là) :
+  messages `titre` / `titrePose`, `_suivisTitrePdf` (cf. `fiches-suivi/docs/integration.md`).

@@ -13,7 +13,11 @@ est propre passe par `HOTE` (ui.js, bloc « hôte »). Le côté Suivi PP est d�
 - **Messages** (postMessage, `app: "suivi-pp"` → fiche, `app: "fiche-suivi"` → Suivi PP, vérifiés par leur source). Suivi PP envoie
   `charger` (`cle` = la classe, `etat`, `classe` = la liste, `demo`, `famille`, `theme`, `polices`, `pile`, `raison` : `annuler` / `retablir`),
   `apparence`, `pile`, `imprimer` (Ctrl+P), `commun`, `aller` (`#eleve/…`). La fiche envoie `pret`, `etat` (`cle`, l'enveloppe,
-  `etape`, `retirer`, `version`), `annuler` (`sens`), `autonome` et `famille` (`cle`, `famille`).
+  `etape`, `retirer`, `version`), `annuler` (`sens`), `autonome`, `famille` (`cle`, `famille`) et `titre` (`nom`, vide après).
+  - **Nom du PDF** (v1.92.0) : Chrome nomme le PDF d'après le titre de la page PRINCIPALE. Avant d'imprimer, la fiche envoie
+    `titre` (son nom de PDF) ; Suivi PP le pose (`_suivisTitrePdf`, caractères interdits remplacés, 180 caractères au plus) et
+    répond `titrePose` ; la fiche lance alors `window.print` (qui bloque la page : il faut la réponse avant ; sans réponse en
+    0,5 s, elle imprime quand même), puis envoie `titre` vide et Suivi PP remet son titre. Test : `e2e_integre` § 6.
   - **Page d'ouverture** (v1.89.0) : à chaque page d'une famille (`FAMILLE_VUES` : individuel, collectif, classe ; pas les pages
     communes), la fiche envoie `famille` ; Suivi PP la retient par classe dans `suiviPP_suivisFamille` (préférence de ce poste, hors de
     `S` et de la sync ; classe inconnue ou famille inconnue refusées) et la rend dans `charger`. À l'ouverture (F5) ou au changement de

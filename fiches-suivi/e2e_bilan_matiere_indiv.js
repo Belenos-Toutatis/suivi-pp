@@ -19,7 +19,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(tot[0] === tot[1], "toutes les matières réunies = tous les codes des fiches (" + tot.join(" = ") + ")");
   await p.click('[data-act="print-bmi"]'); await wait(300);
   const t = await p.evaluate(() => window.__t.pop());
-  ok(/^Suivi 5E - Suivi individuel - BRIDGE Michael - Bilan par matière - du 02-11-2026 au /.test(t[0]) && t[1] === 1, "impression : 1 page « " + t[0] + " »");
+  ok(/^2026-11-02 au \d{4}-\d\d-\d\d - 5E - Suivi individuel - Bilan par matière - BRIDGE Michael$/.test(t[0]) && t[1] === 1, "impression : 1 page « " + t[0] + " »");
   await p.click('[data-act="print-evol"]'); await wait(300);
   ok(await p.evaluate(() => window.__t.pop()[1] === 2), "« Imprimer l’évolution » : évolution + bilan par matière (2 pages)");
   ok(await p.evaluate(() => document.documentElement.scrollWidth <= 1024), "pas de défilement horizontal à 1024 px");

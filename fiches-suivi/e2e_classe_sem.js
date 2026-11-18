@@ -34,7 +34,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(() => scrollTo(0, 0)); await p.screenshot({ path: DIR + "/sorties/classe-sem.png" });
   // impression : 1 page portrait
   await p.click('[data-act="print-cl-sem"]'); await wait(300);
-  ok((await p.evaluate(() => window.__titres.pop())) === "Suivi 5E - Classe entière - Fiche de la semaine - semaine 47 du 16-11-2026 au 20-11-2026", "nom du PDF « Suivi 5E - Classe entière - Fiche de la semaine - semaine 47 du … au … »");
+  ok((await p.evaluate(() => window.__titres.pop())) === "2026-11-16 - 5E - Fiche de classe", "nom du PDF « 2026-11-16 - 5E - Fiche de classe »");
   await p.emulateMediaType("print"); const pdf = await p.pdf({ preferCSSPageSize: true, printBackground: true }); fs.writeFileSync(DIR + "/sorties/classe-sem.pdf", pdf);
   const nbp = f => Number(require("child_process").execSync(`pdfinfo "${f}"`).toString().match(/Pages:\s+(\d+)/)[1]); const pages = nbp(DIR + "/sorties/classe-sem.pdf");
   ok(pages === 1, "impression : " + pages + " page(s)");

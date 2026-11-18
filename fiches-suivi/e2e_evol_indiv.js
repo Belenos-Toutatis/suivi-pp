@@ -25,7 +25,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(() => document.querySelector(".evol-indiv").scrollIntoView()); await wait(150); await p.screenshot({ path: DIR + "/sorties/evol.png" });
   await p.click('[data-act="print-evol"]'); await wait(300);
   const t = await p.evaluate(() => [window.__titres.pop(), window.__pages]);
-  ok(/^Suivi 5E - Suivi individuel - BRIDGE Michael - Évolution - du 02-11-2026 au /.test(t[0]) && t[1] === 2, "impression de l’évolution : 2 pages (évolution + bilan par matière), " + t[0]);
+  ok(/^2026-11-02 au \d{4}-\d\d-\d\d - 5E - Suivi individuel - Évolution - BRIDGE Michael$/.test(t[0]) && t[1] === 2, "impression de l’évolution : 2 pages (évolution + bilan par matière), " + t[0]);
   // réglage : seuil plus exigeant
   await go("#reglages/suivisIndiv");
   await p.$eval('input[data-num="finSuiviIndiv.seuil"]', i => { i.value = "100"; i.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);

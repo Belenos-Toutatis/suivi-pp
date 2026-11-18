@@ -89,7 +89,9 @@ Chaque texte (infobulle, titre, message) dit de quelle famille il parle.
 - **Ctrl+Z** : `commit()` mémorise l'état ; `decrireChangement` dit ce qui a été annulé.
 - **Écran** : tout fonctionne à 1024×768 (et 1366×768), thèmes clair et sombre.
 - **Impressions** A4 : logo et nom de l'établissement partout (marge `@page` + `@top-left`, ou dans la page sur les fiches à
-  cocher s'il reste de la place) ; noms de PDF du plus général au plus précis (« Suivi 5E - famille - élève - type - période »).
+  cocher s'il reste de la place) ; noms de PDF « date - classe - type de fiche - élèves » (arbitré le 2026-11-18 : « 2026-11-20 - 5E - Fiche individuelle -
+  BRIDGE Michael » ; plusieurs élèves : noms de famille ; `nomPdf(date, type, ...élèves)`, ui.js). Dans Suivi PP, le nom passe
+  par le titre de Suivi PP (message `titre`), Chrome ne lisant que celui de la page principale.
 
 ## Décisions de l'utilisateur (à ne pas remettre en cause)
 

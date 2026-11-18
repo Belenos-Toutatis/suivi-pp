@@ -142,6 +142,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await f(() => { window.__imp = 0; addEventListener("message", ev => { if (ev.data && ev.data.type === "imprimer") window.__imp++; }); window.print = () => {}; });
   await h(() => document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true }))); await wait(400);
   ok(await f(() => window.__imp === 1), "Ctrl+P dans Suivi PP : transmis à la fiche");
+  // v1.92.0 : nom du PDF — Chrome prend le titre de Suivi PP ; la fiche le lui passe le temps de l'impression, puis Suivi PP remet le sien
+  const titre0 = await h(() => document.title);
+  await f(() => { window.__vu = null; window.print = () => { window.__vu = parent.document.title; }; printPages(["<p>essai</p>"], "2026-11-20 - 5E - Fiche individuelle - BRIDGE Michael"); }); await wait(700);
+  ok(await f(() => window.__vu) === "2026-11-20 - 5E - Fiche individuelle - BRIDGE Michael", "impression depuis la fiche : Suivi PP porte le nom du PDF pendant l’impression");
+  ok(await h(() => document.title) === titre0, `après l’impression : Suivi PP reprend son titre (« ${titre0} »)`);
+  ok(await h(() => { _suivisTitrePdf('a/b:c*"<>|'); const t = document.title; _suivisTitrePdf(null); return t === "a-b-c-----"; }), "Suivi PP : caractères interdits dans un nom de fichier remplacés");
+  await f(() => { window.print = () => {}; });
   const ferr = await f(() => window.__errs);
   // une frappe pas encore envoyée (la fiche attend 0,4 s) au moment où la page se ferme : reprise par Suivi PP
   const jourFiche = (await fiche()).etat.S.debut;
