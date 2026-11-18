@@ -144,3 +144,15 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
   (les deux niveaux du haut de `S.codage`, quel que soit le codage choisi). Le seuil de la règle de retenue (« réussite de la
   fiche sous 75 % ») se lit ainsi sur la même feuille. Le bilan pour la famille avait déjà sa légende
   (« Réussite = part des cours notés … »). Test : `e2e_codage_defaut` (nouveau et ancien codage).
+
+### Bilan du professeur principal imprimé ou non (v1.91.3)
+
+- Sur la page d'un suivi individuel, à côté de « Imprimer la fiche », la case **« Avec le bilan du professeur principal »** dit si
+  la fiche imprimée porte, dans le cadre du bas, la ligne de retenue et le bilan. Elle est **cochée d'office à partir du jour de
+  remise** (dernier jour de la fiche, celui où le professeur principal récupère la fiche remplie), décochée avant : une fiche à
+  distribuer, ou réimprimée après une perte, a un cadre vide. On peut toujours la décocher ou la cocher à la main.
+- Le choix vaut pour la fiche affichée et pour la session : ni dans les données, ni dans le stockage du navigateur
+  (`impBilanChoix`, clé `id|fin`). Les autres impressions (toutes les fiches d'un suivi, fiches de la semaine, Ctrl+P) suivent
+  la même règle, fiche par fiche (`bilanImprime(ind, c)`). L'écran garde toujours la ligne de retenue et le bilan, à jour à
+  chaque code ; le bilan pour la famille aussi. Test : `e2e_retenue_indiv` (veille et jour de remise en PDF, case cochée,
+  décochée, cochée à la main sur une fiche à venir).

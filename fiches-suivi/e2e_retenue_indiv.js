@@ -123,7 +123,35 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       ok(r.n === 1 && /Attention/.test(r.txt) && /perdue/.test(r.txt) && /75/.test(r.txt), `fiche imprimée, 4 objectifs, consigne de 3 lignes et règle${tous ? ", tous les créneaux" : ""} : ${r.n} page`); }
     await p.evaluate(() => { S.creneauMidi = false; S.creneauS4 = false; S.creneauS5 = false; });
     const rf = await pdf("retenue-famille", await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total); return [bilanFamilleHTML(ind, c), indivHTML(ind, c, false, true)]; }));
-    ok(rf.n === 2 && /Retenue prévue/.test(rf.txt), `bilan pour la famille avec la retenue : ${rf.n} pages`); }
+    ok(rf.n === 2 && /Retenue prévue/.test(rf.txt), `bilan pour la famille avec la retenue : ${rf.n} pages`);
+    // v1.91.3 : imprimée avant son jour de remise (à distribuer), la fiche a un cadre de bilan vide ; à partir du jour de remise, tout y est
+    const papier = async jour => { const h = await p.evaluate(j => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total), vrai = aujourdhui;
+      ind.bilans[c.fin] = "Semaine difficile, à reprendre."; aujourdhui = () => j === "veille" ? addDays(remiseCycle(c), -1) : remiseCycle(c);
+      try { return indivHTML(ind, c, false); } finally { aujourdhui = vrai; } }, jour);
+      return pdf("retenue-avant-" + jour, [h]); };
+    const av = await papier("veille"), le = await papier("remise");
+    ok(av.n === 1 && /Bilan du professeur/.test(av.txt) && !/Retenue prévue|Pas de retenue|En cours|Semaine difficile/.test(av.txt) && /Attention/.test(av.txt), "fiche imprimée la veille de sa remise : cadre du bilan vide (ni retenue, ni « en cours », ni bilan), la règle reste dans l’en-tête");
+    ok(le.n === 1 && /Retenue prévue/.test(le.txt) && /Semaine difficile/.test(le.txt), "fiche imprimée le jour de sa remise : retenue et bilan du professeur principal");
+    ok(await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total), vrai = aujourdhui; aujourdhui = () => addDays(remiseCycle(c), -1);
+      try { const d = document.createElement("div"); d.innerHTML = indivHTML(ind, c, true); return !!d.querySelector(".bil-ret") && /Semaine difficile/.test(d.querySelector("textarea[data-ib]").value); } finally { aujourdhui = vrai; } }), "à l’écran, avant la remise : la ligne de retenue et le bilan restent");
+    // case « Avec le bilan du professeur principal » : cochée d'office à partir du jour de remise, décochable, cochable avant
+    const ind0 = await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total); ind.bilans[c.fin] = "Semaine difficile, à reprendre."; commit(); return { id: ind.id, fin: c.fin }; });
+    await p.evaluate(h => { location.hash = h; }, `#indiv/${ind0.id}:${ind0.fin}`); await wait(400);
+    const cle = `${ind0.id}|${ind0.fin}`, imprime = () => p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => retenueFiche(ind, x).total), d = document.createElement("div"); d.innerHTML = indivHTML(ind, c, false); return !!d.querySelector(".bil-ret") && /Semaine difficile/.test(d.innerText || d.textContent); });
+    ok(await p.evaluate(k => { const x = document.querySelector(`input[data-imp-bilan="${k}"]`); return !!x && x.checked && !!x.closest(".actions") && /Avec le bilan du professeur principal/.test(x.closest("label").textContent); }, cle), "page du suivi, fiche dont la remise est passée : case « Avec le bilan du professeur principal » cochée, à côté de « Imprimer la fiche »");
+    ok(await imprime(), "cochée : la fiche imprimée porte la retenue et le bilan");
+    await p.click(`input[data-imp-bilan="${cle}"]`); await wait(200);
+    ok(!(await imprime()), "décochée : la fiche imprimée a un cadre de bilan vide");
+    ok(await p.evaluate(() => !!document.querySelector("#grille-indiv .bil-ret") && /Semaine difficile/.test(document.querySelector("#grille-indiv textarea[data-ib]").value)), "décochée : l’écran garde la ligne de retenue et le bilan");
+    await p.evaluate(() => commit()); await wait(300);
+    ok(await p.evaluate(k => !document.querySelector(`input[data-imp-bilan="${k}"]`).checked, cle), "le choix tient après un nouveau rendu de la page");
+    ok(await p.evaluate(() => { let ls = ""; try { ls = Object.keys(localStorage).join() + Object.values(localStorage).join(); } catch (e) {} return !/impBilan|imp-bilan/.test(JSON.stringify(S) + ls); }), "le choix n’entre ni dans les données ni dans le stockage du navigateur");
+    const fut = await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => remiseCycle(x) > aujourdhui()); return c ? c.fin : null; });
+    if (fut) { await p.evaluate(h => { location.hash = h; }, `#indiv/${ind0.id}:${fut}`); await wait(400);
+      ok(await p.evaluate(k => !document.querySelector(`input[data-imp-bilan="${k}"]`).checked, `${ind0.id}|${fut}`), "fiche à venir : case décochée d’office");
+      await p.click(`input[data-imp-bilan="${ind0.id}|${fut}"]`); await wait(200);
+      ok(await p.evaluate(f => { const ind = S.individuels[0], c = cyclesIndiv(ind).find(x => x.fin === f), d = document.createElement("div"); d.innerHTML = indivHTML(ind, c, false); return !!d.querySelector(".indiv-pied") && bilanImprime(ind, c); }, fut), "fiche à venir, case cochée à la main : le bilan s’imprimera"); }
+    ok(await p.evaluate(() => document.documentElement.scrollWidth <= 1024), "barre d’actions : pas de défilement horizontal à 1024 px"); }
 
   // ----- changement du jour de remise : les pertes, datées, tombent dans la fiche qui contient leur jour -----
   await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-podeanu"); const av = cyclesIndiv(ind); ind.remise = 4; recalerBilans(ind, av); });

@@ -404,6 +404,12 @@ function statsIndiv(ind, c) {
 }
 /** Jour de remise réel d'une fiche : son dernier jour de cours (le jour de remise peut être férié, ex. Vendredi saint, pont). */
 const remiseCycle = c => [...c.jours].reverse().find(d => !sansCours(S, d)) || c.fin;
+/* Bilan du professeur principal imprimé sur la fiche (v1.91.3) : case « Avec le bilan du professeur principal », cochée d'office à
+   partir du jour de remise ; le choix vaut pour la session (ni dans les données, ni dans le stockage du navigateur). Une fiche sans
+   bilan imprime un cadre vide (fiche à distribuer, exemplaire réimprimé après une perte). */
+const impBilanChoix = {};
+const bilanImprime = (ind, c) => impBilanChoix[ind.id + "|" + c.fin] ?? aujourdhui() >= remiseCycle(c);
+document.addEventListener("change", e => { const t = e.target; if (S && t.dataset && t.dataset.impBilan !== undefined) impBilanChoix[t.dataset.impBilan] = t.checked; });
 /** Date (AAAA-MM-JJ) où l'élève reçoit la fiche suivante : 1er jour de cours après la remise (lundi après un vendredi, rentrée après des vacances) ; "" si introuvable. */
 function repriseDateIndiv(ind, c) {
   const cy = cyclesIndiv(ind), k = cy.findIndex(x => x.fin === c.fin), suiv = k >= 0 && cy[k + 1], d1 = suiv && suiv.jours.find(d => !sansCours(S, d));
@@ -500,8 +506,10 @@ function indivHTML(ind, c, edit, famille = false) {
         : `<td class="cd">${v >= 0 ? codes[v] : ""}</td>`; }).join("");
     return `<td class="g mat${edit ? " crn-b" : ""}"${edit ? ` data-crn="${d}|${p}" role="button" tabindex="0"` : ""} title="${esc(cr.mat)}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${edit ? "\nClic : enseignant absent ou remplacé" : ""}">${esc(abrege(cr.mat))}</td>${cases}<td class="rq">${edit ? `<input type="text" data-ir="${ii}.${d}.${p}" value="${esc(s.r)}" aria-label="Remarque ${nomJ} ${per}" title="Remarque\n${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}${s.r ? "\n" + esc(s.r) : ""}">` : s.r ? `<div class="rq-t">${esc(s.r)}</div>` : ""}</td>`;
   }).join("")}</tr>`).join("");
-  const bilan = bilanCycle(ind, c);
-  const pied = `<table class="indiv-pied${!edit && bilanCycle(ind, c).length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${ligneRetenue(ind, c) ? `<div class="bil-ret" title="Ligne automatique\nLa retenue de la fiche, recalculée à chaque code ; elle ne fait pas partie de votre bilan.">${esc(ligneRetenue(ind, c))}</div>` : ""}${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
+  /* Fiche imprimée sans le bilan (case décochée ; d'office avant le jour de remise) : cadre du bilan vide, ni ligne de retenue
+     ni bilan (v1.91.3). L'écran garde tout. */
+  const avecBilan = edit || famille || bilanImprime(ind, c), bilan = avecBilan ? bilanCycle(ind, c) : "", ret = avecBilan ? ligneRetenue(ind, c) : "";
+  const pied = `<table class="indiv-pied${!edit && bilan.length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${ret ? `<div class="bil-ret" title="Ligne automatique\nLa retenue de la fiche, recalculée à chaque code ; elle ne fait pas partie de votre bilan.">${esc(ret)}</div>` : ""}${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
   return `${head}<table class="indiv${c.jours.length * (no + 2) > 30 ? " dense" : ""}" style="--no:${no};--rhi:${Math.min(16, 112 / creneauxActifs(S).length).toFixed(1)}mm"><colgroup><col class="c-cr">${c.jours.map(() => `<col class="c-mat">${'<col class="c-cd">'.repeat(no)}<col class="c-rq">`).join("")}</colgroup>
     <thead><tr><th rowspan="2" class="cr" title="Créneau">Cr.</th>${jt}</tr><tr>${sous}</tr></thead><tbody>${lignes}</tbody></table>${famille ? "" : pied}`;
 }
@@ -1034,7 +1042,8 @@ function viewIndiv(arg) {
     <div class="nav-jours"><button class="discret" data-goi="${cy[k - 1] ? ind.id + ":" + cy[k - 1].fin : ""}" ${k ? "" : "disabled"} title="Fiche précédente" aria-label="Fiche précédente"><svg class="ic" aria-hidden="true"><use href="#i-prec"/></svg></button>
       <select data-semi="${esc(ind.id)}" aria-label="Fiche affichée" style="height:36px">${opts}</select>
       <button class="discret" data-goi="${cy[k + 1] ? ind.id + ":" + cy[k + 1].fin : ""}" ${k < cy.length - 1 ? "" : "disabled"} title="Fiche suivante" aria-label="Fiche suivante"><svg class="ic" aria-hidden="true"><use href="#i-suiv"/></svg></button></div>
-    <div class="actions"><button data-act="print-ind" data-ind="${esc(ind.id)}" data-w="${c.fin}" title="Imprimer la fiche vierge ou remplie\nÀ donner à l’élève le jour où elle commence."><svg class="ic" aria-hidden="true"><use href="#i-print"/></svg>Imprimer la fiche</button>
+    <div class="actions"><label class="imp-bilan" title="Avec le bilan du professeur principal\nImprime, dans le cadre du bas de la fiche, la ligne de retenue et votre bilan.\n• cochée d’office à partir du jour de remise (${fmtLong(remiseCycle(c)).replace(/ \d{4}$/, "")})\n• décochée : cadre vide, pour une fiche à distribuer ou à réimprimer"><input type="checkbox" data-imp-bilan="${esc(ind.id)}|${c.fin}" ${bilanImprime(ind, c) ? "checked" : ""}> Avec le bilan du professeur principal</label>
+      <button data-act="print-ind" data-ind="${esc(ind.id)}" data-w="${c.fin}" title="Imprimer la fiche vierge ou remplie\nÀ donner à l’élève le jour où elle commence."><svg class="ic" aria-hidden="true"><use href="#i-print"/></svg>Imprimer la fiche</button>
       <button data-act="print-ind-tout" data-ind="${esc(ind.id)}" title="Imprimer toutes les fiches\nUne par période du suivi (${cy.length}).">Toutes les fiches</button></div></div>
   ${reglages}
   <div class="ind-haut ind-seul no-print">
