@@ -156,3 +156,14 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
   la même règle, fiche par fiche (`bilanImprime(ind, c)`). L'écran garde toujours la ligne de retenue et le bilan, à jour à
   chaque code ; le bilan pour la famille aussi. Test : `e2e_retenue_indiv` (veille et jour de remise en PDF, case cochée,
   décochée, cochée à la main sur une fiche à venir).
+
+### Fiches de la semaine : bilan imprimé ou non (v1.91.4)
+
+- La fenêtre **Fiches de la semaine…** (liste des suivis individuels) a la même case **« Avec le bilan du professeur
+  principal »**, sous la liste des élèves. Cochée d'office quand **toutes** les fiches de la semaine choisie ont atteint leur jour
+  de remise ; elle suit la semaine choisie tant qu'on n'y a pas touché ; cochée ou décochée à la main, elle impose son choix à
+  toutes les fiches imprimées (`indivHTML(…, avecBilanImpose)`). Elle ne change pas la case de chaque suivi
+  (`impBilanChoix`) et n'est enregistrée nulle part.
+- ⚠ La fenêtre prend, pour chaque élève, la fiche qui **commence** la semaine choisie. Avec une remise le jeudi, le jeudi, la
+  semaine en cours propose la nouvelle fiche (du vendredi) : la fiche finie est celle de la semaine précédente.
+  Test : `e2e_imp_semaine`.

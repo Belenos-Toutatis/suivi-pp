@@ -483,7 +483,7 @@ function semainesCycle(c, court = false) {
   if (court) return "S" + ws.map(w => w.num).join("-");
   return ws.length === 1 ? `semaine ${ws[0].num} (${ws[0].type})` : `semaines ${ws.map(w => w.num).join(" et ")}`;
 }
-function indivHTML(ind, c, edit, famille = false) {
+function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBilanImpose : true / false impose le bilan imprimé (impression groupée) ; absent, bilanImprime */
   const sems = semaines(S), ii = S.individuels.indexOf(ind), no = ind.objectifs.length, codes = S.codage.map(x => esc(x.code));
   const types = [...new Set(c.jours.map(d => { const w = semaineDuJour(sems, d); return w ? `${w.num} (${w.type})` : ""; }).filter(Boolean))];
   const objs = ind.objectifs.map((o, k) => `<b>${NUM_OBJ[k]}</b> ${esc(o) || "<i>objectif à écrire</i>"}`).join(" &nbsp; ");
@@ -508,7 +508,7 @@ function indivHTML(ind, c, edit, famille = false) {
   }).join("")}</tr>`).join("");
   /* Fiche imprimée sans le bilan (case décochée ; d'office avant le jour de remise) : cadre du bilan vide, ni ligne de retenue
      ni bilan (v1.91.3). L'écran garde tout. */
-  const avecBilan = edit || famille || bilanImprime(ind, c), bilan = avecBilan ? bilanCycle(ind, c) : "", ret = avecBilan ? ligneRetenue(ind, c) : "";
+  const avecBilan = edit || famille || (avecBilanImpose ?? bilanImprime(ind, c)), bilan = avecBilan ? bilanCycle(ind, c) : "", ret = avecBilan ? ligneRetenue(ind, c) : "";
   const pied = `<table class="indiv-pied${!edit && bilan.length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${ret ? `<div class="bil-ret" title="Ligne automatique\nLa retenue de la fiche, recalculée à chaque code ; elle ne fait pas partie de votre bilan.">${esc(ret)}</div>` : ""}${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
   return `${head}<table class="indiv${c.jours.length * (no + 2) > 30 ? " dense" : ""}" style="--no:${no};--rhi:${Math.min(16, 112 / creneauxActifs(S).length).toFixed(1)}mm"><colgroup><col class="c-cr">${c.jours.map(() => `<col class="c-mat">${'<col class="c-cd">'.repeat(no)}<col class="c-rq">`).join("")}</colgroup>
     <thead><tr><th rowspan="2" class="cr" title="Créneau">Cr.</th>${jt}</tr><tr>${sous}</tr></thead><tbody>${lignes}</tbody></table>${famille ? "" : pied}`;
@@ -1400,10 +1400,15 @@ document.addEventListener("click", async e => { const b = e.target.closest && e.
   const wi0 = [...sems.keys()].slice(wc).concat([...sems.keys()].slice(0, wc).reverse()).find(i => fichesIndivSemaine(sems[i], S.individuels).length) ?? wc;   // une semaine qui a des fiches
   const html = `<label class="champ">Semaine <select id="pis-sem">${sems.map((w, i) => `<option value="${i}"${i === wi0 ? " selected" : ""}>Semaine ${w.num} (du ${fmtDM(w.lundi)} au ${fmtDM(w.jours.at(-1))})</option>`).join("")}</select></label>
     <p class="hint">Élèves :</p>${S.individuels.map((ind, i) => `<label class="na-case"><input type="checkbox" data-pis="${i}" checked> ${esc(ind.nom || "élève à indiquer")}</label>`).join("")}
-    <p class="hint">Pour chaque élève : la fiche qui commence cette semaine-là (selon son jour de remise), sinon celle en cours.</p>`;
-  const r = await saisir("Imprimer les fiches individuelles", "Une page par élève, en un seul PDF.", { html, lire: d => ({ wi: Number(d.querySelector("#pis-sem").value), qui: [...d.querySelectorAll("[data-pis]")].filter(x => x.checked).map(x => Number(x.dataset.pis)) }) }, { ok: "Imprimer" });
+    <p class="hint">Pour chaque élève : la fiche qui commence cette semaine-là (selon son jour de remise), sinon celle en cours.</p>
+    <label class="na-case" title="Avec le bilan du professeur principal\nImprime, dans le cadre du bas de chaque fiche, la ligne de retenue et votre bilan.\n• cochée d’office quand le jour de remise de toutes les fiches de la semaine est arrivé\n• décochée : cadres vides, pour des fiches à distribuer"><input type="checkbox" id="pis-bilan"> Avec le bilan du professeur principal</label>`;
+  /* v1.91.4 : case cochée d'office quand toutes les fiches de la semaine choisie ont atteint leur jour de remise ; suit le choix de la semaine tant qu'on n'y a pas touché */
+  const bilanSemaine = wi => { const l = fichesIndivSemaine(sems[wi], S.individuels); return l.length > 0 && l.every(([ind, c]) => aujourdhui() >= remiseCycle(c)); };
+  const r = await saisir("Imprimer les fiches individuelles", "Une page par élève, en un seul PDF.", { html, init: d => { const cb = d.querySelector("#pis-bilan"), sel = d.querySelector("#pis-sem"); let touche = false;
+      cb.checked = bilanSemaine(Number(sel.value)); cb.addEventListener("change", () => { touche = true; }); sel.addEventListener("change", () => { if (!touche) cb.checked = bilanSemaine(Number(sel.value)); }); },
+    lire: d => ({ wi: Number(d.querySelector("#pis-sem").value), bilan: d.querySelector("#pis-bilan").checked, qui: [...d.querySelectorAll("[data-pis]")].filter(x => x.checked).map(x => Number(x.dataset.pis)) }) }, { ok: "Imprimer" });
   if (!r || !r.qui.length) return;
   const w = sems[r.wi], l = fichesIndivSemaine(w, r.qui.map(i => S.individuels[i]));
   if (!l.length) { informer("Rien à imprimer", "Aucun des élèves choisis n’a de fiche cette semaine-là (suivi pas commencé ou terminé)."); return; }
-  printPages(l.map(([ind, c]) => indivHTML(ind, c, false)), nomPdf("Suivi individuel", ...(l.length === 1 ? [l[0][0].nom || "élève", "Fiche"] : [r.qui.length === S.individuels.length && l.length === r.qui.length ? "Fiches de tous les élèves" : `Fiches de ${l.length} élèves`]), periodeSemaine(w)));
+  printPages(l.map(([ind, c]) => indivHTML(ind, c, false, false, r.bilan)), nomPdf("Suivi individuel", ...(l.length === 1 ? [l[0][0].nom || "élève", "Fiche"] : [r.qui.length === S.individuels.length && l.length === r.qui.length ? "Fiches de tous les élèves" : `Fiches de ${l.length} élèves`]), periodeSemaine(w)));
 });
