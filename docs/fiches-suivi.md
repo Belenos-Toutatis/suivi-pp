@@ -178,3 +178,13 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
   case qui n'est ni TB ni B » (`seuilCasesEleve`). Jamais d'approximation (« environ 2 sur 3 ») : la retenue se décide sur le
   chiffre exact. Le calcul ne change pas (réussite arrondie comparée au seuil).
 - Les réglages, la page du suivi, le bilan et le courriel gardent la forme courte (`regleRetenueIndiv`).
+
+### Salles des cours (v1.91.6)
+
+- La fiche individuelle (écran et papier) donne la **salle** de chaque cours, en petit sous la matière, dans la case « Matière »
+  (`td.mat .sal`) : celle de l'emploi du temps, du groupe de l'élève pour un cours en demi-groupes, ou celle changée pour ce jour.
+  Pas de salle saisie : rien sous la matière.
+- La consigne nomme la salle avec l'enseignant : « [premier enseignant] » → « M. Carpe (Allemand, premier cours, salle 104) »
+  (`enseignantCours`, `salleTxt` : « salle 104 », une salle déjà nommée « Salle polyvalente » garde son nom). La page du suivi
+  (« D'une fiche à la suivante ») et la carte (« 📥 nouvelle fiche → ») la donnent aussi : c'est là qu'on dépose la fiche.
+  `coursBordIndiv` rend `salle`. Test : `e2e_relais`.

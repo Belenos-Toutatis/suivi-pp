@@ -1023,6 +1023,8 @@ a.btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; paddi
 a.btn:hover { border-color: var(--accent); }
 ol.etapes-remise { margin: 6px 0 0; padding-left: 20px; } ol.etapes-remise li { margin: 6px 0; }
 label.champ em.ret-off { font-style: normal; font-weight: 400; font-size: 11px; margin-left: 4px; padding: 0 6px; border: 1px dashed currentColor; border-radius: 8px; white-space: nowrap; }   /* critère de retenue à 0 (v1.91.2) */
+table.indiv td.mat .sal { display: block; font-size: .82em; font-weight: 400; color: var(--muted, #555); margin-top: 1px; }   /* salle du cours sous la matière (v1.91.6) */
+@media print { table.indiv td.mat .sal { color: #444; } }
 .retenue-ind p { margin: 4px 0; } .retenue-ind .ret-oui { font-weight: 600; color: var(--danger, #a3262a); }   /* retenue prévue (retenueIndivHTML) */
 .ic2 .ic-ret { font-weight: 600; color: var(--danger, #a3262a); white-space: nowrap; }
 ul.relais { margin: 6px 0 0; padding-left: 0; list-style: none; } ul.relais li { margin: 6px 0; }   /* passage d'une fiche à la suivante (relaisIndivHTML) */
@@ -6130,7 +6132,7 @@ const repriseIndiv = (ind, c) => { const d = repriseDateIndiv(ind, c); return d 
 function coursBordIndiv(ind, d, dernier) {
   if (!d || sansCours(S, d)) return null;
   const sems = semaines(S), grs = groupesDe(S, ind.nom), ps = creneauxDu(S, d);
-  for (const p of dernier ? [...ps].reverse() : ps) { const cr = coursPour(creneau(S, sems, d, p), grs); if (cr.mat && !cr.absent) return { d, p, mat: cr.mat, prof: cr.prof || "" }; }
+  for (const p of dernier ? [...ps].reverse() : ps) { const cr = coursPour(creneau(S, sems, d, p), grs); if (cr.mat && !cr.absent) return { d, p, mat: cr.mat, prof: cr.prof || "", salle: String(cr.salle || "").trim() }; }
   return null;
 }
 /** Passage d'une fiche à la suivante : dernier cours du jour de remise, premier cours du jour où la fiche suivante commence. */
@@ -6139,7 +6141,9 @@ function relaisIndiv(ind, c) {
   return { remise, dernier: coursBordIndiv(ind, remise, true), reprise, premier: coursBordIndiv(ind, reprise, false) };
 }
 /** L'enseignant d'un cours, pour la consigne : « Mme Carpe (Allemand, premier cours) », à défaut « l’enseignant du premier cours (Allemand) ». */
-const enseignantCours = (x, role) => (!x ? `l’enseignant du ${role}` : x.prof ? `${x.prof} (${x.mat}, ${role})` : `l’enseignant du ${role} (${x.mat})`);
+const enseignantCours = (x, role) => (!x ? `l’enseignant du ${role}` : x.prof ? `${x.prof} (${x.mat}, ${role}${x.salle ? ", " + salleTxt(x.salle) : ""})` : `l’enseignant du ${role} (${x.mat}${x.salle ? ", " + salleTxt(x.salle) : ""})`);
+/** « salle 104 » ; une salle déjà nommée (« Salle polyvalente ») garde son nom (v1.91.6). */
+const salleTxt = s => (/^salle\b/i.test(s) ? s : "salle " + s);
 /** Heure de début d'un cours trouvé par coursBordIndiv (« 8 h 00 »), ou "". */
 const heureCours = x => (x ? horaire(x.p, jourIdx(x.d)).split(" – ")[0] : "");
 /** Modèle de consigne d'un suivi : le sien (ind.consigne = n° du modèle à partir de 1), sinon celui des réglages. */
@@ -6173,8 +6177,8 @@ document.addEventListener("click", e => { const b = e.target.closest && e.target
 function relaisIndivHTML(ind, c, court = false) {
   const r = relaisIndiv(ind, c), pp = String(S.referent || "").trim(), moi = x => !!(x && pp && x.prof.trim() === pp);
   const nomJ = d => [...JOURS_REMISE, "samedi", "dimanche"][jourSemaine(d) - 1], jourC = d => `${nomJ(d)} ${fmtDM(d)}`;
-  const qui = x => (x ? `${x.prof ? `<b>${esc(x.prof)}</b>, ` : ""}${esc(x.mat)}${heureCours(x) ? ` à ${heureCours(x)}` : ""}` : "<i>emploi du temps inconnu ce jour-là</i>");
-  if (court) return r.reprise ? `<div class="ic-relais small" title="Nouvelle fiche\nPremier cours de l’élève le ${jourC(r.reprise)}, d’après l’emploi du temps : la fiche peut être déposée la veille dans le casier de cet enseignant.">📥 nouvelle fiche → ${r.premier ? `${esc(r.premier.prof || r.premier.mat)} (${nomJ(r.reprise).slice(0, 3)}. ${fmtDM(r.reprise)}${heureCours(r.premier) ? ", " + heureCours(r.premier) : ""})` : jourC(r.reprise)}</div>` : "";
+  const qui = x => (x ? `${x.prof ? `<b>${esc(x.prof)}</b>, ` : ""}${esc(x.mat)}${heureCours(x) ? ` à ${heureCours(x)}` : ""}${x.salle ? `, <b>${esc(salleTxt(x.salle))}</b>` : ""}` : "<i>emploi du temps inconnu ce jour-là</i>");
+  if (court) return r.reprise ? `<div class="ic-relais small" title="Nouvelle fiche\nPremier cours de l’élève le ${jourC(r.reprise)}, d’après l’emploi du temps : la fiche peut être déposée la veille dans le casier de cet enseignant.">📥 nouvelle fiche → ${r.premier ? `${esc(r.premier.prof || r.premier.mat)} (${nomJ(r.reprise).slice(0, 3)}. ${fmtDM(r.reprise)}${heureCours(r.premier) ? ", " + heureCours(r.premier) : ""}${r.premier.salle ? ", " + esc(salleTxt(r.premier.salle)) : ""})` : jourC(r.reprise)}</div>` : "";
   return `<h3 style="margin-top:14px">D’une fiche à la suivante</h3><ul class="relais">
     <li>📤 <b>Remise le ${jourC(r.remise)}</b> · dernier cours : ${qui(r.dernier)}${moi(r.dernier) ? " — c’est vous" : ""}</li>
     ${r.reprise ? `<li>📥 <b>Nouvelle fiche le ${jourC(r.reprise)}</b> · premier cours : ${qui(r.premier)}${moi(r.premier) ? " — c’est vous : donnez-la directement à l’élève" : r.premier && r.premier.prof ? ` — à déposer la veille dans son casier si vous ne voyez pas l’élève avant` : ""}</li>` : ""}</ul>`;
@@ -6208,7 +6212,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
     const cases = ind.objectifs.map((_, o) => { const x = s.c[o]; const v = x === null || x === undefined ? -1 : x;
       return edit ? `<td class="cd ic${v >= 0 ? " l" + v : ""}" data-ic="${ii}.${d}.${p}.${o}" tabindex="0" role="button" aria-label="${esc(cr.mat)} ${nomJ} ${per}, objectif ${o + 1} : ${v >= 0 ? codes[v] : "vide"}" title="${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}\nObjectif ${o + 1} : ${esc(ind.objectifs[o])}\n• ${codeIndiv === null ? "clic : choisir la case (puis 1 à 4, ou la palette)" : "clic ou glisser : met le code choisi dans la palette"}\n• au clavier : ${touchesIndiv()}, puis la case suivante est choisie toute seule">${v >= 0 ? codes[v] : ""}</td>`
         : `<td class="cd">${v >= 0 ? codes[v] : ""}</td>`; }).join("");
-    return `<td class="g mat${edit ? " crn-b" : ""}"${edit ? ` data-crn="${d}|${p}" role="button" tabindex="0"` : ""} title="${esc(cr.mat)}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${edit ? "\nClic : enseignant absent ou remplacé" : ""}">${esc(abrege(cr.mat))}</td>${cases}<td class="rq">${edit ? `<input type="text" data-ir="${ii}.${d}.${p}" value="${esc(s.r)}" aria-label="Remarque ${nomJ} ${per}" title="Remarque\n${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}${s.r ? "\n" + esc(s.r) : ""}">` : s.r ? `<div class="rq-t">${esc(s.r)}</div>` : ""}</td>`;
+    return `<td class="g mat${edit ? " crn-b" : ""}"${edit ? ` data-crn="${d}|${p}" role="button" tabindex="0"` : ""} title="${esc(cr.mat)}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${edit ? "\nClic : enseignant absent ou remplacé" : ""}">${esc(abrege(cr.mat))}${cr.salle ? `<span class="sal">${esc(cr.salle)}</span>` : ""}</td>${cases}<td class="rq">${edit ? `<input type="text" data-ir="${ii}.${d}.${p}" value="${esc(s.r)}" aria-label="Remarque ${nomJ} ${per}" title="Remarque\n${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}${s.r ? "\n" + esc(s.r) : ""}">` : s.r ? `<div class="rq-t">${esc(s.r)}</div>` : ""}</td>`;
   }).join("")}</tr>`).join("");
   /* Fiche imprimée sans le bilan (case décochée ; d'office avant le jour de remise) : cadre du bilan vide, ni ligne de retenue
      ni bilan (v1.91.3). L'écran garde tout. */

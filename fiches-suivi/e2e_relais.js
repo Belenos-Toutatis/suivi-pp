@@ -21,7 +21,16 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(m.consigne > 0 && m.label === "Dernier enseignant, le jour de remise", `MOSTOWSKI : consigne propre « ${m.label} »`);
   ok(m.jr === 4 && m.jp === 5, `remise le jeudi (${m.r.remise}), fiche suivante le vendredi (${m.r.reprise})`);
   ok(!!(m.r.dernier && m.r.dernier.prof && m.r.premier && m.r.premier.prof), `enseignants trouvés : dernier cours ${m.r.dernier && m.r.dernier.prof} (${m.r.dernier && m.r.dernier.mat}), premier cours ${m.r.premier && m.r.premier.prof} (${m.r.premier && m.r.premier.mat})`);
-  ok(m.texte.includes(`${m.r.dernier.prof} (${m.r.dernier.mat}, dernier cours)`) && m.texte.includes(`${m.r.premier.prof} (${m.r.premier.mat}, premier cours)`) && !/\[/.test(m.texte), "consigne : les deux enseignants nommés, plus aucun mot entre crochets");
+  const sal = x => (x.salle ? ", salle " + x.salle : "");
+  ok(m.texte.includes(`${m.r.dernier.prof} (${m.r.dernier.mat}, dernier cours${sal(m.r.dernier)})`) && m.texte.includes(`${m.r.premier.prof} (${m.r.premier.mat}, premier cours${sal(m.r.premier)})`) && !/\[/.test(m.texte), "consigne : les deux enseignants nommés, avec leur salle, plus aucun mot entre crochets");
+  ok(!!(m.r.dernier.salle || m.r.premier.salle), `démonstration : la salle d’un cours de relais est connue (${m.r.dernier.salle || "—"} / ${m.r.premier.salle || "—"})`);
+  // v1.91.6 : salles sur la fiche (case Matière), et dans « D’une fiche à la suivante »
+  ok(await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind)[1], d = document.createElement("div"); d.innerHTML = indivHTML(ind, c, false);
+    const cases = [...d.querySelectorAll("td.mat")], avec = cases.filter(x => x.querySelector(".sal"));
+    return avec.length > 0 && avec.every(x => x.querySelector(".sal").textContent.trim().length > 0) && cases.length > 0; }), "fiche imprimée : la salle sous la matière, dans la case du cours");
+  ok(await p.evaluate(() => { const ind = S.individuels[0], c = cyclesIndiv(ind)[1], r = relaisIndiv(ind, c), h = relaisIndivHTML(ind, c), x = r.premier || r.dernier;
+    return !x.salle || h.includes("salle " + x.salle); }), "page du suivi : « D’une fiche à la suivante » donne la salle du cours");
+  ok(await p.evaluate(() => salleTxt("104") === "salle 104" && salleTxt("Salle polyvalente") === "Salle polyvalente"), "« salle 104 » ; une salle déjà nommée garde son nom");
   ok(await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-bridge"); return !ind.consigne && consigneIndiv(ind, cyclesIndiv(ind)[0]) === consigneIndiv({ ...ind }, cyclesIndiv(ind)[0]) && modeleConsigneIndiv(ind) === S.consignesIndiv[S.consigneIndivChoisie]; }), "BRIDGE : consigne des réglages");
   // le premier cours du vendredi : dernier créneau vérifié à la main (aucun cours plus tôt)
   ok(await p.evaluate(() => { const ind = S.individuels.find(i => i.id === "demo-mostowski"), c = cyclesIndiv(ind)[1], r = relaisIndiv(ind, c), sems = semaines(S), grs = groupesDe(S, ind.nom);
