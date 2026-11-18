@@ -103,7 +103,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   ok(await p.evaluate(() => S.individuels[1].retenue.i === 2 && S.individuels[1].retenue.nonRendue === 0 && S.retenueIndiv.i === 3 && regleRetenueIndiv(S.individuels[1]) === "2 « TI » sur la fiche = 1 heure de retenue · réussite de la fiche sous 75 % = 1 heure de retenue · 2 heures au plus par fiche"), "règle propre : 2 « TI » = 1 heure, sans retenue pour une fiche non rendue ; celle des réglages inchangée");
   ok(await p.$eval(".f-consigne", e => /Attention\s*:\s*2 TI sur la fiche/.test(e.innerText) && !/perdue/.test(e.innerText)), "fiche de ce suivi : sa règle imprimée");
   await go("#reglages/suivisIndiv");
-  ok(await p.evaluate(() => /règle propre\s*:\s*MOSTOWSKI Michał \(2\s*«\s*TI\s*»\s*sur la fiche = 1 heure de retenue · réussite de la fiche sous 75\s*% = 1 heure de retenue · 2 heures au plus par fiche\)/.test(document.body.innerText)), "Réglages : le suivi à règle propre est listé");
+  ok(await p.evaluate(() => /règle propre\s*:\s*•\s*MOSTOWSKI Michał\s*:\s*2 TI sur la fiche = 1 heure de retenue\. Moins de 3 cases sur 4 en TB ou B = 1 heure de retenue\. Jamais plus de 2 heures par fiche\./.test(document.body.innerText)), "Réglages : le suivi à règle propre est listé");
+  // v1.92.3 : la règle en phrases courtes partout (réglages, page du suivi et ses réglages), plus la forme courte
+  for (const h of ["#reglages/suivisIndiv", "#indiv/" + await p.evaluate(() => S.individuels[0].id), "#indiv/" + await p.evaluate(() => S.individuels[1].id)]) {
+    await p.evaluate(h => { location.hash = h; document.querySelectorAll("details").forEach(d => { d.open = true; }); }, h); await wait(400);
+    const t = await p.evaluate(() => document.body.innerText + " " + [...document.querySelectorAll("[title], [data-tip]")].map(e => e.getAttribute("data-tip") || e.title).join(" "));
+    const reste = (t.match(/.{0,60}(au plus par fiche|réussite de la fiche sous|de retenue\s*·).{0,30}/) || [""])[0];
+    ok(!reste && /Jamais plus de 2 heures par fiche\./.test(t), `${h} : règle en phrases courtes, plus de forme courte${reste ? " — reste : " + reste : ""}`); }
+  await p.evaluate(() => { location.hash = "#reglages/suivisIndiv"; }); await wait(400);
   // règle commune modifiée : le suivi à règle propre ne bouge pas
   await p.$eval('input[data-num="retenueIndiv.i"]', e => { e.value = "4"; e.dispatchEvent(new Event("change", { bubbles: true })); }); await wait(300);
   ok(await p.evaluate(() => S.retenueIndiv.i === 4 && S.individuels[1].retenue.i === 2 && regleRetenueIndiv(S.individuels[0]).startsWith("4 « TI »")), "règle des réglages à 4 : BRIDGE suit, MOSTOWSKI garde la sienne");

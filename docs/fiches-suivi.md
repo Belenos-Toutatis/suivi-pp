@@ -177,7 +177,10 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
   25 % et 75 % → « 1 / 3 cases sur 4 » ; sinon le pourcentage reste (« moins de 65 % des cases en TB ou B ») ; 100 % → « une
   case qui n'est ni TB ni B » (`seuilCasesEleve`). Jamais d'approximation (« environ 2 sur 3 ») : la retenue se décide sur le
   chiffre exact. Le calcul ne change pas (réussite arrondie comparée au seuil).
-- Les réglages, la page du suivi, le bilan et le courriel gardent la forme courte (`regleRetenueIndiv`).
+- **Partout en phrases courtes depuis la v1.92.3** (demandé) : fiche imprimée, aperçu « Imprimé sur la fiche », liste des suivis à
+  règle propre (Réglages › Fiches individuelles, un suivi par ligne), page du suivi (« Règle propre à ce suivi : … ») et ses
+  réglages (« Règle des réglages : … », infobulle). `regleRetenueIndiv` (forme courte) ne sert plus qu'à savoir s'il y a une
+  règle. La phrase du résultat (« Retenue prévue : 2 heures (6 « TI » sur la fiche ; …) ») n'est pas la règle et ne change pas.
 
 ### Salles des cours (v1.91.6)
 
