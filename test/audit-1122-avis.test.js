@@ -61,3 +61,30 @@ test('_avisEleveTous : toutes les feuilles du même objectif dans la période, l
   assert.strictEqual(r.un, 'bul1');
   assert.strictEqual(r.miUnSeulObjectif, true);
 });
+
+test('nouvelle feuille ouverte depuis un point du mois : le modèle suit l\'objectif du FORMULAIRE (conseil : trois colonnes), pas celui de la feuille qu\'on quitte', () => {
+  const r = J(`${SETUP}
+    const gid = document.getElementById;
+    try {
+      // La feuille affichée est un point du mois : son sélecteur d'objectif est encore dans la page, le formulaire non.
+      document.getElementById = id => id === 'mavis-obj' ? { value: 'mois' } : id === 'mavis-cols-new' ? null : gid.call(document, id);
+      _avisColsDraft = null; const depuisMois = _avisColsDraftPour(null).cols.map(c => c.label);
+      // Le formulaire est affiché et l'objectif choisi est « mois » : une seule colonne, comme avant.
+      document.getElementById = id => id === 'mavis-obj' ? { value: 'mois' } : id === 'mavis-cols-new' ? {} : gid.call(document, id);
+      _avisColsDraft = null; const formulaireMois = _avisColsDraftPour(null).cols.length;
+      return { depuisMois, formulaireMois, conseil: _avisModeleDefaut('conseil').colonnes.map(c => c.label) };
+    } finally { document.getElementById = gid; _avisColsDraft = null; }`);
+  assert.deepStrictEqual(r.depuisMois, r.conseil);
+  assert.strictEqual(r.depuisMois.length, 3);
+  assert.strictEqual(r.formulaireMois, 1);
+});
+
+test('changer de classe ne laisse pas l\'onglet des avis sur « Nouvelle feuille » au retour', () => {
+  const r = J(`${SETUP}
+    _avisCampId = null; _avisNouvelleVoulue = true;       // le formulaire ouvert dans une classe sans feuille
+    S.classes.autre = { id: 'autre', nom: '4A', annee: cls.annee, eleves: [], ord: 9 };
+    switchClass('autre'); const apres = { voulue: _avisNouvelleVoulue, camp: _avisCampId === undefined };
+    switchClass(cls.id);
+    return apres;`);
+  assert.deepStrictEqual(r, { voulue: false, camp: true });
+});

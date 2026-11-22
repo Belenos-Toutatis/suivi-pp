@@ -793,6 +793,7 @@ html[data-theme="dark"] .mb { background: var(--paper-warm); }
   display: inline-block; background: var(--margin-red); color: var(--paper);
   border-radius: 10px; padding: 1px 7px; font-size: .78em;
   min-width: 22px; text-align: center; font-weight: 600;
+  white-space: nowrap;   /* « 22 / 24 » se coupait sur deux lignes dans une colonne étroite (audit du 2026-11-22) */
 }
 /* Badge neutre : --pencil sur --paper-deep ne tenait que 4,12:1 en clair (mesuré) ;
    --ink-blue-soft y passe dans les deux thèmes. */
@@ -2217,6 +2218,11 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
    en mesurant ce même rendu dans une boîte hors écran. Des règles cantonnées à @media print
    ne s'appliqueraient pas à la mesure, et la mesure mentirait. Ces classes ne vivent que
    dans une .print-area — invisible à l'écran (#pa) ou hors champ (la boîte de mesure). */
+/* ⚠️ Les blocs « heures de vie de classe » et « synthèse de la classe » en font partie (audit du 2026-11-22) : cantonnés
+   à @media print et en points (9 pt fixes), ils n'étaient pas mesurés — « tient sur une page, texte en 6 pt » pour
+   une feuille qui en prenait deux. En `em`, ils rétrécissent avec le reste. */
+.print-hvc { font-size: .95em; margin: 0 0 .85em; padding: .4em .75em; border: 1px solid #888; border-radius: .4em; }
+.print-hvc ul { margin: .2em 0 0; padding-left: 1.5em; }
 .pp-titre { font-family: var(--font-print); font-size: 1.55em; font-weight: 700; line-height: 1.15; margin: 0 0 .15em; }
 .pp-sub { font-size: .9em; color: #333; margin: 0 0 .6em; }
 .pp-t { table-layout: fixed; width: 100%; border-collapse: collapse; line-height: 1.22;
@@ -2308,8 +2314,6 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
   .print-bilan caption { text-align: left; font-weight: 700; font-size: 9.5pt; padding: 0 0 2pt; }
   .print-bilan th { white-space: nowrap; }
   .print-list { columns: 2; font-size: 11pt; line-height: 1.8; }
-  .print-hvc { font-size: 9pt; margin: 0 0 8pt; padding: 4pt 7pt; border: 1px solid #888; border-radius: 4pt; }
-  .print-hvc ul { margin: 2pt 0 0; padding-left: 14pt; }
   /* La fiche élève imprimée (v1.49.0) : une page par élève, deux colonnes de rubriques
      courtes, le bilan et les avis sur toute la largeur. */
   .fp-page { break-after: page; font-size: 10pt; line-height: 1.35; }
@@ -5226,7 +5230,9 @@ function refreshSelector() {
 }
 
 function switchClass(id) {
-  if ((id || null) !== S.cur) _avisNomDraft = null;
+  // Autre classe : ni le nom tapé d'une nouvelle feuille, ni « Nouvelle feuille » elle-même, ni la feuille choisie
+  // ne suivent (au retour, l'onglet des avis restait sur le formulaire — audit du 2026-11-22).
+  if ((id || null) !== S.cur) { _avisNomDraft = null; _avisNouvelleVoulue = false; _avisCampId = undefined; }
   S.cur = id || null;
   save();
   refreshSelector();
@@ -17487,6 +17493,12 @@ function docModalOk() {
   const classIds = [...document.querySelectorAll('#mdoc-classes input[data-cid]')].filter(c => c.checked).map(c => c.dataset.cid);
   if (!classIds.length) { toast('⚠️ Cochez au moins une classe.', 'warn'); return; }
   // ⚠️ Années à deux chiffres complétées, date illisible refusée : « 10/09/25 » donnait `0025-09-10` (audit du 2026-10-14).
+  // ⚠️ Une date à MOITIÉ tapée (« 29/09/aaaa ») se lit '' : elle passait pour un champ vidé et effaçait la date
+  // enregistrée, sans message (audit du 2026-11-22). `badInput` les distingue : refus, la fenêtre reste ouverte.
+  for (const [id, quoi] of [['mdoc-dist', 'de distribution'], ['mdoc-ech', 'd\'échéance']]) {
+    const inp = document.getElementById(id);
+    if (inp.validity?.badInput) { toast(`⚠️ Date ${quoi} incomplète : complétez-la, ou videz le champ.`, 'warn'); inp.focus(); return; }
+  }
   const distBrut = document.getElementById('mdoc-dist').value, echBrut = document.getElementById('mdoc-ech').value;
   const dist = distBrut ? _ymdCompleteAnnee(distBrut) : null, ech = echBrut ? _ymdCompleteAnnee(echBrut) : null;
   if (dist && !_ymdValid(dist)) { toast('⚠️ Date de distribution illisible.', 'warn'); return; }
@@ -17532,12 +17544,13 @@ function _docModalApply(titre, description, classIds, dist, ech, suiviRetour, ch
   let d = _docEdit.id ? S.documents[_docEdit.id] : null;
   if (!d) { d = { id: uid('doc'), retours: {}, archive: false, ord: Object.keys(S.documents).length }; S.documents[d.id] = d; }
   Object.assign(d, { titre, description, classIds, dateDistribution: dist, dateEcheance: ech, suiviRetour, champs });
-  save();
+  const rien = _undoSiRien();   // « Enregistrer » sans rien changer : pas de cran d'annulation (audit du 2026-11-22)
+  if (!rien) save();
   closeMod2('mdoc');
   if (!_docEdit.id) _docView = d.id;
   _docEdit = null;
   renderDocuments();
-  toast(`Document « ${titre} » enregistré.`);
+  if (!rien) toast(`Document « ${titre} » enregistré.`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -22932,7 +22945,10 @@ let _avisColsDraft = null;
 function _avisColsDraftPour(camp) {
   const pour = camp ? camp.id : 'new';
   if (!_avisColsDraft || _avisColsDraft.pour !== pour) {
-    const obj = camp ? null : (document.getElementById('mavis-obj')?.value || 'conseil');
+    // ⚠️ L'objectif se lit dans le FORMULAIRE de création, s'il est affiché (audit du 2026-11-22) : ouvert depuis une
+    // feuille « point du mois », on lisait le sélecteur de CETTE feuille — objectif « Conseil » affiché, modèle à une
+    // seule colonne. Formulaire pas encore dessiné : l'objectif d'office, le conseil.
+    const obj = camp ? null : ((document.getElementById('mavis-cols-new') && document.getElementById('mavis-obj')?.value) || 'conseil');
     _avisColsDraft = { pour, touche: false, cols: _avisColsCopie(camp ? _avisCols(camp) : _avisModeleDefaut(obj).colonnes) };
   }
   return _avisColsDraft;
