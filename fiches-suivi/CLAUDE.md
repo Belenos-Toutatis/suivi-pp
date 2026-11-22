@@ -106,6 +106,10 @@ Chaque texte (infobulle, titre, message) dit de quelle famille il parle.
 - **Élèves et groupes** : nom de groupe unique (sans casse ni accents) ; un élève dans un seul demi-groupe (« Groupe 1 », « Gr. 2 »,
   « G3 »…), les options se cumulent ; deux élèves d'une liste ne portent pas le même nom (les fiches sont reliées par le nom).
 - **Suivis individuels** : l'avis (« Maintien nécessaire »…) ne compte la fiche de la semaine qu'à partir de son jour de remise.
+  **Retenue** (arbitré le 2026-11-22) : la réussite ARRONDIE fait foi (79,5 % s'affiche 80 % et ne passe pas sous un seuil de 80 %).
+  **Élève parti** : son suivi n'est pas clos, mais ses fiches s'arrêtent à son départ (`finIndiv`).
+- **Impressions, fiche individuelle** : jamais de contenu rogné — la page a une hauteur minimale, pas fixe (détail :
+  `docs/fiches-suivi.md` de Suivi PP, *Audit du 2026-11-22*).
 
 ## Hors champ
 

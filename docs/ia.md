@@ -203,3 +203,10 @@ Demandé le 2026-10-23, après l'essai réel de toute la classe :
   restent à l'écran. Retenu sur le poste (`suiviPP_iaPlein`), pour les quatre fenêtres.
 - Tests : `test/ia-api.test.js` (cases d'office, forme dans la consigne, une consigne réécrite la garde à la fin,
   plein écran). Audit : `mia`, `miac`, `mias`, `miaenv`, plein écran ou non, deux thèmes : 0 défaut.
+
+### Courriels et téléphones remplacés AVANT les noms (audit du 2026-11-22)
+
+`_iaPseudo` réserve d'abord les adresses de courriel et les numéros de téléphone, puis les noms : cherchée après, une adresse qui
+contient le nom de l'élève était coupée par son repère (« jean.[Nom de l'élève]@ac-lyon.fr ») et le motif ne la reconnaissait plus —
+le prénom du parent et le domaine partaient. Lettres accentuées admises dans l'adresse ; téléphones : « (+33)6… », « (+33) 6 … » et
+« 0033… » reconnus comme « 06… » et « +33 6… ». Test : `test/audit-1122-ia.test.js`.

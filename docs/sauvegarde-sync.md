@@ -38,3 +38,4 @@ Reprendre l'architecture de Plan de classe **sans la simplifier** — chaque pi�
   dossiers des deux apps, c'est normal ; les IndexedDB restent distinctes (`SuiviPP_v1`, `PlanDeClasse_v1`).
 - Après la sync rétablie, une fenêtre de conflit est possible si un autre poste a écrit pendant le blocage.
 - Test : `test/dossier-mort.test.js` (faux handle dont toutes les méthodes ne répondent jamais, `_fsaWithin` à 10 ms).
+- ⚠️ **Deux dossiers morts : une annonce APRÈS l'autre** (audit du 2026-11-22, `_dirStalledNotice`, file `_dirStalledFile`) : la fenêtre de dialogue n'a pas de file d'attente, et l'annonce du dossier de synchronisation (4 s) écrasait celle des pièces jointes (2,5 s), qui ne revenait plus de la session. Test : `test/audit-1122-donnees.test.js`.

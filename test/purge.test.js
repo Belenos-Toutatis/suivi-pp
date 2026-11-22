@@ -26,6 +26,11 @@ const MAXIMAL = `S = {
             // Délégués désignés SANS vote : un état courant indexé par sid, à purger.
             delegues: { date: '2025-10-01', titulaires: ['s1'], suppleants: ['s2'], note: '' },
             ecoDelegues: { date: '2025-10-14', titulaires: ['s1', 's2'], suppleants: [], note: '' },
+            // Ajouts d'octobre-novembre 2026 (audit du 2026-11-22 : la purge était saine, mais l'état maximal ne les
+            // portait pas — le balayage ne les GARDAIT donc pas). Aucun ne porte de sid : au balayage de le constater.
+            vieClasse: [ { id: 'h_1', date: '2025-09-05', ts: 1, titre: 'Accueil', texte: 'Règles de vie.' } ],
+            datesBilan: [ { type: 'conseil', date: '2026-01-20' } ],
+            synthClasse: [ { id: 'sc_1', ia: true, ts: 5, date: '2026-01-20', type: 'conseil', texte: 'Une classe vivante.' } ],
             salleCur: 'sa1',
             rooms: { sa1: { seating: { '0,0': 's1', '1,2': 's2' } },
                      sa2: { seating: { '2,1': 's1' } } } },
@@ -43,7 +48,14 @@ const MAXIMAL = `S = {
     // balayage doit le constater plutôt que le supposer.
     s1: { id: 's1', nom: 'Durand', prenom: 'Léa',  classe_id: '5C', tags: ['tag_1'], remarque: 'Appel à la mère le 11/10',
           incidents: [ { id: 'inc_1', date: '2025-10-03', ts: 3, type: 'fiche_incident', objet: 'Insolence', texte: '', pdf: { nom: 'f.pdf', fichier: 'inc_1-f.pdf', taille: 1000 } } ],
-          bilans: [ { id: 'b_1', date: '2026-01-20', ts: 4, type: 'conseil', texte: 'Sérieuse.' } ] },
+          bilans: [ { id: 'b_1', date: '2026-01-20', ts: 4, type: 'conseil', texte: 'Sérieuse.' } ],
+          // Ce qui vit SUR l'élève et part avec lui : décisions, synthèse par IA, contact avec fichier joint (une
+          // RÉFÉRENCE vers le dossier des pièces jointes), observations et absences lues dans MBN.
+          decisions: [ { id: 'd_1', date: '2026-01-21', ts: 6, type: 'conseil', texte: 'Tutorat.' } ],
+          synthIA: [ { id: 'ia_1', date: '2026-01-20', ts: 7, type: 'conseil', texte: 'Semestre correct.' } ],
+          journal: [ { id: 'j_1', date: '2025-10-11', ts: 8, type: 'appel', texte: 'Mère jointe.', pj: [ { nom: 'appel.pdf', fichier: 'j_1-appel.pdf', taille: 900 } ] } ],
+          obsMbn: [ { id: 'o_1', ts: 9, date: '2025-10-02', heure: '10:05', type: 'Observation', motif: 'Bavardage', par: 'M. Y', info: '' } ],
+          absMbn: [ { id: 'a_1', ts: 10, kind: 'retard', debut: '2025-10-06', hDebut: '08:00', fin: '2025-10-06', hFin: '08:10', motif: '', regul: false, valable: false, seances: 1, duree: 10, compte: true } ] },
     s2: { id: 's2', nom: 'Martin', prenom: 'Noé',  classe_id: '5C', tags: [] },
     s3: { id: 's3', nom: 'Petit',  prenom: 'Inès', classe_id: '5D', tags: ['tag_1'] },
   },
@@ -82,7 +94,14 @@ const MAXIMAL = `S = {
   avis: {
     '5C': { av_1: { id: 'av_1', date: '2026-01-20', cible: '2026-01-31', label: 'S1', fichier: 'avis.ods', lien: '', lu: 1,
                     disciplines: [{ id: 'maths', nom: 'Mathématiques', onglet: 'Maths', profs: 'M. Y' }], cibles: ['s1', 's2'],
-                    avis: { s1: { maths: { investissement: 'Sérieuse.' } }, s2: { maths: { comportement: 'Bavard.' } } } } },
+                    avis: { s1: { maths: { investissement: 'Sérieuse.' } }, s2: { maths: { comportement: 'Bavard.' } } },
+                    // Le ton des avis (v1.74.0) : indexé par sid, comme les avis.
+                    tons: { s1: { maths: { investissement: { h: 'x.1', seg: [ { d: 0, f: 8, v: 2 } ] } } }, s2: { maths: { comportement: { h: 'y.1', seg: [ { d: 0, f: 6, v: -2 } ] } } } } },
+            // Une feuille « bulletin » (v1.75.0) : mêmes index.
+            av_2: { id: 'av_2', source: 'bulletin', date: '2026-02-01', cible: '2026-01-31', label: 'Appréciations du bulletin — S1', fichier: 'b.pdf', lien: '', lu: 2, cibles: [],
+                    msg: { moment: 'conseil', mois: 1, echeance: '', off: [] }, colonnes: [ { key: 'appreciation', label: 'Appréciation' } ],
+                    disciplines: [{ id: 'maths', nom: 'Mathématiques', onglet: 'Maths', profs: 'M. Y' }],
+                    avis: { s1: { maths: { appreciation: 'Bon semestre.' } } }, tons: { s1: { maths: { appreciation: { h: 'z.1', seg: [ { d: 0, f: 3, v: 1 } ] } } } } } },
   },
   // Fiches de suivi (📋 Suivis) : le nom envoyé à la fiche, indexé par sid ; dans le suivi lui-même, l'élève n'est
   // désigné que par son NOM (comme sur le papier) — aucun sid.

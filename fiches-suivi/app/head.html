@@ -845,6 +845,7 @@ table.fiche th.per small.hcr { font-weight: 400; font-size: .85em; color: var(--
 .reg-contenu .card h2 { margin-top: 0; } .reg-contenu h3 { margin: 16px 0 8px; font-size: 14.5px; }
 .reg-contenu .grid2 { margin: 0; }
 .champs { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
+.champs .paire { display: flex; flex-wrap: nowrap; gap: 12px 16px; align-items: flex-end; }   /* un critère et son « = heures » ne se séparent pas à la ligne (audit du 2026-11-22 : à 1024 px, « = heures » de la réussite passait sous le critère des « TI ») */
 label.champ { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 label.champ.row { flex-direction: row; align-items: center; } label.champ input[type=checkbox], label.champ input[type=radio] { min-width: 0; width: auto; flex: none; }
 label.champ input, label.champ select { font-weight: 400; color: var(--ink); min-width: 160px; }
@@ -996,9 +997,13 @@ table.indiv-pied textarea { width: 100%; border: 0; background: transparent; fon
      de 4 lignes, règle de retenue, objectifs sur 2 lignes) poussait le cadre du bilan sur une 2e page. La page fait maintenant la hauteur
      utile du papier (194 mm en paysage, marges de 8 mm), en colonne ; en-tête et pied gardent leur taille, le tableau prend le reste et
      ses lignes se le partagent (5 mm au moins). */
-  #print-area .page:has(> table.indiv) { display: flex; flex-direction: column; height: 192mm; overflow: hidden; padding: 1px; }   /* padding : la moitié extérieure des bordures des tableaux (bord droit) restait hors de la zone imprimable et Chrome la rognait — v1.92.2 */
+  #print-area .page:has(> table.indiv) { display: flex; flex-direction: column; min-height: 192mm; padding: 1px; }   /* padding : la moitié extérieure des bordures des tableaux (bord droit) restait hors de la zone imprimable et Chrome la rognait — v1.92.2 */
   #print-area .page:has(> table.indiv) > * { flex: 0 0 auto; }
-  #print-area .page:has(> table.indiv) > table.indiv { flex: 1 1 0; min-height: 0; }
+  /* ⚠️ Hauteur MINIMALE, plus une hauteur fixe à contenu rogné (audit du 2026-11-22) : le tableau part de sa hauteur naturelle et grandit
+     pour remplir la page ; si une fiche vraiment trop chargée ne tient pas (samedi, dix créneaux, bilan long), la page s'allonge et le
+     cadre du bilan passe sur une seconde feuille — avant, il sortait de la page et disparaissait sans avertissement. */
+  #print-area .page:has(> table.indiv) > table.indiv { flex: 1 0 auto; }
+  table.indiv.serre th.cr small { white-space: nowrap; }
   table.indiv td { height: 5mm; } }
 @media (max-width: 1100px) { .ind-haut { grid-template-columns: 1fr; } table.classe col.c-nom { width: 140px; } table.classe col.c-rem { width: 16%; } }
 /* ===== totaux : incidents de la fiche de classe ===== */
@@ -1024,7 +1029,11 @@ a.btn:hover { border-color: var(--accent); }
 ol.etapes-remise { margin: 6px 0 0; padding-left: 20px; } ol.etapes-remise li { margin: 6px 0; }
 label.champ em.ret-off { font-style: normal; font-weight: 400; font-size: 11px; margin-left: 4px; padding: 0 6px; border: 1px dashed currentColor; border-radius: 8px; white-space: nowrap; }   /* critère de retenue à 0 (v1.91.2) */
 table.indiv td.mat .sal { display: block; font-size: .82em; font-weight: 400; color: var(--muted, #555); margin-top: 1px; }   /* salle du cours sous la matière (v1.91.6) */
-@media print { table.indiv td.mat .sal { color: #444; } }
+/* ⚠️ Sur le papier, la salle ne prend jamais plus de deux lignes, et une seule quand la fiche a neuf créneaux ou plus (`serre`, posé par
+   indivHTML) : la page a une hauteur fixe (v1.90.1) et une ligne ne rétrécit pas sous son contenu — « Labo physique-chimie » sur trois
+   lignes dans dix créneaux poussait le cadre du bilan et le visa hors de la page, rognés sans avertissement (audit du 2026-11-22). */
+@media print { table.indiv td.mat .sal { color: #444; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  table.indiv.serre td.mat .sal { display: block; white-space: nowrap; text-overflow: ellipsis; } }
 .retenue-ind p { margin: 4px 0; } .retenue-ind .ret-oui { font-weight: 600; color: var(--danger, #a3262a); }   /* retenue prévue (retenueIndivHTML) */
 .ic2 .ic-ret { font-weight: 600; color: var(--danger, #a3262a); white-space: nowrap; }
 ul.relais { margin: 6px 0 0; padding-left: 0; list-style: none; } ul.relais li { margin: 6px 0; }   /* passage d'une fiche à la suivante (relaisIndivHTML) */

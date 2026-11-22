@@ -23,6 +23,7 @@
   const cls = () => getCls();
   const eleves = () => cls().eleves.filter(id => S.eleves[id]);
   const sid0 = () => eleves().find(id => (S.eleves[id].incidents || []).length) || eleves()[0];
+  const sidBilan = () => eleves().find(id => (S.eleves[id].bilans || []).some(b => String(b.texte || '').trim())) || eleves()[0];
   const elections = () => Object.values(S.elections[cls().id] || {});
   const elEnCours = () => elections().find(e => !e.clos);
   const elClose = type => elections().filter(e => e.clos && (e.type || 'delegues') === type && !e.supDe).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
@@ -120,6 +121,14 @@
     ['fenêtre · dialogue', () => { onglet('donnees'); appAlert('Titre', 'Un message.', 'warn'); }],
     ['fenêtre · décrire un fichier', () => { onglet('donnees'); openStructure(); }],
     ['fenêtre · import Plan de classe', () => { onglet('donnees'); _pdcOpenChooser({ classes: { [cls().id]: { id: cls().id, nom: cls().nom, annee: cls().annee, eleves: eleves() } }, eleves: Object.fromEntries(eleves().map(id => [id, { ...S.eleves[id] }])) }); }],
+    // Fenêtres ajoutées d'octobre à novembre 2026 (audit du 2026-11-22 : le parcours ne les connaissait pas, elles
+    // n'étaient mesurées que par les audits ciblés de leur livraison). Aucune ne joint un service : elles s'ouvrent seulement.
+    ['fenêtre · import des bulletins', () => { onglet('avis'); openBullImport(); }],
+    ['fenêtre · IA synthèse d\'un élève', () => { onglet('eleves'); openFiche(sidBilan()); ficheVueSet('dossier'); openSynthIA(); }],
+    ['fenêtre · IA toute la classe', () => { onglet('eleves'); openSynthIAClasse(); }],
+    ['fenêtre · IA synthèse de la classe', () => { onglet('eleves'); openSynthClasse(); }],
+    ['fenêtre · IA bilan reformulé', () => { onglet('eleves'); openFiche(sidBilan()); ficheVueSet('faits'); openRedacIA(); }],
+    ['fenêtre · vers MBN (conseil)', () => { onglet('eleves'); openMbnConseil(); }],
   ];
 
   // [libellé, impression] — 12 feuilles.

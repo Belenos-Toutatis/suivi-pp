@@ -845,6 +845,7 @@ table.fiche th.per small.hcr { font-weight: 400; font-size: .85em; color: var(--
 .reg-contenu .card h2 { margin-top: 0; } .reg-contenu h3 { margin: 16px 0 8px; font-size: 14.5px; }
 .reg-contenu .grid2 { margin: 0; }
 .champs { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
+.champs .paire { display: flex; flex-wrap: nowrap; gap: 12px 16px; align-items: flex-end; }   /* un critère et son « = heures » ne se séparent pas à la ligne (audit du 2026-11-22 : à 1024 px, « = heures » de la réussite passait sous le critère des « TI ») */
 label.champ { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 label.champ.row { flex-direction: row; align-items: center; } label.champ input[type=checkbox], label.champ input[type=radio] { min-width: 0; width: auto; flex: none; }
 label.champ input, label.champ select { font-weight: 400; color: var(--ink); min-width: 160px; }
@@ -996,9 +997,13 @@ table.indiv-pied textarea { width: 100%; border: 0; background: transparent; fon
      de 4 lignes, règle de retenue, objectifs sur 2 lignes) poussait le cadre du bilan sur une 2e page. La page fait maintenant la hauteur
      utile du papier (194 mm en paysage, marges de 8 mm), en colonne ; en-tête et pied gardent leur taille, le tableau prend le reste et
      ses lignes se le partagent (5 mm au moins). */
-  #print-area .page:has(> table.indiv) { display: flex; flex-direction: column; height: 192mm; overflow: hidden; padding: 1px; }   /* padding : la moitié extérieure des bordures des tableaux (bord droit) restait hors de la zone imprimable et Chrome la rognait — v1.92.2 */
+  #print-area .page:has(> table.indiv) { display: flex; flex-direction: column; min-height: 192mm; padding: 1px; }   /* padding : la moitié extérieure des bordures des tableaux (bord droit) restait hors de la zone imprimable et Chrome la rognait — v1.92.2 */
   #print-area .page:has(> table.indiv) > * { flex: 0 0 auto; }
-  #print-area .page:has(> table.indiv) > table.indiv { flex: 1 1 0; min-height: 0; }
+  /* ⚠️ Hauteur MINIMALE, plus une hauteur fixe à contenu rogné (audit du 2026-11-22) : le tableau part de sa hauteur naturelle et grandit
+     pour remplir la page ; si une fiche vraiment trop chargée ne tient pas (samedi, dix créneaux, bilan long), la page s'allonge et le
+     cadre du bilan passe sur une seconde feuille — avant, il sortait de la page et disparaissait sans avertissement. */
+  #print-area .page:has(> table.indiv) > table.indiv { flex: 1 0 auto; }
+  table.indiv.serre th.cr small { white-space: nowrap; }
   table.indiv td { height: 5mm; } }
 @media (max-width: 1100px) { .ind-haut { grid-template-columns: 1fr; } table.classe col.c-nom { width: 140px; } table.classe col.c-rem { width: 16%; } }
 /* ===== totaux : incidents de la fiche de classe ===== */
@@ -1024,7 +1029,11 @@ a.btn:hover { border-color: var(--accent); }
 ol.etapes-remise { margin: 6px 0 0; padding-left: 20px; } ol.etapes-remise li { margin: 6px 0; }
 label.champ em.ret-off { font-style: normal; font-weight: 400; font-size: 11px; margin-left: 4px; padding: 0 6px; border: 1px dashed currentColor; border-radius: 8px; white-space: nowrap; }   /* critère de retenue à 0 (v1.91.2) */
 table.indiv td.mat .sal { display: block; font-size: .82em; font-weight: 400; color: var(--muted, #555); margin-top: 1px; }   /* salle du cours sous la matière (v1.91.6) */
-@media print { table.indiv td.mat .sal { color: #444; } }
+/* ⚠️ Sur le papier, la salle ne prend jamais plus de deux lignes, et une seule quand la fiche a neuf créneaux ou plus (`serre`, posé par
+   indivHTML) : la page a une hauteur fixe (v1.90.1) et une ligne ne rétrécit pas sous son contenu — « Labo physique-chimie » sur trois
+   lignes dans dix créneaux poussait le cadre du bilan et le visa hors de la page, rognés sans avertissement (audit du 2026-11-22). */
+@media print { table.indiv td.mat .sal { color: #444; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  table.indiv.serre td.mat .sal { display: block; white-space: nowrap; text-overflow: ellipsis; } }
 .retenue-ind p { margin: 4px 0; } .retenue-ind .ret-oui { font-weight: 600; color: var(--danger, #a3262a); }   /* retenue prévue (retenueIndivHTML) */
 .ic2 .ic-ret { font-weight: 600; color: var(--danger, #a3262a); white-space: nowrap; }
 ul.relais { margin: 6px 0 0; padding-left: 0; list-style: none; } ul.relais li { margin: 6px 0; }   /* passage d'une fiche à la suivante (relaisIndivHTML) */
@@ -3853,7 +3862,7 @@ function rubriquesReglages() {
     "Fiches individuelles et collectives",
     ["pastilles", "Codes et pastilles", `${S.codage.map(c => c.code).join(" ")} · rouge ${t.rouge} · vert clair ${t.vert}`, true],
     "Suivis individuels",
-    ["suivisIndiv", "Fiches individuelles", `remise le ${JOURS_REMISE[(S.remiseIndiv || 5) - 1]}${S.retenueIndiv.i ? ` · ${S.retenueIndiv.i} ${S.codage[3].code} = ${S.retenueIndiv.heures} h` : ""} · ${S.individuels.length} suivi${S.individuels.length > 1 ? "s" : ""}`, true],
+    ["suivisIndiv", "Fiches individuelles", `remise le ${JOURS_REMISE[(S.remiseIndiv || 5) - 1]}${resumeRetenueIndiv() ? ` · ${resumeRetenueIndiv()}` : ""} · ${S.individuels.length} suivi${S.individuels.length > 1 ? "s" : ""}`, true],
     "Suivi collectif",
     ["eleves", "Élèves du suivi collectif", nbEl ? `${nbEl} élève${nbEl > 1 ? "s" : ""}` : "aucun élève", nbEl > 0],
     ["fiche", "Fiche collective", `consigne, ${nbObj(S)} objectif${nbObj(S) > 1 ? "s" : ""}`, true],
@@ -3953,10 +3962,10 @@ function rubriqueHTML(cle) {
     <div class="champs"><label class="champ" title="Jour de remise par défaut\nL’élève dépose sa fiche ce jour-là en fin de journée ; la suivante commence au jour de cours suivant (le lundi après un vendredi, la rentrée après des vacances).\n• ex. jeudi si le professeur principal ne travaille pas le vendredi\n• un suivi peut avoir son propre jour">Jour de remise <select data-num="remiseIndiv" aria-label="Jour de remise des fiches individuelles">${JOURS_REMISE.map((j, k) => `<option value="${k + 1}" ${(S.remiseIndiv || 5) === k + 1 ? "selected" : ""}>${j}</option>`).join("")}</select></label></div>
     <p class="hint">Chaque fiche couvre les jours de cours jusqu’au jour de remise (vacances sautées). La page de chaque suivi rappelle l’enseignant du dernier cours le jour de remise et celui du premier cours le jour où la fiche suivante commence (casier où la déposer la veille), d’après l’emploi du temps. ${S.individuels.filter(i => i.remise).length ? `Suivi${S.individuels.filter(i => i.remise).length > 1 ? "s" : ""} avec un jour propre : ${S.individuels.filter(i => i.remise).map(i => `${esc(i.nom)} (${JOURS_REMISE[i.remise - 1]})`).join(", ")}.` : "Tous les suivis utilisent ce jour."}</p></div>
   <div class="card"><h2>Retenue des fiches individuelles</h2>
-    <div class="champs"><label class="champ" title="Nombre de « ${esc(S.codage[3].code)} » par retenue\nCompté sur toute la fiche, tous objectifs confondus ; chaque palier atteint ajoute la durée.\n0 : pas de retenue pour les « ${esc(S.codage[3].code)} »."><span>« ${esc(S.codage[3].code)} » sur la fiche${retOff(!S.retenueIndiv.i)}</span><input type="number" min="0" max="20" data-num="retenueIndiv.i" value="${S.retenueIndiv.i}" style="width:70px" aria-label="Nombre de codes ${esc(S.codage[3].code)} par retenue"></label>
-      <label class="champ" title="Durée de la retenue, par palier">= heures de retenue <input type="number" min="1" max="4" data-num="retenueIndiv.heures" value="${S.retenueIndiv.heures}" style="width:60px" aria-label="Heures de retenue par palier"></label>
-      <label class="champ" title="Réussite de la fiche sous le seuil\nPart des cases notées dans les deux niveaux du haut (« ${esc(S.codage[0].code)} », « ${esc(S.codage[1].code)} »), tous objectifs confondus.\n75 % : au plus un avis négatif sur quatre.">Réussite sous (%) <input type="number" min="1" max="100" data-num="retenueIndiv.reussite" value="${S.retenueIndiv.reussite}" style="width:64px" aria-label="Seuil de réussite de la fiche, en pourcentage"></label>
-      <label class="champ" title="Heures de retenue quand la réussite est sous le seuil\n0 : pas de retenue pour la réussite."><span>= heures${retOff(!S.retenueIndiv.hReussite)}</span><input type="number" min="0" max="4" data-num="retenueIndiv.hReussite" value="${S.retenueIndiv.hReussite}" style="width:60px" aria-label="Heures de retenue pour une réussite sous le seuil"></label>
+    <div class="champs"><span class="paire"><label class="champ" title="Nombre de « ${esc(S.codage[3].code)} » par retenue\nCompté sur toute la fiche, tous objectifs confondus ; chaque palier atteint ajoute la durée.\n0 : pas de retenue pour les « ${esc(S.codage[3].code)} »."><span>« ${esc(S.codage[3].code)} » sur la fiche${retOff(!S.retenueIndiv.i)}</span><input type="number" min="0" max="20" data-num="retenueIndiv.i" value="${S.retenueIndiv.i}" style="width:70px" aria-label="Nombre de codes ${esc(S.codage[3].code)} par retenue"></label>
+      <label class="champ" title="Durée de la retenue, par palier">= heures de retenue <input type="number" min="1" max="4" data-num="retenueIndiv.heures" value="${S.retenueIndiv.heures}" style="width:60px" aria-label="Heures de retenue par palier"></label></span>
+      <span class="paire"><label class="champ" title="Réussite de la fiche sous le seuil\nPart des cases notées dans les deux niveaux du haut (« ${esc(S.codage[0].code)} », « ${esc(S.codage[1].code)} »), tous objectifs confondus.\n75 % : au plus un avis négatif sur quatre.">Réussite sous (%) <input type="number" min="1" max="100" data-num="retenueIndiv.reussite" value="${S.retenueIndiv.reussite}" style="width:64px" aria-label="Seuil de réussite de la fiche, en pourcentage"></label>
+      <label class="champ" title="Heures de retenue quand la réussite est sous le seuil\n0 : pas de retenue pour la réussite."><span>= heures${retOff(!S.retenueIndiv.hReussite)}</span><input type="number" min="0" max="4" data-num="retenueIndiv.hReussite" value="${S.retenueIndiv.hReussite}" style="width:60px" aria-label="Heures de retenue pour une réussite sous le seuil"></label></span>
       <label class="champ" title="Fiche perdue\nPerdue en route ou pas rendue le jour de remise ; heures de retenue pour CHAQUE perte, 0 : pas de retenue.\nChaque perte se note, datée, sur la page du suivi ; un nouvel exemplaire se réimprime."><span>Perte de la fiche = heures${retOff(!S.retenueIndiv.nonRendue)}</span><input type="number" min="0" max="4" data-num="retenueIndiv.nonRendue" value="${S.retenueIndiv.nonRendue}" style="width:60px" aria-label="Heures de retenue pour une fiche perdue"></label>
       <label class="champ" title="Plafond par fiche\nHeures de retenue au plus pour une fiche, tous critères compris : une mauvaise semaine ne s’emballe pas.\n0 : pas de plafond."><span>Plafond par fiche (heures)${retOff(!S.retenueIndiv.max, "sans plafond")}</span><input type="number" min="0" max="12" data-num="retenueIndiv.max" value="${S.retenueIndiv.max}" style="width:60px" aria-label="Plafond de retenue par fiche, en heures"></label></div>
     ${regleRetenueIndiv({}) ? `<p class="apercu"><b>Imprimé sur la fiche :</b> Attention : ${esc(regleRetenueEleve({}))}</p>` : `<p class="hint">Aucune règle : rien n’est imprimé ni annoncé.</p>`}
@@ -6018,11 +6027,17 @@ const JOURS_REMISE = ["lundi", "mardi", "mercredi", "jeudi", "vendredi"];
 /** Jour de remise d'un suivi : le sien, sinon celui des réglages. */
 const remiseDe = ind => ind.remise || S.remiseIndiv || 5;
 /** Fiches d'un suivi : chacune va jusqu'au jour de remise (5 jours de cours en général, vacances sautées). Clé d'une fiche : son dernier jour. */
+/** Élève parti de la classe (audit du 2026-11-22, arbitré) : son dernier jour dans la liste de la classe, "" s'il y est toujours. Son suivi
+    n'est PAS clos — une date de départ se corrige, et tout revient — mais plus aucune fiche n'est proposée ni imprimée après ce jour
+    (« Fiches de la semaine » proposait encore la sienne). */
+const departDe = ind => { const k = cleNom(ind.nom), e = k ? S.classeEleves.find(x => cleNom(x.nom) === k) : null; return (e && e.fin) || ""; };
+/** Dernier jour des fiches d'un suivi : sa fin propre, ou le départ de l'élève s'il vient avant. */
+const finIndiv = ind => { const d = departDe(ind); return d && (!ind.fin || d < ind.fin) ? d : ind.fin; };
 function cyclesIndiv(ind) {
-  const cycles = []; let cur = [];
+  const cycles = [], fin = finIndiv(ind); let cur = [];
   for (const d of ficheDates()) {
     if (ind.debut && d < ind.debut) continue;
-    if (ind.fin && d > ind.fin) break;
+    if (fin && d > fin) break;
     cur.push(d);
     if (jourSemaine(d) === remiseDe(ind)) { cycles.push(cur); cur = []; }
   }
@@ -6070,6 +6085,16 @@ function seuilCasesEleve(p, c0, c1) {
   if (p >= 100) return `Une case qui n’est ni ${c0} ni ${c1}`;
   const f = p === 50 ? [1, 2] : p % 10 === 0 ? [p / 10, 10] : p === 25 ? [1, 4] : p === 75 ? [3, 4] : null;
   return f ? `Moins de ${f[0]} case${f[0] > 1 ? "s" : ""} sur ${f[1]} en ${bons}` : `Moins de ${p} % des cases en ${bons}`;
+}
+/** La règle des réglages en très court, pour le résumé du menu des réglages (« 3 TI = 1 h · réussite < 75 % = 1 h · perte = 1 h ») :
+    TOUS les critères actifs — le résumé ne citait que les « TI », une règle sur la réussite ou la perte seule paraissait absente
+    (audit du 2026-11-22). "" sans règle. */
+function resumeRetenueIndiv() {
+  const r = regleRetenueDe(null), cI = (S.codage[3] || {}).code || "I", t = [];
+  if (r.i) t.push(`${r.i} ${cI} = ${r.heures} h`);
+  if (r.hReussite) t.push(`réussite < ${r.reussite} % = ${r.hReussite} h`);
+  if (r.nonRendue) t.push(`perte = ${r.nonRendue} h`);
+  return t.join(" · ");
 }
 function regleRetenueEleve(ind) {
   const r = regleRetenueDe(ind), cI = (S.codage[3] || {}).code || "I", t = [];
@@ -6234,7 +6259,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
      ni bilan (v1.91.3). L'écran garde tout. */
   const avecBilan = edit || famille || (avecBilanImpose ?? bilanImprime(ind, c)), bilan = avecBilan ? bilanCycle(ind, c) : "", ret = avecBilan ? ligneRetenue(ind, c) : "";
   const pied = `<table class="indiv-pied${!edit && bilan.length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${ret ? `<div class="bil-ret" title="Ligne automatique\nLa retenue de la fiche, recalculée à chaque code ; elle ne fait pas partie de votre bilan.">${esc(ret)}</div>` : ""}${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
-  return `${head}<table class="indiv${c.jours.length * (no + 2) > 30 ? " dense" : ""}" style="--no:${no};--rhi:${Math.min(16, 112 / creneauxActifs(S).length).toFixed(1)}mm"><colgroup><col class="c-cr">${c.jours.map(() => `<col class="c-mat">${'<col class="c-cd">'.repeat(no)}<col class="c-rq">`).join("")}</colgroup>
+  return `${head}<table class="indiv${c.jours.length * (no + 2) > 30 ? " dense" : ""}${creneauxActifs(S).length >= 9 ? " serre" : ""}" style="--no:${no};--rhi:${Math.min(16, 112 / creneauxActifs(S).length).toFixed(1)}mm"><colgroup><col class="c-cr">${c.jours.map(() => `<col class="c-mat">${'<col class="c-cd">'.repeat(no)}<col class="c-rq">`).join("")}</colgroup>
     <thead><tr><th rowspan="2" class="cr" title="Créneau">Cr.</th>${jt}</tr><tr>${sous}</tr></thead><tbody>${lignes}</tbody></table>${famille ? "" : pied}`;
 }
 /** Bilan envoyé à la famille par courriel (PDF) : synthèse lisible des objectifs, remarques des enseignants, bilan du professeur principal. */
@@ -6734,7 +6759,9 @@ function viewIndiv(arg) {
   const c = cy.find(x => x.fin === fin) || cycleCourant(cy);
   const ii = S.individuels.indexOf(ind);
   const ouvert = regIndOuvert.has(ind.id) || !ind.nom.trim() || ind.objectifs.every(x => !x.trim());
-  const reglages = `<details class="card reg-ind no-print" data-regind="${esc(ind.id)}"${ouvert ? " open" : ""}><summary><svg class="ic" aria-hidden="true"><use href="#i-reglages"/></svg>Réglages du suivi <small>élève, ${ind.objectifs.length} objectif${ind.objectifs.length > 1 ? "s" : ""}, remise le ${JOURS_REMISE[remiseDe(ind) - 1]}, consigne, retenue, dates, courriel de la famille</small></summary><div class="reg-ind-corps">
+  /* élève parti de la classe : dit AU-DESSUS des réglages (repliés, on ne le verrait pas) */
+  const parti = departDe(ind) && finIndiv(ind) === departDe(ind) ? `<p class="hint no-print" style="margin:0 0 8px">⚠ ${esc(ind.nom)} a quitté la classe le ${fmtDM(departDe(ind))} : ses fiches s’arrêtent à cette date. Le suivi n’est pas clos — si la date de départ est corrigée, les fiches suivantes reviennent.</p>` : "";
+  const reglages = parti + `<details class="card reg-ind no-print" data-regind="${esc(ind.id)}"${ouvert ? " open" : ""}><summary><svg class="ic" aria-hidden="true"><use href="#i-reglages"/></svg>Réglages du suivi <small>élève, ${ind.objectifs.length} objectif${ind.objectifs.length > 1 ? "s" : ""}, remise le ${JOURS_REMISE[remiseDe(ind) - 1]}, consigne, retenue, dates, courriel de la famille</small></summary><div class="reg-ind-corps">
       <div class="champs"><label class="champ" title="Élève\nNOM Prénom, imprimé sur la fiche.">Élève <input type="text" data-path="individuels.${ii}.nom" value="${esc(ind.nom)}" list="liste-classe" aria-label="Élève"></label>
         <label class="champ" title="Jour de remise\nL’élève dépose sa fiche ce jour-là en fin de journée ; la suivante commence au jour de cours suivant (le lundi après un vendredi).\n• par défaut, celui des réglages (Réglages › Fiches individuelles)">Remise le <select data-num="individuels.${ii}.remise" aria-label="Jour de remise de la fiche"><option value="0" ${ind.remise ? "" : "selected"}>comme les réglages (${JOURS_REMISE[(S.remiseIndiv || 5) - 1]})</option>${JOURS_REMISE.map((j, k) => `<option value="${k + 1}" ${ind.remise === k + 1 ? "selected" : ""}>${j}</option>`).join("")}</select></label>
         <label class="champ" title="Consigne imprimée sur la fiche\nQui garde la fiche, qui la dépose, et quand : pour cet élève seulement.\n• par défaut, celle des réglages (Réglages › Fiches individuelles)\n• un élève qui fait disparaître ses documents : « Dernier enseignant… » (la fiche ne repart pas avec lui)\n• l’enseignant du premier et du dernier cours sont lus dans l’emploi du temps">Consigne <select data-num="individuels.${ii}.consigne" aria-label="Consigne de la fiche de cet élève"><option value="0" ${ind.consigne ? "" : "selected"}>comme les réglages (${esc((S.consignesIndiv[S.consigneIndivChoisie] || {}).label || "Modèle " + (S.consigneIndivChoisie + 1))})</option>${S.consignesIndiv.map((m, k) => `<option value="${k + 1}" ${ind.consigne === k + 1 ? "selected" : ""}>${esc(m.label.trim() || "Modèle " + (k + 1))}</option>`).join("")}</select></label>

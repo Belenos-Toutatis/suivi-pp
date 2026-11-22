@@ -57,3 +57,10 @@ Impression de la **vue globale** (accessible de la liste des documents et du �
 - ⚠️ Les élèves partis sont masqués et **le sous-titre le DIT** (un décompte qui rétrécit sans raison fait chercher une panne). Le pied compte sur les **lignes imprimées**.
 - **Bilan par document** : `_gridPrintBilan(rows, docIds)` appelle `_docPrintBilan` sur les élèves imprimés **et attendus** de chaque colonne (un « sans objet » sort du dénominateur), champs des **familles seulement**, rendu partagé `_docPrintBilanRows(b, prefix)`.
 - Option « porter les réponses des familles sous les coches » (feuille de ramassage = récapitulatif). ⚠️ Les champs `par: 'prof'` n'y descendent pas.
+
+### Fenêtre d'un document : dates et annulation (audit du 2026-11-22)
+
+- `docModalOk` refuse une date à MOITIÉ tapée (`validity.badInput`, le champ se lit `''`) : elle passait pour un champ vidé et effaçait
+  la distribution ou l'échéance, sans message. Un champ vidé exprès efface toujours.
+- « ✓ Enregistrer » sans rien changer ne pose pas de cran d'annulation (`_docModalApply` → `_undoSiRien`), et ne dit pas « enregistré ».
+- Le badge « rendus / attendus » ne se coupe plus (`.badge { white-space: nowrap }`).

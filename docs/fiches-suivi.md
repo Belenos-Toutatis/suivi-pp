@@ -217,3 +217,22 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
   tombait hors de la zone imprimable et Chrome la rognait : ligne de droite très fine, ou absente selon l'imprimante ou le PDF
   (constaté sur une fiche du vendredi au jeudi, vrai de toutes les feuilles). `#print-area .page` a 1 px de marge intérieure à
   gauche et à droite (fiche individuelle : 1 px tout autour). Test : `e2e_impr2` (tableau et cadre du bilan à l'intérieur de la page).
+
+### Audit du 2026-11-22 : fiche chargée, réglages, élève parti, arrondi
+
+- ⚠️ **La fiche individuelle imprimée ne perd plus son bilan** : la page a une hauteur MINIMALE (192 mm), plus une hauteur fixe à
+  contenu rogné — le tableau part de sa hauteur naturelle et grandit pour remplir (`flex: 1 0 auto`). Une ligne ne rétrécit pas sous
+  son contenu : avec dix créneaux et des salles au nom long (« Labo physique-chimie » sur trois lignes, v1.91.6), le cadre « Bilan du
+  professeur principal » et le visa sortaient de la page et disparaissaient, sans 2e page ni avertissement. Sur le papier, la salle
+  tient en **deux lignes au plus**, et en **une seule** (coupée par « … ») quand la fiche a neuf créneaux ou plus (classe `serre`,
+  posée par `indivHTML`) ; l'heure du créneau ne se replie plus. Si une fiche ne tient vraiment pas, le bilan passe sur une seconde
+  feuille. Test : `fiches-suivi/e2e_impr_chargee.js` (six fiches chargées, par le vrai bouton d'impression).
+- **Résumé du menu des réglages** (`resumeRetenueIndiv`) : tous les critères actifs (« 3 TI = 1 h · réussite < 75 % = 1 h · perte =
+  1 h »), plus seulement les « TI ». **Réglages › Fiches individuelles** : un critère et son « = heures » ne se séparent plus à la
+  ligne (`.champs .paire`). Test : `fiches-suivi/e2e_audit7.js`.
+- **Élève parti de la classe** (arbitré le 2026-11-22) : son suivi n'est PAS clos (une date de départ se corrige), mais ses fiches
+  s'arrêtent à son dernier jour dans la liste de la classe (`departDe`, `finIndiv`, lus par `cyclesIndiv`) — « Fiches de la semaine »
+  proposait encore la sienne. La page du suivi le dit au-dessus des réglages. Date de départ retirée : les fiches reviennent.
+- ⚠️ **Arbitré le 2026-11-22 : la réussite ARRONDIE fait foi** pour le critère de retenue. 35 cases sur 44 (79,5 %) s'affichent
+  80 % et ne donnent PAS de retenue sous un seuil de 80 % (« moins de 8 cases sur 10 ») : ce que la fiche affiche est ce qui
+  compte (`retenueFiche`, `pctArrondi`). Ne pas « corriger » vers le rapport exact.

@@ -314,11 +314,17 @@ const JOURS_REMISE = ["lundi", "mardi", "mercredi", "jeudi", "vendredi"];
 /** Jour de remise d'un suivi : le sien, sinon celui des réglages. */
 const remiseDe = ind => ind.remise || S.remiseIndiv || 5;
 /** Fiches d'un suivi : chacune va jusqu'au jour de remise (5 jours de cours en général, vacances sautées). Clé d'une fiche : son dernier jour. */
+/** Élève parti de la classe (audit du 2026-11-22, arbitré) : son dernier jour dans la liste de la classe, "" s'il y est toujours. Son suivi
+    n'est PAS clos — une date de départ se corrige, et tout revient — mais plus aucune fiche n'est proposée ni imprimée après ce jour
+    (« Fiches de la semaine » proposait encore la sienne). */
+const departDe = ind => { const k = cleNom(ind.nom), e = k ? S.classeEleves.find(x => cleNom(x.nom) === k) : null; return (e && e.fin) || ""; };
+/** Dernier jour des fiches d'un suivi : sa fin propre, ou le départ de l'élève s'il vient avant. */
+const finIndiv = ind => { const d = departDe(ind); return d && (!ind.fin || d < ind.fin) ? d : ind.fin; };
 function cyclesIndiv(ind) {
-  const cycles = []; let cur = [];
+  const cycles = [], fin = finIndiv(ind); let cur = [];
   for (const d of ficheDates()) {
     if (ind.debut && d < ind.debut) continue;
-    if (ind.fin && d > ind.fin) break;
+    if (fin && d > fin) break;
     cur.push(d);
     if (jourSemaine(d) === remiseDe(ind)) { cycles.push(cur); cur = []; }
   }
@@ -366,6 +372,16 @@ function seuilCasesEleve(p, c0, c1) {
   if (p >= 100) return `Une case qui n’est ni ${c0} ni ${c1}`;
   const f = p === 50 ? [1, 2] : p % 10 === 0 ? [p / 10, 10] : p === 25 ? [1, 4] : p === 75 ? [3, 4] : null;
   return f ? `Moins de ${f[0]} case${f[0] > 1 ? "s" : ""} sur ${f[1]} en ${bons}` : `Moins de ${p} % des cases en ${bons}`;
+}
+/** La règle des réglages en très court, pour le résumé du menu des réglages (« 3 TI = 1 h · réussite < 75 % = 1 h · perte = 1 h ») :
+    TOUS les critères actifs — le résumé ne citait que les « TI », une règle sur la réussite ou la perte seule paraissait absente
+    (audit du 2026-11-22). "" sans règle. */
+function resumeRetenueIndiv() {
+  const r = regleRetenueDe(null), cI = (S.codage[3] || {}).code || "I", t = [];
+  if (r.i) t.push(`${r.i} ${cI} = ${r.heures} h`);
+  if (r.hReussite) t.push(`réussite < ${r.reussite} % = ${r.hReussite} h`);
+  if (r.nonRendue) t.push(`perte = ${r.nonRendue} h`);
+  return t.join(" · ");
 }
 function regleRetenueEleve(ind) {
   const r = regleRetenueDe(ind), cI = (S.codage[3] || {}).code || "I", t = [];
@@ -530,7 +546,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
      ni bilan (v1.91.3). L'écran garde tout. */
   const avecBilan = edit || famille || (avecBilanImpose ?? bilanImprime(ind, c)), bilan = avecBilan ? bilanCycle(ind, c) : "", ret = avecBilan ? ligneRetenue(ind, c) : "";
   const pied = `<table class="indiv-pied${!edit && bilan.length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${ret ? `<div class="bil-ret" title="Ligne automatique\nLa retenue de la fiche, recalculée à chaque code ; elle ne fait pas partie de votre bilan.">${esc(ret)}</div>` : ""}${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
-  return `${head}<table class="indiv${c.jours.length * (no + 2) > 30 ? " dense" : ""}" style="--no:${no};--rhi:${Math.min(16, 112 / creneauxActifs(S).length).toFixed(1)}mm"><colgroup><col class="c-cr">${c.jours.map(() => `<col class="c-mat">${'<col class="c-cd">'.repeat(no)}<col class="c-rq">`).join("")}</colgroup>
+  return `${head}<table class="indiv${c.jours.length * (no + 2) > 30 ? " dense" : ""}${creneauxActifs(S).length >= 9 ? " serre" : ""}" style="--no:${no};--rhi:${Math.min(16, 112 / creneauxActifs(S).length).toFixed(1)}mm"><colgroup><col class="c-cr">${c.jours.map(() => `<col class="c-mat">${'<col class="c-cd">'.repeat(no)}<col class="c-rq">`).join("")}</colgroup>
     <thead><tr><th rowspan="2" class="cr" title="Créneau">Cr.</th>${jt}</tr><tr>${sous}</tr></thead><tbody>${lignes}</tbody></table>${famille ? "" : pied}`;
 }
 /** Bilan envoyé à la famille par courriel (PDF) : synthèse lisible des objectifs, remarques des enseignants, bilan du professeur principal. */
@@ -1030,7 +1046,9 @@ function viewIndiv(arg) {
   const c = cy.find(x => x.fin === fin) || cycleCourant(cy);
   const ii = S.individuels.indexOf(ind);
   const ouvert = regIndOuvert.has(ind.id) || !ind.nom.trim() || ind.objectifs.every(x => !x.trim());
-  const reglages = `<details class="card reg-ind no-print" data-regind="${esc(ind.id)}"${ouvert ? " open" : ""}><summary><svg class="ic" aria-hidden="true"><use href="#i-reglages"/></svg>Réglages du suivi <small>élève, ${ind.objectifs.length} objectif${ind.objectifs.length > 1 ? "s" : ""}, remise le ${JOURS_REMISE[remiseDe(ind) - 1]}, consigne, retenue, dates, courriel de la famille</small></summary><div class="reg-ind-corps">
+  /* élève parti de la classe : dit AU-DESSUS des réglages (repliés, on ne le verrait pas) */
+  const parti = departDe(ind) && finIndiv(ind) === departDe(ind) ? `<p class="hint no-print" style="margin:0 0 8px">⚠ ${esc(ind.nom)} a quitté la classe le ${fmtDM(departDe(ind))} : ses fiches s’arrêtent à cette date. Le suivi n’est pas clos — si la date de départ est corrigée, les fiches suivantes reviennent.</p>` : "";
+  const reglages = parti + `<details class="card reg-ind no-print" data-regind="${esc(ind.id)}"${ouvert ? " open" : ""}><summary><svg class="ic" aria-hidden="true"><use href="#i-reglages"/></svg>Réglages du suivi <small>élève, ${ind.objectifs.length} objectif${ind.objectifs.length > 1 ? "s" : ""}, remise le ${JOURS_REMISE[remiseDe(ind) - 1]}, consigne, retenue, dates, courriel de la famille</small></summary><div class="reg-ind-corps">
       <div class="champs"><label class="champ" title="Élève\nNOM Prénom, imprimé sur la fiche.">Élève <input type="text" data-path="individuels.${ii}.nom" value="${esc(ind.nom)}" list="liste-classe" aria-label="Élève"></label>
         <label class="champ" title="Jour de remise\nL’élève dépose sa fiche ce jour-là en fin de journée ; la suivante commence au jour de cours suivant (le lundi après un vendredi).\n• par défaut, celui des réglages (Réglages › Fiches individuelles)">Remise le <select data-num="individuels.${ii}.remise" aria-label="Jour de remise de la fiche"><option value="0" ${ind.remise ? "" : "selected"}>comme les réglages (${JOURS_REMISE[(S.remiseIndiv || 5) - 1]})</option>${JOURS_REMISE.map((j, k) => `<option value="${k + 1}" ${ind.remise === k + 1 ? "selected" : ""}>${j}</option>`).join("")}</select></label>
         <label class="champ" title="Consigne imprimée sur la fiche\nQui garde la fiche, qui la dépose, et quand : pour cet élève seulement.\n• par défaut, celle des réglages (Réglages › Fiches individuelles)\n• un élève qui fait disparaître ses documents : « Dernier enseignant… » (la fiche ne repart pas avec lui)\n• l’enseignant du premier et du dernier cours sont lus dans l’emploi du temps">Consigne <select data-num="individuels.${ii}.consigne" aria-label="Consigne de la fiche de cet élève"><option value="0" ${ind.consigne ? "" : "selected"}>comme les réglages (${esc((S.consignesIndiv[S.consigneIndivChoisie] || {}).label || "Modèle " + (S.consigneIndivChoisie + 1))})</option>${S.consignesIndiv.map((m, k) => `<option value="${k + 1}" ${ind.consigne === k + 1 ? "selected" : ""}>${esc(m.label.trim() || "Modèle " + (k + 1))}</option>`).join("")}</select></label>
