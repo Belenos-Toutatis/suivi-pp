@@ -16,3 +16,25 @@ Reprendre l'architecture de Plan de classe **sans la simplifier** — chaque pi�
 - ⚠️ **Compression écartée sciemment** : `CompressionStream` est asynchrone alors que `beforeunload` appelle `save()` de façon synchrone, et un octet altéré détruit un gzip entier là où un JSON en clair reste réparable à la main.
 
 **Volume très faible** (25 élèves, une dizaine de relevés et de documents : quelques dizaines de ko). Le dispositif complet reste justifié : c'est le filet de sécurité, des retours de fiches d'orientation perdus ne se reconstituent pas.
+
+### Dossier mémorisé qui ne répond plus (v1.92.4, repris de Plan de classe v2.166.1)
+
+- **Symptôme** (Chrome 158 sous Linux, depuis le 18/11/2026, en ligne comme en `file://`) : 📂 Dossier n'ouvre rien, sans message ;
+  les photos ne s'affichent plus. Le handle restauré d'IndexedDB est « mort » : `queryPermission`, `requestPermission`,
+  `entries()`, `getDirectoryHandle`, même `isSameEntry` restent en attente POUR TOUJOURS, sans erreur ; redémarrer Chrome n'y
+  change rien ; l'OPFS répond. Seul remède : choisir le dossier de nouveau (un handle neuf marche). Cf. nutstore/eo2weave#348.
+- **Correction** : `_fsaWithin(p, ms)` borne les appels qui ne demandent rien à l'utilisateur (repère `_FSA_STALL`) ;
+  `requestPermission` n'est JAMAIS borné (il attend la réponse à la bulle de Chrome ; test statique).
+  - démarrage (`tryRestoreDirHandle`) : `queryPermission` borné à 4 s ; dépassé → `_dirMarkStalled` + `_dirStalledNotice('sync')`,
+    puis retour AVANT tout `autoReloadCheck` ;
+  - photos (`_photosDir`) : `queryPermission` 2,5 s, `getDirectoryHandle` 5 s ; dépassé → oubli + fenêtre `'pj'`, `null` ;
+  - 📂 Dossier (`openFilePicker`) et un clic qui demande le dossier des PDF (`_pjReady`) : 1,5 s seulement (le sélecteur qui
+    suit exige un clic de moins de 5 s) ; dépassé → oubli, toast, pas de fenêtre de plus ; 📂 Dossier ouvre alors le sélecteur.
+- `_dirMarkStalled(h)` oublie le handle EN MÉMOIRE seulement (`dirHandle` / `pjDirHandle` à `null`) : l'IndexedDB garde l'ancien,
+  que le nouveau choix remplace. `_dirStalledNotice(kind, nom)` : une fenêtre de l'app par dossier et par session (nom échappé,
+  où le choisir de nouveau, « vos données ne sont pas touchées »). Après un nouveau choix du dossier des pièces jointes
+  (`choosePjDir`), les photos sont relues.
+- Les autorisations de Chrome vont au site (`belenos-toutatis.github.io`, commun avec Plan de classe) : la bulle liste les
+  dossiers des deux apps, c'est normal ; les IndexedDB restent distinctes (`SuiviPP_v1`, `PlanDeClasse_v1`).
+- Après la sync rétablie, une fenêtre de conflit est possible si un autre poste a écrit pendant le blocage.
+- Test : `test/dossier-mort.test.js` (faux handle dont toutes les méthodes ne répondent jamais, `_fsaWithin` à 10 ms).

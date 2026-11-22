@@ -3853,8 +3853,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.92.3';
-const APP_BUILD_DATE = '2026-11-18T21:55:39Z';
+const APP_VERSION    = '1.92.4';
+const APP_BUILD_DATE = '2026-11-22T21:24:46Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -24044,6 +24044,31 @@ async function idbLoadHandle() { return idbLoadHandleKey('dir'); }
 // ═══════════════════════════════════════════════════════════════════════════
 let pjDirHandle = null;
 const PJ_IDB_KEY = 'pjdir';
+// ─── Dossier mémorisé qui ne répond plus (v1.92.4, repris de Plan de classe v2.166.1) ───
+// Depuis Chrome 158 (nov. 2026), un handle de dossier restauré d'IndexedDB peut être « mort » : queryPermission,
+// getDirectoryHandle, entries()… restent en attente POUR TOUJOURS, sans erreur (le bouton 📂 Dossier n'ouvrait rien, les
+// photos ne s'affichaient plus). Seul remède : faire choisir le dossier de nouveau (un handle neuf marche). On borne donc dans
+// le temps les appels qui ne demandent rien à l'utilisateur ; requestPermission, lui, attend sa réponse : jamais borné.
+const _FSA_STALL = '__stalled';
+function _fsaWithin(p, ms) { let t; return Promise.race([Promise.resolve(p), new Promise(r => { t = setTimeout(() => r(_FSA_STALL), ms); })]).finally(() => clearTimeout(t)); }
+const _dirStalledNoticed = { sync: false, pj: false };
+// Oublie le handle EN MÉMOIRE seulement : l'IndexedDB garde l'ancien, que le nouveau choix remplacera.
+function _dirMarkStalled(h) {
+  if (!h) return;
+  if (dirHandle === h) { dirHandle = null; _setDirLabel(''); }
+  if (pjDirHandle === h) pjDirHandle = null;
+  try { renderDonnees(); } catch (_) {}
+}
+// Une fenêtre par dossier et par session (jamais un alert natif) : ce qui est en pause, et comment le retrouver.
+function _dirStalledNotice(kind, nom) {
+  if (_dirStalledNoticed[kind]) return;
+  _dirStalledNoticed[kind] = true;
+  const n = _escName(nom || 'mémorisé');
+  if (kind === 'sync') appAlert('Dossier de synchronisation : Chrome ne répond plus',
+    `Chrome ne répond plus quand l'application lui demande le dossier « <strong>${n}</strong> ».<br><br>La synchronisation automatique est en pause. Pour la retrouver : <strong>💾 Données et réglages › Sauvegarde et synchronisation › 📂 Choisir un dossier</strong> (ou le bouton <strong>📂 Dossier</strong> en haut), puis choisissez de nouveau ce même dossier.<br><br>Vos données ne sont pas touchées : elles restent dans ce navigateur.`, 'warn');
+  else appAlert('Dossier des pièces jointes : Chrome ne répond plus',
+    `Chrome ne répond plus quand l'application lui demande le dossier « <strong>${n}</strong> ».<br><br>Les photos des élèves et les PDF joints sont en pause. Pour les retrouver : <strong>💾 Données et réglages › Fichiers joints et photos › 📂 Choisir un dossier</strong>, puis choisissez de nouveau ce même dossier.<br><br>Vos données ne sont pas touchées.`, 'warn');
+}
 async function tryRestorePjDir() {
   if (!window.showDirectoryPicker) return;
   const h = await idbLoadHandleKey(PJ_IDB_KEY);
@@ -24061,6 +24086,7 @@ async function choosePjDir() {
     toast(`📎 Les PDF iront dans « ${pjDirHandle.name} ».`);
     renderDonnees();
     _incPdfRender();
+    _photosRefresh(false).catch(() => {});   // v1.92.4 : un dossier rechoisi (handle mort) rend les photos
   } catch (e) { if (e.name !== 'AbortError') toast('Erreur : ' + e.message, 'error'); }
 }
 // Un handle restauré d'IndexedDB est « à confirmer » jusqu'à ce qu'un geste de
@@ -24069,8 +24095,10 @@ async function _pjReady(mode) {
   if (!pjDirHandle) return false;
   if (typeof pjDirHandle.queryPermission !== 'function') return true;   // OPFS, tests : pas de permission à demander
   try {
-    let p = await pjDirHandle.queryPermission({ mode });
-    if (p !== 'granted') p = await pjDirHandle.requestPermission({ mode });
+    const h = pjDirHandle;
+    let p = await _fsaWithin(h.queryPermission({ mode }), 1500);
+    if (p === _FSA_STALL) { _dirMarkStalled(h); _dirStalledNoticed.pj = true; toast(`Chrome ne répond plus sur le dossier « ${h.name} » : choisissez-le de nouveau (💾 Données et réglages › Fichiers joints et photos).`, 'warn'); return false; }
+    if (p !== 'granted') p = await h.requestPermission({ mode });
     return p === 'granted';
   } catch (_) { return false; }
 }
@@ -25079,13 +25107,16 @@ const LS_PHOTOS_KNOWN = 'suiviPP_photosKnown';
 async function _photosDir(write, ask) {
   if (!pjDirHandle) return null;
   const mode = write ? 'readwrite' : 'read';
+  const h = pjDirHandle, mort = () => { _dirMarkStalled(h); _dirStalledNotice('pj', h.name); return null; };
   try {
-    if (typeof pjDirHandle.queryPermission === 'function') {   // OPFS, tests : pas de permission à demander
-      let p = await pjDirHandle.queryPermission({ mode });
-      if (p !== 'granted' && ask) p = await pjDirHandle.requestPermission({ mode });
+    if (typeof h.queryPermission === 'function') {   // OPFS, tests : pas de permission à demander
+      let p = await _fsaWithin(h.queryPermission({ mode }), 2500);   // v1.92.4 : handle mort (Chrome 158)
+      if (p === _FSA_STALL) return mort();
+      if (p !== 'granted' && ask) p = await h.requestPermission({ mode });
       if (p !== 'granted') return null;
     }
-    return await pjDirHandle.getDirectoryHandle(PHOTOS_SUBDIR, { create: !!write });
+    const d = await _fsaWithin(h.getDirectoryHandle(PHOTOS_SUBDIR, { create: !!write }), 5000);
+    return d === _FSA_STALL ? mort() : d;
   } catch (e) { return null; }
 }
 async function _photosRefresh(ask) {
@@ -25987,7 +26018,8 @@ async function tryRestoreDirHandle() {
   if (!h) return;
   dirHandle = h;
   try {
-    const perm = await h.queryPermission({ mode: 'readwrite' });
+    const perm = await _fsaWithin(h.queryPermission({ mode: 'readwrite' }), 4000);   // v1.92.4 : handle mort (Chrome 158)
+    if (perm === _FSA_STALL) { _dirMarkStalled(h); _dirStalledNotice('sync', h.name); return; }   // AVANT tout autoReloadCheck
     if (perm === 'granted') _setDirLabel(h.name);
   } catch (e) { dirHandle = null; }
   if (autoSyncEnabled && dirHandle) autoReloadCheck();
@@ -26005,8 +26037,11 @@ async function openFilePicker() {
   }
   if (dirHandle) {
     try {
-      const perm = await dirHandle.queryPermission({ mode: 'read' });
-      if (perm !== 'granted') await dirHandle.requestPermission({ mode: 'read' });
+      const h = dirHandle;
+      // 1,5 s seulement : le sélecteur qui suit (handle mort) exige un clic de moins de 5 s (v1.92.4)
+      const perm = await _fsaWithin(h.queryPermission({ mode: 'read' }), 1500);
+      if (perm === _FSA_STALL) { _dirMarkStalled(h); _dirStalledNoticed.sync = true; toast(`Chrome ne répond plus sur le dossier « ${h.name} » : choisissez-le de nouveau.`, 'warn'); }
+      else if (perm !== 'granted') await h.requestPermission({ mode: 'read' });
     } catch (e) { dirHandle = null; }
   }
   if (dirHandle) await listAndShowFiles();
