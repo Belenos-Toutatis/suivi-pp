@@ -1919,6 +1919,9 @@ img.ch-ph:not([src]) { visibility: hidden; }
 .pf-empty { color: var(--pencil); font-style: italic; font-size: 13px; margin: 2px 0; }
 .pf-mu { color: var(--pencil); font-size: 12.5px; }
 .pf-sans { margin: 6px 0 0; }
+/* Deux feuilles pour le même moment (avis des collègues + appréciations du bulletin) : le nom de chacune. */
+.pf-feuille { margin: 12px 0 4px; font-weight: 700; color: var(--ink-blue-soft); }
+.pf-feuille:first-of-type { margin-top: 0; }
 .pf-star { color: #9c6a00; }
 html[data-theme="dark"] .pf-star { color: #e6b450; }
 .pf-avd { padding-block: 6px; border-bottom: 1px solid var(--rule-line-soft); }
@@ -2332,6 +2335,7 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
   .fp-ent { display: grid; grid-template-columns: 11mm 1fr; gap: 0 6pt; margin: 2pt 0; }
   .fp-d { color: #444; font-size: 9pt; }
   .fp-av { margin: 2pt 0; }
+  .fp-feuille { margin: 4pt 0 1pt; }
   .fp-t { border-collapse: collapse; width: 100%; font-size: 9pt; }
   .fp-t th, .fp-t td { border-bottom: 1px solid #ccc; padding: 1pt 3pt; text-align: left; }
   .fp-t .r { text-align: right; }
@@ -9924,11 +9928,30 @@ function _avisFeuillesDuMoment(cls, col) {
   const c = _avisFeuilleDuMoment(cls, col);
   return c ? [c] : [];
 }
-function _ficheAvis(cls, sid, col) {
-  const camp = _avisFeuilleDuMoment(cls, col);
-  if (!camp) return null;
+function _ficheAvisDe(camp, sid) {
   const parDisc = camp.avis?.[sid] || {};
   return { camp, sid, items: camp.disciplines.filter(d => parDisc[d.id]).map(d => ({ disc: d, ...parDisc[d.id] })), cols: _avisCols(camp) };
+}
+function _ficheAvis(cls, sid, col) {
+  const camp = _avisFeuilleDuMoment(cls, col);
+  return camp ? _ficheAvisDe(camp, sid) : null;
+}
+// ⚠️ La feuille des collègues ET celle des bulletins (audit du 2026-11-22). Une feuille « bulletin » (v1.75.0) a
+// l'objectif « conseil » et la date de son import : plus récente, elle prenait la place de la feuille d'avis du
+// conseil partout où l'on n'en montre qu'une (vue Faits, fenêtre de bilan, fiche et synthèse imprimées) — les avis
+// recueillis pour préparer le conseil disparaissaient le jour où l'on importait les bulletins.
+// → la feuille du moment, PUIS sa « sœur » : la plus récente du même objectif, dans la même période, de l'AUTRE
+// source. Deux feuilles au plus : deux feuilles de la même source (deux points du mois, une feuille refaite)
+// ne se cumulent pas.
+function _avisFeuillesSoeurs(cls, camp, p) {
+  if (!camp || !p) return camp ? [camp] : [];
+  const obj = _avisMsgReglages(camp).moment, bul = c => c.source === 'bulletin';
+  const soeur = _avisCampagnes(cls.id).find(c => c !== camp && c.cible >= p.start && c.cible <= p.end && _avisMsgReglages(c).moment === obj && bul(c) !== bul(camp));
+  return soeur ? [camp, soeur] : [camp];
+}
+function _avisFeuilleNom(camp) { return camp && camp.source === 'bulletin' ? 'Appréciations du bulletin' : 'Avis des collègues'; }
+function _ficheAvisTous(cls, sid, col) {
+  return _avisFeuillesSoeurs(cls, _avisFeuilleDuMoment(cls, col), _periods(cls)[col.pIdx]).map(c => _ficheAvisDe(c, sid));
 }
 // Les mots qui reviennent dans les avis : comptés par DISCIPLINE qui les emploie (un
 // collègue qui répète « bavardages » dans deux colonnes ne compte qu'une fois). PUR.
@@ -9980,13 +10003,16 @@ function _ficheFaits(cls, stu, col) {
     if (lo.length) F.push({ k: 'moy', html: `Sous 10 : <strong>${lo.map(x => `${e(x.ab)} ${e(_fmtNote(x.v, 1))}`).join(', ')}</strong>.`, phrase: `des difficultés en ${lo.map(x => x.ab.toLowerCase()).join(', ')}` });
     if (hi.length) F.push({ k: 'moy', html: `Points forts : ${hi.map(x => `${e(x.ab)} ${e(_fmtNote(x.v, 1))}`).join(', ')}.`, phrase: `de bons résultats en ${hi.map(x => x.ab.toLowerCase()).join(', ')}` });
   }
-  const av = _ficheAvis(cls, sid, col);
-  if (av && !av.items.length) F.push({ k: 'avis', html: `Aucun avis sur ${e(_avisObjectif(cls, av.camp).court === col.court ? 'ce moment' : 'la feuille ' + _avisObjectif(cls, av.camp).long)} (${av.camp.disciplines.length} discipline${av.camp.disciplines.length > 1 ? 's' : ''} sollicitée${av.camp.disciplines.length > 1 ? 's' : ''}).`, phrase: '' });
-  else if (av) {
+  const avs = _ficheAvisTous(cls, sid, col);   // la feuille du moment, et celle des bulletins s'il y en a une
+  for (const av of avs) {
+  const qui = avs.length > 1 ? `<span class="pf-mu">${e(_avisFeuilleNom(av.camp))} —</span> ` : '';
+  if (!av.items.length) F.push({ k: 'avis', html: `${qui}Aucun avis sur ${e(_avisObjectif(cls, av.camp).court === col.court ? 'ce moment' : 'la feuille ' + _avisObjectif(cls, av.camp).long)} (${av.camp.disciplines.length} discipline${av.camp.disciplines.length > 1 ? 's' : ''} sollicitée${av.camp.disciplines.length > 1 ? 's' : ''}).`, phrase: '' });
+  else {
     const mots = _avisMotsFrequents(av.items, av.cols);
     const cible = (av.camp.cibles || []).includes(sid);
-    F.push({ k: 'avis', html: `<strong>${pl(av.items.length, 'discipline')} sur ${av.camp.disciplines.length}</strong> ${av.items.length > 1 ? 'ont' : 'a'} donné un avis${cible ? ' (demandé ⭐)' : ''}.${mots.length ? ` Revient : ${mots.slice(0, 4).map(x => `« ${e(x.mot)} » ×${x.n}`).join(', ')}.` : ''}`,
+    F.push({ k: 'avis', html: `${qui}<strong>${pl(av.items.length, 'discipline')} sur ${av.camp.disciplines.length}</strong> ${av.items.length > 1 ? 'ont' : 'a'} donné un avis${cible ? ' (demandé ⭐)' : ''}.${mots.length ? ` Revient : ${mots.slice(0, 4).map(x => `« ${e(x.mot)} » ×${x.n}`).join(', ')}.` : ''}`,
       phrase: mots.length ? `les collègues relèvent : ${mots.slice(0, 3).map(x => x.mot).join(', ')}` : '' });
+  }
   }
   const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && x.date >= b.start && x.date <= b.end).sort((x, y) => x.date.localeCompare(y.date));
   F.push(inc.length ? { k: 'incid', html: `<strong>${pl(inc.length, 'incident')}</strong> : ${inc.map(x => `${e(_instanceOf(x.type).label.toLowerCase())} le ${e(_fmtDateFr(x.date).slice(0, 5))}`).join(', ')}.`,
@@ -10246,6 +10272,12 @@ function _iaPseudo(texte, ctx, avant) {
   const pris = [...src.matchAll(_IA_REPERE)].map(m => [m.index, m.index + m[0].length]);
   const libre = (a, b) => !pris.some(([x, y]) => a < y && b > x);
   const trouves = [];
+  // ⚠️ Courriels et téléphones D'ABORD (audit du 2026-11-22) : cherchés après les noms, une adresse qui contient le
+  // nom de l'élève était coupée par son repère (« jean.[Nom de l'élève]@ac-lyon.fr ») et le motif ne la reconnaissait
+  // plus — le prénom du parent et le domaine partaient. Lettres accentuées admises (« guérin@ ») ; téléphones :
+  // « (+33)6… » et « 0033… » compris.
+  for (const [re, jeton] of [[/[\p{L}\p{N}_.+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu, '[courriel]'], [/(?<!\d)(?:\(?\+33\)?\s?(?:\(0\)\s?)?|0033\s?(?:\(0\)\s?)?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)/g, '[téléphone]']])
+    for (const m of src.matchAll(re)) { const a = m.index, b = a + m[0].length; if (libre(a, b)) { pris.push([a, b]); trouves.push({ a, b, id: jeton, fixe: jeton, original: m[0] }); } }
   const formes = [];
   ((ctx && ctx.personnes) || []).forEach((p, rang) => (p.formes || []).forEach(f => { const pf = _iaPlie(f).trim(); if (pf.length >= 2) formes.push({ pf, p, rang }); }));
   formes.sort((x, y) => y.pf.length - x.pf.length || x.rang - y.rang);
@@ -10261,8 +10293,6 @@ function _iaPseudo(texte, ctx, avant) {
     const a = m.index + m[0].length - m[2].length, b = m.index + m[0].length;
     if (libre(a, b) && !ign.has(_iaPlie(m[2]))) { pris.push([a, b]); trouves.push({ a, b, id: 'adulte:' + _iaPlie(m[2]), famille: '[Adulte {n}]', original: m[2] }); }
   }
-  for (const [re, jeton] of [[/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '[courriel]'], [/(?<!\d)(?:\+33\s?(?:\(0\)\s?)?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)/g, '[téléphone]']])
-    for (const m of src.matchAll(re)) { const a = m.index, b = a + m[0].length; if (libre(a, b)) { pris.push([a, b]); trouves.push({ a, b, id: jeton, fixe: jeton, original: m[0] }); } }
   trouves.sort((x, y) => x.a - y.a);
   const pers = Object.fromEntries(((ctx && ctx.personnes) || []).map(p => [p.id, p]));
   const prochain = (fam, n0) => { let n = n0 || 1; while (table.jetons[fam.replace('{n}', n)]) n++; return fam.replace('{n}', n); };
@@ -11385,8 +11415,7 @@ function _iaClasseTexte(cls, col, codes, blocs) {
     if (on('decisions')) { const x = _decisionCible(cls, sid, mode); if (x) L.push(`Décisions : ${_mdTexte(x.texte).trim()}`); }
     if (on('synthIA')) { const x = _synthIACible(cls, sid, mode); if (x) L.push(`Synthèse (IA) : ${x.texte.trim()}`); }
     if (on('avis')) {
-      const av = _ficheAvis(cls, sid, col);
-      if (av) av.items.forEach(it => { const t = av.cols.map(c => String(it[c.key] || '').trim() ? `${av.cols.length > 1 ? st(c.label) + ' : ' : ''}${ligne(it[c.key])}` : '').filter(Boolean); if (t.length) L.push(`Avis, ${st(it.disc.nom)} : ${t.join(' ; ')}`); });
+      for (const av of _ficheAvisTous(cls, sid, col)) av.items.forEach(it => { const t = av.cols.map(c => String(it[c.key] || '').trim() ? `${av.cols.length > 1 ? st(c.label) + ' : ' : ''}${ligne(it[c.key])}` : '').filter(Boolean); if (t.length) L.push(`${av.camp.source === 'bulletin' ? 'Appréciation au bulletin' : 'Avis'}, ${st(it.disc.nom)} : ${t.join(' ; ')}`); });
     }
     if (!L.length) continue;
     r = _iaPseudo(L.join('\n'), { personnes: _iaPersonnes(cls, stu, codes) }, table);
@@ -12668,12 +12697,12 @@ function _ficheTableauHTML(cls, stu, col, ed) {
 function _ficheFaitsHTML(cls, stu, col) {
   const b = _ficheFenetreMoment(cls, stu.id, col);
   const F = _ficheFaits(cls, stu, col);
-  const av = _ficheAvis(cls, stu.id, col);
+  const avs = _ficheAvisTous(cls, stu.id, col), av = avs[0] || null;
   const faits = F.map((f, i) => `<div class="pf-fact">${_pfSw(f.k)}<span>${f.html}</span>${f.phrase ? `<button class="pf-ins" onclick="ficheInsererFait(${i})" title="Ajouter à la fin du bilan">＋ insérer</button>` : '<span></span>'}</div>`).join('');
   return `<div class="pf-three">
     <section class="pf-card"><h3>Ce que disent les faits <span class="pf-k">${_escName(col.long.toLowerCase())} · du ${_escName(_fmtDateFr(_debutUtile(b.start) < b.end ? _debutUtile(b.start) : b.start).slice(0, 5))} au ${_escName(_fmtDateFr(b.end).slice(0, 5))}</span></h3>${faits || '<p class="pf-empty">Rien sur ce moment.</p>'}
       <div style="margin-top:10px">${_ficheCourbeHTML(cls, stu, col)}</div></section>
-    <section class="pf-card"><h3>${_pfSw('avis')}Avis des collègues ${av && (av.camp.cibles || []).includes(stu.id) ? '<span class="pf-star">★</span>' : ''}<span class="pf-k">${av ? _escName(_avisObjectif(cls, av.camp).long) : ''}</span></h3>${_ficheAvisTableHTML(av)}</section>
+    <section class="pf-card"><h3>${_pfSw('avis')}Avis des collègues ${av && (av.camp.cibles || []).includes(stu.id) ? '<span class="pf-star">★</span>' : ''}<span class="pf-k">${av ? _escName(_avisObjectif(cls, av.camp).long) : ''}</span></h3>${avs.length > 1 ? avs.map(a => `<p class="pf-feuille">${_escName(_avisFeuilleNom(a.camp))}</p>${_ficheAvisTableHTML(a)}`).join('') : _ficheAvisTableHTML(av)}</section>
     <section class="pf-card pf-redac"><h3>${_pfSw('bilan')}Rédaction</h3>${_ficheRedacHTML(cls, stu, col, `<div class="pf-row"><button class="pf-btnp" onclick="ficheBrouillonUI()">Proposer un brouillon à partir des faits</button><span class="pf-mu">Assemble les faits en phrases, à réécrire ensuite.</span></div>`)}${_ficheBilansAutresHTML(cls, stu, col)}${stu.remarque ? `<div class="pf-bil pf-rem"><div class="pf-bil-l">Remarque</div>${_mdMini(stu.remarque)}</div>` : ''}</section>
   </div>`;
 }
@@ -13222,9 +13251,10 @@ function _bilanHint() {
   if (av) {
     const camp = _bilanMode && _bilanMode.campId ? _avisMap(cls.id)?.[_bilanMode.campId] : null;
     const items = camp && camp.avis?.[_bilanSid] ? camp.disciplines.filter(x => camp.avis[_bilanSid][x.id]).map(x => ({ disc: x, ...camp.avis[_bilanSid][x.id] })) : [];
-    const a = items.length ? { camp, items } : (camp ? null : (p ? _avisEleve(cls, _bilanSid, p.n - 1, document.getElementById('mbilan-type')?.value) : null));
-    av.innerHTML = a ? `<details class="av-det av-bil" open><summary><strong>🗣 Avis des collègues — ${_escName(_avisObjectif(cls, a.camp).long)}</strong> <span class="tb-hint">${a.items.length} discipline${a.items.length > 1 ? 's' : ''}</span></summary>
-      <div class="av-scroll">${_avisItemsHTML(a.items, _avisCols(a.camp), a.camp, _bilanSid)}</div></details>` : '';
+    // Sans feuille imposée : la feuille de la période ET celle des bulletins (audit du 2026-11-22, cf. `_avisFeuillesSoeurs`).
+    const liste = items.length ? [{ camp, items }] : (camp ? [] : (p ? _avisEleveTous(cls, _bilanSid, p.n - 1, document.getElementById('mbilan-type')?.value) : []));
+    av.innerHTML = liste.map(a => `<details class="av-det av-bil" open><summary><strong>${a.camp.source === 'bulletin' && liste.length > 1 ? '📄 Appréciations du bulletin' : '🗣 Avis des collègues'} — ${_escName(_avisObjectif(cls, a.camp).long)}</strong> <span class="tb-hint">${a.items.length} discipline${a.items.length > 1 ? 's' : ''}</span></summary>
+      <div class="av-scroll">${_avisItemsHTML(a.items, _avisCols(a.camp), a.camp, _bilanSid)}</div></details>`).join('');
   }
 }
 // L'ordre de la liste des élèves à l'écran (tri et filtre compris) — celui qu'on avait
@@ -22040,6 +22070,14 @@ function _avisEleve(cls, sid, pIdx, prefere) {
   }
   return null;
 }
+// Les mêmes, PLUS ceux de la feuille « sœur » (collègues ↔ bulletins, cf. `_avisFeuillesSoeurs`) si l'élève y a des avis.
+function _avisEleveTous(cls, sid, pIdx, prefere) {
+  const un = _avisEleve(cls, sid, pIdx, prefere);
+  if (!un) return [];
+  const soeur = _avisFeuillesSoeurs(cls, un.camp, _periods(cls)[pIdx])[1], parDisc = soeur && soeur.avis?.[sid];
+  const items = parDisc ? soeur.disciplines.filter(d => parDisc[d.id]).map(d => ({ disc: d, ...parDisc[d.id] })) : [];
+  return items.length ? [un, { camp: soeur, items }] : [un];
+}
 
 // ── Affichage partagé : les avis d'un élève, en blocs (fiche, bilan, feuilles) ──
 // `camp`, `sid` (v1.74.0) : pour surligner le ton des avis, et le corriger à la main.
@@ -23485,10 +23523,10 @@ function _periodeSynthese(cls, periodIdx, opts) {
       // Les décisions du même moment (v1.46.13), sous le bilan sur la feuille.
       decisions: (d => d ? d.texte : '')(_decisionCible(cls, stu.id, o.col ? { type: o.col.type, date: o.col.date } : { type: o.type || 'conseil', date: p.start })),
       // Avis des collègues (v1.39.0) : la dernière feuille de CETTE période.
-      avis: (() => { const a = _avisEleve(cls, stu.id, periodIdx, o.type || 'conseil'); if (!a) return [];
+      avis: _avisEleveTous(cls, stu.id, periodIdx, o.type || 'conseil').flatMap(a => {   // + la feuille des bulletins (audit du 2026-11-22)
         const cols = _avisCols(a.camp);
         return a.items.map(it => ({ nom: it.disc.nom, onglet: it.disc.onglet, campId: a.camp.id, sid: stu.id, did: it.disc.id, cols: cols.map(c => ({ key: c.key, label: c.label })),
-          ...Object.fromEntries(cols.map(c => [c.key, it[c.key] || ''])) })); })(),
+          ...Object.fromEntries(cols.map(c => [c.key, it[c.key] || ''])) })); }),
     };
   });
   return { periode: p, nbReleves: dates.length, rows,
@@ -23810,16 +23848,16 @@ function _fichePrintHTML(cls, sid, col, opts, photo) {
       _moyColsOf(m.list).map(mt => ligne(_moyAbbr(mt.nom), m.list.map(r => _moyVal(r, sid, mt.id)))).join('')}${ligne('Générale', m.list.map(r => _moyGen(r, sid)), true)}</tbody></table>`;
   }
   // ── Avis des collègues : la feuille du moment, une discipline par ligne ──
-  const av = _ficheAvis(cls, sid, col);
+  const avs = _ficheAvisTous(cls, sid, col), av = avs[0] || null;
   let avisH = vide('Pas de feuille d\'avis pour ce moment.');
-  if (av) {
+  if (av) avisH = avs.map(av => {
     const cols = _avisCols(av.camp), a = av.camp.avis?.[sid] || {};
     const ds = av.camp.disciplines.filter(d => a[d.id]), sans = av.camp.disciplines.filter(d => !a[d.id]);
-    avisH = (ds.length ? ds.map(d => `<div class="fp-av"><strong>${_escName(d.nom)}</strong>${d.profs ? ` <span class="fp-mu">${_escName(d.profs)}</span>` : ''} — ${
+    return (avs.length > 1 ? `<p class="fp-feuille"><strong>${_escName(_avisFeuilleNom(av.camp))}</strong></p>` : '') + (ds.length ? ds.map(d => `<div class="fp-av"><strong>${_escName(d.nom)}</strong>${d.profs ? ` <span class="fp-mu">${_escName(d.profs)}</span>` : ''} — ${
       cols.filter(c => a[d.id][c.key]).map(c => `${cols.length > 1 ? `<em>${_escName(c.label)}</em> ` : ''}<span class="fp-pl">${_tonHTML(av.camp, sid, d.id, c.key, a[d.id][c.key], { papier: true })}</span>`).join(' · ')}</div>`).join('') : vide('Aucune réponse.'))
       + (_tonsVus() && ds.some(d => cols.some(c => _tonSegs(av.camp, sid, d.id, c.key, a[d.id][c.key] || '')?.length)) ? `<p class="fp-mu fp-small">${_tonLegendeHTML()} — trait plein : positif, tireté : négatif.</p>` : '')
       + (sans.length ? `<p class="fp-mu fp-small">Sans réponse : ${sans.map(d => _escName(d.nom)).join(', ')}.</p>` : '');
-  }
+  }).join('');
   // ── Incidents, contacts, papiers ──
   const inc = (stu.incidents || []).filter(x => _isPlainObj(x) && dans(x.date)).sort((x, y) => x.date.localeCompare(y.date));
   const incH = inc.length ? inc.map(x => `<div class="fp-ent"><span class="fp-d">${jm(x.date)}</span><span><strong>${_escName(_instanceOf(x.type).label)}</strong> — ${_escName(x.objet || '')}${x.texte ? _mdMini(x.texte) : ''}</span></div>`).join('') : vide('Aucun incident sur le moment.');
@@ -24100,14 +24138,19 @@ function _dirMarkStalled(h) {
   try { renderDonnees(); } catch (_) {}
 }
 // Une fenêtre par dossier et par session (jamais un alert natif) : ce qui est en pause, et comment le retrouver.
+// ⚠️ L'une APRÈS l'autre (audit du 2026-11-22) : la fenêtre de dialogue n'a pas de file d'attente, et quand les DEUX
+// dossiers mémorisés ne répondent plus (le cas réel : photos à 2,5 s, sync à 4 s), la seconde écrasait la première,
+// qui ne revenait plus de la session. Chaque annonce attend que la précédente soit fermée.
+let _dirStalledFile = Promise.resolve();
 function _dirStalledNotice(kind, nom) {
   if (_dirStalledNoticed[kind]) return;
   _dirStalledNoticed[kind] = true;
   const n = _escName(nom || 'mémorisé');
-  if (kind === 'sync') appAlert('Dossier de synchronisation : Chrome ne répond plus',
-    `Chrome ne répond plus quand l'application lui demande le dossier « <strong>${n}</strong> ».<br><br>La synchronisation automatique est en pause. Pour la retrouver : <strong>💾 Données et réglages › Sauvegarde et synchronisation › 📂 Choisir un dossier</strong> (ou le bouton <strong>📂 Dossier</strong> en haut), puis choisissez de nouveau ce même dossier.<br><br>Vos données ne sont pas touchées : elles restent dans ce navigateur.`, 'warn');
-  else appAlert('Dossier des pièces jointes : Chrome ne répond plus',
+  const montrer = () => kind === 'sync' ? appAlert('Dossier de synchronisation : Chrome ne répond plus',
+    `Chrome ne répond plus quand l'application lui demande le dossier « <strong>${n}</strong> ».<br><br>La synchronisation automatique est en pause. Pour la retrouver : <strong>💾 Données et réglages › Sauvegarde et synchronisation › 📂 Choisir un dossier</strong> (ou le bouton <strong>📂 Dossier</strong> en haut), puis choisissez de nouveau ce même dossier.<br><br>Vos données ne sont pas touchées : elles restent dans ce navigateur.`, 'warn')
+    : appAlert('Dossier des pièces jointes : Chrome ne répond plus',
     `Chrome ne répond plus quand l'application lui demande le dossier « <strong>${n}</strong> ».<br><br>Les photos des élèves et les PDF joints sont en pause. Pour les retrouver : <strong>💾 Données et réglages › Fichiers joints et photos › 📂 Choisir un dossier</strong>, puis choisissez de nouveau ce même dossier.<br><br>Vos données ne sont pas touchées.`, 'warn');
+  _dirStalledFile = _dirStalledFile.then(montrer).catch(() => { });
 }
 async function tryRestorePjDir() {
   if (!window.showDirectoryPicker) return;
