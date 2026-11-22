@@ -984,12 +984,12 @@ table.dt tbody tr.row-cur td { background: var(--paper-warm); }
 .don-imp { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--rule-line); border-radius: var(--radius-md); padding: 8px 10px; background: var(--paper); min-width: 0; }
 .don-imp > div { min-width: 0; }
 .don-imp .btn { flex: none; }
-.prefs { display: grid; grid-template-columns: max-content 1fr; gap: 10px 16px; align-items: center; max-width: 620px; margin-bottom: 18px; }
+.prefs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 16px; align-items: center; max-width: 620px; margin-bottom: 18px; }
 .prefs label { font-weight: 600; color: var(--pencil); font-size: .87em; }
 .prefs .pref-help { grid-column: 2; font-size: .8em; color: var(--pencil); margin-top: -6px; }
 /* ⚠️ Un enfant de grille vaut `min-width: auto` : à 320 px, un champ + un bouton sur la
    même ligne poussaient la page (343 px mesurés). La ligne passe en flex qui replie. */
-.prefs > div { min-width: 0; }
+.prefs > div, .prefs > select, .prefs > input { min-width: 0; }   /* un menu posé à même la grille aussi (rubrique 🤖 : 721 px pour 700, audit du 2026-11-22) */
 .prefs-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 /* ⚠️ Sur téléphone, une colonne : `max-content 1fr` gardait la seconde colonne à la largeur
    naturelle des menus (220 px) à côté des libellés, et la page débordait de 39 px à 375 px
@@ -1975,7 +1975,9 @@ html[data-theme="dark"] .pf-star { color: #e6b450; }
 /* v1.79.4 : collé au bas de la fenêtre pendant qu'on fait défiler les cartes, au plus la moitié de sa hauteur (il
    défile alors en lui-même, son titre reste en haut) ; ▾ le replie sur son titre. Écran assez haut seulement, jamais
    sur le papier. */
-@media screen and (min-height: 560px) {
+/* ⚠️ Et assez LARGE (audit du 2026-11-22, arbitré) : sur un téléphone, l'en-tête de la fiche et ce cadre collé ne
+   laissaient presque plus de place aux cartes — sous 700 px de large il reprend sa place à la suite des cartes. */
+@media screen and (min-height: 560px) and (min-width: 700px) {
   .pf-bas { position: sticky; bottom: -14px; z-index: 3; }   /* -14 px : sous la marge basse de la fenêtre, rien ne passe dessous */
   .pf-bas > .pf-card { max-height: 50vh; overflow-y: auto; box-shadow: var(--shadow-pop); }
   .pf-bas > .pf-card > h3 { position: sticky; top: -10px; z-index: 1; background: var(--pf-card); margin: -10px 0 8px; padding-top: 10px; }
@@ -2022,7 +2024,8 @@ body.fiche-cote .pf-three .pf-redac { grid-column: 1 / -1; position: static; }
 .ia-etape { display: flex; gap: 8px; align-items: center; margin: 16px 0 6px; font-weight: 700; color: var(--ink-blue); }
 .ia-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--g1); color: var(--g1-on); font-size: 12px; flex: none; }
 .ia-blocs { display: flex; flex-wrap: wrap; gap: 4px 14px; }
-.ia-bloc { display: inline-flex; gap: 5px; align-items: center; font-size: 13.5px; }
+.ia-bloc { display: inline-flex; gap: 5px; align-items: center; font-size: 13.5px; min-width: 0; max-width: 100%; }
+.ia-bloc select { min-width: 0; max-width: 100%; }   /* « Ranger dans » : 431 px dans une fenêtre de 373 (audit du 2026-11-22) — il faut les deux, le libellé ET le menu */
 .ia-bloc.vide, .ia-rien { color: var(--pencil); }
 .ia-cons { margin-top: 10px; font-size: 13.5px; }
 .ia-cons summary { cursor: pointer; color: var(--link-fg); }
@@ -4272,6 +4275,9 @@ function _restoreSnapshot(json) {
   _clockBumpForward(_preMy);           // annuler/refaire est une NOUVELLE version
   updateUndoRedoUI();
   save();
+  // Les réglages portés par <html> (interrupteur de l'IA, polices) suivent l'état rendu (audit du 2026-11-22) :
+  // annulés depuis un autre onglet que Données, les boutons 🤖 restaient cachés et la police de l'écran inchangée.
+  try { _applyPolices(); } catch (_) { }
   refreshSelector();
   const at = document.querySelector('.tab.on');
   if (at) renderTab(at.id.replace('tab-', ''));
@@ -9867,8 +9873,20 @@ function ficheDateBilanUI(inp) {
   const stu = S.eleves[_ficheSid], cls = stu && S.classes[stu.classe_id], col = cls && _ficheMomentCourant(cls);
   if (!cls || !col) return;
   const mode = { type: col.type, date: col.date }, avant = _ficheDateBilanVal(cls, col);
-  const v = _dateChampLire(inp, avant);
+  // ⚠️ Champ VIDÉ exprès = la date de la classe est retirée, les bilans gardent la leur (`videOk`, audit du
+  // 2026-11-22 : sans lui, « Date illisible : l'ancienne est gardée » — la date ne s'effaçait que par Ctrl+Z).
+  const v = _dateChampLire(inp, avant, true);
   if (v === undefined) return;
+  if (!v) {
+    if (!_dateBilanCible(cls, mode)) return _ficheRender();   // rien à retirer : le champ reprend la date affichée
+    pushUndo();
+    dateBilanSet(cls, mode, '');
+    save();
+    toast(`${col.long} : plus de date de bilan pour la classe — les bilans déjà écrits gardent la leur. Ctrl+Z pour annuler.`);
+    _ficheRender();
+    if (document.querySelector('.tab.on')?.id === 'tab-eleves') renderStudents();
+    return;
+  }
   if (!_momentEst(cls, { type: col.type, date: v }, mode)) {
     toast(`⚠️ Le ${_fmtDateFr(v)} n'est pas dans ${col.type === 'mois' ? 'ce mois' : 'cette période'} : ce serait le bilan d'un autre moment. L'ancienne date est gardée.`, 'warn');
     inp.value = avant; return;
@@ -12016,14 +12034,14 @@ function _iaReglagesHTML() {
   ${_iaGuideHTML(!cle, fin)}
   <div class="prefs">
     <label for="ia-cle">Clé d'API</label>
-    <div><div class="prefs-row"><input type="password" id="ia-cle" autocomplete="off" spellcheck="false" placeholder="${cle ? 'remplacer par une autre clé' : 'sk-ant-…'}" style="max-width:300px;font-family:var(--font-mono)" onkeydown="if(event.key==='Enter'){event.preventDefault();iaApiCleUI(this.value)}" aria-label="Clé d'API d'Anthropic"><button class="btn btn-p btn-sm" onclick="iaApiCleUI(document.getElementById('ia-cle').value)">Enregistrer</button>${cle ? `<span class="don-chip ok" title="La clé enregistrée sur ce poste">${_escName(_iaCleMasquee(cle))}</span><button class="btn btn-g btn-sm" onclick="iaApiCleUI('')">🗑 Effacer de ce poste</button>` : ''}</div>
+    <div><div class="prefs-row"><input type="password" id="ia-cle" autocomplete="off" spellcheck="false" placeholder="${cle ? 'remplacer par une autre clé' : 'sk-ant-…'}" style="max-width:min(300px,100%);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter'){event.preventDefault();iaApiCleUI(this.value)}" aria-label="Clé d'API d'Anthropic"><button class="btn btn-p btn-sm" onclick="iaApiCleUI(document.getElementById('ia-cle').value)">Enregistrer</button>${cle ? `<span class="don-chip ok" title="La clé enregistrée sur ce poste">${_escName(_iaCleMasquee(cle))}</span><button class="btn btn-g btn-sm" onclick="iaApiCleUI('')">🗑 Effacer de ce poste</button>` : ''}</div>
       <div style="margin-top:4px">${lien('cle', '🔑 Créer une clé dans la Console')}</div></div>
     <div class="pref-help">Gardée <strong>dans ce navigateur seulement</strong> : jamais dans vos données, ni dans la synchronisation, ni dans un export — sur l'autre poste, collez-la une seconde fois. Elle doit être rangée dans un espace de travail qui a un <strong>plafond de dépense</strong> (cf. <em>Obtenir une clé d'API</em>, ci-dessus). Effacez-la d'un poste que vous ne contrôlez pas.</div>
     <label for="ia-modele">Modèle</label>
-    <select id="ia-modele" onchange="iaApiModeleUI(this.value)" style="max-width:460px">${IA_MODELES.map(m => `<option value="${m.id}"${m.id === reg.modele ? ' selected' : ''}>${_escName(m.nom)} — ${prix(m)} · ${_escName(m.note)}</option>`).join('')}</select>
+    <select id="ia-modele" onchange="iaApiModeleUI(this.value)" style="max-width:min(460px,100%)">${IA_MODELES.map(m => `<option value="${m.id}"${m.id === reg.modele ? ' selected' : ''}>${_escName(m.nom)} — ${prix(m)} · ${_escName(m.note)}</option>`).join('')}</select>
     <div class="pref-help">Dollars par million de jetons envoyés / rendus, relevés le ${_escName(_fmtDateFr(IA_TARIFS_DATE))} ; la réflexion du modèle compte dans les jetons rendus. Avec Opus 5.5, la synthèse d'un élève coûte quelques centimes, celle de toute la classe quelques dizaines de centimes.</div>
     <label for="ia-espace">Espace de travail</label>
-    <input id="ia-espace" value="${_escAttr(reg.espace)}" placeholder="wrkspc_… (facultatif)" style="max-width:300px;font-family:var(--font-mono)" onchange="iaApiEspaceUI(this.value)">
+    <input id="ia-espace" value="${_escAttr(reg.espace)}" placeholder="wrkspc_… (facultatif)" style="max-width:min(300px,100%);font-family:var(--font-mono)" onchange="iaApiEspaceUI(this.value)">
     <div class="pref-help">Seulement si la clé n'est limitée à aucun espace de travail : l'identifiant de celui à utiliser (colonne ID de la page ${lien('espaces', 'Espaces de travail')}). Sinon, laissez vide.</div>
     <label>Fournisseur</label>
     <div>Anthropic (Claude), à l'adresse <code>api.anthropic.com</code>.</div>
@@ -12421,7 +12439,9 @@ function _ficheCourbeHTML(cls, stu, col) {
   if (!pts.length) return `<p class="pf-empty">${src.mbn && src.carnet ? 'Ni relevé de carnet ni observation MBN' : src.mbn ? 'Aucune observation MBN' : 'Aucun relevé de carnet'} sur la période.</p>`;
   const jusque = F.pourquoi === 'periode' ? '' : `jusqu'au ${_fmtDateFr(F.fin).slice(0, 5)} (${F.pourquoi === 'bilan' ? 'bilan' : 'aujourd\'hui'})`;
   const quoi = [src.carnet && src.mbn ? 'carnet + MBN' : src.mbn ? 'MBN seulement' : avecMbn ? 'carnet seulement' : '', jusque].filter(Boolean).join(' · ');
-  const W = 420, H = 150, x0 = 26, x1 = W - 10, y0 = H - 22, y1 = 12;
+  // y1 = 20 : l'étiquette « +n » du point le plus haut (le dernier : un cumul ne baisse pas) tient dans le dessin
+  // (à 12, sa ligne de base tombait à 5 px et le haut des chiffres était rogné — audit du 2026-11-22).
+  const W = 420, H = 150, x0 = 26, x1 = W - 10, y0 = H - 22, y1 = 20;
   const t = d => new Date(d + 'T12:00:00').getTime(), ta = t(p.start), tb = Math.max(t(p.end), ta + 14 * 864e5);
   const X = d => (x0 + (t(d) - ta) / (tb - ta) * (x1 - x0)).toFixed(1);
   const mx = Math.max(10, ...pts.map(q => q[1])), Y = v => (y0 - v / mx * (y0 - y1)).toFixed(1);
@@ -20464,6 +20484,13 @@ function _moyImpAnalyse() {
   if (parse.error) return { parse };
   return { parse, match: _moyMatch(parse, cls.id, _moyImp.manual) };
 }
+// Les matières que l'import va vraiment porter : celles qui ont au moins une note pour un élève RECONNU — la règle de
+// `moyImport` (une colonne entièrement vide n'est pas encore une matière). L'aperçu en annonçait une de trop, et la
+// disait « nouvelle » (audit du 2026-11-22). PUR.
+function _moyMatieresUtiles(match) {
+  const recon = (match.rows || []).filter(r => r.sid);
+  return (match.matieres || []).filter(m => recon.some(r => r.notes && r.notes[m.norm] !== undefined));
+}
 function _moyImpRefresh() {
   const box = document.getElementById('mmoyimp-prev');
   const ok = document.getElementById('mmoyimp-ok');
@@ -20475,7 +20502,7 @@ function _moyImpRefresh() {
   const { parse, match } = a;
   const recon = match.rows.filter(r => r.sid);
   const nonRecon = match.rows.filter(r => !r.sid);
-  const nouv = match.matieres.filter(m => !m.mid);
+  const utiles = _moyMatieresUtiles(match), nouv = utiles.filter(m => !m.mid);
   const date = _ymdCompleteAnnee(document.getElementById('mmoyimp-date').value);
   // Même période que `moyImport` : celle du fichier, sinon celle que la date donne (sinon l'aperçu n'annonce pas le remplacement).
   const defPer = _periodOf(cls, date)?.label || '';
@@ -20493,7 +20520,7 @@ function _moyImpRefresh() {
   box.innerHTML = `
     <div class="al al-i" style="margin-top:8px">
       <strong>${recon.length}</strong> élève${recon.length > 1 ? 's' : ''} reconnu${recon.length > 1 ? 's' : ''} sur ${match.rows.length} ligne${match.rows.length > 1 ? 's' : ''}
-      · <strong>${match.matieres.length}</strong> matière${match.matieres.length > 1 ? 's' : ''}${parse.hasGenerale ? ' + moyenne générale' : ''}
+      · <strong>${utiles.length}</strong> matière${utiles.length > 1 ? 's' : ''}${parse.hasGenerale ? ' + moyenne générale' : ''}
       · période${match.periodes.length > 1 ? 's' : ''} : ${match.periodes.map(p => `« ${_escName(p || 'non précisée')} »`).join(', ')}
       ${nouv.length ? `<br>🆕 Nouvelle${nouv.length > 1 ? 's' : ''} matière${nouv.length > 1 ? 's' : ''} : ${nouv.map(m => _escName(m.nom)).join(', ')}` : ''}
     </div>
@@ -25471,7 +25498,7 @@ document.addEventListener('scroll', _photoPopHide, { passive: true, capture: tru
 // les dessine donc elle-même (`#bulle`, tokens `--bulle-*` aux trois endroits). Au survol À LA SOURIS, le texte passe
 // le temps du survol dans `data-bulle` (sinon le navigateur afficherait AUSSI la sienne), et revient en sortant.
 // Au doigt, rien (rien de natif non plus) ; au clavier, rien (comme avant). Aucun `title` à réécrire dans le code.
-const _bulle = { el: null, cible: null, svgTitre: null, texte: '', timer: null, x: 0, y: 0 };
+const _bulle = { el: null, cible: null, svgTitre: null, texte: '', timer: null, veille: null, x: 0, y: 0 };
 // Position (pure) : sous le curseur ; au-dessus s'il manque la place en bas, ou si `dessus` (la photo d'un élève
 // occupe déjà le dessous) ; poussée vers la gauche au bord droit ; jamais hors de l'écran (marge 8).
 function _bullePlace(x, y, w, h, vw, vh, dessus) {
@@ -25485,8 +25512,12 @@ function _bullePlace(x, y, w, h, vw, vh, dessus) {
 // la bulle du navigateur reviendrait sous le curseur immobile.
 function _bulleMasquer() {
   clearTimeout(_bulle.timer); _bulle.timer = null;
+  clearInterval(_bulle.veille); _bulle.veille = null;
   if (_bulle.el) _bulle.el.hidden = true;
 }
+// Tant que la bulle est montrée : son élément est-il toujours dans la page ? Un re-rendu sans geste (rechargement de
+// la synchronisation, minuterie) le remplaçait sous le curseur immobile, et la bulle restait (audit du 2026-11-22).
+function _bulleVeille() { if (!_bulle.cible || !_bulle.cible.isConnected) _bulleRendre(); }
 // Sortie du survol : masquer, et rendre le texte à l'élément — sauf si le code lui en a donné un autre entre-temps.
 function _bulleRendre() {
   _bulleMasquer();
@@ -25506,7 +25537,13 @@ function _bulleMontrer() {
     document.body.appendChild(_bulle.el);
   }
   _bulle.el.textContent = _bulle.texte;
+  // ⚠️ Mesurée À GAUCHE de l'écran : restée à la place de la bulle précédente, cette boîte fixe se réduisait à la
+  // largeur qui restait jusqu'au bord droit — mesure fausse, et bulle collée au bord à 375 px (audit du 2026-11-22).
+  _bulle.el.style.left = '0px'; _bulle.el.style.top = '0px';
   _bulle.el.hidden = false;
+  clearInterval(_bulle.veille);
+  _bulle.veille = setInterval(_bulleVeille, 400);
+  if (_bulle.veille && _bulle.veille.unref) _bulle.veille.unref();   // (Node, tests) ne retient pas le processus
   const photo = typeof _photoPop !== 'undefined' && _photoPop.el && _photoPop.el.style.display === 'block';
   const q = _bullePlace(_bulle.x, _bulle.y, _bulle.el.offsetWidth, _bulle.el.offsetHeight, innerWidth, innerHeight, photo);
   _bulle.el.style.left = q.left + 'px'; _bulle.el.style.top = q.top + 'px';

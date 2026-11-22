@@ -52,6 +52,6 @@ test('cadre entier : ▾ le replie sur son titre, retenu ; un stockage illisible
 
 test('CSS : collé au bas de la fenêtre à l\'écran seulement, replié = le titre seul', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'suivi pp.html'), 'utf8');
-  assert.match(src, /@media screen and \(min-height: 560px\) \{\s*\.pf-bas \{ position: sticky; bottom:/);
+  assert.match(src, /@media screen and \(min-height: 560px\) and \(min-width: 700px\) \{\s*\.pf-bas \{ position: sticky; bottom:/);
   assert.match(src, /\.pf-bas\.plie > \.pf-card > :not\(h3\) \{ display: none; \}/);
 });
