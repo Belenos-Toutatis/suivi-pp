@@ -288,6 +288,7 @@ html[data-police-papier="andika"] { --font-print: var(--font-andika); }
      chargement et à chaque changement de taille. Dimensionne les cadres figés. */
   --topbar-h: 96px;
   --el-head-h: 0px;   /* hauteur de la barre d'une élection ouverte, mesurée (_elEnteteColle) — pas une couleur */
+  --bul-sous-h: 0px;  /* hauteur des boutons sous la grille des bulletins, mesurée (_elEnteteColle) — pas une couleur */
   --fiche-cote-w: 58vw;   /* largeur de la fiche ancrée à droite de la liste (écran large) */
   --radius-sm: 3px;
   --radius-md: 5px;
@@ -1066,7 +1067,11 @@ td.rel-cell.dec .rel-d { color: var(--danger-fg); font-weight: 700; }
 /* Onglet 🗣 Avis des collègues (v1.44.4) : les récoltes à gauche, la feuille à droite. */
 /* Grille des bulletins (v1.45.3) : cadre figé, moins haut que l'écran — les candidatures et
    le bouton « + Bulletin » restent atteignables sans faire défiler la page. */
-.rel-wrap.frozen.bul-wrap { max-height: max(220px, calc(100dvh - var(--topbar-h) - 140px)); }
+/* ⚠️ Le cadre ET ses boutons tiennent sous la barre de l'élection (audit du 2026-11-22) : à 1024 × 768 la grille ne
+   tient pas en largeur dans son volet et garde ce cadre ; trop haut (il ne retranchait ni la barre ni les boutons),
+   il passait sous la barre quand la page défilait jusqu'aux boutons, et la ligne des candidats disparaissait.
+   `--el-head-h` et `--bul-sous-h` sont mesurées par `_elEnteteColle`. */
+.rel-wrap.frozen.bul-wrap { max-height: max(220px, calc(100dvh - var(--topbar-h) - var(--el-head-h, 0px) - var(--bul-sous-h, 0px) - 32px)); }
 /* Vie de classe (v1.52.2) : la barre de l'élection colle sous le bandeau ; une grille des
    bulletins qui tient en largeur défile avec la page, sa ligne de candidats collée sous la barre. */
 .el-head { position: sticky; top: var(--topbar-h); z-index: 20; background: var(--paper); box-shadow: 0 1px 0 var(--rule-line); }
@@ -18529,6 +18534,23 @@ let _elView = null;         // id de l'élection ouverte
 let _elProject = false;     // mode projection plein écran (grille masquée)
 
 function _elOpen(id) { _elView = id; _elProject = false; renderDelegues(); }
+// L'élection ouverte survit à un RECHARGEMENT de la page (audit du 2026-11-22, arbitré) : en plein dépouillement,
+// devant la classe, F5 ramenait à la liste des élections — rien de perdu, mais un clic de trop au mauvais moment.
+// Mémoire de SÉANCE (`sessionStorage`, propre à l'onglet du navigateur) : ni dans les données, ni d'un jour à
+// l'autre. Retenue à chaque rendu de l'onglet, reprise une fois au démarrage (`init`).
+const SS_EL_VIEW = 'suiviPP_elView';
+function _elViewRetenir() {
+  try {
+    if (_elCurrent()) sessionStorage.setItem(SS_EL_VIEW, JSON.stringify({ c: S.cur, id: _elView }));
+    else sessionStorage.removeItem(SS_EL_VIEW);
+  } catch (_) { }
+}
+function _elViewReprendre() {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(SS_EL_VIEW) || 'null');
+    if (v && v.c === S.cur && typeof v.id === 'string' && Object.prototype.hasOwnProperty.call(S.elections[v.c] || {}, v.id)) _elView = v.id;
+  } catch (_) { }
+}
 function _elCurrent() { const cls = getCls(); return cls && _elView ? (S.elections[cls.id] || {})[_elView] || null : null; }
 function _elMut(fn, rerender = true) {
   const el = _elCurrent();
@@ -18593,6 +18615,7 @@ function _renderDeleguesCore() {
   if (!box) return;
   const cls = getCls();
   document.body.classList.toggle('el-projecting', !!_elProject);
+  _elViewRetenir();
   if (!cls) { box.innerHTML = _needClassHTML('tenir la vie de classe'); return; }
   const el = _elCurrent();
   if (el) return _elRenderOne(box, el, cls);
@@ -18766,6 +18789,9 @@ function _elEnteteColle(box) {
   if (hd) box.style.setProperty('--el-head-h', hd.offsetHeight + 'px');
   const bw = box.querySelector('.bul-wrap'), tb = bw && bw.querySelector('table');
   if (!bw || !tb) return;
+  // Les boutons sous la grille (« + Bulletin », « Clore ») : le cadre leur laisse leur place sous la barre.
+  const sous = bw.nextElementSibling;
+  box.style.setProperty('--bul-sous-h', (sous ? sous.offsetHeight + 6 : 0) + 'px');
   const grand = typeof matchMedia === 'function' && matchMedia('(min-width: 700px) and (min-height: 480px)').matches;
   bw.classList.remove('bul-plat');
   bw.classList.toggle('bul-plat', !!grand && tb.scrollWidth <= bw.clientWidth + 1);
@@ -18930,7 +18956,7 @@ function _elRenderDepouillement(el, tourIdx, live) {
     <div class="rel-wrap frozen bul-wrap"><table class="dt bul-table"><thead><tr><th class="bul-n" title="Numéro d'ordre — pour l'audit, jamais projeté">#</th>${cands.map(c => `<th title="${_escAttr(_elCandNom(c) + (_elCandNomSup(c) ? ' / ' + _elCandNomSup(c) : ''))}"><span class="el-swatch" style="background:${_safeColor(c.color)}"></span>${_escName(_elCandNom(c).split(' ')[0])}</th>`).join('')}<th>Statut</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     <div class="tb" style="margin-top:6px">
-      <button class="btn btn-p btn-sm" id="el-bul-add" onclick="electionNewBulletinUI()" title="Un nouveau bulletin (Entrée depuis la dernière ligne fait pareil)">+ Bulletin</button>
+      <button class="btn btn-p btn-sm" id="el-bul-add" onclick="electionNewBulletinUI()" title="Une ligne de plus, à lire (Entrée depuis la dernière ligne fait pareil, tant que le compte de l'urne n'est pas atteint)">+ Bulletin</button>
       ${_elEcritHTML(el)}
       <span class="tb-hint">Le compte de l'urne prépare les lignes « à lire ». Cochez les noms lus, Entrée valide le bulletin (vide = blanc) ; plus de ${el.nomsParBulletin} noms = nul. Chaque bulletin s'annule seul par Ctrl+Z.</span>
       <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="electionCloreUI()" ${t.bulletins.some(b => b.lu !== false) ? '' : 'disabled'}>✓ Clore le ${_elTourLabel(el, t)}</button>
@@ -18976,12 +19002,17 @@ function electionNewBulletinUI() {
   // Une ligne préparée attend encore : c'est elle qu'on lit (pas un bulletin de plus).
   const alire = document.querySelector('.bul-table tbody tr.alire .bul-c input');
   if (alire) { alire.focus(); return; }
-  _elMut(e => electionAddBulletin(e, e.tours.length - 1, []));
+  // ⚠️ La ligne ajoutée est « à lire », comme celles que prépare le compte de l'urne (audit du 2026-11-22) : créée
+  // lue, elle comptait tout de suite pour un BLANC — et la ligne ouverte par Entrée après le dernier bulletin
+  // allait jusqu'au procès-verbal (« Dépouillés 4 / 3 », un blanc de trop).
+  _elMut(e => { const b = electionAddBulletin(e, e.tours.length - 1, []); if (!b) return false; b.lu = false; });
   const inputs = document.querySelectorAll('.bul-table tbody tr:last-child .bul-c input');
   if (inputs[0]) inputs[0].focus();
 }
-// Clavier dans la grille : Entrée = valider le bulletin et passer au suivant (créé s'il
-// n'existe pas) ; flèches = se déplacer entre les cases. Espace coche (natif).
+// Clavier dans la grille : Entrée = valider le bulletin et passer au suivant ; flèches = se
+// déplacer entre les cases. Espace coche (natif). Depuis la DERNIÈRE ligne, Entrée ouvre une
+// ligne à lire — sauf si le compte de l'urne est atteint : tous ses bulletins sont là, on n'en
+// crée pas un de plus sans le vouloir (« + Bulletin » reste pour un bulletin oublié).
 function electionBulKey(e) {
   const inp = e.target;
   const n = +inp.dataset.n;
@@ -18997,11 +19028,20 @@ function electionBulKey(e) {
     e.preventDefault();
     // Entrée VALIDE le bulletin : une ligne à lire laissée vide devient un blanc (v1.52.5). La
     // grille se redessine : la case suivante se retrouve par ses données, jamais par référence.
-    const el = _elCurrent(), ti = el ? el.tours.length - 1 : -1;
-    const b = el && el.tours[ti].bulletins.find(x => x.n === n);
+    const el = _elCurrent(), ti = el ? el.tours.length - 1 : -1, t = el && el.tours[ti];
+    if (!t) return;
+    const b = t.bulletins.find(x => x.n === n);
     if (b && b.lu === false) _elMut(x => electionSetBulletin(x, ti, n, { lu: true }));
-    const next = document.querySelector(`.bul-c input[data-n="${n + 1}"]`);
-    if (next) next.focus(); else electionNewBulletinUI();
+    // La ligne suivante se lit dans les DONNÉES (la grille vient peut-être d'être redessinée).
+    const suivant = t.bulletins[t.bulletins.findIndex(x => x.n === n) + 1];
+    const focus = k => { const c = document.querySelector(`.bul-c input[data-n="${k}"]`); if (c) c.focus(); };
+    if (suivant) return focus(suivant.n);
+    const urne = t.votantsAnnonces;
+    if (typeof urne === 'number' && t.bulletins.length >= urne) {
+      toast(`🗳 ${_pl(urne, 'bulletin')} dans l'urne : ${urne > 1 ? 'tous sont là' : 'il est là'}. Un bulletin oublié ? « + Bulletin ».`);
+      return focus(n);
+    }
+    electionNewBulletinUI();
   }
 }
 
@@ -28057,6 +28097,7 @@ function init() {
   let tab = 'eleves';
   try { tab = localStorage.getItem(LS_TAB) || 'eleves'; } catch (_) {}
   if (!document.getElementById('tab-' + tab)) tab = 'eleves';
+  _elViewReprendre();   // l'élection qui était ouverte avant un rechargement
   switchTab(tab);
 
   updateAutoSyncUI();
