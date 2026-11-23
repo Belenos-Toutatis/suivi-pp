@@ -4952,6 +4952,11 @@ function _sanitizeCoreSections() {
       }
       if (c.msg !== undefined && !_isPlainObj(c.msg)) delete c.msg;
       // Le ton des avis (v1.74.0) : chaque entrée se vérifie à la lecture (`_tonSegs`) ; ici, seulement la forme.
+      // Rattachements manuels des bulletins : nom plié → sid ; la valeur se vérifie à la lecture (`_bullManuelConnu`).
+      if (c.rattach !== undefined) {
+        if (!_isPlainObj(c.rattach)) delete c.rattach;
+        else for (const [k, v] of Object.entries(c.rattach)) if (typeof v !== 'string') delete c.rattach[k];
+      }
       if (c.tons !== undefined) {
         if (!_isPlainObj(c.tons)) delete c.tons;
         else for (const [sid, o] of Object.entries(c.tons)) if (!_isPlainObj(o)) delete c.tons[sid];
@@ -5123,6 +5128,7 @@ function _purgeStudentRefs(sid) {
     for (const camp of Object.values(byId || {})) {
       if (_isPlainObj(camp?.avis)) delete camp.avis[sid];
       if (_isPlainObj(camp?.tons)) delete camp.tons[sid];
+      if (_isPlainObj(camp?.rattach)) { for (const [k, v] of Object.entries(camp.rattach)) if (v === sid) delete camp.rattach[k]; if (!Object.keys(camp.rattach).length) delete camp.rattach; }   // rattachements des bulletins
       if (Array.isArray(camp?.cibles)) camp.cibles = camp.cibles.filter(x => x !== sid);
     }
   }
@@ -7954,7 +7960,19 @@ function _bullCamp(cls, pIdx) {
 }
 function _bullMatLabel(nom) { const t = String(nom || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); }
 function _bullRattache(cls, lu, manuel) {
-  return _mbnRapprocher(cls, lu.eleves.map((e, i) => ({ ...e, cle: String(i) }))).map(l => manuel && manuel[l.cle] !== undefined ? { ...l, sid: manuel[l.cle] || null } : l);
+  return _mbnRapprocher(cls, lu.eleves.map((e, i) => ({ ...e, cle: String(i) }))).map(l => manuel && manuel[l.cle] !== undefined ? { ...l, sid: manuel[l.cle] || null, manuelle: true } : l);
+}
+// Les rattachements faits À LA MAIN lors d'un import précédent (audit du 2026-11-22) : retenus sur la feuille « bulletin »
+// (`camp.rattach = { [nom lu, plié]: sid }`), ils sont reproposés au réimport — « INCONNU Zoé » était de nouveau à
+// rattacher, et ses appréciations comptées comme absentes. Un sid disparu, hors de la classe ou HÉRITÉ (« constructor »)
+// ne rattache personne. → { [indice de l'élève dans le fichier]: sid }
+function _bullManuelConnu(cls, lu) {
+  const connus = {};
+  for (const c of _avisCampagnes(cls.id)) if (c.source === 'bulletin' && _isPlainObj(c.rattach)) for (const [k, sid] of Object.entries(c.rattach)) if (!(k in connus)) connus[k] = sid;
+  const out = {};
+  lu.eleves.forEach((e, i) => { const k = _moyNameKey(e.nom), sid = Object.prototype.hasOwnProperty.call(connus, k) ? connus[k] : null;
+    if (typeof sid === 'string' && Object.prototype.hasOwnProperty.call(S.eleves, sid) && cls.eleves.includes(sid)) out[String(i)] = sid; });
+  return out;
 }
 // PUR (sauf la lecture de S) : ce que l'import rangerait, avis par avis.
 // → { L, camp, lignes: [{ sid, did, avant, apres, etat: 'ajout' | 'modif' | 'identique', cle }], vides, sansDisc, profs }
@@ -7998,6 +8016,12 @@ function _bullAppliquer(cls, bil, pIdx, coches, fichier) {
   camp.lu = Date.now();
   for (const d of camp.disciplines) if (bil.profs[d.id]) d.profs = bil.profs[d.id];
   for (const l of choisis) (camp.avis[l.sid] = camp.avis[l.sid] || {})[l.did] = { appreciation: l.apres };
+  // Ce qui a été rattaché à la main est retenu pour le prochain import (`_bullManuelConnu`) ; « ne pas rattacher » l'oublie.
+  for (const e of bil.L) if (e.manuelle) {
+    const k = _moyNameKey(e.nom);
+    if (e.sid && Object.prototype.hasOwnProperty.call(S.eleves, e.sid)) { if (!_isPlainObj(camp.rattach)) camp.rattach = {}; camp.rattach[k] = e.sid; }
+    else if (_isPlainObj(camp.rattach)) { delete camp.rattach[k]; if (!Object.keys(camp.rattach).length) delete camp.rattach; }
+  }
   return { camp, n: choisis.length };
 }
 // ── La fenêtre d'import ──
@@ -8016,7 +8040,7 @@ async function bullFichierUI(input) {
   try {
     const lu = _bullLire(await _recapPages(new Uint8Array(await f.arrayBuffer())));
     _bull = !lu.eleves.length ? { fichier: f.name, err: 'Aucun bulletin d\'élève trouvé : est-ce bien le PDF des bulletins de la classe, exporté de Mon Bureau Numérique (un PDF avec du texte, pas une page scannée) ?' }
-      : { fichier: f.name, lu, manuel: {}, pIdx: _bullPeriode(cls, lu.periode).idx, off: new Set() };
+      : { fichier: f.name, lu, manuel: _bullManuelConnu(cls, lu), pIdx: _bullPeriode(cls, lu.periode).idx, off: new Set() };
   } catch (e) { _bull = { fichier: f.name, err: 'Lecture impossible : ' + (e && e.message || e) }; }
   _bullRender();
 }
@@ -8025,7 +8049,7 @@ function bullUI(quoi, cle, v) {
   if (quoi === 'rattacher') _bull.manuel[cle] = v || '';
   else if (quoi === 'periode') _bull.pIdx = +v || 0;
   else if (quoi === 'coche') { if (v) _bull.off.delete(cle); else _bull.off.add(cle); }
-  else if (quoi === 'matiere') { const val = v === 'ignorer' ? '' : v; if (val === '' || S.disciplines[val]) { pushUndo(); if (ficheMatSetDisc(cle, val)) save(); else undoStack.pop(); } }
+  else if (quoi === 'matiere') { const val = v === 'ignorer' ? '' : v; if (val === '' || S.disciplines[val]) { pushUndo(); if (ficheMatSetDisc(cle, val)) save(); else _undoAnnulerRefus(); } }
   _bullRender();
 }
 function _bullCoches(bil) { return new Set(bil.lignes.filter(l => l.etat !== 'identique' && !_bull.off.has(l.cle)).map(l => l.cle)); }
@@ -8077,7 +8101,7 @@ function bullAppliquerUI() {
   if (!C.size) return toast('Rien à ranger.', 'info');
   pushUndo();
   const r = _bullAppliquer(cls, bil, _bull.pIdx, C, _bull.fichier);
-  if (!r) { undoStack.pop(); return toast('⚠️ Rien n\'a pu être rangé : aucune matière rattachée à une discipline.', 'warn'); }
+  if (!r) { _undoAnnulerRefus(); return toast('⚠️ Rien n\'a pu être rangé : aucune matière rattachée à une discipline.', 'warn'); }
   save();
   closeMod2('mbull');
   openAvis(r.camp.id);
@@ -11037,6 +11061,20 @@ function _iaLotJSON(texte, consigne) {
 // La réponse de l'assistant → [{ n, texte }]. JSON d'abord ({ syntheses: [{ eleve, synthese }] }, un tableau, ou
 // { "[Élève 3]": "…" } ; clés tolérées), sinon du texte : un titre par élève (« ### [Élève 3] », « **[Élève 3]** : … »).
 // ⚠️ Une phrase qui COMMENCE par le repère (« [Élève 3] progresse… ») n'est pas un titre.
+// Les objets JSON « { … } » COMPLETS d'un texte, à toute profondeur, du plus intérieur au plus extérieur — les accolades
+// écrites dans une chaîne ne comptent pas. Sert à relire une réponse coupée en route. PUR.
+function _jsonObjetsComplets(s) {
+  const out = [], pile = [];
+  let chaine = false, echap = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (chaine) { if (echap) echap = false; else if (c === '\\') echap = true; else if (c === '"') chaine = false; continue; }
+    if (c === '"') chaine = true;
+    else if (c === '{') pile.push(i);
+    else if (c === '}' && pile.length) out.push(s.slice(pile.pop(), i + 1));
+  }
+  return out;
+}
 function _iaLotLire(texte) {
   const src = String(texte ?? '').replace(/\r\n/g, '\n').replace(/^\s*```[^\n]*$/gm, '').trim(), items = [];
   const num = v => { const m = /(\d+)/.exec(String(v ?? '')); return m ? +m[1] : null; };
@@ -11052,6 +11090,9 @@ function _iaLotLire(texte) {
       else if (_isPlainObj(j)) for (const [k, v] of Object.entries(j)) { if (typeof v === 'string') ajoute(k, v); else objet(v); }
     } catch (_) {}
   }
+  // ⚠️ JSON COUPÉ (réponse arrêtée par la longueur) : on garde les entrées COMPLÈTES — avant, rien n'était lisible et
+  // toute la classe était à redemander (audit du 2026-11-22). Les élèves manquants restent à redemander.
+  if (!items.length && a >= 0) for (const bout of _jsonObjetsComplets(src.slice(a))) { try { objet(JSON.parse(bout)); } catch (_) {} }
   if (!items.length) {
     let cur = null;
     for (const l of src.split('\n')) {
@@ -20791,7 +20832,9 @@ function _elevesPrintHTML(cls) {
     { key: 'incidents', th: 'Incidents <small>(année)</small>', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
     { key: 'avis', th: 'Avis coll.', w: 4.5, c: 1, td: (r, sid) => { const a = campP ? _avisResume(campP, sid) : null; return a && (a.n || a.cible) ? `${a.n}/${a.total}${a.cible ? ' ★' : ''}` : ''; } },
     { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(_mdTexte(r.remarque))}</small>` },
-    ..._bilanColsVues(cls, pIdx).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
+    // ⚠️ Un moment sans AUCUN bilan parmi les élèves imprimés n'a pas de colonne (audit du 2026-11-22, arbitré) : en vue
+    // « Tout », six colonnes vides prenaient plus de la moitié de la largeur et coupaient les noms (« BERNAR / D »).
+    ..._bilanColsVues(cls, pIdx).filter(c => rowsData.some(x => _bilanDeColonne(cls, x.s.id, c))).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
       td: (r, sid) => { const b = _bilanDeColonne(cls, sid, c); return `<small>${b ? _escName(b.texte) : ''}</small>`; } })),
   ].filter(c => _elevesPrintVue(c.key) && (c.key !== 'avis' || campP));   // pas de feuille d'avis : pas de colonne vide sur le papier
   const tot = cols.reduce((n, c) => n + c.w, 0);
@@ -22146,7 +22189,11 @@ async function _avisHandle(campId) {
 async function _avisPermission(h, mode, demander) {
   if (!h || typeof h.queryPermission !== 'function') return !!h;
   try {
-    let p = await h.queryPermission({ mode });
+    // ⚠️ Borné comme les dossiers (Chrome 158, cf. `_fsaWithin`) : un fichier mémorisé peut ne plus répondre, sans erreur,
+    // et « Relire la feuille » restait alors sans effet (audit du 2026-11-22). La QUESTION posée à l'utilisateur
+    // (requestPermission) n'est jamais bornée : elle attend sa réponse.
+    let p = await _fsaWithin(h.queryPermission({ mode }), 2500);
+    if (p === _FSA_STALL) { toast('⚠️ Chrome ne répond plus sur le fichier mémorisé de cette feuille : choisissez-le de nouveau (📂 Choisir le fichier).', 'warn'); return false; }
     if (p !== 'granted' && demander) p = await h.requestPermission({ mode });
     return p === 'granted';
   } catch (_) { return false; }
@@ -24412,7 +24459,7 @@ async function pjNettoyerUI() {
   if (!l.length) return toast('✓ Aucun fichier orphelin dans le dossier.');
   _uiConfirm({
     title: `🧹 Supprimer ${l.length} fichier${l.length > 1 ? 's' : ''} orphelin${l.length > 1 ? 's' : ''} ?`,
-    message: `Ces fichiers ne sont plus référencés par aucune entrée :\n${l.slice(0, 12).join('\n')}${l.length > 12 ? `\n… et ${l.length - 12} autres` : ''}\n\nSuppression DÉFINITIVE dans le dossier (pas de Ctrl+Z).`,
+    message: `Ces fichiers ne sont plus référencés par aucune entrée :\n${l.slice(0, 12).join('\n')}${l.length > 12 ? `\n… et ${l.length - 12} autres` : ''}\n\n⚠️ Si vous venez de travailler sur un autre poste, rechargez d'abord ses données ici : un fichier joint là-bas à un contact ou à un incident, déjà arrivé dans ce dossier mais pas encore dans les données de ce poste, paraîtrait orphelin.\n\nSuppression DÉFINITIVE dans le dossier (pas de Ctrl+Z).`,
     okLabel: 'Supprimer', okClass: 'btn-d',
     onOk: async () => {
       let n = 0;

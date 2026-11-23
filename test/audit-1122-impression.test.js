@@ -43,3 +43,27 @@ test('MÉTA-TEST : le détecteur voit une règle cantonnée à @media print, et 
   assert.strictEqual(mesurable('.x { margin: 0 0 .8em; }', '.x'), null);
   assert.strictEqual(mesurable(CSS, '.pp-titre'), null, 'les règles .pp-* sont déjà mesurées');
 });
+
+// ── Liste des élèves imprimée : pas de colonne de moment vide ──
+const { loadApp } = require('./harness.js');
+const app = loadApp();
+const J = c => JSON.parse(app.__TESTEVAL(`JSON.stringify((() => { ${c} })())`));
+
+test('liste imprimée : un moment sans aucun bilan n\'a pas de colonne (six colonnes vides écrasaient les noms), un moment qui en a un la garde', () => {
+  const r = J(`createDemo({ force: true }); const cls = getCls(), pIdx = _carnetCurrentPeriodIdx(cls);
+    const cols = _bilanColsVues(cls, pIdx), entetes = h => (h.match(/<thead>[\\s\\S]*?<\\/thead>/) || [''])[0];
+    // un moment vidé de ses bilans (la démonstration en a partout)
+    for (const sid of cls.eleves) { const b = _bilanDeColonne(cls, sid, cols[0]); if (b) S.eleves[sid].bilans = S.eleves[sid].bilans.filter(x => x !== b); }
+    const pleines = cols.filter(c => cls.eleves.some(s => _bilanDeColonne(cls, s, c))), vides = cols.filter(c => !pleines.includes(c));
+    const avec = entetes(_elevesPrintHTML(cls));
+    for (const s of cls.eleves) delete S.eleves[s].bilans;
+    const sans = entetes(_elevesPrintHTML(cls));
+    const th = (h, c) => h.includes('>' + _escName(c.court) + '</th>');
+    return { nCols: cols.length, pleines: pleines.length, vides: vides.length, pleinesImprimees: pleines.every(c => th(avec, c)), videsImprimees: vides.filter(c => th(avec, c)).length,
+      apresEffacement: cols.filter(c => th(sans, c)).length, nomToujours: sans.includes('Élève') };`);
+  assert.ok(r.pleines > 0 && r.vides > 0, 'la démonstration a des moments avec et sans bilan : ' + JSON.stringify(r));
+  assert.strictEqual(r.pleinesImprimees, true, 'un moment qui a un bilan garde sa colonne');
+  assert.strictEqual(r.videsImprimees, 0, 'un moment sans aucun bilan n\'a pas de colonne');
+  assert.strictEqual(r.apresEffacement, 0);
+  assert.strictEqual(r.nomToujours, true);
+});

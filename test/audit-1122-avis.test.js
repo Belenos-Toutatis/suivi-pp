@@ -88,3 +88,30 @@ test('changer de classe ne laisse pas l\'onglet des avis sur « Nouvelle feuille
     return apres;`);
   assert.deepStrictEqual(r, { voulue: false, camp: true });
 });
+
+test('bulletins : le rattachement manuel d\'un élève est retenu sur la feuille et proposé au réimport ; il part avec l\'élève', () => {
+  const r = J(`${SETUP} delete S.avis[cls.id].bul1;
+    const mat = Object.values(S.matieres).find(m => { const d = _ficheMatDisc(m.nom); return d && S.disciplines[d]; }).nom;
+    const connu = S.eleves[cls.eleves[1]];
+    const lu = { periode: '', annee: '', doublons: 0, eleves: [
+      { nom: 'INCONNU Zoé', matieres: [{ nom: mat, profs: 'M. X', texte: 'Bon semestre.' }] },
+      { nom: connu.nom + ' ' + connu.prenom, matieres: [{ nom: mat, profs: 'M. X', texte: 'Sérieux.' }] } ] };
+    const avant = _bullManuelConnu(cls, lu);
+    const manuel = { '0': sid };
+    const bil = _bullBilan(cls, lu, manuel, pIdx);
+    const res = _bullAppliquer(cls, bil, pIdx, new Set(bil.lignes.map(l => l.cle)), 'b.pdf');
+    const retenu = JSON.parse(JSON.stringify(res.camp.rattach || {}));
+    const reimport = _bullManuelConnu(cls, lu);
+    const bil2 = _bullBilan(cls, lu, reimport, pIdx);
+    res.camp.rattach.piege = 'constructor'; const lu2 = { ...lu, eleves: [...lu.eleves, { nom: 'piege', matieres: [] }] };
+    const herite = _bullManuelConnu(cls, lu2);
+    _purgeStudentRefs(sid);
+    return { avant, n: res.n, retenu: Object.values(retenu), reimport, identiques: bil2.lignes.filter(l => l.etat === 'identique').length, lignes2: bil2.lignes.length, herite: Object.keys(herite), apresPurge: Object.values(res.camp.rattach).includes(sid), sid };`);
+  assert.deepStrictEqual(r.avant, {}, 'rien de retenu avant le premier import');
+  assert.strictEqual(r.n, 2);
+  assert.deepStrictEqual(r.retenu, [r.sid], 'seul le rattachement fait À LA MAIN est retenu');
+  assert.deepStrictEqual(r.reimport, { '0': r.sid }, 'au réimport, l\'élève est déjà rattaché');
+  assert.strictEqual(r.identiques, 2, 'et ses appréciations sont reconnues comme déjà là');
+  assert.deepStrictEqual(r.herite, ['0'], 'un id hérité (« constructor ») ne rattache personne');
+  assert.strictEqual(r.apresPurge, false, 'la suppression de l\'élève emporte son rattachement');
+});

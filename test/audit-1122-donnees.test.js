@@ -54,3 +54,22 @@ test('fenêtre « toute la classe » : le menu « Ranger dans » se plie à la l
   assert.match(SRC, /\.ia-bloc select \{[^}]*max-width:\s*100%/);
   assert.match((SRC.match(/^\.ia-bloc \{[^}]*\}/m) || [''])[0], /min-width:\s*0/);
 });
+
+test('🧹 Orphelins : la fenêtre rappelle de recharger d\'abord les données de l\'autre poste', () => {
+  const fn = SRC.slice(SRC.indexOf('async function pjNettoyerUI('), SRC.indexOf('async function pjNettoyerUI(') + 1400);
+  assert.match(fn, /autre poste/);
+});
+
+test('fichier d\'une feuille d\'avis mémorisé : la demande de permission est bornée (Chrome 158), jamais la question posée à l\'utilisateur', () => {
+  const fn = SRC.slice(SRC.indexOf('async function _avisPermission('), SRC.indexOf('async function _avisPermission(') + 900);
+  assert.match(fn, /_fsaWithin\(h\.queryPermission\(/);
+  assert.doesNotMatch(fn, /_fsaWithin\([^)]*requestPermission/);
+  assert.match(fn, /_FSA_STALL/);
+});
+
+test('un refus après pushUndo() se défait par _undoAnnulerRefus(), jamais par undoStack.pop() (bulletins)', () => {
+  for (const nom of ['function bullAppliquerUI(', 'function bullUI(']) {
+    const fn = SRC.slice(SRC.indexOf(nom), SRC.indexOf(nom) + 1300);
+    assert.doesNotMatch(fn, /undoStack\.pop\(\)/, nom);
+  }
+});

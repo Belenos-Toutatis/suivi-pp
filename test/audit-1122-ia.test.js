@@ -33,3 +33,13 @@ test('ce qui n\'est pas un téléphone ne le devient pas (date, numéro long, ef
   const r = J(`${SETUP} return ['le 12/03/2026 à 14 h', 'dossier 20260312345678', '25 élèves, 12 absents'].map(ps);`);
   assert.deepStrictEqual(r, ['le 12/03/2026 à 14 h', 'dossier 20260312345678', '25 élèves, 12 absents']);
 });
+
+test('synthèses de toute la classe : une réponse COUPÉE par la longueur garde les élèves déjà complets (tout était à redemander)', () => {
+  const r = J(`const coupe = '{"syntheses":[{"eleve":"[Élève 1]","synthese":"Un semestre {sérieux}."},{"eleve":"[Élève 2]","synthese":"Dit \\\\"bravo\\\\" } et continue."},{"eleve":"[Élève 3]","synth';
+    const entier = '{"syntheses":[{"eleve":"[Élève 1]","synthese":"A."},{"eleve":"[Élève 2]","synthese":"B."}]}';
+    return { coupe: _iaLotLire(coupe), entier: _iaLotLire(entier), rien: _iaLotLire('{"syntheses":[{"eleve":"[Élève 1]","synth'), vide: _iaLotLire('') };`);
+  assert.deepStrictEqual(r.coupe, [{ n: 1, texte: 'Un semestre {sérieux}.' }, { n: 2, texte: 'Dit "bravo" } et continue.' }]);
+  assert.deepStrictEqual(r.entier, [{ n: 1, texte: 'A.' }, { n: 2, texte: 'B.' }], 'une réponse entière se lit comme avant');
+  assert.deepStrictEqual(r.rien, []);
+  assert.deepStrictEqual(r.vide, []);
+});
