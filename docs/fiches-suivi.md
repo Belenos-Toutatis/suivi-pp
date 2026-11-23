@@ -253,3 +253,12 @@ quatrième étape de « après la remise » sur la page du suivi (`envoiCaseHTML
 - Ce qui n'est PAS figé : les codes saisis (une faute de frappe se corrige, la retenue se recalcule alors avec la règle figée), le
   bilan, les codes des niveaux.
 - Démonstration : la première fiche de PODEANU est envoyée (celles de BRIDGE servent aux tests de la règle). Test : `fiches-suivi/e2e_envoye.js`.
+
+### Remarque d'un cours : toute la case se clique (v1.93.1)
+
+- Le champ de la colonne « Rem. » n'occupait que le haut de sa case (17 px sur 57, sans bordure) : un clic au milieu ou en bas ne
+  faisait rien. Il remplit la case (`position: absolute` dans `td.rq`, la hauteur des lignes ne bouge pas) ; le papier n'en a pas.
+- Il s'élargit à 240 px pendant la frappe sans être coupé : `overflow: visible` sur `td.rq:has(> input)` seulement (les cases des
+  tableaux `indiv` rognent leur contenu), et vers la GAUCHE près du bord droit de la feuille (classe `vers-g`, posée à `focusin`).
+- Test : `fiches-suivi/e2e_remarque_clic.js` (vrais clics en haut, au milieu et en bas, 1 à 4 objectifs, 1024 et 1366 px, chaque jour).
+- `app/assemble.py` écrit en LF et lit en UTF-8 sur tous les postes : sous Windows il écrivait « suivi pp.html » en CRLF.

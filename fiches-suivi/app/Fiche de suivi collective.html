@@ -977,15 +977,17 @@ table.indiv td.ic { cursor: pointer; } table.indiv td.ic:hover { box-shadow: ins
 table.indiv td.ic:focus-visible { outline: 2.5px solid var(--accent); outline-offset: -2px; }
 table.indiv td.l0 { background: var(--lv0); color: var(--c0, #111); } table.indiv td.l1 { background: var(--lv1); color: var(--c1, #111); }
 table.indiv td.l2 { background: var(--lv2); color: var(--c2, #111); } table.indiv td.l3 { background: var(--lv3); color: var(--c3, #111); }
-table.indiv td.rq { text-align: left; vertical-align: top; font-size: 10px; } table.indiv td.rq input { width: 100%; border: 0; background: transparent; font: inherit; font-size: 11px; padding: 1px; }
-table.indiv td.rq { position: relative; }
+table.indiv td.rq { text-align: left; vertical-align: top; font-size: 10px; } table.indiv td.rq input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; cursor: text; border: 0; background: transparent; font: inherit; font-size: 11px; padding: 1px 2px; }
+/* v1.93.1 : le champ remplit sa case (il n'en occupait que le haut : un clic au milieu ne faisait rien) et dépasse d'elle pendant la saisie */
+table.indiv td.rq { position: relative; } table.indiv td.rq:has(> input) { overflow: visible; }
 /* remarque longue sur une fiche réimprimée : la ligne garde sa hauteur (la fiche reste sur une page), le texte est réduit puis coupé */
 table.indiv .rq-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 7; overflow: hidden; font-size: 7.5px; line-height: 1.1; overflow-wrap: break-word; hyphens: auto; }
 /* 6 jours et 4 objectifs : cases et matière plus étroites, pour garder une colonne de remarque utilisable */
 table.indiv.dense col.c-cd { width: 17px; } table.indiv.dense col.c-mat { width: 44px; } table.indiv.dense col.c-cr { width: 34px; } table.indiv.dense td.mat { font-size: 8px; hyphens: auto; overflow-wrap: normal; word-break: normal; } table.indiv.dense th.cd { font-size: 9px; } table.indiv.dense td.cd { font-size: 9.5px; }
 .evol-imp .ecart-h, .synth-imp .avis-chip { white-space: normal; } .synth-imp .avis-chip { white-space: nowrap; }
 /* colonne étroite : le champ s'élargit pendant la saisie, le texte complet est dans l'infobulle */
-table.indiv td.rq input:focus { background: #fff; outline: 2px solid var(--accent); position: absolute; left: 0; top: 0; width: 240px; height: 100%; z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.18); color: #111; }
+table.indiv td.rq input:focus { background: #fff; outline: 2px solid var(--accent); width: max(240px, 100%); z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.18); color: #111; }
+table.indiv td.rq input.vers-g:focus { left: auto; right: 0; }   /* près du bord droit de la feuille : s'élargit vers la gauche */
 table.indiv .ferme { background: repeating-linear-gradient(45deg, #eee 0 4px, #fff 4px 8px); } table.indiv td.jour-off { font-size: 12px; }
 table.indiv-pied { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
 table.indiv-pied th, table.indiv-pied td { border: 1px solid #444; font-size: 11px; padding: 3px; height: 13mm; }
@@ -7015,6 +7017,9 @@ document.addEventListener("input", e => {
     if (s.c.every(v => v === null || v === undefined) && !s.r.trim()) delete ind.saisies[k]; commit(false, true); }
   else if (t.dataset.ib) { const [ii, l] = t.dataset.ib.split("."), ind = S.individuels[ii]; if (t.value.trim()) ind.bilans[l] = t.value; else delete ind.bilans[l]; commit(false, true); }
 });
+/* remarque : le champ s'élargit vers la gauche quand il sortirait de la feuille (v1.93.1) */
+document.addEventListener("focusin", e => { const t = e.target, f = t.dataset && t.dataset.ir && t.closest(".sheet"); if (!f) return;
+  t.classList.toggle("vers-g", t.closest("td").getBoundingClientRect().left + 240 > f.getBoundingClientRect().right); });
 document.addEventListener("change", e => { const t = e.target; if (S && t.dataset.semi) location.hash = `#indiv/${t.dataset.semi}:${t.value}`; });
 
 /* ---------- totaux : récapitulatif des incidents de la semaine (fiche de classe) ---------- */

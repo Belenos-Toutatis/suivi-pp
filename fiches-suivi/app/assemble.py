@@ -8,27 +8,27 @@ Usage : python3 fiches-suivi/app/assemble.py             (les deux)
 ⚠️ Écrire dans suivi pp.html change Suivi PP : APP_VERSION et APP_BUILD_DATE sont à avancer avant de pousser."""
 import base64, hashlib, pathlib, sys, zlib
 d = pathlib.Path(__file__).resolve().parent   # résolu : lancé depuis n'importe où, « ../../suivi pp.html » est le bon
-edt = (d / "edt_demo.min.json").read_text().strip()
-js = "\n".join((d / f).read_text() for f in ("core.js", "demo.js", "ui.js", "sections.js", "tuto.js")).replace("/*EDT_DEMO*/null", edt)
+edt = (d / "edt_demo.min.json").read_text(encoding="utf-8").strip()
+js = "\n".join((d / f).read_text(encoding="utf-8") for f in ("core.js", "demo.js", "ui.js", "sections.js", "tuto.js")).replace("/*EDT_DEMO*/null", edt)
 # les données du suivi sont rangées dans ce bloc (vide au départ) ; la page se recopie elle-même en l'y remplaçant
 bloc = '<script id="donnees-suivi" type="application/json">null</script>\n'
 capture = "const PAGE_SOURCE = document.documentElement.outerHTML;   // la page telle qu'elle a été chargée (avant tout affichage)\n"
 # apparence de Suivi PP (2026-10-10) : ses polices (polices.css, générées par scripts/gen_fonts.py --fiches) et ses couleurs
 # (theme.css), APRÈS la feuille de style de l'application, qu'elles complètent
-tete = (d / "head.html").read_text()
+tete = (d / "head.html").read_text(encoding="utf-8")
 assert tete.count("</head>") == 1 and tete.count('<html lang="fr">') == 1
 
 
 def page(polices, integree=False):
-    t = tete.replace("</head>", '<style id="polices">\n' + polices + '</style>\n<style id="theme">\n' + (d / "theme.css").read_text() + "</style>\n</head>")
+    t = tete.replace("</head>", '<style id="polices">\n' + polices + '</style>\n<style id="theme">\n' + (d / "theme.css").read_text(encoding="utf-8") + "</style>\n</head>")
     if integree:   # marquée dès le départ : rien de ce qui est propre à la version autonome ne s'affiche, même un instant
         t = t.replace('<html lang="fr">', '<html lang="fr" data-hote="suivi-pp" class="integree">')
     return t + bloc + "<script>\n" + capture + js + "\ninit();\n</script>\n</body>\n</html>\n"
 
 
-html = page((d / "polices.css").read_text())
+html = page((d / "polices.css").read_text(encoding="utf-8"))
 out = d / "Fiche de suivi collective.html"
-out.write_text(html)
+out.write_text(html, encoding="utf-8", newline="\n")   # newline : LF aussi sous Windows (.gitattributes ; des tests lisent le texte)
 print(out, len(html))
 
 if "--autonome" not in sys.argv:
@@ -53,5 +53,5 @@ if "--autonome" not in sys.argv:
         assert s.count(ancre) == 1
         i = s.index("<script>", s.index(ancre))
         s = s[:i] + nouveau + "\n\n" + s[i:]
-    suivi.write_text(s, encoding="utf-8")
+    suivi.write_text(s, encoding="utf-8", newline="\n")
     print(suivi, f"version intégrée : {len(integ)} octets, {len(b64)} en base64 compressé, empreinte {emp}")

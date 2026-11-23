@@ -1297,6 +1297,9 @@ document.addEventListener("input", e => {
     if (s.c.every(v => v === null || v === undefined) && !s.r.trim()) delete ind.saisies[k]; commit(false, true); }
   else if (t.dataset.ib) { const [ii, l] = t.dataset.ib.split("."), ind = S.individuels[ii]; if (t.value.trim()) ind.bilans[l] = t.value; else delete ind.bilans[l]; commit(false, true); }
 });
+/* remarque : le champ s'élargit vers la gauche quand il sortirait de la feuille (v1.93.1) */
+document.addEventListener("focusin", e => { const t = e.target, f = t.dataset && t.dataset.ir && t.closest(".sheet"); if (!f) return;
+  t.classList.toggle("vers-g", t.closest("td").getBoundingClientRect().left + 240 > f.getBoundingClientRect().right); });
 document.addEventListener("change", e => { const t = e.target; if (S && t.dataset.semi) location.hash = `#indiv/${t.dataset.semi}:${t.value}`; });
 
 /* ---------- totaux : récapitulatif des incidents de la semaine (fiche de classe) ---------- */
