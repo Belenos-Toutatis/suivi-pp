@@ -101,7 +101,9 @@ const MAXIMAL = `S = {
             av_2: { id: 'av_2', source: 'bulletin', date: '2026-02-01', cible: '2026-01-31', label: 'Appréciations du bulletin — S1', fichier: 'b.pdf', lien: '', lu: 2, cibles: [],
                     msg: { moment: 'conseil', mois: 1, echeance: '', off: [] }, colonnes: [ { key: 'appreciation', label: 'Appréciation' } ],
                     disciplines: [{ id: 'maths', nom: 'Mathématiques', onglet: 'Maths', profs: 'M. Y' }],
-                    avis: { s1: { maths: { appreciation: 'Bon semestre.' } } }, tons: { s1: { maths: { appreciation: { h: 'z.1', seg: [ { d: 0, f: 3, v: 1 } ] } } } } } },
+                    avis: { s1: { maths: { appreciation: 'Bon semestre.' } } }, tons: { s1: { maths: { appreciation: { h: 'z.1', seg: [ { d: 0, f: 3, v: 1 } ] } } } },
+                    // Rattachement manuel d'un nom du bulletin (audit du 2026-11-22) : le sid est une VALEUR.
+                    rattach: { 'inconnu zoe': 's1', 'autre nom': 's2' } } },
   },
   // Fiches de suivi (📋 Suivis) : le nom envoyé à la fiche, indexé par sid ; dans le suivi lui-même, l'élève n'est
   // désigné que par son NOM (comme sur le papier) — aucun sid.

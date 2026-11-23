@@ -31,3 +31,9 @@ Ce qui se passe quand ça se passe mal, et ce qui en découle : fiche incident (
 - **Lecture dans l'app** (`pjOpen`) : modale `mpdf` avec un `<iframe>` sur une URL de blob (le lecteur du navigateur fait le reste) ; « ↗ Onglet » pour imprimer ou agrandir. ⚠️ Un nouvel onglet seul dépendait de l'anti-popup et, en application installée, sortait de la fenêtre. D'où la CSP **`frame-src blob:`** (et non `'none'`) : une URL de blob est liée à son origine, rien d'extérieur ne peut y être encadré. L'URL est révoquée à la fermeture (`_modalReturnTo['mpdf']`).
 - **Synthèse** : colonne Incidents (nombre + dernier), tri « par incidents », à l'impression aussi. **RGPD** : le bandeau cite les incidents et sanctions — donnée sensible — et dit où vont les PDF.
 - **Purge** : les entrées partent avec l'élève ; le catalogue ne connaît aucun sid. L'état maximal du test de balayage porte un incident avec PDF et une instance, pour que le balayage le constate plutôt que le supposer.
+
+### 🧹 Orphelins et deux postes (audit du 2026-11-22)
+
+La liste des orphelins ne connaît que les références des données de CE poste : un fichier joint sur l'autre poste, déjà recopié dans
+le dossier mais dont les données ne sont pas encore rechargées ici, paraîtrait orphelin. La fenêtre de confirmation le rappelle
+(« rechargez d'abord ses données ici ») avant la suppression définitive.

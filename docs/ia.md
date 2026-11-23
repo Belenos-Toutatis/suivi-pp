@@ -210,3 +210,9 @@ Demandé le 2026-10-23, après l'essai réel de toute la classe :
 contient le nom de l'élève était coupée par son repère (« jean.[Nom de l'élève]@ac-lyon.fr ») et le motif ne la reconnaissait plus —
 le prénom du parent et le domaine partaient. Lettres accentuées admises dans l'adresse ; téléphones : « (+33)6… », « (+33) 6 … » et
 « 0033… » reconnus comme « 06… » et « +33 6… ». Test : `test/audit-1122-ia.test.js`.
+
+### Réponse coupée : les élèves complets sont gardés (audit du 2026-11-22)
+
+`_iaLotLire` relit d'abord le JSON entier ; s'il est coupé (réponse arrêtée par la longueur), `_jsonObjetsComplets` en extrait les
+objets « { … } » complets — les accolades écrites dans une chaîne ne comptent pas — et chaque élève déjà complet est gardé. Avant,
+rien n'était lisible et toute la classe était à redemander. Les élèves manquants restent à redemander.

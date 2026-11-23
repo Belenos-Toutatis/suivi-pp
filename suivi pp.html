@@ -3869,8 +3869,8 @@ textarea.ta-auto { field-sizing: content; min-height: 7.5em; overflow-y: hidden;
 //   ⚠️ À bumper à CHAQUE push, à l'heure UTC RÉELLE (`date -u +"%Y-%m-%dT%H:%M:%SZ"`) :
 //   une date en avance fait s'annoncer l'app périmée à elle-même.
 // ═══════════════════════════════════════════════════════════
-const APP_VERSION    = '1.92.4';
-const APP_BUILD_DATE = '2026-11-22T21:24:46Z';
+const APP_VERSION    = '1.93.0';
+const APP_BUILD_DATE = '2026-11-23T03:10:31Z';
 // Tolérance : on ne signale une MAJ que si le dernier commit dépasse APP_BUILD_DATE
 // de PLUS de cette marge. Absorbe le délai entre « je fige la date » et « le commit
 // s'horodate » — sinon faux positif sur sa propre version.
@@ -20832,10 +20832,13 @@ function _elevesPrintHTML(cls) {
     { key: 'incidents', th: 'Incidents <small>(année)</small>', w: 11.5, td: r => `<small>${r.nbIncidents ? `<strong>${r.nbIncidents}</strong> — ${_escName(jm(r.incident.date))} ${_escName(_instanceOf(r.incident.type).label)}` : ''}</small>` },
     { key: 'avis', th: 'Avis coll.', w: 4.5, c: 1, td: (r, sid) => { const a = campP ? _avisResume(campP, sid) : null; return a && (a.n || a.cible) ? `${a.n}/${a.total}${a.cible ? ' ★' : ''}` : ''; } },
     { key: 'rem', th: 'Remarque · contacts', w: 17, rem: 1, td: r => `<small>${_printContactHTML(r)}${_escName(_mdTexte(r.remarque))}</small>` },
-    // ⚠️ Un moment sans AUCUN bilan parmi les élèves imprimés n'a pas de colonne (audit du 2026-11-22, arbitré) : en vue
-    // « Tout », six colonnes vides prenaient plus de la moitié de la largeur et coupaient les noms (« BERNAR / D »).
-    ..._bilanColsVues(cls, pIdx).filter(c => rowsData.some(x => _bilanDeColonne(cls, x.s.id, c))).map(c => ({ key: c.key, th: _escName(c.court), w: 15.5, rem: 1,
-      td: (r, sid) => { const b = _bilanDeColonne(cls, sid, c); return `<small>${b ? _escName(b.texte) : ''}</small>`; } })),
+    // ⚠️ Les colonnes de moments ne mangent plus la feuille (audit du 2026-11-22, arbitré) : en vue « Tout », six colonnes
+    // presque vides prenaient plus de la moitié de la largeur et coupaient les noms au milieu d'un mot (« BERNAR / D »).
+    // → un moment sans AUCUN bilan parmi les élèves imprimés n'a pas de colonne — sauf le conseil de la période
+    // courante, gardé pour écrire à la main pendant le conseil — et, au-delà de quatre, elles se partagent la place de quatre.
+    ...(bc => bc.map(c => ({ key: c.key, th: _escName(c.court), w: Math.min(15.5, 62 / bc.length), rem: 1,
+      td: (r, sid) => { const b = _bilanDeColonne(cls, sid, c); return `<small>${b ? _escName(b.texte) : ''}</small>`; } })))(
+      _bilanColsVues(cls, pIdx).filter(c => c.key === 'bil:conseil:' + pIdx || rowsData.some(x => _bilanDeColonne(cls, x.s.id, c)))),
   ].filter(c => _elevesPrintVue(c.key) && (c.key !== 'avis' || campP));   // pas de feuille d'avis : pas de colonne vide sur le papier
   const tot = cols.reduce((n, c) => n + c.w, 0);
   const colgroup = `<colgroup>${cols.map(c => `<col style="width:${(c.w / tot * 100).toFixed(2)}%">`).join('')}</colgroup>`;
@@ -22186,14 +22189,16 @@ async function _avisHandle(campId) {
   if (h) _avisHandles[campId] = h;
   return h || null;
 }
+let _avisFichierMuet = false;   // la dernière demande de permission est restée sans réponse : le message est déjà dit
 async function _avisPermission(h, mode, demander) {
+  _avisFichierMuet = false;
   if (!h || typeof h.queryPermission !== 'function') return !!h;
   try {
     // ⚠️ Borné comme les dossiers (Chrome 158, cf. `_fsaWithin`) : un fichier mémorisé peut ne plus répondre, sans erreur,
     // et « Relire la feuille » restait alors sans effet (audit du 2026-11-22). La QUESTION posée à l'utilisateur
     // (requestPermission) n'est jamais bornée : elle attend sa réponse.
     let p = await _fsaWithin(h.queryPermission({ mode }), 2500);
-    if (p === _FSA_STALL) { toast('⚠️ Chrome ne répond plus sur le fichier mémorisé de cette feuille : choisissez-le de nouveau (📂 Choisir le fichier).', 'warn'); return false; }
+    if (p === _FSA_STALL) { _avisFichierMuet = true; toast('⚠️ Chrome ne répond plus sur le fichier mémorisé de cette feuille : choisissez-le de nouveau par « Autre fichier… ».', 'warn'); return false; }
     if (p !== 'granted' && demander) p = await h.requestPermission({ mode });
     return p === 'granted';
   } catch (_) { return false; }
@@ -23227,7 +23232,7 @@ async function avisPreparerUI(telecharger, creer) {
 // pas (onglets, lignes d'élèves) est recopié tel quel (`_avisFeuillesGardees`) et le toast le dit
 // — sauf pour une NOUVELLE feuille : ce qui n'est pas repris est effacé, et le toast le dit.
 async function _avisEcrireFeuille(cls, camp, h, { nouvelle } = {}) {
-  if (!await _avisPermission(h, 'readwrite', true)) { toast('⚠️ Écriture refusée par le navigateur.', 'warn'); return _avisRender(); }
+  if (!await _avisPermission(h, 'readwrite', true)) { if (!_avisFichierMuet) toast('⚠️ Écriture refusée par le navigateur.', 'warn'); return _avisRender(); }
   let existant = [];
   try { existant = await _avisLireOctets(new Uint8Array(await (await h.getFile()).arrayBuffer())); }
   catch (e) { existant = null; }
@@ -23303,7 +23308,7 @@ async function avisRelire(campId, { demander = true, silencieux = false } = {}) 
   if (!camp || camp.source === 'bulletin') return;   // une feuille venue du bulletin ne se relit pas dans le Nuage
   const h = await _avisHandle(campId);
   if (!h) { if (!silencieux) toast('📂 Choisissez d\'abord la feuille (sa copie dans votre dossier Nextcloud).', 'warn'); return; }
-  if (!await _avisPermission(h, 'read', demander)) { if (!silencieux) toast('⚠️ Lecture refusée par le navigateur.', 'warn'); return; }
+  if (!await _avisPermission(h, 'read', demander)) { if (!silencieux && !_avisFichierMuet) toast('⚠️ Lecture refusée par le navigateur.', 'warn'); return; }
   let sheets;
   try { sheets = await _avisLireOctets(new Uint8Array(await (await h.getFile()).arrayBuffer())); }
   catch (e) { if (!silencieux) toast('⚠️ Feuille illisible : ' + e.message, 'warn'); return; }
