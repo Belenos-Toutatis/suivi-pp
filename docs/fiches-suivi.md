@@ -236,3 +236,20 @@ Une **ligne automatique** (`ligneRetenue`) ouvre le cadre « Bilan du professeur
 - ⚠️ **Arbitré le 2026-11-22 : la réussite ARRONDIE fait foi** pour le critère de retenue. 35 cases sur 44 (79,5 %) s'affichent
   80 % et ne donnent PAS de retenue sous un seuil de 80 % (« moins de 8 cases sur 10 ») : ce que la fiche affiche est ce qui
   compte (`retenueFiche`, `pctArrondi`). Ne pas « corriger » vers le rapport exact.
+
+### Case « Bilan envoyé » : la fiche garde sa règle de retenue (arbitré le 2026-11-22)
+
+L'utilisateur : *« il ne faut pas modifier les fiches passées une fois que le bilan a été envoyé »* — changer la règle de retenue
+recalculait toutes les fiches, y compris celles dont la famille avait déjà reçu le bilan. L'envoi se fait hors de l'application (ENT,
+messagerie) : c'est donc une **case à cocher** (arbitré, plutôt qu'un gel automatique au jour de remise ou à l'impression du bilan),
+quatrième étape de « après la remise » sur la page du suivi (`envoiCaseHTML`).
+
+- `ind.envoyes = { [dernier jour de la fiche]: { le, regle } }` : la date de la coche et une COPIE de la règle en vigueur (celle du
+  suivi, sinon des réglages). Absent = aucune. `normalizeState` le garde, écarte une entrée illisible ; un suivi d'avant en a zéro.
+- `regleRetenueDe(ind, c)` : la règle figée de la fiche `c` d'abord, puis celle du suivi, puis celle des réglages. `retenueFiche`,
+  `regleRetenueEleve(ind, c)` (ligne « Attention : » de la fiche réimprimée) et tout ce qui en découle (page, carte, bilan pour la
+  famille, courriel) lisent la règle de la FICHE. Sans `c` : la règle actuelle (réglages, résumé).
+- Décochée : la fiche suit de nouveau la règle actuelle. La page dit « règle de retenue figée », et signale si la règle a changé depuis.
+- Ce qui n'est PAS figé : les codes saisis (une faute de frappe se corrige, la retenue se recalcule alors avec la règle figée), le
+  bilan, les codes des niveaux.
+- Démonstration : la première fiche de PODEANU est envoyée (celles de BRIDGE servent aux tests de la règle). Test : `fiches-suivi/e2e_envoye.js`.

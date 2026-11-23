@@ -349,14 +349,19 @@ const bilanCycle = (ind, c) => ind.bilans[c.fin] ?? c.jours.map(d => ind.bilans[
 /** Règle de retenue d'un suivi : la sienne, sinon celle des réglages. */
 /* « désactivé » à côté d’un critère de retenue réglé à 0 (v1.91.2) ; plafond à 0 : « sans plafond » */
 const retOff = (off, txt = "désactivé") => off ? ` <em class="ret-off">${txt}</em>` : "";
-const regleRetenueDe = ind => (ind && ind.retenue) || S.retenueIndiv || RETENUE_INDIV_DEFAUT;
+/** Fiche dont le bilan a été envoyé (case « Bilan envoyé » de la page du suivi) : { le, regle }, ou null. Rangée au dernier jour de la fiche ;
+    comme le bilan, une entrée posée sur un autre jour de la fiche est retrouvée (jour de remise changé depuis). */
+const envoiFiche = (ind, c) => (ind && ind.envoyes && c ? ind.envoyes[c.fin] ?? c.jours.map(d => ind.envoyes[d]).find(Boolean) : null) || null;
+/** Règle de retenue d'une FICHE (c) : celle figée à l'envoi de son bilan, sinon celle du suivi, sinon celle des réglages. Sans fiche : la règle actuelle. */
+const regleRetenueDe = (ind, c) => { const e = c ? envoiFiche(ind, c) : null; return (e && e.regle) || (ind && ind.retenue) || S.retenueIndiv || RETENUE_INDIV_DEFAUT; };
+const memeRegle = (a, b) => ["i", "heures", "nonRendue", "max", "reussite", "hReussite"].every(k => Number(a[k]) === Number(b[k]));
 const heuresTxt = h => `${h} heure${h > 1 ? "s" : ""}`;
 /** La règle en une phrase (« 3 « TI » sur la fiche = 1 heure de retenue · réussite de la fiche sous 75 % = 1 heure de retenue ·
     fiche perdue = 1 heure de retenue · 2 heures au plus par fiche ») ; "" sans règle.
     « Fiche perdue » (v1.88.0, avant « non rendue ») : perdue en route ou pas rendue le jour de remise — la règle garde son nom de champ, nonRendue ;
     depuis la v1.90.0, une retenue PAR PERTE, chaque perte datée (ind.pertes). */
-function regleRetenueIndiv(ind) {
-  const r = regleRetenueDe(ind), cI = (S.codage[3] || {}).code || "I", t = [];
+function regleRetenueIndiv(ind, c) {
+  const r = regleRetenueDe(ind, c), cI = (S.codage[3] || {}).code || "I", t = [];
   if (r.i) t.push(`${r.i} « ${cI} » sur la fiche = ${heuresTxt(r.heures)} de retenue`);
   if (r.hReussite) t.push(`réussite de la fiche sous ${r.reussite} % = ${heuresTxt(r.hReussite)} de retenue`);
   if (r.nonRendue) t.push(`fiche perdue = ${heuresTxt(r.nonRendue)} de retenue par perte`);
@@ -383,8 +388,8 @@ function resumeRetenueIndiv() {
   if (r.nonRendue) t.push(`perte = ${r.nonRendue} h`);
   return t.join(" · ");
 }
-function regleRetenueEleve(ind) {
-  const r = regleRetenueDe(ind), cI = (S.codage[3] || {}).code || "I", t = [];
+function regleRetenueEleve(ind, c) {
+  const r = regleRetenueDe(ind, c), cI = (S.codage[3] || {}).code || "I", t = [];
   if (r.i) t.push(`${r.i} ${cI} sur la fiche = ${heuresTxt(r.heures)} de retenue.`);
   if (r.hReussite) t.push(`${seuilCasesEleve(r.reussite, (S.codage[0] || {}).code || "TB", (S.codage[1] || {}).code || "B")} = ${heuresTxt(r.hReussite)} de retenue.`);
   if (r.nonRendue) t.push(`Fiche perdue = ${heuresTxt(r.nonRendue)} de retenue à chaque fois.`);
@@ -399,7 +404,7 @@ const joursPerte = l => { const j = d => `${[...JOURS_REMISE, "samedi", "dimanch
 /** Retenue prévue pour une fiche : { regle, nI, hI, pct, hR, pertes, hNR, brut, plafond, total } (heures ; total = brut ramené au plafond de la fiche).
     Les « I » et la réussite ne comptent que les cours qui ont eu lieu (statsIndiv) ; pct = réussite arrondie, comme affichée, null si rien n'est noté. */
 function retenueFiche(ind, c) {
-  const r = regleRetenueDe(ind), st = statsIndiv(ind, c), nI = st.reduce((a, x) => a + x[2], 0), pertes = pertesFiche(ind, c);
+  const r = regleRetenueDe(ind, c), st = statsIndiv(ind, c), nI = st.reduce((a, x) => a + x[2], 0), pertes = pertesFiche(ind, c);
   const okN = st.reduce((a, x) => a + x[0], 0), tot = st.reduce((a, x) => a + x[1], 0), pct = tot ? pctArrondi(okN / tot) : null;
   const hI = r.i ? Math.floor(nI / r.i) * r.heures : 0, hR = r.hReussite && pct !== null && pct < r.reussite ? r.hReussite : 0, hNR = pertes.length * r.nonRendue;
   const brut = hI + hR + hNR, total = r.max ? Math.min(brut, r.max) : brut;
@@ -494,13 +499,27 @@ function retenueIndivHTML(ind, c) {
       ${x.pertes.length ? x.pertes.map(d => `<span class="chip perte">le ${nomJ(d)} <button type="button" class="ghost s" data-perte-del="${ii}|${d}" title="Retirer cette perte\nLe ${nomJ(d)} : la fiche n’a finalement pas été perdue." aria-label="Retirer la perte du ${nomJ(d)}">✕</button></span>`).join("") : `<span class="muted small">aucune perte sur cette fiche</span>`}
       ${jours.length ? `<select id="perte-jour-${ii}" aria-label="Jour de la perte">${jours.map(d => `<option value="${d}" ${d === defaut ? "selected" : ""}>${nomJ(d)}</option>`).join("")}</select><button type="button" data-perte-add="${ii}" title="Fiche perdue ce jour-là\nPerdue en route ou pas rendue le jour de remise${x.r.nonRendue ? ` : ${heuresTxt(x.r.nonRendue)} de retenue par perte d’après la règle` : " (aucune retenue prévue par la règle)"}.\n• un nouvel exemplaire se réimprime : « Imprimer la fiche » ; les codes de l’exemplaire perdu ne se rattrapent pas">+ Perte ce jour-là</button>` : ""}</div>
     ${toutes.length ? `<p class="small" style="margin:6px 0 0">Depuis le début du suivi : ${nbMot(toutes.length, "perte")} — ${toutes.map(d => fmtDM(d)).join(", ")}.</p>` : ""}
-    <p class="hint" style="margin:4px 0 0">${x.regle ? `Règle${ind.retenue ? " propre à ce suivi" : ""} : ${esc(regleRetenueEleve(ind))}` : "Aucune règle de retenue : Réglages › Fiches individuelles, ou les réglages du suivi."} L’application ne fait que l’annoncer : la retenue se pose à la vie scolaire.</p></div>`;
+    <p class="hint" style="margin:4px 0 0">${x.regle ? `Règle${envoiFiche(ind, c) ? " figée à l’envoi du bilan" : ind.retenue ? " propre à ce suivi" : ""} : ${esc(regleRetenueEleve(ind, c))}` : "Aucune règle de retenue : Réglages › Fiches individuelles, ou les réglages du suivi."} L’application ne fait que l’annoncer : la retenue se pose à la vie scolaire.</p></div>`;
 }
 /* une perte de plus (jour choisi dans la liste des jours de la fiche), ou une de moins */
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-perte-add], [data-perte-del]"); if (!b || !S) return;
   if (b.dataset.perteAdd !== undefined) { const ind = S.individuels[Number(b.dataset.perteAdd)], sel = document.getElementById("perte-jour-" + b.dataset.perteAdd); if (!ind || !sel || !sel.value) return;
     ind.pertes = [...new Set([...(ind.pertes || []), sel.value])].sort(); commit(); toast(`Perte notée : le ${fmtLong(sel.value).replace(/ \d{4}$/, "")}. Ctrl+Z pour annuler.`); }
   else { const [k, d] = b.dataset.perteDel.split("|"), ind = S.individuels[Number(k)]; if (!ind) return; ind.pertes = (ind.pertes || []).filter(x => x !== d); commit(); } });
+/** Case « Bilan envoyé » (arbitré le 2026-11-22 : « il ne faut pas modifier les fiches passées une fois que le bilan a été envoyé ») : l'envoi se fait hors
+    de l'application (ENT, messagerie), c'est donc le professeur principal qui le dit. Cochée, la fiche garde la règle de retenue du moment (celle du
+    suivi, sinon des réglages) : changer la règle ensuite ne recalcule plus sa retenue, ni sur la page, ni dans le bilan pour la famille, ni sur la fiche
+    réimprimée. Décochée, elle suit de nouveau la règle actuelle. Les codes saisis restent corrigeables (une faute de frappe se rattrape). */
+function envoiCaseHTML(ind, c) {
+  const e = envoiFiche(ind, c), ii = S.individuels.indexOf(ind), change = e && !memeRegle(e.regle, regleRetenueDe(ind));
+  return `<label class="row envoye" style="gap:8px;display:inline-flex" title="Bilan envoyé à la famille\nÀ cocher une fois le bilan parti.\n• la fiche garde alors la règle de retenue du moment : changer la règle ensuite ne la recalcule plus\n• décochée, elle suit de nouveau la règle actuelle"><input type="checkbox" data-envoye="${ii}|${c.fin}" ${e ? "checked" : ""} aria-label="Bilan envoyé à la famille"><b>Bilan envoyé</b></label>
+    ${e ? `<span class="small muted">${e.le ? `le ${fmtDM(e.le)} · ` : ""}règle de retenue figée${change ? " — la règle a changé depuis : cette fiche garde celle de l’envoi" : ""}</span>` : `<span class="small muted">à cocher après l’envoi : la fiche ne change plus si la règle de retenue change ensuite</span>`}`;
+}
+document.addEventListener("change", ev => { const t = ev.target; if (!S || !t.dataset || t.dataset.envoye === undefined) return;
+  const [k, fin] = t.dataset.envoye.split("|"), ind = S.individuels[Number(k)], c = ind && cyclesIndiv(ind).find(x => x.fin === fin); if (!c) return;
+  if (!ind.envoyes) ind.envoyes = {};
+  if (t.checked) { ind.envoyes[c.fin] = { le: aujourdhui(), regle: { ...regleRetenueDe(ind) } }; commit(); toast("Bilan envoyé : la fiche garde la règle de retenue d’aujourd’hui. Ctrl+Z pour annuler."); }
+  else { for (const d of c.jours) delete ind.envoyes[d]; commit(); toast("La fiche suit de nouveau la règle de retenue actuelle. Ctrl+Z pour annuler."); } });
 /** Rappel pour le professeur principal : qui récupère la fiche, dans quel casier déposer la nouvelle. court : une ligne pour la carte du suivi. */
 function relaisIndivHTML(ind, c, court = false) {
   const r = relaisIndiv(ind, c), pp = String(S.referent || "").trim(), moi = x => !!(x && pp && x.prof.trim() === pp);
@@ -525,7 +544,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
   const objs = ind.objectifs.map((o, k) => `<b>${NUM_OBJ[k]}</b> ${esc(o) || "<i>objectif à écrire</i>"}`).join(" &nbsp; ");
   const head = `<div class="f-head">${enteteEtab(true)}<div class="f-title" role="heading" aria-level="2" data-titre>Fiche de suivi individuelle – ${periodeCycle(c)}</div><div>Semaine${types.length > 1 ? "s" : ""} ${types.join(" et ")}</div></div>
     <div class="f-line"><span><b>Élève :</b> ${esc(ind.nom)}${S.classe ? " – " + esc(S.classe) : ""}</span><span><b>Professeur principal :</b> ${esc(S.referent)}</span></div>
-    <div class="f-consigne">${esc(consigneIndiv(ind, c))}${regleRetenueEleve(ind) ? `<br><b>Attention :</b> ${esc(regleRetenueEleve(ind))}` : ""}</div>
+    <div class="f-consigne">${esc(consigneIndiv(ind, c))}${regleRetenueEleve(ind, c) ? `<br><b>Attention :</b> ${esc(regleRetenueEleve(ind, c))}` : ""}</div>
     <div class="cadre-obj"><b>Mes objectifs :</b> ${objs}<span class="petit"> &nbsp; L’enseignant écrit le code : ${S.codage.map(x => `<b>${esc(x.code)}</b> ${esc(x.sens.toLowerCase())}`).join(" · ")}. <span class="leg-reussite">Réussite = cases <b>${esc(S.codage[0].code)}</b> ou <b>${esc(S.codage[1].code)}</b>.</span></span></div>`;
   const jt = c.jours.map(d => `<th colspan="${no + 2}" class="g${sansCours(S, d) ? " ferme" : ""}">${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}${!sansCours(S, d) && jourParticulier(jourIdx(d)) ? ` <small class="j-part">⏱ ${jourParticulier(jourIdx(d))}</small>` : ""}</th>`).join("");   /* les heures de la 1re colonne sont celles des jours habituels */
   const sous = c.jours.map(() => `<th class="g mat">${!edit && c.jours.length * (no + 2) > 30 ? "Mat." : "Matière"}</th>${ind.objectifs.map((_, k) => `<th class="cd" title="Objectif ${k + 1}\n${esc(ind.objectifs[k])}">${NUM_OBJ[k]}</th>`).join("")}${edit ? `<th class="rq" title="Remarque de l’enseignant\nClic dans la case : elle s’élargit pour écrire.">Rem.</th>` : `<th class="rq">${c.jours.length * (no + 2) > 30 ? "Rem. · visa" : "Remarque · visa"}</th>`}`).join("");
@@ -1094,7 +1113,8 @@ function viewIndiv(arg) {
           <div class="row envoi"><button data-act="copier-objet" data-ind="${esc(ind.id)}" data-w="${c.fin}" title="Copier l’objet\nÀ coller dans l’objet du message (Ctrl+V).">Copier l’objet</button>
           <button data-act="copier-message" data-ind="${esc(ind.id)}" data-w="${c.fin}" title="Copier le message\nTexte mis en forme : objectifs et réussite, remarques des enseignants, bilan.\n• à coller dans le message de l’ENT ou de la messagerie (Ctrl+V)\n• modèle dans Réglages › Fiches individuelles">Copier le message</button>${mail}</div>
           <details class="apercu-courriel"><summary>Voir le message</summary><p><b>Objet :</b> ${esc(texteCourriel((S.courrielIndiv || COURRIEL_INDIV_DEFAUT).objet, ind, c))}</p><div class="msg">${texteCourriel((S.courrielIndiv || COURRIEL_INDIV_DEFAUT).texte, ind, c, true)}</div></details>
-          <span class="small muted">Le PDF du bilan peut être joint en plus.</span></li></ol></div></div>
+          <span class="small muted">Le PDF du bilan peut être joint en plus.</span></li>
+        <li>${envoiCaseHTML(ind, c)}</li></ol></div></div>
   ${edtVide() ? `<div class="banner-info no-print">L’emploi du temps est vide : toutes les cases sont hachurées. Remplissez d’abord l’<a href="#edt">Emploi du temps</a>.</div>` : ""}
   ${paletteIndiv()}
   <div class="sheet papier indiv-feuille" id="grille-indiv">${indivHTML(ind, c, true)}</div>
@@ -1215,7 +1235,7 @@ document.addEventListener("click", async e => {
     if (nom === null) return;
     if (nom !== "__autre__" && nom.trim() && dejaSuivi(nom)) { informer("Déjà suivi", `${nom.trim()} a déjà un suivi individuel : ouvrez-le plutôt (un seul suivi par élève).`); return; }
     if (nom === "__autre__") nom = "";
-    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [] };
+    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {} };
     S.individuels.push(ind); commit(false); location.hash = "#indiv/" + ind.id;
     setTimeout(() => { const c = document.querySelector(`input[data-path="individuels.${S.individuels.length - 1}.${nom ? "objectifs.0" : "nom"}"]`); if (c) c.focus(); }, 100);
     return;

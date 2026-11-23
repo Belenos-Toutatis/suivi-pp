@@ -375,7 +375,10 @@ function normalizeState(st) {
        (nonRendues, v1.85.0-v1.89.0 : { fin de la fiche: true }) devient une perte datée du dernier jour de cette fiche */
     const pertes = [...new Set([...arr(i.pertes).map(date), ...Object.entries(obj(i.nonRendues)).filter(([, v]) => v === true).map(([l]) => date(l))].filter(Boolean))].sort();
     const retenue = i.retenue && typeof i.retenue === "object" && !Array.isArray(i.retenue) ? retenueNormale(i.retenue) : null;     /* règle propre au suivi ; null = celle des réglages */
-    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, pertes }; });
+    /* fiches dont le bilan a été ENVOYÉ à la famille (case de la page du suivi, arbitré le 2026-11-22) : { dernier jour de la fiche: { le, regle } } —
+       la date de la coche et la règle de retenue en vigueur ce jour-là, figée : changer la règle ensuite ne recalcule plus cette fiche */
+    const envoyes = {}; for (const [l, v] of Object.entries(obj(i.envoyes))) if (date(l) && v && typeof v === "object" && !Array.isArray(v)) envoyes[l] = { le: date(v.le), regle: retenueNormale(v.regle) };
+    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, pertes, envoyes }; });
   out.consignesIndiv = (Array.isArray(st.consignesIndiv) && st.consignesIndiv.length ? st.consignesIndiv : CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })))
     .slice(0, 20).map(c => ({ label: str(obj(c).label), texte: str(obj(c).texte) }));
   /* modèles ajoutés après coup (CONSIGNES_INDIV_V2) : proposés UNE fois aux suivis plus anciens, à la suite des leurs ; supprimés ensuite, ils ne reviennent pas */

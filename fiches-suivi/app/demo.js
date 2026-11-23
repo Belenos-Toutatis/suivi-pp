@@ -86,7 +86,7 @@ function demoState() {
   jour(st, "2026-11-30", true).clr[rang("KÖPRÜLÜ Mikail")] = "Oublis de matériel répétés : mot dans le carnet.";
   // ----- suivis individuels hebdomadaires : objectifs propres, résultats qui progressent -----
   const indiv = (nom, objectifs, debut, prof) => {
-    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [] };
+    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {} };
     sems.forEach((w, wi) => { if (w.jours[4] < debut) return;
       w.jours.forEach(date => { if (sansCours(st, date)) return;
         for (let p = 0; p < 7; p++) { const cr = creneau(st, sems, date, p); if (!cr.mat || cr.absent || r2() < 0.08) continue;
@@ -116,6 +116,8 @@ function demoState() {
   pd.bilans = { "2026-11-13": "Plutôt bien partie.", "2026-11-27": "Décroche depuis deux semaines : à revoir avec la famille." };
   // règle de retenue des fiches individuelles, et une fiche perdue (sans codes, donc) pour PODEANU
   st.retenueIndiv = { i: 3, heures: 1, nonRendue: 1, max: 2, reussite: 75, hReussite: 1 };
+  /* la première fiche de PODEANU : bilan envoyé, sa règle de retenue est figée (case « Bilan envoyé » de la page du suivi) */
+  pd.envoyes = { "2026-11-13": { le: "2026-11-16", regle: { ...st.retenueIndiv } } };
   st.individuels = [b, m, pd];
   // ----- groupes et options : demi-groupes en sciences le lundi (semaine A), option latin le mercredi en M4 -----
   st.groupes = [{ nom: "Groupe 1" }, { nom: "Groupe 2" }, { nom: "Latin" }];
