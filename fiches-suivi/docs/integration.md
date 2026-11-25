@@ -14,6 +14,9 @@ est propre passe par `HOTE` (ui.js, bloc « hôte »). Le côté Suivi PP est d�
   `charger` (`cle` = la classe, `etat`, `classe` = la liste, `demo`, `famille`, `theme`, `polices`, `pile`, `raison` : `annuler` / `retablir`),
   `apparence`, `pile`, `imprimer` (Ctrl+P), `commun`, `aller` (`#eleve/…`). La fiche envoie `pret`, `etat` (`cle`, l'enveloppe,
   `etape`, `retirer`, `version`), `annuler` (`sens`), `autonome`, `famille` (`cle`, `famille`) et `titre` (`nom`, vide après).
+  - **Bilan avec une IA** (v1.95.0) : la fiche envoie `bilanIa` (`cle`, `ind`, `fin`, `donnees`), Suivi PP fait relire, puis envoie
+    `bilan` (`cle`, `ind`, `fin`, `avant`, `texte`) ; la fiche le pose si son bilan est encore `avant` et répond `bilanPose` (`ok`,
+    `raison`). `charger` et `apparence` portent `ia` (bouton caché si faux). Détail : `docs/ia.md` de Suivi PP.
   - **Nom du PDF** (v1.92.0) : Chrome nomme le PDF d'après le titre de la page PRINCIPALE. Avant d'imprimer, la fiche envoie
     `titre` (son nom de PDF) ; Suivi PP le pose (`_suivisTitrePdf`, caractères interdits remplacés, 180 caractères au plus) et
     répond `titrePose` ; la fiche lance alors `window.print` (qui bloque la page : il faut la réponse avant ; sans réponse en

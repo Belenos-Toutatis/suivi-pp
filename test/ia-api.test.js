@@ -232,8 +232,8 @@ test('plein écran : un choix retenu sur le poste, le bouton le dit', () => {
   assert.strictEqual(ev(`_iaPlein()`), false);
   ev(`iaPleinUI()`); assert.strictEqual(ev(`_iaPlein()`), true);
   ev(`iaPleinUI()`); assert.strictEqual(ev(`_iaPlein()`), false);
-  assert.strictEqual((html.match(/class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI\(this\)"/g) || []).length, 5, 'les quatre relectures (dont le bilan retravaillé, v1.80.0) et la dernière vérification');
-  assert.strictEqual((html.match(/<textarea id="(mia|miac|mias|mir|miaenv)-txt" class="ia-lit"/g) || []).length, 5);
+  assert.strictEqual((html.match(/class="ia-b ia-lien ia-plein-b" onclick="iaPleinUI\(this\)"/g) || []).length, 6, 'les cinq relectures (dont le bilan retravaillé, v1.80.0, et celui d’une fiche de suivi, v1.95.0) et la dernière vérification');
+  assert.strictEqual((html.match(/<textarea id="(mia|miac|mias|mir|mif|miaenv)-txt" class="ia-lit"/g) || []).length, 6);
 });
 
 // Fonctions d'IA désactivées (v1.79.0) : plus rien ne s'affiche, rien n'est effacé, tout revient.

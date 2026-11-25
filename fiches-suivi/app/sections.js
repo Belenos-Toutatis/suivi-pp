@@ -578,7 +578,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
   /* Fiche imprimée sans le bilan (case décochée ; d'office avant le jour de remise) : cadre du bilan vide, ni ligne de retenue
      ni bilan (v1.91.3). L'écran garde tout. */
   const avecBilan = edit || famille || (avecBilanImpose ?? bilanImprime(ind, c)), bilan = avecBilan ? bilanCycle(ind, c) : "", ret = avecBilan ? ligneRetenue(ind, c) : "";
-  const pied = `<table class="indiv-pied${!edit && bilan.length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${ret ? `<div class="bil-ret" title="Ligne automatique\nLa retenue de la fiche, recalculée à chaque code ; elle ne fait pas partie de votre bilan.">${esc(ret)}</div>` : ""}${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
+  const pied = `<table class="indiv-pied${!edit && bilan.length > 180 ? " long" : ""}"><tr><th>Bilan du professeur principal</th><td>${ret ? `<div class="bil-ret" title="Ligne automatique\nLa retenue de la fiche, recalculée à chaque code ; elle ne fait pas partie de votre bilan.">${esc(ret)}</div>` : ""}${edit ? `<textarea data-ib="${ii}.${c.fin}" rows="2" aria-label="Bilan de la fiche" title="Bilan du professeur principal\nImprimé sur la fiche et dans le bilan envoyé à la famille.">${esc(bilan)}</textarea>${HOTE ? `<button type="button" class="b-ia no-print" data-bia="${ii}.${c.fin}" title="Bilan avec une IA\n• le rédiger à partir de la fiche\n• réécrire ce que vous avez écrit à la hâte\n• le reformuler selon votre consigne\nRien ne part sans votre relecture, et sans les noms.">🤖 ${bilan.trim() ? "Retravailler" : "Rédiger"} avec une IA…</button>` : ""}` : esc(bilan)}</td><th>Visa du professeur principal</th><td class="sig"></td></tr></table>`;
   return `${head}<table class="indiv${c.jours.length * (no + 2) > 30 ? " dense" : ""}${creneauxActifs(S).length >= 9 ? " serre" : ""}" style="--no:${no};--rhi:${Math.min(16, 112 / creneauxActifs(S).length).toFixed(1)}mm"><colgroup><col class="c-cr">${c.jours.map(() => `<col class="c-mat">${'<col class="c-cd">'.repeat(no)}<col class="c-rq">`).join("")}</colgroup>
     <thead><tr><th rowspan="2" class="cr" title="Créneau">Cr.</th>${jt}</tr><tr>${sous}</tr></thead><tbody>${lignes}</tbody></table>${famille ? "" : pied}`;
 }
@@ -601,6 +601,43 @@ function bilanFamilleHTML(ind, c) {
     ${absT ? `<h3>Absences</h3><p>${esc(absT)}</p>` : ""}<h3>Remarques des enseignants</h3>${rem.length ? `<ul class="bf-rem">${rem.join("")}</ul>` : "<p>Aucune remarque sur cette période.</p>"}
     <h3>Bilan du professeur principal</h3><div class="bf-bilan">${ligneRetenue(ind, c) ? `<p class="bil-ret">${esc(ligneRetenue(ind, c))}</p>` : ""}${esc(bilanCycle(ind, c)) || (ligneRetenue(ind, c) ? "" : "&nbsp;")}</div>
     <p class="petit bf-pied">La fiche remplie par les enseignants figure en page suivante.</p></div>`;
+}
+/* ---------- bilan avec une IA (v1.95.0, version intégrée) : la fiche DONNE ses données à Suivi PP, qui les anonymise, les fait relire,
+   les envoie ou les fait copier, puis rend le texte accepté (message « bilan »). Aucun appel à une IA d'ici. ---------- */
+/** Données d'une fiche pour son bilan, en lignes de texte : { nom, periode, enCours, bilan, blocs: { objectifs, remarques, precedent, vie }, mots, personnes }. */
+function donneesBilanIa(ind, c) {
+  const cy = cyclesIndiv(ind), k = cy.findIndex(x => x.fin === c.fin), prec = k > 0 ? cy[k - 1] : null, sems = semaines(S), grs = groupesDe(S, ind.nom);
+  const st = statsIndiv(ind, c), sp = prec ? statsIndiv(ind, prec) : null, mats = new Map(), rem = [], mots = [...S.codage.flatMap(x => [x.code, x.sens]), ...DAYS];
+  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || sansCours(S, d)) continue;
+    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent) continue; mots.push(cr.mat);
+    if (s.r.trim()) rem.push(`- ${cr.mat}, ${DAYS[jourSemaine(d) - 1].toLowerCase()} : ${s.r.trim()}`);
+    if (absIndiv(S, ind, d, p)) continue;
+    const m = mats.get(cr.mat) || [0, 0, 0]; s.c.forEach(x => { if (x === null || x === undefined) return; m[1]++; if (x < 2) m[0]++; if (x === 3) m[2]++; }); if (m[1]) mats.set(cr.mat, m); }
+  const bas = (S.codage[3] || {}).code || "", det = x => x[3].map((nb, l) => nb ? `${nb} ${S.codage[l].code}` : "").filter(Boolean).join(", ");
+  const objectifs = !st.some(x => x[1]) ? [] : [`Codes : ${S.codage.map(x => `${x.code} = ${x.sens.toLowerCase()}`).join(", ")}. Réussite = part des cours notés ${S.codage[0].code} ou ${S.codage[1].code}.`,
+    ...ind.objectifs.map((o, n) => { const x = st[n], v = x[1] ? x[0] / x[1] : null, vp = sp && sp[n][1] ? sp[n][0] / sp[n][1] : null;
+      return `- Objectif ${n + 1} (${o.trim() || "sans texte"}) : ${v === null ? "rien de noté" : `${pctTxt(v)} de réussite (${det(x)})${vp === null ? "" : `, ${pctTxt(vp)} sur la fiche précédente`}`}`; }),
+    ...(mats.size > 1 ? [`Réussite par matière : ${[...mats].map(([m, x]) => `${m} ${pctTxt(x[0] / x[1])}${x[2] ? ` (${x[2]} ${bas})` : ""}`).join(", ")}.`] : [])];
+  const bp = prec ? bilanCycle(ind, prec).trim() : "", abs = absencesTxt(ind, c), pertes = pertesFiche(ind, c), ret = ligneRetenue(ind, c);
+  const vie = [abs && `Absences : ${abs}.`, pertes.length && `Fiche perdue : ${joursPerte(pertes)}.`, ret && `Ligne déjà écrite au-dessus du bilan : ${ret}`].filter(Boolean);
+  const profs = new Map(); for (const m of S.matieres) if ((m.prof || "").trim()) profs.set(m.prof.trim(), m.nom); for (const j of Object.values(S.jours)) for (const x of Object.values(j.prof || {})) if ((x || "").trim() && !profs.has(x.trim())) profs.set(x.trim(), "");
+  for (const a of S.absencesProf || []) if ((a.remplacant || "").trim() && !profs.has(a.remplacant.trim())) profs.set(a.remplacant.trim(), "");
+  for (const a of S.changementsProf || []) if ((a.prof || "").trim() && !profs.has(a.prof.trim())) profs.set(a.prof.trim(), a.mat || "");
+  return { nom: ind.nom, periode: periodeCycle(c), enCours: aujourdhui() < remiseCycle(c), bilan: bilanCycle(ind, c), mots: [...new Set(mots)],
+    blocs: { objectifs, remarques: rem, precedent: bp ? [bp] : [], vie },
+    personnes: { profs: [...profs], referent: S.referent || "", etablissement: (S.etablissement || {}).nom || "", eleves: [...new Set([...S.classeEleves, ...S.eleves, ...S.individuels].map(e => (e.nom || "").trim()).filter(Boolean))] } };
+}
+document.addEventListener("click", e => { const t = e.target.closest && e.target.closest("[data-bia]"); if (!t || !S || !HOTE) return; const [ii, fin] = t.dataset.bia.split("."), ind = S.individuels[ii], c = ind && cyclesIndiv(ind).find(x => x.fin === fin); if (!c) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  persistMaintenant(); hoteEnvoyer({ type: "bilanIa", cle: hoteCle, ind: ind.id, fin, donnees: donneesBilanIa(ind, c) }); });
+/** Bilan accepté dans Suivi PP : posé si la fiche existe encore et si son bilan n'a pas changé entre-temps (réponse « bilanPose »). */
+function hoteBilan(m) {
+  const rep = (ok, raison = "") => hoteEnvoyer({ type: "bilanPose", cle: hoteCle, ind: m.ind, fin: m.fin, ok, raison });
+  const ind = S && m.cle === hoteCle && S.individuels.find(i => i.id === m.ind), c = ind && cyclesIndiv(ind).find(x => x.fin === m.fin);
+  if (!c || typeof m.texte !== "string" || !m.texte.trim()) return rep(false, "cette fiche n’existe plus");
+  if (bilanCycle(ind, c) !== m.avant) return rep(false, "le bilan a changé entre-temps");
+  if (m.texte !== m.avant) { persistMaintenant(); ind.bilans[c.fin] = m.texte.trim().slice(0, 4000); commit(); }
+  rep(true); toast("Bilan mis dans la fiche. Ctrl+Z rend l’ancien.", 5000);
 }
 const nomPdfIndiv = (ind, cs, type = cs.length > 1 ? "Fiches individuelles" : "Fiche individuelle") => nomPdf(cs.length === 1 ? cs[0].debut : plagePdf(cs[0].debut, cs[cs.length - 1].fin), type, elevesPdf([ind.nom]));
 /** Texte du courriel à la famille (modèle des réglages) : [élève] (Prénom NOM), [période], [référent], [classe], [bilan] (résumé de la fiche).

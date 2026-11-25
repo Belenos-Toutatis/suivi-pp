@@ -128,6 +128,7 @@
     ['fenêtre · IA toute la classe', () => { onglet('eleves'); openSynthIAClasse(); }],
     ['fenêtre · IA synthèse de la classe', () => { onglet('eleves'); openSynthClasse(); }],
     ['fenêtre · IA bilan reformulé', () => { onglet('eleves'); openFiche(sidBilan()); ficheVueSet('faits'); openRedacIA(); }],
+    ['fenêtre · IA bilan de fiche de suivi', () => { onglet('eleves'); const c = getCls(), e = S.eleves[c.eleves[0]]; openFicheIA({ cle: c.id, ind: 'audit', fin: '2026-11-20', donnees: { nom: _suivisNom(e), periode: 'du lundi 16 novembre au vendredi 20 novembre', bilan: e.prenom + ' oublie son matériel.', blocs: { objectifs: ['- Objectif 1 : 75 % de réussite'], remarques: ['- Maths, lundi : vu avec Zébulon.'], precedent: ['Bon départ.'], vie: [] } } }); _iaReponseVers('mif', '[Élève] doit penser à son matériel.'); }],
     ['fenêtre · vers MBN (conseil)', () => { onglet('eleves'); openMbnConseil(); }],
   ];
 

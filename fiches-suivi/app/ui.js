@@ -3088,6 +3088,7 @@ function hoteEnvoyerEtat() { const m = hoteMessageEtat(); if (m) hoteEnvoyer(m);
 if (HOTE) window.__ficheEnAttente = () => { if (!persistMinuterie) return null; clearTimeout(persistMinuterie); persistMinuterie = null; return hoteMessageEtat(); };
 function hoteApparence(m) {
   if (m.theme === "clair" || m.theme === "sombre") appliquerTheme(m.theme);
+  if (m.ia !== undefined) document.documentElement.classList.toggle("hote-ia", m.ia === true);   /* fonctions d'IA activées dans Suivi PP */
   if (m.polices) { hotePolices = { ecran: m.polices.ecran === "lm" ? "lm" : "andika", papier: m.polices.papier === "andika" ? "andika" : "lm" }; appliquerPolices(); }
 }
 function hoteCharger(m) {
@@ -3128,6 +3129,7 @@ window.addEventListener("message", e => {
   else if (m.type === "commun") { hoteCommun = m.commun || null; if (S && appliquerCommunHote(S, hoteCommun)) { reinitHistorique(); updateStatus(); render(); hoteEnvoyerEtat(); } else if (S) render(); }
   else if (m.type === "imprimer" && S) imprimerVue();
   else if (m.type === "titrePose" && hoteTitreAttente) { const f = hoteTitreAttente; hoteTitreAttente = null; f(); }
+  else if (m.type === "bilan" && S) hoteBilan(m);   // bilan rédigé avec une IA dans Suivi PP, relu et accepté
   else if (m.type === "aller" && S && /^#[a-z]+(\/[^\s<>"]*)?$/.test(String(m.hash || ""))) location.hash = m.hash;   // « ↗ Ouvrir » depuis la fiche élève de Suivi PP
 });
 /* ⚠️ Chargée par srcdoc, la page a pour adresse de base celle de Suivi PP : un lien « #reglages » s'y résoudrait, et le cadre

@@ -988,6 +988,8 @@ table.indiv.dense col.c-cd { width: 17px; } table.indiv.dense col.c-mat { width:
 /* colonne étroite : le champ s'élargit pendant la saisie, le texte complet est dans l'infobulle */
 table.indiv td.rq input:focus { background: #fff; outline: 2px solid var(--accent); width: max(240px, 100%); z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.18); color: #111; }
 table.indiv td.rq input.vers-g:focus { left: auto; right: 0; }   /* près du bord droit de la feuille : s'élargit vers la gauche */
+/* bilan avec une IA (v1.95.0) : le bouton n'existe que dans Suivi PP, IA activée */
+.b-ia { display: none; font-size: 12px; padding: 2px 8px; margin-top: 3px; background: #fff; color: #1c2b3a; border: 1px solid #7b8794; border-radius: 7px; } html.hote-ia .b-ia { display: inline-block; } .b-ia:hover { background: #eef2f6; }
 /* élève absent à ce cours (v1.94.0) ; l'aide est hors de la palette, qui reste collée en haut : une ligne de plus y recouvrait « Imprimer l'évolution » à 1024 px */
 .aide-abs { margin: 0 0 8px; }
 table.indiv td.abs-el { background: repeating-linear-gradient(45deg, #e3e6ea 0 3px, #f4f5f7 3px 6px); color: #333; font-weight: 600; font-style: italic; font-size: 10px; } table.indiv td.abs-el.court { font-size: 9px; } table.indiv td.abs-el[data-iabs] { cursor: pointer; }

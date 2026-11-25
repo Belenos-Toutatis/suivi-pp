@@ -73,6 +73,36 @@ une IA…* sous le champ du bilan (`_ficheRedacHTML`, donc dans les trois vues ;
   repères remis, Ctrl+Z —, refus sans bilan, bouton absent IA désactivée, requête).
 - ⚠️ Non vérifié : une vraie réponse d'assistant (respect des repères et du « seul texte »).
 
+#### 🤖 Le bilan d'une fiche de suivi individuelle (v1.95.0)
+
+Demandé le 2026-11-25 : *« utiliser l'IA de manière anonyme afin de construire la remarque du professeur principal ; la réécrire
+si l'enseignant l'a écrite à la va-vite ; ou, s'il a une remarque déjà fournie par une IA, lui donner une consigne pour que l'IA la
+reformule »*. Arbitré : **toujours à la 3e personne**, **deux ou trois phrases** d'office (modifiable), les **quatre blocs** de données
+cochés, **Suivi PP seulement** (la fiche autonome n'a pas le bouton).
+
+- **Circuit** : bouton *🤖 Rédiger / Retravailler avec une IA…* sous le bilan de la fiche (cadre 📋 Suivis, `data-bia`, caché par
+  `html.hote-ia` si l'IA est désactivée : `_suivisApparence().ia`) → message `bilanIa` (les données, en lignes de texte :
+  `donneesBilanIa`, fiche) → fenêtre `mif` (`openFicheIA`) → message `bilan` → la fiche pose le texte (`hoteBilan`, un cran
+  d'annulation) et répond `bilanPose`. ⚠️ Le bilan a changé entre-temps, ou la fiche n'existe plus : refusé, la fenêtre reste
+  ouverte, la proposition n'est pas perdue. Aucun appel à une IA depuis la fiche.
+- **Trois demandes** (`IA_FICHE_CONSIGNES`) : *Rédiger à partir de la fiche* (seule possible si le bilan est vide), *Réécrire mon
+  texte, écrit à la hâte* (d'office s'il y en a un : le SEUL texte part), *Reformuler selon ma consigne* (consigne obligatoire).
+  *↻ Retravailler cette proposition* fait de la proposition le texte de départ (`st.base`) et attend une consigne ; le bilan de la
+  fiche, lui, n'a pas bougé, et c'est à lui que la proposition reste comparée.
+- **La consigne personnelle est DANS le texte relu** (ligne « Consigne du professeur principal : … », `_iaFichePersoMaj`) :
+  anonymisée et vérifiée comme le reste ; si le texte a été corrigé à la main, seule sa ligne change. Idées d'un clic
+  (`IA_FICHE_IDEES`) et cinq dernières consignes, sur ce poste (`suiviPP_iaFicheConsignes`) — jamais une consigne où un nom est
+  reconnu ou soupçonné. Longueur retenue par demande (`suiviPP_iaFicheForme`).
+- **Données** (cases, de séance) : objectifs et réussite (codes, évolution, réussite par matière), remarques des enseignants (matière
+  et jour, jamais le nom), bilan de la fiche précédente, absences · pertes · retenue, et *Mon texte actuel* s'il existe. La consigne
+  interdit pourcentages, codes, noms d'enseignants, et de redire la retenue (ligne automatique au-dessus du bilan).
+- **Anonymat** : `_iaFichePersonnes` = `_iaPersonnes` plus ce que la fiche est seule à connaître (enseignants de ses matières,
+  remplaçants, changements, élèves hors de Suivi PP) ; élève absent de la classe : reconnu par son nom (`_iaFicheEleve`). Le message
+  est vérifié et borné (`_iaFicheLire`). Mêmes relecture, copie, envoi direct (sorte `fiche`), dernière vérification et journal.
+- Rien dans `S`. État de séance par fiche (`_iaFicheEtats`), refait si ses données ont changé, oublié une fois le bilan mis.
+- Tests : `test/bilan-fiche-ia.test.js` ; `fiches-suivi/e2e_bilan_ia.js` (vrai Suivi PP, sans réseau). ⚠️ Non vérifié : une vraie
+  réponse d'assistant.
+
 #### Toute la classe d'un coup (v1.70.0)
 
 Demandé : « une solution pour faire toute la classe en une seule fois — avec un JSON anonymisé ». Bouton *🤖 Synthèses par une IA…* de la barre de 👥 Élèves (`openSynthIAClasse`), et *Toute la classe d'un coup…* dans la fenêtre d'un élève (`iaVersClasseUI`). Fenêtre `miac`, mêmes trois étapes ; **la relecture est COMMUNE** aux deux fenêtres : `_iaActif` = l'état de la fenêtre ouverte (`_ia` ou `_iaLot`), qui porte `ids` (son texte, sa vérification), `personnes()` et `apres()` — `iaTexteSaisi`, `_iaVerifRender`, `iaFuitesUI`, `iaMasquerUI`, `iaIgnorerUI` servent aux deux.
