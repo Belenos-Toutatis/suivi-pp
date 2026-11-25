@@ -988,6 +988,9 @@ table.indiv.dense col.c-cd { width: 17px; } table.indiv.dense col.c-mat { width:
 /* colonne étroite : le champ s'élargit pendant la saisie, le texte complet est dans l'infobulle */
 table.indiv td.rq input:focus { background: #fff; outline: 2px solid var(--accent); width: max(240px, 100%); z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.18); color: #111; }
 table.indiv td.rq input.vers-g:focus { left: auto; right: 0; }   /* près du bord droit de la feuille : s'élargit vers la gauche */
+/* élève absent à ce cours (v1.94.0) ; l'aide est hors de la palette, qui reste collée en haut : une ligne de plus y recouvrait « Imprimer l'évolution » à 1024 px */
+.aide-abs { margin: 0 0 8px; }
+table.indiv td.abs-el { background: repeating-linear-gradient(45deg, #e3e6ea 0 3px, #f4f5f7 3px 6px); color: #333; font-weight: 600; font-style: italic; font-size: 10px; } table.indiv td.abs-el.court { font-size: 9px; } table.indiv td.abs-el[data-iabs] { cursor: pointer; }
 table.indiv .ferme { background: repeating-linear-gradient(45deg, #eee 0 4px, #fff 4px 8px); } table.indiv td.jour-off { font-size: 12px; }
 table.indiv-pied { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
 table.indiv-pied th, table.indiv-pied td { border: 1px solid #444; font-size: 11px; padding: 3px; height: 13mm; }
@@ -1298,6 +1301,7 @@ table.evol.bmi td.sep, table.evol.bmi th.sep { border-left: 2px solid var(--ink)
 html[data-theme="sombre"] table.evol.bmi tr.faible { background: rgba(255,120,120,.08); }
 /* cours d'un créneau : absent, remplacé */
 .crn-b { cursor: pointer; } .crn-b:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+#boite .abs-q { gap: 6px; flex-wrap: wrap; margin: 8px 0; } #boite .abs-c { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; }
 #boite .crn { display: grid; gap: 6px; margin: 8px 0; } #boite .crn-o { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; cursor: pointer; }
 #boite .crn-o:has(input:checked) { border-color: var(--accent); background: var(--accent-weak); } #boite .crn-o input { width: 18px; height: 18px; flex: none; margin: 2px 0 0; } #boite .crn-o small { display: block; color: var(--muted); }
 #boite .crn-r { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 0 0 28px; } #boite .crn-r small { grid-column: 1 / -1; } #boite .crn-r.off { opacity: .45; }
@@ -1962,7 +1966,9 @@ function normalizeState(st) {
     /* fiches dont le bilan a été ENVOYÉ à la famille (case de la page du suivi, arbitré le 2026-11-22) : { dernier jour de la fiche: { le, regle } } —
        la date de la coche et la règle de retenue en vigueur ce jour-là, figée : changer la règle ensuite ne recalcule plus cette fiche */
     const envoyes = {}; for (const [l, v] of Object.entries(obj(i.envoyes))) if (date(l) && v && typeof v === "object" && !Array.isArray(v)) envoyes[l] = { le: date(v.le), regle: retenueNormale(v.regle) };
-    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, pertes, envoyes }; });
+    /* absences de l'élève (v1.94.0) : { date: [créneaux] } ; un suivi d'avant n'en a pas */
+    const abs = {}; for (const [d, l] of Object.entries(obj(i.abs))) { const ps = [...new Set(arr(l).filter(p => Number.isInteger(p) && p >= 0 && p < NB_P))].sort((a, b) => a - b); if (date(d) && ps.length) abs[d] = ps; }
+    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, pertes, envoyes, abs }; });
   out.consignesIndiv = (Array.isArray(st.consignesIndiv) && st.consignesIndiv.length ? st.consignesIndiv : CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })))
     .slice(0, 20).map(c => ({ label: str(obj(c).label), texte: str(obj(c).texte) }));
   /* modèles ajoutés après coup (CONSIGNES_INDIV_V2) : proposés UNE fois aux suivis plus anciens, à la suite des leurs ; supprimés ensuite, ils ne reviennent pas */
@@ -2146,6 +2152,17 @@ function absTexte(list, court) {
   return court ? (list.length > 1 ? "créneaux " : "créneau ") + per : "absent(e) en " + per;
 }
 function eleveAbsent(st, date, s, p) { return absCreneaux(st, date, s).includes(p); }
+/* Absence d'un élève sur sa fiche individuelle (v1.94.0) : notée dans le suivi (ind.abs[date] = créneaux) ; à défaut, celle de la fiche
+   collective ou de la fiche de classe (code A), seulement si aucun code n'est saisi pour ce cours — une absence notée ailleurs avant la
+   v1.94.0 ne change donc aucun résultat. Les absences se notent sur les trois familles à la fois (poserAbsences, ui.js). */
+const rangNom = (liste, nom) => { const k = cleNom(nom); return k ? liste.findIndex(e => cleNom(e.nom) === k) : -1; };
+function absIndiv(st, ind, d, p) {
+  if (((ind.abs || {})[d] || []).includes(p)) return true;
+  const v = ind.saisies[`${d}.${p}`]; if (v && v.c.some(x => x !== null && x !== undefined)) return false;
+  const j = st.jours[d]; if (!j) return false;
+  const s = rangNom(st.eleves, ind.nom); if (s >= 0 && eleveActif(st, s, d) && eleveAbsent(st, d, s, p)) return true;
+  const c = rangNom(st.classeEleves, ind.nom); return c >= 0 && presentClasse(st.classeEleves[c], d) && ((j.cl || {})[`${c}.${p}`] || "").includes(CODE_ABSENT);
+}
 /** Absence longue d'un enseignant (du … au …), avec un remplaçant éventuel ; undefined s'il n'est pas absent ce jour-là. */
 const absenceLongue = (st, prof, date) => (prof ? (st.absencesProf || []).find(a => a.prof && a.prof.trim() === String(prof).trim() && a.du && a.au && date >= a.du && date <= a.au) : undefined);   // les deux dates sont nécessaires
 function profAbsent(st, date, p) { const j = st.jours[date]; return !!(j && j.profAbs && j.profAbs[p]); }
@@ -2424,7 +2441,7 @@ function demoState() {
   jour(st, "2026-11-30", true).clr[rang("KÖPRÜLÜ Mikail")] = "Oublis de matériel répétés : mot dans le carnet.";
   // ----- suivis individuels hebdomadaires : objectifs propres, résultats qui progressent -----
   const indiv = (nom, objectifs, debut, prof) => {
-    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {} };
+    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {}, abs: {} };
     sems.forEach((w, wi) => { if (w.jours[4] < debut) return;
       w.jours.forEach(date => { if (sansCours(st, date)) return;
         for (let p = 0; p < 7; p++) { const cr = creneau(st, sems, date, p); if (!cr.mat || cr.absent || r2() < 0.08) continue;
@@ -2479,6 +2496,11 @@ function demoState() {
   const pdF = st.individuels.find(i => i.id === "demo-podeanu");
   for (const k of Object.keys(pdF.saisies)) if (k >= "2026-11-16" && k < "2026-11-20") delete pdF.saisies[k];
   pdF.pertes = ["2026-11-17", "2026-11-19"]; pdF.bilans["2026-11-20"] = "Fiche perdue deux fois : un nouvel exemplaire donné à chaque fois, la famille est prévenue.";
+  /* absences d'élèves (v1.94.0) : celles de la fiche collective valent aussi sur la fiche individuelle et la fiche de classe ; retirées en dernier */
+  for (const [date, j] of Object.entries(st.jours)) for (const s of Object.keys(j.abs || {})) for (const p of absCreneaux(st, date, s)) {
+    const nom = (st.eleves[s] || {}).nom, i = st.individuels.find(x => x.nom === nom && (!x.debut || date >= x.debut)), c = rang(nom), cr = c >= 0 ? coursPour(creneau(st, sems, date, p), st.classeEleves[c].groupes || []) : {};
+    if (i) { (i.abs[date] = i.abs[date] || []).push(p); delete i.saisies[`${date}.${p}`]; }
+    if (cr.mat && !cr.absent) j.cl[`${c}.${p}`] = CODE_ABSENT; }
   return st;
 }
 
@@ -2557,13 +2579,13 @@ function decrireChangement(a, b) {
     const dates = [...new Set([...Object.keys(a.jours || {}), ...Object.keys(b.jours || {})])].filter(d => diff((a.jours || {})[d], (b.jours || {})[d])).sort();
     if (dates.length > 1) lib.push(`saisies de ${dates.length} jours (du ${jourTxt(dates[0])} au ${jourTxt(dates.at(-1))})`);
     else if (dates.length) { const d = dates[0], ja = (a.jours || {})[d] || {}, jb = (b.jours || {})[d] || {}, k = c => diff(ja[c], jb[c]);
-      lib.push(k("x") ? `croix de la fiche collective du ${jourTxt(d)}` : k("com") ? `commentaire de la fiche collective du ${jourTxt(d)}` : k("cl") ? `codes de la fiche de classe du ${jourTxt(d)}`
-        : k("clr") ? `remarque au dos de la fiche de classe (${jourTxt(d)})` : k("abs") ? `absence d’un élève le ${jourTxt(d)}` : `cours du ${jourTxt(d)} (matière, enseignant ou salle)`); } }
+      lib.push(k("abs") ? `absence d’un élève le ${jourTxt(d)}` : k("x") ? `croix de la fiche collective du ${jourTxt(d)}` : k("com") ? `commentaire de la fiche collective du ${jourTxt(d)}` : k("cl") ? `codes de la fiche de classe du ${jourTxt(d)}`
+        : k("clr") ? `remarque au dos de la fiche de classe (${jourTxt(d)})` : `cours du ${jourTxt(d)} (matière, enseignant ou salle)`); } }
   if (diff(a.individuels, b.individuels)) { const la = a.individuels || [], lb = b.individuels || [];
     if (la.length !== lb.length) { const ids = new Set(lb.map(i => i.id)), id2 = new Set(la.map(i => i.id)); const x = la.find(i => !ids.has(i.id)) || lb.find(i => !id2.has(i.id));
       lib.push(`${la.length > lb.length ? "suppression" : "création"} du suivi individuel de ${nomInd(x)}`); }
     else { const i = la.findIndex((x, k) => diff(x, lb[k])), x = la[i], y = lb[i];
-      lib.push(diff(x.saisies, y.saisies) ? `fiche individuelle de ${nomInd(x)}` : diff(x.bilans, y.bilans) ? `bilan du suivi de ${nomInd(x)}` : diff(x.objectifs, y.objectifs) ? `objectifs du suivi de ${nomInd(x)}` : `suivi individuel de ${nomInd(x)}`); } }
+      lib.push(diff(x.abs, y.abs) ? `absence de ${nomInd(x)}` : diff(x.saisies, y.saisies) ? `fiche individuelle de ${nomInd(x)}` : diff(x.bilans, y.bilans) ? `bilan du suivi de ${nomInd(x)}` : diff(x.objectifs, y.objectifs) ? `objectifs du suivi de ${nomInd(x)}` : `suivi individuel de ${nomInd(x)}`); } }
   const noms = [["eleves", "élèves du suivi collectif"], ["objectifs", "objectifs du suivi collectif"], ["classeEleves", "liste de la classe"], ["groupes", "groupes et options"],
     ["matieres", "matières et enseignants"], ["absencesProf", "absences longues"], ["changementsProf", "changements d’enseignant"], ["edt", "emploi du temps"], ["edtSuivants", "emploi du temps"],
     ["vacances", "calendrier"], ["joursSansCours", "calendrier"], ["debut", "période du suivi"], ["fin", "période du suivi"], ["typesForces", "semaines A et B"], ["decoupage", "trimestres ou semestres"],
@@ -3399,7 +3421,7 @@ function ficheHTML(date, edit, part = null) {
     const absL = absCreneaux(S, date, s), pr = absEdit.has(date + "." + s) ? "creneaux" : absPreset(absL);
     let absSel = "";
     if (edit && named && actif) {
-      absSel = `<select class="eabs no-print" data-eabs="${s}" title="Absence de l’élève ce jour-là\n• toute la journée, le matin ou l’après-midi\n• ou certains créneaux seulement\n• Astuce : clic droit sur une case de l’élève" aria-label="Absence de ${esc(e.nom)}"><option value="">présent(e)</option>` +
+      absSel = `<select class="eabs no-print" data-eabs="${s}" title="Absence de l’élève ce jour-là\n• toute la journée, le matin ou l’après-midi\n• ou certains créneaux seulement\n• Astuce : clic droit sur une case de l’élève\n• aussi notée sur sa fiche individuelle et sur la fiche de classe" aria-label="Absence de ${esc(e.nom)}"><option value="">présent(e)</option>` +
         Object.entries(ABS_LIBELLES).map(([k, v]) => `<option value="${k}" ${k === pr ? "selected" : ""}>${v}</option>`).join("") +
         `<option value="creneaux" ${pr === "creneaux" ? "selected" : ""}>absent(e) à certains créneaux…</option></select>`;
       if (pr === "creneaux") absSel += `<span class="abs-per no-print">${ps.map(p => PERIODS[p]).map((n, i, _a, p = ps[i]) => `<button type="button" class="${absL.includes(p) ? "on" : ""}" data-absp="${s}.${p}" aria-pressed="${absL.includes(p)}" aria-label="${esc(e.nom)} absent(e) en ${n}" title="Absent(e) en ${n}">${n}</button>`).join("")}</span>`;
@@ -3451,6 +3473,8 @@ async function deplacerJour(date) {
   const c = S.jours[cible];
   if (c && Object.values(c).some(x => Object.keys(x || {}).length) && !(await demander("Remplacer les saisies ?", `Le ${fmtLong(cible)} contient déjà des saisies. Les remplacer par celles du ${fmtLong(date)} ?`, { ok: "Remplacer", danger: true }))) return;
   S.jours[cible] = j; delete S.jours[date];
+  for (const i of S.individuels) { const l = (i.abs || {})[date]; if (!l) continue;   /* l'absence suit aussi sur la fiche individuelle, sauf sur un cours déjà noté */
+    const ps = l.filter(p => !codesIndiv(i, cible, p)); delete i.abs[date]; if (ps.length) i.abs[cible] = ps; }
   commit(false); toast(`Saisies déplacées vers le ${fmtLong(cible)}. Ctrl+Z pour annuler.`, 5000);
   location.hash = "#fiche/" + cible;
 }
@@ -4588,14 +4612,15 @@ function tracer(el) {
 }
 /* ---------- un cours en particulier : enseignant absent, ou remplacé (autre enseignant, autre matière), pour toutes les fiches ---------- */
 /** Fenêtre « Cours de ce créneau » : cours normal, enseignant absent, ou remplacé par un enseignant et une matière au choix (noms nouveaux acceptés). */
-async function editerCreneau(d, p) {
+async function editerCreneau(d, p, ind = null) {
   const sems = semaines(S), j0 = S.jours[d] || {}, cr = creneau(S, sems, d, p);
   const w = semaineDuJour(sems, d), dj = (parseD(d).getUTCDay() + 6) % 7, base = w && dj < nbJours(S) ? edtPour(S, d)[w.type][dj][p] : { mat: "" };
   const edtMat = base.grp && base.grp.length ? [...base.grp.map(x => x.mat), ...(base.mat ? [base.mat] : [])].join(" / ") : base.mat, edtProf = base.mat ? profDe(S, base.mat) : "";
   const etat = cr.absent ? "absent" : (j0.prof && j0.prof[p]) || (j0.mat && p in j0.mat) ? "rempl" : "normal";
   const profs = [...new Set([...S.matieres.map(m => m.prof), ...Object.values(S.jours).flatMap(j => Object.values(j.prof || {}))].map(x => (x || "").trim()).filter(Boolean))].sort();
   const mats = [...new Set([...ordreMatieres(S), "Permanence", "Étude", "Sortie scolaire", ...Object.values(S.jours).flatMap(j => Object.values(j.mat || {}))].filter(Boolean))];
-  const html = `<div class="crn">
+  const avecEl = ind && !cr.absent && !coursPour(cr, groupesDe(S, ind.nom)).absent, elAbs = avecEl && absIndiv(S, ind, d, p);
+  const html = `${avecEl ? `<div class="crn"><label class="crn-o"><input type="checkbox" id="crn-el"${elAbs ? " checked" : ""}><span><b>${esc(ind.nom || "Élève")} : absent(e) à ce cours</b><small>ne compte ni dans la réussite ni dans la retenue ; noté sur toutes ses fiches (toute la journée : clic sur le jour)</small></span></label></div>` : ""}<div class="crn">
     <label class="crn-o"><input type="radio" name="crn" value="normal"${etat === "normal" ? " checked" : ""}><span><b>Cours normal</b><small>${edtMat ? `${esc(edtMat)}${edtProf ? " – " + esc(edtProf) : ""} (emploi du temps)` : "pas de cours à l’emploi du temps"}</small></span></label>
     <label class="crn-o"><input type="radio" name="crn" value="absent"${etat === "absent" ? " checked" : ""}><span><b>Enseignant absent</b><small>pas de cours : rien à noter sur ce créneau, sur toutes les fiches</small></span></label>
     <label class="crn-o"><input type="radio" name="crn" value="rempl"${etat === "rempl" ? " checked" : ""}><span><b>Remplacé</b><small>par un collègue de la classe dans une autre matière, ou par un collègue qui n’a pas la classe</small></span></label>
@@ -4604,10 +4629,10 @@ async function editerCreneau(d, p) {
       <datalist id="crn-profs">${profs.map(x => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="crn-mats">${mats.map(x => `<option value="${esc(x)}">`).join("")}</datalist>
       <small class="muted">Choisissez dans la liste ou tapez un nouveau nom.</small></div></div>`;
   const v = await saisir(`${DAYS[dj]} ${fmtDM(d)} · ${PERIODS[p]}`, "Ce qui se passe sur ce créneau : les fiches individuelles, la fiche collective et la fiche de classe en tiennent compte.",
-    { html, init: dlg => { const maj = () => { const r = dlg.querySelector('input[name="crn"]:checked').value === "rempl"; dlg.querySelector(".crn-r").classList.toggle("off", !r); if (r && !dlg.querySelector("#crn-prof").value) dlg.querySelector("#crn-prof").focus(); };
-        dlg.querySelector(".crn").addEventListener("change", maj); dlg.querySelector(".crn").addEventListener("focusin", e => { if (e.target.closest(".crn-r")) dlg.querySelector('input[value="rempl"]').checked = true, dlg.querySelector(".crn-r").classList.remove("off"); }); maj();
-        setTimeout(() => { const c = dlg.querySelector('input[name="crn"]:checked'); if (c && !dlg.querySelector(".crn-r").contains(document.activeElement)) c.focus(); }, 0); },
-      lire: dlg => ({ etat: dlg.querySelector('input[name="crn"]:checked').value, prof: dlg.querySelector("#crn-prof").value.trim(), mat: dlg.querySelector("#crn-mat").value.trim() }),
+    { html, init: dlg => { const bloc = dlg.querySelector(".crn-r").closest(".crn"), maj = () => { const r = dlg.querySelector('input[name="crn"]:checked').value === "rempl"; dlg.querySelector(".crn-r").classList.toggle("off", !r); if (r && !dlg.querySelector("#crn-prof").value) dlg.querySelector("#crn-prof").focus(); };
+        bloc.addEventListener("change", maj); bloc.addEventListener("focusin", e => { if (e.target.closest(".crn-r")) dlg.querySelector('input[value="rempl"]').checked = true, dlg.querySelector(".crn-r").classList.remove("off"); }); maj();
+        setTimeout(() => { const c = dlg.querySelector("#crn-el") || dlg.querySelector('input[name="crn"]:checked'); if (c && !dlg.querySelector(".crn-r").contains(document.activeElement)) c.focus(); }, 0); },
+      lire: dlg => ({ el: !!(dlg.querySelector("#crn-el") || {}).checked, etat: dlg.querySelector('input[name="crn"]:checked').value, prof: dlg.querySelector("#crn-prof").value.trim(), mat: dlg.querySelector("#crn-mat").value.trim() }),
       valider: v => v.etat === "rempl" && !v.prof && !(v.mat && v.mat !== edtMat) ? "Indiquez au moins l’enseignant ou la matière du remplacement." : "" }, { ok: "Enregistrer" });
   if (!v) return;
   const j = jour(S, d, true);
@@ -4620,11 +4645,14 @@ async function editerCreneau(d, p) {
     if (v.mat && v.mat !== edtMat) j.mat[p] = v.mat; else delete j.mat[p];
     if (!v.prof && !(p in j.mat)) { toast("Indiquez au moins l’enseignant ou la matière du remplacement."); return; }
   } else { delete j.profAbs[p]; delete j.prof[p]; delete j.mat[p]; }
+  const cur = avecEl ? ABS_PRESETS.jour.filter(x => absIndiv(S, ind, d, x)) : [], change = avecEl && v.etat !== "absent" && v.el !== elAbs;
+  if (change && !(await fixerAbsIndiv(ind, d, v.el ? [...cur, p] : cur.filter(x => x !== p)))) { commit(); return; }
   commit();
+  if (change && v.etat === etat) { toast(`${ind.nom} : ${v.el ? "absent(e)" : "présent(e)"} en ${PERIODS[p]}. Ctrl+Z pour annuler.`, 5000); return; }
   toast(v.etat === "absent" ? `${PERIODS[p]} : enseignant absent.` : v.etat === "rempl" ? `${PERIODS[p]} : remplacé${v.prof ? " par " + v.prof : ""}${p in j.mat ? " (" + j.mat[p] + ")" : ""}.` : `${PERIODS[p]} : cours normal.`, 5000);
 }
 document.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-crn]")) { e.preventDefault(); e.target.click(); } });   /* cours d’un créneau : aussi au clavier */
-document.addEventListener("click", e => { const t = e.target.closest && e.target.closest("[data-crn]"); if (!t || !S) return; const [d, p] = t.dataset.crn.split("|"); editerCreneau(d, Number(p)); });
+document.addEventListener("click", e => { const t = e.target.closest && e.target.closest("[data-crn]"); if (!t || !S) return; const [d, p] = t.dataset.crn.split("|"); editerCreneau(d, Number(p), t.dataset.crni !== undefined ? S.individuels[t.dataset.crni] || null : null); });
 /** Enseignant absent = cours annulé : ce qui était déjà noté sur ce créneau, sur TOUTES les fiches (collective, de classe, individuelles),
     est effacé après confirmation, pour que chaque vue compte la même chose. false si l'utilisateur refuse. */
 /** Après une absence longue : les saisies déjà faites sur des cours désormais annulés sont effacées (après confirmation). false si refus. */
@@ -4652,10 +4680,100 @@ async function annulerCours(d, ps) {
   ps.forEach(p => { j.profAbs[p] = true; });
   return true;
 }
+/* ---------- absence d'un élève : notée une fois, sur toutes ses fiches (v1.94.0) ----------
+   Une absence se note depuis n'importe quelle fiche et vaut pour les trois : fiche individuelle (ind.abs), fiche collective (jours.abs)
+   et fiche de classe (code A). Chaque famille ne reçoit que ce qui la concerne : élève dans sa liste, présent dans la classe ce jour-là,
+   jour du suivi. cibles : [{ nom, d, p }]. */
+const codesIndiv = (i, d, p) => { const v = i.saisies[`${d}.${p}`]; return !!v && v.c.some(x => x !== null && x !== undefined); };
+function familleAbs({ nom, d, p }) {
+  const k = cleNom(nom), s = rangNom(S.eleves, nom), c = rangNom(S.classeEleves, nom);
+  return { inds: k ? S.individuels.filter(i => cleNom(i.nom) === k && cyclesIndiv(i).some(cy => cy.jours.includes(d))) : [],
+    s: s >= 0 && eleveActif(S, s, d) ? s : -1, c: c >= 0 && caseClasseActive(semaines(S), d, p, S.classeEleves[c]) ? c : -1 };
+}
+/** Ce qu'une absence effacerait : codes des suivis individuels, croix de la fiche collective, codes de la fiche de classe. */
+function aEffacerAbs(cibles, classe = true) {
+  const r = { inds: new Map(), croix: 0, coursCroix: new Set(), cl: new Set() };
+  for (const t of cibles) { const f = familleAbs(t), j = S.jours[t.d];
+    for (const i of f.inds) if (codesIndiv(i, t.d, t.p)) r.inds.set(i, (r.inds.get(i) || 0) + 1);
+    if (!j) continue;
+    if (f.s >= 0) for (let o = 0; o < nbObj(S); o++) if ((j.x || {})[`${f.s}.${o}.${t.p}`] !== undefined) { r.croix++; r.coursCroix.add(`${t.d}.${f.s}.${t.p}`); }
+    if (classe && f.c >= 0 && ((j.cl || {})[`${f.c}.${t.p}`] || "").replace(CODE_ABSENT, "")) r.cl.add(`${t.d}.${f.c}.${t.p}`); }
+  return r;
+}
+const rienAEffacer = r => !r.inds.size && !r.croix && !r.cl.size;
+/** true : rien à effacer, ou effacement accepté. */
+async function confirmerAbsences(r) {
+  if (rienAEffacer(r)) return true;
+  if (!r.inds.size && !r.cl.size) return CROIX_ELEVE(r.coursCroix.size);
+  const n = [...r.inds.values()].reduce((a, b) => a + b, 0), lignes = [n && `• ${nbMot(n, "cours", "cours")} de fiche individuelle (${[...r.inds.keys()].map(i => i.nom || "élève").join(", ")})`,
+    r.croix && `• ${nbMot(r.croix, "croix", "croix")} sur la fiche collective`, r.cl.size && `• des codes sur la fiche de classe (${nbMot(r.cl.size, "cours", "cours")})`].filter(Boolean);
+  return demander("Élève absent", `Des saisies existent déjà sur ces cours :\n${lignes.join("\n")}\n\nLes effacer et marquer l’absence sur toutes les fiches ?`, { ok: "Effacer et marquer absent", danger: true });
+}
+/** Note (on) ou retire l'absence sur les trois familles ; la remarque d'un cours de fiche individuelle est gardée. */
+function poserAbsences(cibles, on) {
+  for (const t of cibles) { const { d, p } = t, f = familleAbs(t), j = on ? jour(S, d, true) : S.jours[d] && jour(S, d, true);
+    for (const i of f.inds) { if (!i.abs) i.abs = {}; const l = (i.abs[d] || []).filter(x => x !== p); if (on) l.push(p);
+      if (l.length) i.abs[d] = l.sort((a, b) => a - b); else delete i.abs[d];
+      const v = on && i.saisies[`${d}.${p}`]; if (v) { v.c = i.objectifs.map(() => null); if (!v.r.trim()) delete i.saisies[`${d}.${p}`]; } }
+    if (!j) continue;
+    if (f.s >= 0) { const l = absCreneaux(S, d, f.s).filter(x => x !== p); if (on) l.push(p); if (l.length) j.abs[f.s] = l.sort((a, b) => a - b); else delete j.abs[f.s];
+      if (on) for (let o = 0; o < nbObj(S); o++) delete j.x[`${f.s}.${o}.${p}`]; }
+    if (f.c >= 0) { const k = `${f.c}.${p}`, v = j.cl[k] || ""; if (on) j.cl[k] = CODE_ABSENT; else if (v.includes(CODE_ABSENT)) { const w = v.replace(CODE_ABSENT, ""); if (w) j.cl[k] = w; else delete j.cl[k]; } } }
+}
+/** Fixe les absences d'un élève pour un jour, depuis sa fiche individuelle. false si l'utilisateur refuse d'effacer des saisies. */
+async function fixerAbsIndiv(ind, d, list) {
+  const avant = ABS_PRESETS.jour.filter(p => absIndiv(S, ind, d, p)), c = p => ({ nom: ind.nom, d, p });
+  if (!(await confirmerAbsences(aEffacerAbs(list.map(c))))) return false;
+  poserAbsences(avant.filter(p => !list.includes(p)).map(c), false); poserAbsences(list.map(c), true);
+  if (!cleNom(ind.nom) || !cyclesIndiv(ind).some(cy => cy.jours.includes(d))) { if (!ind.abs) ind.abs = {}; if (list.length) ind.abs[d] = list.slice().sort((a, b) => a - b); else delete ind.abs[d]; }
+  return true;
+}
+/** Cours d'un élève un jour donné : [{ p, mat }] dans l'ordre de la journée, enseignants absents exceptés. */
+const coursDuJour = (ind, d) => { if (sansCours(S, d)) return []; const sems = semaines(S), grs = groupesDe(S, ind.nom);
+  return creneauxDu(S, d).map(p => ({ p, cr: coursPour(creneau(S, sems, d, p), grs) })).filter(x => x.cr.mat && !x.cr.absent).map(x => ({ p: x.p, mat: x.cr.mat })); };
+/** Cours cochés → liste enregistrée : toute la journée, matin et après-midi entiers gardent leur sens sur la fiche collective. */
+function listeAbs(cours, ps) {
+  const l = new Set(ps), moitie = k => { const m = cours.filter(x => ABS_PRESETS[k].includes(x.p)); return m.length > 0 && m.every(x => l.has(x.p)) ? m : null; }, m = moitie("matin"), a = moitie("aprem");
+  if (cours.length && cours.every(x => l.has(x.p))) return ABS_PRESETS.jour.slice();
+  if (m && l.size === m.length) return ABS_PRESETS.matin.slice();
+  if (a && l.size === a.length) return ABS_PRESETS.aprem.slice();
+  return [...l].sort((x, y) => x - y);
+}
+/** Absences d'une fiche individuelle, en toutes lettres : « mardi 24/11 (toute la journée), jeudi 26/11 (Techno) » ; "" s'il n'y en a pas. */
+function absencesTxt(ind, c) {
+  return c.jours.map(d => { const cours = coursDuJour(ind, d), abs = cours.filter(x => absIndiv(S, ind, d, x.p)); if (!abs.length) return "";
+    const pr = absPreset(listeAbs(cours, abs.map(x => x.p))), noms = [...new Set(abs.map(x => x.mat))].map(m => { const n = abs.filter(x => x.mat === m).length; return n > 1 ? `${m} (${n} cours)` : m; });
+    return `${DAYS[jourSemaine(d) - 1].toLowerCase()} ${fmtDM(d)} (${{ jour: "toute la journée", matin: "le matin", aprem: "l’après-midi" }[pr] || noms.join(", ")})`; }).filter(Boolean).join(", ");
+}
+/** Fenêtre « Absence » d'une journée (en-tête du jour de la fiche individuelle). */
+async function editerAbsJour(ind, d) {
+  const cours = coursDuJour(ind, d); if (!cours.length) { toast("Aucun cours ce jour-là."); return; }
+  const b = (k, t) => `<button type="button" data-absq="${k}">${t}</button>`;
+  const html = `<div class="abs-j"><div class="row abs-q">${b("jour", "Toute la journée")}${cours.some(x => P_MATIN.includes(x.p)) && cours.some(x => P_APREM.includes(x.p)) ? b("matin", "Le matin") + b("aprem", "L’après-midi") : ""}${b("", "Présent(e)")}</div>
+    <div class="abs-c">${cours.map(x => `<label class="na-case"><input type="checkbox" data-absc="${x.p}"${absIndiv(S, ind, d, x.p) ? " checked" : ""}> <span><b>${PERIODS[x.p]}</b> ${esc(x.mat)}</span></label>`).join("")}</div></div>`;
+  const v = await saisir(`${ind.nom || "Élève"} · ${fmtLong(d).replace(/ \d{4}$/, "")}`, "Cochez les cours où l’élève est absent(e) : ils ne comptent ni dans la réussite ni dans la retenue. L’absence est notée sur toutes ses fiches (individuelle, collective, de classe).",
+    { html, init: dlg => dlg.querySelectorAll("[data-absq]").forEach(q => q.addEventListener("click", () => dlg.querySelectorAll("[data-absc]").forEach(x => { x.checked = !!q.dataset.absq && ABS_PRESETS[q.dataset.absq].includes(Number(x.dataset.absc)); }))),
+      lire: dlg => [...dlg.querySelectorAll("[data-absc]:checked")].map(x => Number(x.dataset.absc)) }, { ok: "Enregistrer" });
+  if (!v) return;
+  if (!(await fixerAbsIndiv(ind, d, listeAbs(cours, v)))) return;
+  commit(); toast(`${ind.nom} : ${v.length ? (t => (t ? "absent(e), " + t : "absence enregistrée"))(absencesTxt(ind, { jours: [d] })) : "présent(e)"}. Ctrl+Z pour annuler.`, 5000);
+}
+document.addEventListener("click", e => { const t = e.target.closest && e.target.closest("[data-jabs]"); if (!t || !S) return; const [ii, d] = t.dataset.jabs.split("|"); if (S.individuels[ii]) editerAbsJour(S.individuels[ii], d); });
+document.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-jabs], [data-iabs]")) { e.preventDefault(); e.target.click(); } });
+/* clic sur « absent(e) » : la fenêtre du cours ; clic droit sur un code ou sur « absent(e) » : absent ou présent à ce cours, comme sur la fiche collective */
+document.addEventListener("click", e => { const t = e.target.closest && e.target.closest("[data-iabs]"); if (!t || !S) return; const [ii, d, p] = t.dataset.iabs.split("."); if (S.individuels[ii]) editerCreneau(d, Number(p), S.individuels[ii]); });
+document.addEventListener("contextmenu", async e => {
+  const td = e.target.closest && e.target.closest("table.indiv td[data-ic], table.indiv td[data-iabs]"); if (!td || !S) return;
+  e.preventDefault(); if (dernierPointeur === "touch") return;
+  const [ii, d, p0] = (td.dataset.ic || td.dataset.iabs).split("."), p = Number(p0), ind = S.individuels[ii], absent = !absIndiv(S, ind, d, p), c = [{ nom: ind.nom, d, p }];
+  const cur = ABS_PRESETS.jour.filter(x => absIndiv(S, ind, d, x));
+  if (!(await fixerAbsIndiv(ind, d, absent ? [...cur, p] : cur.filter(x => x !== p)))) return;
+  commit(); toast(`${ind.nom} : ${absent ? "absent(e)" : "présent(e)"} en ${PERIODS[p]}. Ctrl+Z pour annuler.`);
+});
 const CROIX_ELEVE = n => demander("Élève absent", `Des croix sont déjà saisies sur ${n > 1 ? "ces cours" : "ce cours"}.\nLes effacer et marquer l’absence ?`, { ok: "Effacer les croix et marquer absent", danger: true });
 /** Applique les absences tracées ; false si l'utilisateur refuse d'effacer des croix. */
 async function appliquerAbsences(trace) {
-  const j = jour(S, ficheDate, true);
+  const j = jour(S, ficheDate, true);   /* enseignants */
   if (trace.type === "prof") {
     const pers = [...trace.vus].map(Number);
     if (trace.on) {
@@ -4669,13 +4787,8 @@ async function appliquerAbsences(trace) {
     const cur = listes.get(s) || absCreneaux(S, ficheDate, s);
     listes.set(s, trace.on ? [...new Set([...cur, p])].sort((a, b) => a - b) : cur.filter(x => x !== p));
   }
-  const keys = Object.keys(j.x).filter(k => { const [s, , p] = k.split(".").map(Number); return listes.has(s) && listes.get(s).includes(p); });
-  if (keys.length && !(await CROIX_ELEVE(new Set(keys.map(k => k.split(".")[2])).size))) return false;
-  keys.forEach(k => delete j.x[k]);
-  for (const [s, list] of listes) {
-    absEdit.add(ficheDate + "." + s);           // garde les boutons M1…S3 affichés
-    if (list.length) j.abs[s] = list; else delete j.abs[s];
-  }
+  if (!(await appliquerListesAbs(listes))) return false;
+  for (const s of listes.keys()) absEdit.add(ficheDate + "." + s);           // garde les boutons M1…S3 affichés
   return true;
 }
 /* Le geste ne s'applique pas à l'appui : un simple clic agit au relâchement sur la même case (on peut donc annuler
@@ -5085,12 +5198,14 @@ document.addEventListener("input", e => {
   }
 });
 /** Absence d'un élève sur une liste de créneaux ; efface (après confirmation) les croix devenues sans objet. */
-async function setAbsEleve(s, list) {
-  const j = jour(S, ficheDate, true);
-  const keys = Object.keys(j.x).filter(k => { const [a, , p] = k.split(".").map(Number); return a === s && list.includes(p); });
-  if (keys.length && !(await CROIX_ELEVE(new Set(keys.map(k => k.split(".")[2])).size))) return false;
-  keys.forEach(k => delete j.x[k]);
-  if (list.length) j.abs[s] = list; else delete j.abs[s];
+async function setAbsEleve(s, list) { return appliquerListesAbs(new Map([[s, list]])); }
+/** Fiche collective : nouvelles absences du jour (élève → créneaux), reportées sur les autres fiches ; false si l'utilisateur refuse d'effacer des saisies. */
+async function appliquerListesAbs(listes) {
+  const d = ficheDate, plus = [], moins = [];
+  for (const [s, l] of listes) { const cur = absCreneaux(S, d, s), nom = S.eleves[s].nom; l.filter(p => !cur.includes(p)).forEach(p => plus.push({ nom, d, p })); cur.filter(p => !l.includes(p)).forEach(p => moins.push({ nom, d, p })); }
+  if (!(await confirmerAbsences(aEffacerAbs(plus)))) return false;
+  poserAbsences(moins, false); poserAbsences(plus, true);
+  const j = jour(S, d, true); for (const [s, l] of listes) { if (l.length) j.abs[s] = l; else delete j.abs[s]; }
   return true;
 }
 async function doNew() {
@@ -5334,15 +5449,12 @@ window.addEventListener("storage", e => {
 async function appliquerAbsencesDroit(t) {
   const cibles = [...t.vus].filter(([, v]) => v).map(([k]) => k.split(".").map(Number));
   if (!cibles.length) { render(); return; }
-  const j = jour(S, ficheDate, true), listes = new Map();
+  const listes = new Map();
   for (const [s, p] of cibles) {
     const cur = listes.get(s) || absCreneaux(S, ficheDate, s);
     listes.set(s, t.on ? [...new Set([...cur, p])].sort((a, b) => a - b) : cur.filter(x => x !== p));
   }
-  const keys = Object.keys(j.x).filter(k => { const [s, , p] = k.split(".").map(Number); return t.on && cibles.some(([a, b]) => a === s && b === p); });
-  if (keys.length && !(await CROIX_ELEVE(cibles.length))) { render(); return; }
-  keys.forEach(k => delete j.x[k]);
-  for (const [s, l] of listes) { if (l.length) j.abs[s] = l; else delete j.abs[s]; }
+  if (!(await appliquerListesAbs(listes))) { render(); return; }
   commit();
   const noms = [...listes.keys()].map(s => S.eleves[s].nom);
   toast(cibles.length === 1 ? `${noms[0]} : ${t.on ? "absent(e)" : "présent(e)"} en ${PERIODS[cibles[0][1]]}. Ctrl+Z pour annuler.`
@@ -5925,7 +6037,7 @@ function paletteClasse() {
   const cp = codePalette(), btn = (v, txt, tip, cls) => `<button type="button" class="pal-c ${cls || ""}${cp === v ? " on" : ""}" data-pal-cl="${esc(v)}" aria-pressed="${cp === v}" title="${tip}">${txt}</button>`;
   return `<div class="pal-ind pal-cl no-print" role="toolbar" aria-label="Code à mettre dans les cases"><span class="pal-tit">Code :</span>
     ${S.codesClasse.filter(c => c.code).map(c => btn(c.code, `${codeClasseHTML(c.code)} <small>${esc(c.sens)}</small>`, `${esc(c.code)} : ${esc(c.sens)}\n• met ce code dans la case choisie (ou l’en retire)\n• cliquer-glisser : sur plusieurs cases d’un coup\n• au clavier : touche ${esc(c.code)}`)).join("")}
-    ${btn(CODE_ABSENT, `${codeClasseHTML(CODE_ABSENT)} <small>absent</small>`, "Absent(e)\nRemplace les autres codes de la case.")}
+    ${btn(CODE_ABSENT, `${codeClasseHTML(CODE_ABSENT)} <small>absent</small>`, "Absent(e)\nRemplace les autres codes de la case.\n• aussi noté sur la fiche individuelle et la fiche collective de l’élève")}
     ${btn("-", "⌫ Gomme", "Gomme\nCliquez ou glissez pour vider les cases.\n• au clavier : Suppr")}
     ${btn("?", "☰ Choisir", "Fenêtre de choix\nUn clic sur une case ouvre la liste des codes (pour en mettre plusieurs).\n• au clavier : Entrée")}
     <span class="pal-case" id="cl-case" aria-live="polite"></span>
@@ -5944,38 +6056,51 @@ function poserCodes(d, cle, v, rendu) {
   if (v) j.cl[cle] = [...codesClasse(S)].filter(x => v.includes(x)).join(""); else delete j.cl[cle];
   if (!rendu) { const td = document.querySelector(`td[data-cl="${cle}"][data-d="${d}"]`); if (td) { const w = j.cl[cle] || ""; td.innerHTML = [...w].map(codeClasseHTML).join(""); td.classList.toggle("absent", w.includes(CODE_ABSENT)); } }
 }
+/** Fiche de classe : après une saisie, les absences ajoutées ou retirées (avant : « date|élève.créneau » → codes d'avant) sont reportées sur les
+    autres fiches, puis suite(). Des saisies à effacer ailleurs : confirmation ; refusée, les cases reprennent leurs codes. */
+function reporterAbsClasse(avant, suite) {
+  const plus = [], moins = [];
+  for (const [k, v0] of avant) { const [d, cle] = k.split("|"), [s, p] = cle.split(".").map(Number), v = ((S.jours[d] || {}).cl || {})[cle] || "", a = v.includes(CODE_ABSENT), a0 = v0.includes(CODE_ABSENT), nom = (S.classeEleves[s] || {}).nom;
+    if (nom && a !== a0) (a ? plus : moins).push({ nom, d, p, k, v0 }); }
+  poserAbsences(moins, false);
+  const r = aEffacerAbs(plus, false);
+  if (rienAEffacer(r)) { poserAbsences(plus, true); suite(); return; }
+  confirmerAbsences(r).then(ok => { if (ok) poserAbsences(plus, true);
+    else for (const t of plus) { const j = jour(S, t.d, true), cle = t.k.split("|")[1]; if (t.v0) j.cl[cle] = t.v0; else delete j.cl[cle]; }
+    suite(); });
+}
 let peintureCl = null;           // { ajoute, vus }
 function peindreCl(td) {
   const k = td.dataset.d + "|" + td.dataset.cl; if (peintureCl.vus.has(k)) return; peintureCl.vus.add(k);
   const c = codePalette(), v = ((S.jours[td.dataset.d] || {}).cl || {})[td.dataset.cl] || "";
   if (peintureCl.ajoute === undefined) peintureCl.ajoute = c !== "-" && !v.includes(c);      // la 1re case décide : ajouter ou retirer
   const n = c === "-" ? "" : !peintureCl.ajoute ? v.replace(c, "") : c === CODE_ABSENT ? CODE_ABSENT : v.replace(CODE_ABSENT, "").replace(c, "") + c;
-  poserCodes(td.dataset.d, td.dataset.cl, n, false);
+  peintureCl.avant.set(k, v); poserCodes(td.dataset.d, td.dataset.cl, n, false);
 }
 document.addEventListener("pointerdown", e => {
   const td = e.target.closest && e.target.closest("table.cs td[data-cl]");
   if (!td || e.button !== 0 || !S || codePalette() === "?") return;
   e.preventDefault(); td.focus({ preventScroll: true }); ficheDate = td.dataset.d; clOuvert = null; popCl.hidden = true;
   // un code est choisi dans la palette : le clic (ou le cliquer-glisser) le met tout de suite ; sinon le clic choisit seulement la case
-  peintureCl = { vus: new Set(), derniere: td, depart: td, attente: codeCl === null }; document.body.classList.add("tracage"); if (codeCl !== null) peindreCl(td);
+  peintureCl = { vus: new Set(), avant: new Map(), derniere: td, depart: td, attente: codeCl === null }; document.body.classList.add("tracage"); if (codeCl !== null) peindreCl(td);
 });
 document.addEventListener("pointermove", e => { if (!peintureCl || peintureCl.attente) return; const el = document.elementFromPoint(e.clientX, e.clientY), td = el && el.closest("table.cs td[data-cl]");
   if (!td) return; peindreCl(td); peintureCl.derniere = td; });
-const finPeintureCl = (garder = false) => { if (!peintureCl) return; const t = peintureCl.derniere, attente = peintureCl.attente, plusieurs = peintureCl.vus.size > 1; peintureCl = null; document.body.classList.remove("tracage"); if (attente) { selClFraiche = true; return; }
-  commit(); const c = document.querySelector(`td[data-cl="${t.dataset.cl}"][data-d="${t.dataset.d}"]`); if (c) c.focus({ preventScroll: true }); selClFraiche = garder === true; };
+const finPeintureCl = (garder = false) => { if (!peintureCl) return; const t = peintureCl.derniere, attente = peintureCl.attente, avant = peintureCl.avant; peintureCl = null; document.body.classList.remove("tracage"); if (attente) { selClFraiche = true; return; }
+  reporterAbsClasse(avant, () => { commit(); const c = document.querySelector(`td[data-cl="${t.dataset.cl}"][data-d="${t.dataset.d}"]`); if (c) c.focus({ preventScroll: true }); selClFraiche = garder === true; }); };
 document.addEventListener("pointerup", finPeintureCl); document.addEventListener("pointercancel", finPeintureCl);
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-pal-cl]"); if (!b) return;
   const v = b.dataset.palCl, td = selClFraiche && selCl && document.querySelector(`table.cs td[data-cl="${selCl.cl}"][data-d="${selCl.d}"]`);
   if (codeCl === v) { codeCl = null; render(); return; }          // un clic sur le code déjà choisi le désélectionne
   const ecrire = codeCl === null && td && v !== "?"; codeCl = v;  // le code est choisi ; la case qui attendait (choisie sans code) le reçoit
-  if (ecrire) { peintureCl = { vus: new Set(), derniere: td }; peindreCl(td); finPeintureCl(true); } else render(); });
+  if (ecrire) { peintureCl = { vus: new Set(), avant: new Map(), derniere: td }; peindreCl(td); finPeintureCl(true); } else render(); });
 let selCl = null, selClFraiche = false;  // dernière case choisie de la fiche de classe ; « fraîche » : choisie (clic, clavier), pas écrite par un glisser
 document.addEventListener("focusin", e => { const td = e.target.closest && e.target.closest("table.cs td[data-cl]"); if (td) { selCl = { cl: td.dataset.cl, d: td.dataset.d }; if (!peintureCl) selClFraiche = true; } });
 function basculerCode(cle, c) {
-  const j = jour(S, ficheDate, true); let v = j.cl[cle] || "";
+  const j = jour(S, ficheDate, true); let v = j.cl[cle] || ""; const avant = new Map([[ficheDate + "|" + cle, v]]);
   if (c === null) v = ""; else v = v.includes(c) ? v.replace(c, "") : c === CODE_ABSENT ? CODE_ABSENT : v.replace(CODE_ABSENT, "") + c;
   if (v) j.cl[cle] = [...codesClasse(S)].filter(x => v.includes(x)).join(""); else delete j.cl[cle];
-  commit();
+  reporterAbsClasse(avant, () => commit());
 }
 document.addEventListener("click", e => {
   if (!S) return;
@@ -6154,7 +6279,7 @@ function ligneRetenue(ind, c) {
 }
 /** Réussite d'une fiche pour chaque objectif : [TB+S, total, nb I, nb par code]. */
 /** Une saisie compte si le cours a bien lieu (comme sur la grille) : un jour sans cours, un cours annulé ou retiré de l'emploi du temps après coup ne comptent plus. */
-const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs); return !!cr.mat && !cr.absent; };
+const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs); return !!cr.mat && !cr.absent && !absIndiv(S, ind, d, p); };
 function statsIndiv(ind, c) {
   const r = ind.objectifs.map(() => [0, 0, 0, [0, 0, 0, 0]]), sems = semaines(S), grs = groupesDe(S, ind.nom);
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !coursIndivActif(ind, d, p, sems, grs)) continue;
@@ -6266,7 +6391,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
     <div class="f-line"><span><b>Élève :</b> ${esc(ind.nom)}${S.classe ? " – " + esc(S.classe) : ""}</span><span><b>Professeur principal :</b> ${esc(S.referent)}</span></div>
     <div class="f-consigne">${esc(consigneIndiv(ind, c))}${regleRetenueEleve(ind, c) ? `<br><b>Attention :</b> ${esc(regleRetenueEleve(ind, c))}` : ""}</div>
     <div class="cadre-obj"><b>Mes objectifs :</b> ${objs}<span class="petit"> &nbsp; L’enseignant écrit le code : ${S.codage.map(x => `<b>${esc(x.code)}</b> ${esc(x.sens.toLowerCase())}`).join(" · ")}. <span class="leg-reussite">Réussite = cases <b>${esc(S.codage[0].code)}</b> ou <b>${esc(S.codage[1].code)}</b>.</span></span></div>`;
-  const jt = c.jours.map(d => `<th colspan="${no + 2}" class="g${sansCours(S, d) ? " ferme" : ""}">${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}${!sansCours(S, d) && jourParticulier(jourIdx(d)) ? ` <small class="j-part">⏱ ${jourParticulier(jourIdx(d))}</small>` : ""}</th>`).join("");   /* les heures de la 1re colonne sont celles des jours habituels */
+  const jt = c.jours.map(d => `<th colspan="${no + 2}" class="g${sansCours(S, d) ? " ferme" : edit ? " crn-b" : ""}"${edit && !sansCours(S, d) ? ` data-jabs="${ii}|${d}" role="button" tabindex="0" title="${fmtLong(d)}\nClic : élève absent(e) toute la journée ou à certains cours"` : ""}>${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}${!sansCours(S, d) && jourParticulier(jourIdx(d)) ? ` <small class="j-part">⏱ ${jourParticulier(jourIdx(d))}</small>` : ""}</th>`).join("");   /* les heures de la 1re colonne sont celles des jours habituels */
   const sous = c.jours.map(() => `<th class="g mat">${!edit && c.jours.length * (no + 2) > 30 ? "Mat." : "Matière"}</th>${ind.objectifs.map((_, k) => `<th class="cd" title="Objectif ${k + 1}\n${esc(ind.objectifs[k])}">${NUM_OBJ[k]}</th>`).join("")}${edit ? `<th class="rq" title="Remarque de l’enseignant\nClic dans la case : elle s’élargit pour écrire.">Rem.</th>` : `<th class="rq">${c.jours.length * (no + 2) > 30 ? "Rem. · visa" : "Remarque · visa"}</th>`}`).join("");
   const rangs = creneauxActifs(S);
   const lignes = rangs.map((p, ip) => `<tr><th class="cr">${PERIODS[p]}${horaire(p) ? `<small>${horaire(p).split(" – ")[0]}</small>` : ""}</th>${c.jours.map(d => {
@@ -6276,10 +6401,11 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
     const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
     if (!cr.mat || cr.absent) return `<td colspan="${no + 2}" class="g ferme${edit && cr.absent ? " crn-b" : ""}"${edit && cr.absent ? ` data-crn="${d}|${p}" role="button" tabindex="0" title="${esc(cr.mat)} : enseignant absent\nClic : rétablir le cours ou indiquer un remplaçant"` : ""}>${cr.absent ? `<small>${esc(cr.mat)} : prof absent</small>` : cr.demi ? `<small>${esc(cr.demi)}</small>` : ""}</td>`;
     const s = ind.saisies[`${d}.${p}`] || { c: [], r: "" };
-    const cases = ind.objectifs.map((_, o) => { const x = s.c[o]; const v = x === null || x === undefined ? -1 : x;
-      return edit ? `<td class="cd ic${v >= 0 ? " l" + v : ""}" data-ic="${ii}.${d}.${p}.${o}" tabindex="0" role="button" aria-label="${esc(cr.mat)} ${nomJ} ${per}, objectif ${o + 1} : ${v >= 0 ? codes[v] : "vide"}" title="${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}\nObjectif ${o + 1} : ${esc(ind.objectifs[o])}\n• ${codeIndiv === null ? "clic : choisir la case (puis 1 à 4, ou la palette)" : "clic ou glisser : met le code choisi dans la palette"}\n• au clavier : ${touchesIndiv()}, puis la case suivante est choisie toute seule">${v >= 0 ? codes[v] : ""}</td>`
+    const absEl = absIndiv(S, ind, d, p);   /* élève absent : une seule case grisée à la place des codes ; la remarque reste */
+    const cases = absEl ? `<td class="cd abs-el${no < 3 ? " court" : ""}" colspan="${no}"${edit ? ` data-iabs="${ii}.${d}.${p}" role="button" tabindex="0" aria-label="${esc(cr.mat)} ${nomJ} ${per} : élève absent(e)" title="${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}\nÉlève absent(e) : ce cours ne compte pas.\n• clic : fenêtre du cours\n• clic droit : présent(e)"` : ""}>${no < 3 ? "abs." : "absent(e)"}</td>` : ind.objectifs.map((_, o) => { const x = s.c[o]; const v = x === null || x === undefined ? -1 : x;
+      return edit ? `<td class="cd ic${v >= 0 ? " l" + v : ""}" data-ic="${ii}.${d}.${p}.${o}" tabindex="0" role="button" aria-label="${esc(cr.mat)} ${nomJ} ${per}, objectif ${o + 1} : ${v >= 0 ? codes[v] : "vide"}" title="${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}\nObjectif ${o + 1} : ${esc(ind.objectifs[o])}\n• ${codeIndiv === null ? "clic : choisir la case (puis 1 à 4, ou la palette)" : "clic ou glisser : met le code choisi dans la palette"}\n• au clavier : ${touchesIndiv()}, puis la case suivante est choisie toute seule\n• clic droit : élève absent(e) à ce cours">${v >= 0 ? codes[v] : ""}</td>`
         : `<td class="cd">${v >= 0 ? codes[v] : ""}</td>`; }).join("");
-    return `<td class="g mat${edit ? " crn-b" : ""}"${edit ? ` data-crn="${d}|${p}" role="button" tabindex="0"` : ""} title="${esc(cr.mat)}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${edit ? "\nClic : enseignant absent ou remplacé" : ""}">${esc(abrege(cr.mat))}${cr.salle ? `<span class="sal">${esc(cr.salle)}</span>` : ""}</td>${cases}<td class="rq">${edit ? `<input type="text" data-ir="${ii}.${d}.${p}" value="${esc(s.r)}" aria-label="Remarque ${nomJ} ${per}" title="Remarque\n${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}${s.r ? "\n" + esc(s.r) : ""}">` : s.r ? `<div class="rq-t">${esc(s.r)}</div>` : ""}</td>`;
+    return `<td class="g mat${edit ? " crn-b" : ""}"${edit ? ` data-crn="${d}|${p}" data-crni="${ii}" role="button" tabindex="0"` : ""} title="${esc(cr.mat)}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${edit ? "\nClic : élève absent(e), enseignant absent ou remplacé" : ""}">${esc(abrege(cr.mat))}${cr.salle ? `<span class="sal">${esc(cr.salle)}</span>` : ""}</td>${cases}<td class="rq">${edit ? `<input type="text" data-ir="${ii}.${d}.${p}" value="${esc(s.r)}" aria-label="Remarque ${nomJ} ${per}" title="Remarque\n${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}${s.r ? "\n" + esc(s.r) : ""}">` : s.r ? `<div class="rq-t">${esc(s.r)}</div>` : ""}</td>`;
   }).join("")}</tr>`).join("");
   /* Fiche imprimée sans le bilan (case décochée ; d'office avant le jour de remise) : cadre du bilan vide, ni ligne de retenue
      ni bilan (v1.91.3). L'écran garde tout. */
@@ -6298,13 +6424,13 @@ function bilanFamilleHTML(ind, c) {
   const rem = [];
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
     rem.push(`<li><b>${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${esc(cr.mat)}</b>${cr.prof ? ` (${esc(cr.prof)})` : ""} : ${esc(s.r)}</li>`); }
-  const nCours = c.jours.reduce((a, d) => a + ORDRE_P.filter(p => ind.saisies[`${d}.${p}`]).length, 0);
+  const nCours = c.jours.reduce((a, d) => a + ORDRE_P.filter(p => ind.saisies[`${d}.${p}`] && !absIndiv(S, ind, d, p)).length, 0), absT = absencesTxt(ind, c);
   return `<div class="bilan-famille">${enteteEtab()}<div class="f-head"><div class="f-title" role="heading" aria-level="2">Suivi individuel – bilan pour la famille</div></div>
     <table class="bf-ident"><tr><th>Élève</th><td>${esc(ind.nom)}${S.classe ? " – " + esc(S.classe) : ""}</td><th>Période</th><td>${periodeCycle(c)}</td></tr>
     <tr><th>Professeur principal</th><td>${esc(S.referent)}</td><th>Cours notés</th><td>${nCours}</td></tr></table>
     <h3>Objectifs</h3><p class="petit">Réussite = part des cours notés « ${esc(S.codage[0].sens)} » ou « ${esc(S.codage[1].sens)} ». Codage : ${S.codage.map(x => `${esc(x.code)} ${esc(x.sens.toLowerCase())}`).join(" · ")}.</p>
     <table class="bf-obj"><thead><tr><th></th><th>Objectif</th><th>Réussite</th><th>Détail</th><th>${prec ? "Évolution" : ""}</th></tr></thead><tbody>${objs}</tbody></table>
-    <h3>Remarques des enseignants</h3>${rem.length ? `<ul class="bf-rem">${rem.join("")}</ul>` : "<p>Aucune remarque sur cette période.</p>"}
+    ${absT ? `<h3>Absences</h3><p>${esc(absT)}</p>` : ""}<h3>Remarques des enseignants</h3>${rem.length ? `<ul class="bf-rem">${rem.join("")}</ul>` : "<p>Aucune remarque sur cette période.</p>"}
     <h3>Bilan du professeur principal</h3><div class="bf-bilan">${ligneRetenue(ind, c) ? `<p class="bil-ret">${esc(ligneRetenue(ind, c))}</p>` : ""}${esc(bilanCycle(ind, c)) || (ligneRetenue(ind, c) ? "" : "&nbsp;")}</div>
     <p class="petit bf-pied">La fiche remplie par les enseignants figure en page suivante.</p></div>`;
 }
@@ -6330,16 +6456,17 @@ function bilanCourriel(ind, c, html) {
   const rem = [];
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
     rem.push({ quand: `${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${cr.mat}${cr.prof ? ` (${cr.prof})` : ""}`, r: s.r.trim() }); }
-  const ret = ligneRetenue(ind, c);
+  const ret = ligneRetenue(ind, c), absT = absencesTxt(ind, c);
   const bilan = bilanCycle(ind, c).trim(), legende = `Réussite = part des cours notés « ${S.codage[0].sens} » ou « ${S.codage[1].sens} ».`;
   if (!html) return [`Objectifs (${legende.replace(/\.$/, "").replace(/^R/, "r")}) :`, ...objs.map((x, n) => `${n + 1}. ${x.o.replace(/[.\s]+$/, "")} : ${x.v === null ? "rien de noté" : `${pctTxt(x.v)} de réussite (${x.det})`}${x.evo ? `, ${x.evo}` : ""}`),
-    "", "Remarques des enseignants :", ...(rem.length ? rem.map(r => `- ${r.quand} : ${r.r}`) : ["aucune remarque sur cette période"]),
+    ...(absT ? ["", `Absences : ${absT}`] : []), "", "Remarques des enseignants :", ...(rem.length ? rem.map(r => `- ${r.quand} : ${r.r}`) : ["aucune remarque sur cette période"]),
     ...(bilan || ret ? ["", "Bilan du professeur principal :", ...(ret ? [ret] : []), ...(bilan ? [bilan] : [])] : [])].join("\n");
   const td = "border:1px solid #c9ced4;padding:4px 8px;vertical-align:top;";
   return `<p style="margin:0 0 4px"><b>Objectifs</b> <span style="color:#555">(${esc(legende)})</span></p>
 <table style="border-collapse:collapse;margin:0 0 10px"><tr><th style="${td}background:#eceef1;text-align:left">Objectif</th><th style="${td}background:#eceef1">Réussite</th><th style="${td}background:#eceef1;text-align:left">Détail</th>${prec ? `<th style="${td}background:#eceef1;text-align:left">Évolution</th>` : ""}</tr>
 ${objs.map((x, n) => { const col = COUL_NIV[x.niv]; return `<tr><td style="${td}">${n + 1}. ${esc(x.o)}</td><td style="${td}text-align:center;font-weight:600;${col ? `background:${col[0]};color:${col[1]}` : ""}">${x.v === null ? "—" : pctTxt(x.v)}</td><td style="${td}">${esc(x.det)}</td>${prec ? `<td style="${td}">${esc(x.evo)}</td>` : ""}</tr>`; }).join("\n")}</table>
-<p style="margin:0 0 4px"><b>Remarques des enseignants</b></p>${rem.length ? `<ul style="margin:0 0 10px">${rem.map(r => `<li><b>${esc(r.quand)}</b> : ${esc(r.r)}</li>`).join("")}</ul>` : `<p style="margin:0 0 10px">Aucune remarque sur cette période.</p>`}
+${absT ? `<p style="margin:0 0 10px"><b>Absences</b> : ${esc(absT)}</p>
+` : ""}<p style="margin:0 0 4px"><b>Remarques des enseignants</b></p>${rem.length ? `<ul style="margin:0 0 10px">${rem.map(r => `<li><b>${esc(r.quand)}</b> : ${esc(r.r)}</li>`).join("")}</ul>` : `<p style="margin:0 0 10px">Aucune remarque sur cette période.</p>`}
 ${bilan || ret ? `<p style="margin:0 0 4px"><b>Bilan du professeur principal</b></p>${ret ? `<p style="margin:0 0 6px"><b>${esc(ret)}</b></p>` : ""}${bilan ? `<p style="margin:0 0 10px">${esc(bilan).replace(/\n/g, "<br>")}</p>` : ""}` : ""}`;
 }
 function courrielFamille(ind, c) {
@@ -6441,7 +6568,7 @@ function bilanMatiereIndiv(ind, o = -1) {
   const sems = semaines(S), grs = groupesDe(S, ind.nom), serie = serieIndiv(ind), res = new Map(), tous = [0, 0, 0], pr = profsPeriode(S);
   for (const f of serie) for (const d of f.c.jours) for (const p of creneauxDu(S, d)) {
     const s = ind.saisies[`${d}.${p}`]; if (!s) continue;
-    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent) continue;
+    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent || absIndiv(S, ind, d, p)) continue;
     if (!res.has(cr.mat)) res.set(cr.mat, { mat: cr.mat, prof: "", par: new Map(), tot: [0, 0, 0] }); pr.note(cr.mat, d); res.get(cr.mat).prof = pr.de(cr.mat) || cr.prof;
     const m = res.get(cr.mat); if (!m.par.has(f.c.fin)) m.par.set(f.c.fin, [0, 0, 0]);
     const cel = m.par.get(f.c.fin);
@@ -6837,6 +6964,7 @@ function viewIndiv(arg) {
         <li>${envoiCaseHTML(ind, c)}</li></ol></div></div>
   ${edtVide() ? `<div class="banner-info no-print">L’emploi du temps est vide : toutes les cases sont hachurées. Remplissez d’abord l’<a href="#edt">Emploi du temps</a>.</div>` : ""}
   ${paletteIndiv()}
+  <p class="petit muted no-print aide-abs"><b>Élève absent(e) :</b> clic sur le jour (toute la journée ou certains cours) ou sur la matière, ou clic droit sur la case.</p>
   <div class="sheet papier indiv-feuille" id="grille-indiv">${indivHTML(ind, c, true)}</div>
   <div class="no-print">${evolutionIndivHTML(ind, c)}${bilanMatiereIndivHTML(ind, c, false)}</div>`;
 }
@@ -6955,7 +7083,7 @@ document.addEventListener("click", async e => {
     if (nom === null) return;
     if (nom !== "__autre__" && nom.trim() && dejaSuivi(nom)) { informer("Déjà suivi", `${nom.trim()} a déjà un suivi individuel : ouvrez-le plutôt (un seul suivi par élève).`); return; }
     if (nom === "__autre__") nom = "";
-    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {} };
+    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {}, abs: {} };
     S.individuels.push(ind); commit(false); location.hash = "#indiv/" + ind.id;
     setTimeout(() => { const c = document.querySelector(`input[data-path="individuels.${S.individuels.length - 1}.${nom ? "objectifs.0" : "nom"}"]`); if (c) c.focus(); }, 100);
     return;
@@ -6984,6 +7112,7 @@ document.addEventListener("keydown", e => {
   const rq = e.target.closest && e.target.closest("input[data-ir]");
   if (rq && (e.key === "Enter" || e.key === "Escape")) {      // remarque : Entrée → 1re case encore vide du cours, sinon cours suivant ; Échap → cases du cours
     e.preventDefault(); const [ii, d, p] = rq.dataset.ir.split("."), ordre = ordreIndiv(), ici = ordre.filter(k => k.startsWith(`${ii}.${d}.${p}.`));
+    if (!ici.length) { const n = ordre.find(k => { const [, dk, pk] = k.split("."); return dk > d || (dk === d && ORDRE_P.indexOf(Number(pk)) > ORDRE_P.indexOf(Number(p))); }); if (n) focusIndiv(n); else rq.blur(); return; }   /* élève absent à ce cours : le cours suivant */
     const s = S.individuels[ii].saisies[`${d}.${p}`], vide = ici.find(k => { const x = s && s.c[k.split(".")[3]]; return x === null || x === undefined; });
     if (e.key === "Escape") { focusIndiv(vide || ici[0]); return; }
     const k = ordre.indexOf(ici[ici.length - 1]); focusIndiv(vide || ordre[k + 1] || ici[0]); return;
@@ -7283,7 +7412,7 @@ const TUTO = [
       faire: "Imprimez-la et donnez-la à l’élève le jour où elle commence. Pour tous les élèves suivis d’un coup : le bouton « Fiches de la semaine… » de la page Fiches individuelles." },
     { route: premierSuivi, cible: ".pal-ind", titre: "4. Saisir la fiche rendue",
       but: "Le jour de la remise, vous recopiez les codes écrits par les enseignants, d’une traite.",
-      faire: "Tapez le niveau, comme pour les compétences : 1 (le plus faible, I) à 4 (le meilleur, TB), 0 : non évalué — ou T, S, A, I. La case suivante est choisie toute seule. Entrée pour une remarque. À la souris : choisissez un code dans la palette, puis un clic (ou un cliquer-glisser) sur les cases le met ; un 2e clic sur ce code le désélectionne." },
+      faire: "Tapez le niveau, comme pour les compétences : 1 (le plus faible, I) à 4 (le meilleur, TB), 0 : non évalué — ou T, S, A, I. La case suivante est choisie toute seule. Entrée pour une remarque. Élève absent : cliquez le jour (ou la matière d’un cours) ; l’absence est notée sur toutes ses fiches. À la souris : choisissez un code dans la palette, puis un clic (ou un cliquer-glisser) sur les cases le met ; un 2e clic sur ce code le désélectionne." },
     { route: premierSuivi, cible: ".nav-el", titre: "5. D’un élève à l’autre",
       but: "Le jour de la remise, on saisit souvent les fiches de tous les élèves suivis, l’une après l’autre.",
       faire: "Les flèches ‹ › à côté du nom (ou les touches ← → du clavier, hors de la grille de saisie) passent à l’élève précédent ou suivant, sur la même période." },

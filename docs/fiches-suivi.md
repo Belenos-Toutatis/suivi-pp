@@ -262,3 +262,30 @@ quatrième étape de « après la remise » sur la page du suivi (`envoiCaseHTML
   tableaux `indiv` rognent leur contenu), et vers la GAUCHE près du bord droit de la feuille (classe `vers-g`, posée à `focusin`).
 - Test : `fiches-suivi/e2e_remarque_clic.js` (vrais clics en haut, au milieu et en bas, 1 à 4 objectifs, 1024 et 1366 px, chaque jour).
 - `app/assemble.py` écrit en LF et lit en UTF-8 sur tous les postes : sous Windows il écrivait « suivi pp.html » en CRLF.
+
+### Absence d'un élève : notée une fois, sur toutes ses fiches (v1.94.0, demandé le 2026-11-25)
+
+L'utilisateur : *« ajoute-le, pour tous les types de fiches de suivi »*. Une absence se note depuis n'importe quelle fiche et vaut pour
+les trois familles ; le modèle de chacune ne change pas : fiche individuelle `ind.abs = { date: [créneaux] }` (nouveau, assaini par
+`normalizeState`, vide pour un suivi d'avant), fiche collective `jours[d].abs[s]`, fiche de classe code `A`.
+
+- **Où la noter.** Fiche individuelle : clic sur le **jour** (toute la journée, matin, après-midi, cours cochés — `editerAbsJour`), clic
+  sur la **matière** (case « … : absent(e) à ce cours » de la fenêtre du cours, `editerCreneau(d, p, ind)`), **clic droit** sur une case.
+  Fiche collective et fiche de classe : les gestes d'avant, qui passent maintenant par le même chemin (`appliquerListesAbs`,
+  `reporterAbsClasse`).
+- **Un seul chemin d'écriture** : `confirmerAbsences(aEffacerAbs(cibles))` puis `poserAbsences(cibles, on)`. ⚠️ Toute nouvelle façon de
+  noter une absence passe par là, sinon les trois fiches divergent. Seules les DIFFÉRENCES sont reportées (une absence d'avant, notée sur
+  une seule fiche, n'est pas retirée parce qu'on en touche une autre). Chaque famille ne reçoit que ce qui la concerne (élève dans la
+  liste, présent ce jour-là, jour du suivi, cours qui a lieu).
+- **Des saisies à effacer** (codes, croix, codes de classe) : une seule confirmation, qui nomme chaque fiche ; refusée, rien ne change
+  (la fiche de classe reprend ses codes). La **remarque** d'un cours de fiche individuelle est gardée, et reste modifiable.
+- **Affichage** : une case grisée « absent(e) » à la place des codes (« abs. » à un ou deux objectifs), écran et papier ; la saisie au
+  clavier saute ces cours. Le cours ne compte ni dans la réussite, ni dans la retenue, ni dans le bilan par matière
+  (`coursIndivActif`, `absIndiv`).
+- **Bilan pour la famille et courriel** : ligne « Absences : mardi 24/11 (toute la journée), jeudi 26/11 (Techno) » (`absencesTxt`), rien
+  sans absence.
+- ⚠️ **Absences d'avant** (fiche collective ou de classe seulement) : lues par la fiche individuelle, mais seulement sur un cours SANS code
+  — aucun résultat passé ne change (`absIndiv`).
+- « Toute la journée », « le matin », « l'après-midi » sont enregistrés comme tels (`listeAbs`) : la fiche collective les dit ainsi.
+- Démonstration : les absences de la fiche collective sont aussi sur les fiches individuelles et de classe (retirées en dernier, les
+  autres tirages ne bougent pas). Test : `fiches-suivi/e2e_absence_eleve.js`.

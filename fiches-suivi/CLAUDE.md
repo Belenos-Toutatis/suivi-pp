@@ -108,6 +108,8 @@ Chaque texte (infobulle, titre, message) dit de quelle famille il parle.
 - **Suivis individuels** : l'avis (« Maintien nécessaire »…) ne compte la fiche de la semaine qu'à partir de son jour de remise.
   **Retenue** (arbitré le 2026-11-22) : la réussite ARRONDIE fait foi (79,5 % s'affiche 80 % et ne passe pas sous un seuil de 80 %).
   **Élève parti** : son suivi n'est pas clos, mais ses fiches s'arrêtent à son départ (`finIndiv`).
+- **Absence d'un élève** (2026-11-25) : notée une fois, depuis n'importe quelle fiche, elle vaut pour les trois familles ; un seul chemin
+  d'écriture (`confirmerAbsences` puis `poserAbsences`). Détail : `docs/fiches-suivi.md` de Suivi PP, *Absence d'un élève*.
 - **Impressions, fiche individuelle** : jamais de contenu rogné — la page a une hauteur minimale, pas fixe (détail :
   `docs/fiches-suivi.md` de Suivi PP, *Audit du 2026-11-22*).
 

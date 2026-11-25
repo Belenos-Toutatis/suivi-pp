@@ -205,7 +205,7 @@ function paletteClasse() {
   const cp = codePalette(), btn = (v, txt, tip, cls) => `<button type="button" class="pal-c ${cls || ""}${cp === v ? " on" : ""}" data-pal-cl="${esc(v)}" aria-pressed="${cp === v}" title="${tip}">${txt}</button>`;
   return `<div class="pal-ind pal-cl no-print" role="toolbar" aria-label="Code à mettre dans les cases"><span class="pal-tit">Code :</span>
     ${S.codesClasse.filter(c => c.code).map(c => btn(c.code, `${codeClasseHTML(c.code)} <small>${esc(c.sens)}</small>`, `${esc(c.code)} : ${esc(c.sens)}\n• met ce code dans la case choisie (ou l’en retire)\n• cliquer-glisser : sur plusieurs cases d’un coup\n• au clavier : touche ${esc(c.code)}`)).join("")}
-    ${btn(CODE_ABSENT, `${codeClasseHTML(CODE_ABSENT)} <small>absent</small>`, "Absent(e)\nRemplace les autres codes de la case.")}
+    ${btn(CODE_ABSENT, `${codeClasseHTML(CODE_ABSENT)} <small>absent</small>`, "Absent(e)\nRemplace les autres codes de la case.\n• aussi noté sur la fiche individuelle et la fiche collective de l’élève")}
     ${btn("-", "⌫ Gomme", "Gomme\nCliquez ou glissez pour vider les cases.\n• au clavier : Suppr")}
     ${btn("?", "☰ Choisir", "Fenêtre de choix\nUn clic sur une case ouvre la liste des codes (pour en mettre plusieurs).\n• au clavier : Entrée")}
     <span class="pal-case" id="cl-case" aria-live="polite"></span>
@@ -224,38 +224,51 @@ function poserCodes(d, cle, v, rendu) {
   if (v) j.cl[cle] = [...codesClasse(S)].filter(x => v.includes(x)).join(""); else delete j.cl[cle];
   if (!rendu) { const td = document.querySelector(`td[data-cl="${cle}"][data-d="${d}"]`); if (td) { const w = j.cl[cle] || ""; td.innerHTML = [...w].map(codeClasseHTML).join(""); td.classList.toggle("absent", w.includes(CODE_ABSENT)); } }
 }
+/** Fiche de classe : après une saisie, les absences ajoutées ou retirées (avant : « date|élève.créneau » → codes d'avant) sont reportées sur les
+    autres fiches, puis suite(). Des saisies à effacer ailleurs : confirmation ; refusée, les cases reprennent leurs codes. */
+function reporterAbsClasse(avant, suite) {
+  const plus = [], moins = [];
+  for (const [k, v0] of avant) { const [d, cle] = k.split("|"), [s, p] = cle.split(".").map(Number), v = ((S.jours[d] || {}).cl || {})[cle] || "", a = v.includes(CODE_ABSENT), a0 = v0.includes(CODE_ABSENT), nom = (S.classeEleves[s] || {}).nom;
+    if (nom && a !== a0) (a ? plus : moins).push({ nom, d, p, k, v0 }); }
+  poserAbsences(moins, false);
+  const r = aEffacerAbs(plus, false);
+  if (rienAEffacer(r)) { poserAbsences(plus, true); suite(); return; }
+  confirmerAbsences(r).then(ok => { if (ok) poserAbsences(plus, true);
+    else for (const t of plus) { const j = jour(S, t.d, true), cle = t.k.split("|")[1]; if (t.v0) j.cl[cle] = t.v0; else delete j.cl[cle]; }
+    suite(); });
+}
 let peintureCl = null;           // { ajoute, vus }
 function peindreCl(td) {
   const k = td.dataset.d + "|" + td.dataset.cl; if (peintureCl.vus.has(k)) return; peintureCl.vus.add(k);
   const c = codePalette(), v = ((S.jours[td.dataset.d] || {}).cl || {})[td.dataset.cl] || "";
   if (peintureCl.ajoute === undefined) peintureCl.ajoute = c !== "-" && !v.includes(c);      // la 1re case décide : ajouter ou retirer
   const n = c === "-" ? "" : !peintureCl.ajoute ? v.replace(c, "") : c === CODE_ABSENT ? CODE_ABSENT : v.replace(CODE_ABSENT, "").replace(c, "") + c;
-  poserCodes(td.dataset.d, td.dataset.cl, n, false);
+  peintureCl.avant.set(k, v); poserCodes(td.dataset.d, td.dataset.cl, n, false);
 }
 document.addEventListener("pointerdown", e => {
   const td = e.target.closest && e.target.closest("table.cs td[data-cl]");
   if (!td || e.button !== 0 || !S || codePalette() === "?") return;
   e.preventDefault(); td.focus({ preventScroll: true }); ficheDate = td.dataset.d; clOuvert = null; popCl.hidden = true;
   // un code est choisi dans la palette : le clic (ou le cliquer-glisser) le met tout de suite ; sinon le clic choisit seulement la case
-  peintureCl = { vus: new Set(), derniere: td, depart: td, attente: codeCl === null }; document.body.classList.add("tracage"); if (codeCl !== null) peindreCl(td);
+  peintureCl = { vus: new Set(), avant: new Map(), derniere: td, depart: td, attente: codeCl === null }; document.body.classList.add("tracage"); if (codeCl !== null) peindreCl(td);
 });
 document.addEventListener("pointermove", e => { if (!peintureCl || peintureCl.attente) return; const el = document.elementFromPoint(e.clientX, e.clientY), td = el && el.closest("table.cs td[data-cl]");
   if (!td) return; peindreCl(td); peintureCl.derniere = td; });
-const finPeintureCl = (garder = false) => { if (!peintureCl) return; const t = peintureCl.derniere, attente = peintureCl.attente, plusieurs = peintureCl.vus.size > 1; peintureCl = null; document.body.classList.remove("tracage"); if (attente) { selClFraiche = true; return; }
-  commit(); const c = document.querySelector(`td[data-cl="${t.dataset.cl}"][data-d="${t.dataset.d}"]`); if (c) c.focus({ preventScroll: true }); selClFraiche = garder === true; };
+const finPeintureCl = (garder = false) => { if (!peintureCl) return; const t = peintureCl.derniere, attente = peintureCl.attente, avant = peintureCl.avant; peintureCl = null; document.body.classList.remove("tracage"); if (attente) { selClFraiche = true; return; }
+  reporterAbsClasse(avant, () => { commit(); const c = document.querySelector(`td[data-cl="${t.dataset.cl}"][data-d="${t.dataset.d}"]`); if (c) c.focus({ preventScroll: true }); selClFraiche = garder === true; }); };
 document.addEventListener("pointerup", finPeintureCl); document.addEventListener("pointercancel", finPeintureCl);
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-pal-cl]"); if (!b) return;
   const v = b.dataset.palCl, td = selClFraiche && selCl && document.querySelector(`table.cs td[data-cl="${selCl.cl}"][data-d="${selCl.d}"]`);
   if (codeCl === v) { codeCl = null; render(); return; }          // un clic sur le code déjà choisi le désélectionne
   const ecrire = codeCl === null && td && v !== "?"; codeCl = v;  // le code est choisi ; la case qui attendait (choisie sans code) le reçoit
-  if (ecrire) { peintureCl = { vus: new Set(), derniere: td }; peindreCl(td); finPeintureCl(true); } else render(); });
+  if (ecrire) { peintureCl = { vus: new Set(), avant: new Map(), derniere: td }; peindreCl(td); finPeintureCl(true); } else render(); });
 let selCl = null, selClFraiche = false;  // dernière case choisie de la fiche de classe ; « fraîche » : choisie (clic, clavier), pas écrite par un glisser
 document.addEventListener("focusin", e => { const td = e.target.closest && e.target.closest("table.cs td[data-cl]"); if (td) { selCl = { cl: td.dataset.cl, d: td.dataset.d }; if (!peintureCl) selClFraiche = true; } });
 function basculerCode(cle, c) {
-  const j = jour(S, ficheDate, true); let v = j.cl[cle] || "";
+  const j = jour(S, ficheDate, true); let v = j.cl[cle] || ""; const avant = new Map([[ficheDate + "|" + cle, v]]);
   if (c === null) v = ""; else v = v.includes(c) ? v.replace(c, "") : c === CODE_ABSENT ? CODE_ABSENT : v.replace(CODE_ABSENT, "") + c;
   if (v) j.cl[cle] = [...codesClasse(S)].filter(x => v.includes(x)).join(""); else delete j.cl[cle];
-  commit();
+  reporterAbsClasse(avant, () => commit());
 }
 document.addEventListener("click", e => {
   if (!S) return;
@@ -434,7 +447,7 @@ function ligneRetenue(ind, c) {
 }
 /** Réussite d'une fiche pour chaque objectif : [TB+S, total, nb I, nb par code]. */
 /** Une saisie compte si le cours a bien lieu (comme sur la grille) : un jour sans cours, un cours annulé ou retiré de l'emploi du temps après coup ne comptent plus. */
-const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs); return !!cr.mat && !cr.absent; };
+const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs); return !!cr.mat && !cr.absent && !absIndiv(S, ind, d, p); };
 function statsIndiv(ind, c) {
   const r = ind.objectifs.map(() => [0, 0, 0, [0, 0, 0, 0]]), sems = semaines(S), grs = groupesDe(S, ind.nom);
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !coursIndivActif(ind, d, p, sems, grs)) continue;
@@ -546,7 +559,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
     <div class="f-line"><span><b>Élève :</b> ${esc(ind.nom)}${S.classe ? " – " + esc(S.classe) : ""}</span><span><b>Professeur principal :</b> ${esc(S.referent)}</span></div>
     <div class="f-consigne">${esc(consigneIndiv(ind, c))}${regleRetenueEleve(ind, c) ? `<br><b>Attention :</b> ${esc(regleRetenueEleve(ind, c))}` : ""}</div>
     <div class="cadre-obj"><b>Mes objectifs :</b> ${objs}<span class="petit"> &nbsp; L’enseignant écrit le code : ${S.codage.map(x => `<b>${esc(x.code)}</b> ${esc(x.sens.toLowerCase())}`).join(" · ")}. <span class="leg-reussite">Réussite = cases <b>${esc(S.codage[0].code)}</b> ou <b>${esc(S.codage[1].code)}</b>.</span></span></div>`;
-  const jt = c.jours.map(d => `<th colspan="${no + 2}" class="g${sansCours(S, d) ? " ferme" : ""}">${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}${!sansCours(S, d) && jourParticulier(jourIdx(d)) ? ` <small class="j-part">⏱ ${jourParticulier(jourIdx(d))}</small>` : ""}</th>`).join("");   /* les heures de la 1re colonne sont celles des jours habituels */
+  const jt = c.jours.map(d => `<th colspan="${no + 2}" class="g${sansCours(S, d) ? " ferme" : edit ? " crn-b" : ""}"${edit && !sansCours(S, d) ? ` data-jabs="${ii}|${d}" role="button" tabindex="0" title="${fmtLong(d)}\nClic : élève absent(e) toute la journée ou à certains cours"` : ""}>${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}${!sansCours(S, d) && jourParticulier(jourIdx(d)) ? ` <small class="j-part">⏱ ${jourParticulier(jourIdx(d))}</small>` : ""}</th>`).join("");   /* les heures de la 1re colonne sont celles des jours habituels */
   const sous = c.jours.map(() => `<th class="g mat">${!edit && c.jours.length * (no + 2) > 30 ? "Mat." : "Matière"}</th>${ind.objectifs.map((_, k) => `<th class="cd" title="Objectif ${k + 1}\n${esc(ind.objectifs[k])}">${NUM_OBJ[k]}</th>`).join("")}${edit ? `<th class="rq" title="Remarque de l’enseignant\nClic dans la case : elle s’élargit pour écrire.">Rem.</th>` : `<th class="rq">${c.jours.length * (no + 2) > 30 ? "Rem. · visa" : "Remarque · visa"}</th>`}`).join("");
   const rangs = creneauxActifs(S);
   const lignes = rangs.map((p, ip) => `<tr><th class="cr">${PERIODS[p]}${horaire(p) ? `<small>${horaire(p).split(" – ")[0]}</small>` : ""}</th>${c.jours.map(d => {
@@ -556,10 +569,11 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
     const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
     if (!cr.mat || cr.absent) return `<td colspan="${no + 2}" class="g ferme${edit && cr.absent ? " crn-b" : ""}"${edit && cr.absent ? ` data-crn="${d}|${p}" role="button" tabindex="0" title="${esc(cr.mat)} : enseignant absent\nClic : rétablir le cours ou indiquer un remplaçant"` : ""}>${cr.absent ? `<small>${esc(cr.mat)} : prof absent</small>` : cr.demi ? `<small>${esc(cr.demi)}</small>` : ""}</td>`;
     const s = ind.saisies[`${d}.${p}`] || { c: [], r: "" };
-    const cases = ind.objectifs.map((_, o) => { const x = s.c[o]; const v = x === null || x === undefined ? -1 : x;
-      return edit ? `<td class="cd ic${v >= 0 ? " l" + v : ""}" data-ic="${ii}.${d}.${p}.${o}" tabindex="0" role="button" aria-label="${esc(cr.mat)} ${nomJ} ${per}, objectif ${o + 1} : ${v >= 0 ? codes[v] : "vide"}" title="${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}\nObjectif ${o + 1} : ${esc(ind.objectifs[o])}\n• ${codeIndiv === null ? "clic : choisir la case (puis 1 à 4, ou la palette)" : "clic ou glisser : met le code choisi dans la palette"}\n• au clavier : ${touchesIndiv()}, puis la case suivante est choisie toute seule">${v >= 0 ? codes[v] : ""}</td>`
+    const absEl = absIndiv(S, ind, d, p);   /* élève absent : une seule case grisée à la place des codes ; la remarque reste */
+    const cases = absEl ? `<td class="cd abs-el${no < 3 ? " court" : ""}" colspan="${no}"${edit ? ` data-iabs="${ii}.${d}.${p}" role="button" tabindex="0" aria-label="${esc(cr.mat)} ${nomJ} ${per} : élève absent(e)" title="${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}\nÉlève absent(e) : ce cours ne compte pas.\n• clic : fenêtre du cours\n• clic droit : présent(e)"` : ""}>${no < 3 ? "abs." : "absent(e)"}</td>` : ind.objectifs.map((_, o) => { const x = s.c[o]; const v = x === null || x === undefined ? -1 : x;
+      return edit ? `<td class="cd ic${v >= 0 ? " l" + v : ""}" data-ic="${ii}.${d}.${p}.${o}" tabindex="0" role="button" aria-label="${esc(cr.mat)} ${nomJ} ${per}, objectif ${o + 1} : ${v >= 0 ? codes[v] : "vide"}" title="${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}\nObjectif ${o + 1} : ${esc(ind.objectifs[o])}\n• ${codeIndiv === null ? "clic : choisir la case (puis 1 à 4, ou la palette)" : "clic ou glisser : met le code choisi dans la palette"}\n• au clavier : ${touchesIndiv()}, puis la case suivante est choisie toute seule\n• clic droit : élève absent(e) à ce cours">${v >= 0 ? codes[v] : ""}</td>`
         : `<td class="cd">${v >= 0 ? codes[v] : ""}</td>`; }).join("");
-    return `<td class="g mat${edit ? " crn-b" : ""}"${edit ? ` data-crn="${d}|${p}" role="button" tabindex="0"` : ""} title="${esc(cr.mat)}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${edit ? "\nClic : enseignant absent ou remplacé" : ""}">${esc(abrege(cr.mat))}${cr.salle ? `<span class="sal">${esc(cr.salle)}</span>` : ""}</td>${cases}<td class="rq">${edit ? `<input type="text" data-ir="${ii}.${d}.${p}" value="${esc(s.r)}" aria-label="Remarque ${nomJ} ${per}" title="Remarque\n${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}${s.r ? "\n" + esc(s.r) : ""}">` : s.r ? `<div class="rq-t">${esc(s.r)}</div>` : ""}</td>`;
+    return `<td class="g mat${edit ? " crn-b" : ""}"${edit ? ` data-crn="${d}|${p}" data-crni="${ii}" role="button" tabindex="0"` : ""} title="${esc(cr.mat)}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${edit ? "\nClic : élève absent(e), enseignant absent ou remplacé" : ""}">${esc(abrege(cr.mat))}${cr.salle ? `<span class="sal">${esc(cr.salle)}</span>` : ""}</td>${cases}<td class="rq">${edit ? `<input type="text" data-ir="${ii}.${d}.${p}" value="${esc(s.r)}" aria-label="Remarque ${nomJ} ${per}" title="Remarque\n${nomJ} ${fmtDM(d)} ${per} · ${esc(cr.mat)}${s.r ? "\n" + esc(s.r) : ""}">` : s.r ? `<div class="rq-t">${esc(s.r)}</div>` : ""}</td>`;
   }).join("")}</tr>`).join("");
   /* Fiche imprimée sans le bilan (case décochée ; d'office avant le jour de remise) : cadre du bilan vide, ni ligne de retenue
      ni bilan (v1.91.3). L'écran garde tout. */
@@ -578,13 +592,13 @@ function bilanFamilleHTML(ind, c) {
   const rem = [];
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
     rem.push(`<li><b>${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${esc(cr.mat)}</b>${cr.prof ? ` (${esc(cr.prof)})` : ""} : ${esc(s.r)}</li>`); }
-  const nCours = c.jours.reduce((a, d) => a + ORDRE_P.filter(p => ind.saisies[`${d}.${p}`]).length, 0);
+  const nCours = c.jours.reduce((a, d) => a + ORDRE_P.filter(p => ind.saisies[`${d}.${p}`] && !absIndiv(S, ind, d, p)).length, 0), absT = absencesTxt(ind, c);
   return `<div class="bilan-famille">${enteteEtab()}<div class="f-head"><div class="f-title" role="heading" aria-level="2">Suivi individuel – bilan pour la famille</div></div>
     <table class="bf-ident"><tr><th>Élève</th><td>${esc(ind.nom)}${S.classe ? " – " + esc(S.classe) : ""}</td><th>Période</th><td>${periodeCycle(c)}</td></tr>
     <tr><th>Professeur principal</th><td>${esc(S.referent)}</td><th>Cours notés</th><td>${nCours}</td></tr></table>
     <h3>Objectifs</h3><p class="petit">Réussite = part des cours notés « ${esc(S.codage[0].sens)} » ou « ${esc(S.codage[1].sens)} ». Codage : ${S.codage.map(x => `${esc(x.code)} ${esc(x.sens.toLowerCase())}`).join(" · ")}.</p>
     <table class="bf-obj"><thead><tr><th></th><th>Objectif</th><th>Réussite</th><th>Détail</th><th>${prec ? "Évolution" : ""}</th></tr></thead><tbody>${objs}</tbody></table>
-    <h3>Remarques des enseignants</h3>${rem.length ? `<ul class="bf-rem">${rem.join("")}</ul>` : "<p>Aucune remarque sur cette période.</p>"}
+    ${absT ? `<h3>Absences</h3><p>${esc(absT)}</p>` : ""}<h3>Remarques des enseignants</h3>${rem.length ? `<ul class="bf-rem">${rem.join("")}</ul>` : "<p>Aucune remarque sur cette période.</p>"}
     <h3>Bilan du professeur principal</h3><div class="bf-bilan">${ligneRetenue(ind, c) ? `<p class="bil-ret">${esc(ligneRetenue(ind, c))}</p>` : ""}${esc(bilanCycle(ind, c)) || (ligneRetenue(ind, c) ? "" : "&nbsp;")}</div>
     <p class="petit bf-pied">La fiche remplie par les enseignants figure en page suivante.</p></div>`;
 }
@@ -610,16 +624,17 @@ function bilanCourriel(ind, c, html) {
   const rem = [];
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
     rem.push({ quand: `${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${cr.mat}${cr.prof ? ` (${cr.prof})` : ""}`, r: s.r.trim() }); }
-  const ret = ligneRetenue(ind, c);
+  const ret = ligneRetenue(ind, c), absT = absencesTxt(ind, c);
   const bilan = bilanCycle(ind, c).trim(), legende = `Réussite = part des cours notés « ${S.codage[0].sens} » ou « ${S.codage[1].sens} ».`;
   if (!html) return [`Objectifs (${legende.replace(/\.$/, "").replace(/^R/, "r")}) :`, ...objs.map((x, n) => `${n + 1}. ${x.o.replace(/[.\s]+$/, "")} : ${x.v === null ? "rien de noté" : `${pctTxt(x.v)} de réussite (${x.det})`}${x.evo ? `, ${x.evo}` : ""}`),
-    "", "Remarques des enseignants :", ...(rem.length ? rem.map(r => `- ${r.quand} : ${r.r}`) : ["aucune remarque sur cette période"]),
+    ...(absT ? ["", `Absences : ${absT}`] : []), "", "Remarques des enseignants :", ...(rem.length ? rem.map(r => `- ${r.quand} : ${r.r}`) : ["aucune remarque sur cette période"]),
     ...(bilan || ret ? ["", "Bilan du professeur principal :", ...(ret ? [ret] : []), ...(bilan ? [bilan] : [])] : [])].join("\n");
   const td = "border:1px solid #c9ced4;padding:4px 8px;vertical-align:top;";
   return `<p style="margin:0 0 4px"><b>Objectifs</b> <span style="color:#555">(${esc(legende)})</span></p>
 <table style="border-collapse:collapse;margin:0 0 10px"><tr><th style="${td}background:#eceef1;text-align:left">Objectif</th><th style="${td}background:#eceef1">Réussite</th><th style="${td}background:#eceef1;text-align:left">Détail</th>${prec ? `<th style="${td}background:#eceef1;text-align:left">Évolution</th>` : ""}</tr>
 ${objs.map((x, n) => { const col = COUL_NIV[x.niv]; return `<tr><td style="${td}">${n + 1}. ${esc(x.o)}</td><td style="${td}text-align:center;font-weight:600;${col ? `background:${col[0]};color:${col[1]}` : ""}">${x.v === null ? "—" : pctTxt(x.v)}</td><td style="${td}">${esc(x.det)}</td>${prec ? `<td style="${td}">${esc(x.evo)}</td>` : ""}</tr>`; }).join("\n")}</table>
-<p style="margin:0 0 4px"><b>Remarques des enseignants</b></p>${rem.length ? `<ul style="margin:0 0 10px">${rem.map(r => `<li><b>${esc(r.quand)}</b> : ${esc(r.r)}</li>`).join("")}</ul>` : `<p style="margin:0 0 10px">Aucune remarque sur cette période.</p>`}
+${absT ? `<p style="margin:0 0 10px"><b>Absences</b> : ${esc(absT)}</p>
+` : ""}<p style="margin:0 0 4px"><b>Remarques des enseignants</b></p>${rem.length ? `<ul style="margin:0 0 10px">${rem.map(r => `<li><b>${esc(r.quand)}</b> : ${esc(r.r)}</li>`).join("")}</ul>` : `<p style="margin:0 0 10px">Aucune remarque sur cette période.</p>`}
 ${bilan || ret ? `<p style="margin:0 0 4px"><b>Bilan du professeur principal</b></p>${ret ? `<p style="margin:0 0 6px"><b>${esc(ret)}</b></p>` : ""}${bilan ? `<p style="margin:0 0 10px">${esc(bilan).replace(/\n/g, "<br>")}</p>` : ""}` : ""}`;
 }
 function courrielFamille(ind, c) {
@@ -721,7 +736,7 @@ function bilanMatiereIndiv(ind, o = -1) {
   const sems = semaines(S), grs = groupesDe(S, ind.nom), serie = serieIndiv(ind), res = new Map(), tous = [0, 0, 0], pr = profsPeriode(S);
   for (const f of serie) for (const d of f.c.jours) for (const p of creneauxDu(S, d)) {
     const s = ind.saisies[`${d}.${p}`]; if (!s) continue;
-    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent) continue;
+    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent || absIndiv(S, ind, d, p)) continue;
     if (!res.has(cr.mat)) res.set(cr.mat, { mat: cr.mat, prof: "", par: new Map(), tot: [0, 0, 0] }); pr.note(cr.mat, d); res.get(cr.mat).prof = pr.de(cr.mat) || cr.prof;
     const m = res.get(cr.mat); if (!m.par.has(f.c.fin)) m.par.set(f.c.fin, [0, 0, 0]);
     const cel = m.par.get(f.c.fin);
@@ -1117,6 +1132,7 @@ function viewIndiv(arg) {
         <li>${envoiCaseHTML(ind, c)}</li></ol></div></div>
   ${edtVide() ? `<div class="banner-info no-print">L’emploi du temps est vide : toutes les cases sont hachurées. Remplissez d’abord l’<a href="#edt">Emploi du temps</a>.</div>` : ""}
   ${paletteIndiv()}
+  <p class="petit muted no-print aide-abs"><b>Élève absent(e) :</b> clic sur le jour (toute la journée ou certains cours) ou sur la matière, ou clic droit sur la case.</p>
   <div class="sheet papier indiv-feuille" id="grille-indiv">${indivHTML(ind, c, true)}</div>
   <div class="no-print">${evolutionIndivHTML(ind, c)}${bilanMatiereIndivHTML(ind, c, false)}</div>`;
 }
@@ -1235,7 +1251,7 @@ document.addEventListener("click", async e => {
     if (nom === null) return;
     if (nom !== "__autre__" && nom.trim() && dejaSuivi(nom)) { informer("Déjà suivi", `${nom.trim()} a déjà un suivi individuel : ouvrez-le plutôt (un seul suivi par élève).`); return; }
     if (nom === "__autre__") nom = "";
-    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {} };
+    const ind = { id: nouvelId(), nom: nom || "", objectifs: ["", "", ""], debut: "", fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {}, abs: {} };
     S.individuels.push(ind); commit(false); location.hash = "#indiv/" + ind.id;
     setTimeout(() => { const c = document.querySelector(`input[data-path="individuels.${S.individuels.length - 1}.${nom ? "objectifs.0" : "nom"}"]`); if (c) c.focus(); }, 100);
     return;
@@ -1264,6 +1280,7 @@ document.addEventListener("keydown", e => {
   const rq = e.target.closest && e.target.closest("input[data-ir]");
   if (rq && (e.key === "Enter" || e.key === "Escape")) {      // remarque : Entrée → 1re case encore vide du cours, sinon cours suivant ; Échap → cases du cours
     e.preventDefault(); const [ii, d, p] = rq.dataset.ir.split("."), ordre = ordreIndiv(), ici = ordre.filter(k => k.startsWith(`${ii}.${d}.${p}.`));
+    if (!ici.length) { const n = ordre.find(k => { const [, dk, pk] = k.split("."); return dk > d || (dk === d && ORDRE_P.indexOf(Number(pk)) > ORDRE_P.indexOf(Number(p))); }); if (n) focusIndiv(n); else rq.blur(); return; }   /* élève absent à ce cours : le cours suivant */
     const s = S.individuels[ii].saisies[`${d}.${p}`], vide = ici.find(k => { const x = s && s.c[k.split(".")[3]]; return x === null || x === undefined; });
     if (e.key === "Escape") { focusIndiv(vide || ici[0]); return; }
     const k = ordre.indexOf(ici[ici.length - 1]); focusIndiv(vide || ordre[k + 1] || ici[0]); return;

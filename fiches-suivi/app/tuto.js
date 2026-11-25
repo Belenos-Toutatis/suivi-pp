@@ -85,7 +85,7 @@ const TUTO = [
       faire: "Imprimez-la et donnez-la à l’élève le jour où elle commence. Pour tous les élèves suivis d’un coup : le bouton « Fiches de la semaine… » de la page Fiches individuelles." },
     { route: premierSuivi, cible: ".pal-ind", titre: "4. Saisir la fiche rendue",
       but: "Le jour de la remise, vous recopiez les codes écrits par les enseignants, d’une traite.",
-      faire: "Tapez le niveau, comme pour les compétences : 1 (le plus faible, I) à 4 (le meilleur, TB), 0 : non évalué — ou T, S, A, I. La case suivante est choisie toute seule. Entrée pour une remarque. À la souris : choisissez un code dans la palette, puis un clic (ou un cliquer-glisser) sur les cases le met ; un 2e clic sur ce code le désélectionne." },
+      faire: "Tapez le niveau, comme pour les compétences : 1 (le plus faible, I) à 4 (le meilleur, TB), 0 : non évalué — ou T, S, A, I. La case suivante est choisie toute seule. Entrée pour une remarque. Élève absent : cliquez le jour (ou la matière d’un cours) ; l’absence est notée sur toutes ses fiches. À la souris : choisissez un code dans la palette, puis un clic (ou un cliquer-glisser) sur les cases le met ; un 2e clic sur ce code le désélectionne." },
     { route: premierSuivi, cible: ".nav-el", titre: "5. D’un élève à l’autre",
       but: "Le jour de la remise, on saisit souvent les fiches de tous les élèves suivis, l’une après l’autre.",
       faire: "Les flèches ‹ › à côté du nom (ou les touches ← → du clavier, hors de la grille de saisie) passent à l’élève précédent ou suivant, sur la même période." },

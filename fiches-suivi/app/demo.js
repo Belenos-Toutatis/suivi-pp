@@ -86,7 +86,7 @@ function demoState() {
   jour(st, "2026-11-30", true).clr[rang("KÖPRÜLÜ Mikail")] = "Oublis de matériel répétés : mot dans le carnet.";
   // ----- suivis individuels hebdomadaires : objectifs propres, résultats qui progressent -----
   const indiv = (nom, objectifs, debut, prof) => {
-    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {} };
+    const i = { id: "demo-" + nom.split(" ")[0].toLowerCase(), nom, objectifs, debut, fin: "", remise: 0, consigne: 0, retenue: null, courriel: "", saisies: {}, bilans: {}, pertes: [], envoyes: {}, abs: {} };
     sems.forEach((w, wi) => { if (w.jours[4] < debut) return;
       w.jours.forEach(date => { if (sansCours(st, date)) return;
         for (let p = 0; p < 7; p++) { const cr = creneau(st, sems, date, p); if (!cr.mat || cr.absent || r2() < 0.08) continue;
@@ -141,5 +141,10 @@ function demoState() {
   const pdF = st.individuels.find(i => i.id === "demo-podeanu");
   for (const k of Object.keys(pdF.saisies)) if (k >= "2026-11-16" && k < "2026-11-20") delete pdF.saisies[k];
   pdF.pertes = ["2026-11-17", "2026-11-19"]; pdF.bilans["2026-11-20"] = "Fiche perdue deux fois : un nouvel exemplaire donné à chaque fois, la famille est prévenue.";
+  /* absences d'élèves (v1.94.0) : celles de la fiche collective valent aussi sur la fiche individuelle et la fiche de classe ; retirées en dernier */
+  for (const [date, j] of Object.entries(st.jours)) for (const s of Object.keys(j.abs || {})) for (const p of absCreneaux(st, date, s)) {
+    const nom = (st.eleves[s] || {}).nom, i = st.individuels.find(x => x.nom === nom && (!x.debut || date >= x.debut)), c = rang(nom), cr = c >= 0 ? coursPour(creneau(st, sems, date, p), st.classeEleves[c].groupes || []) : {};
+    if (i) { (i.abs[date] = i.abs[date] || []).push(p); delete i.saisies[`${date}.${p}`]; }
+    if (cr.mat && !cr.absent) j.cl[`${c}.${p}`] = CODE_ABSENT; }
   return st;
 }

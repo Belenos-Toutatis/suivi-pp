@@ -378,7 +378,9 @@ function normalizeState(st) {
     /* fiches dont le bilan a été ENVOYÉ à la famille (case de la page du suivi, arbitré le 2026-11-22) : { dernier jour de la fiche: { le, regle } } —
        la date de la coche et la règle de retenue en vigueur ce jour-là, figée : changer la règle ensuite ne recalcule plus cette fiche */
     const envoyes = {}; for (const [l, v] of Object.entries(obj(i.envoyes))) if (date(l) && v && typeof v === "object" && !Array.isArray(v)) envoyes[l] = { le: date(v.le), regle: retenueNormale(v.regle) };
-    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, pertes, envoyes }; });
+    /* absences de l'élève (v1.94.0) : { date: [créneaux] } ; un suivi d'avant n'en a pas */
+    const abs = {}; for (const [d, l] of Object.entries(obj(i.abs))) { const ps = [...new Set(arr(l).filter(p => Number.isInteger(p) && p >= 0 && p < NB_P))].sort((a, b) => a - b); if (date(d) && ps.length) abs[d] = ps; }
+    return { id: str(i.id) || nouvelId(), nom: str(i.nom), objectifs, debut: date(i.debut), fin: date(i.fin), remise, consigne, retenue, courriel: str(i.courriel).trim(), saisies, bilans, pertes, envoyes, abs }; });
   out.consignesIndiv = (Array.isArray(st.consignesIndiv) && st.consignesIndiv.length ? st.consignesIndiv : CONSIGNES_INDIV_DEFAUT.map(([label, texte]) => ({ label, texte })))
     .slice(0, 20).map(c => ({ label: str(obj(c).label), texte: str(obj(c).texte) }));
   /* modèles ajoutés après coup (CONSIGNES_INDIV_V2) : proposés UNE fois aux suivis plus anciens, à la suite des leurs ; supprimés ensuite, ils ne reviennent pas */
@@ -562,6 +564,17 @@ function absTexte(list, court) {
   return court ? (list.length > 1 ? "créneaux " : "créneau ") + per : "absent(e) en " + per;
 }
 function eleveAbsent(st, date, s, p) { return absCreneaux(st, date, s).includes(p); }
+/* Absence d'un élève sur sa fiche individuelle (v1.94.0) : notée dans le suivi (ind.abs[date] = créneaux) ; à défaut, celle de la fiche
+   collective ou de la fiche de classe (code A), seulement si aucun code n'est saisi pour ce cours — une absence notée ailleurs avant la
+   v1.94.0 ne change donc aucun résultat. Les absences se notent sur les trois familles à la fois (poserAbsences, ui.js). */
+const rangNom = (liste, nom) => { const k = cleNom(nom); return k ? liste.findIndex(e => cleNom(e.nom) === k) : -1; };
+function absIndiv(st, ind, d, p) {
+  if (((ind.abs || {})[d] || []).includes(p)) return true;
+  const v = ind.saisies[`${d}.${p}`]; if (v && v.c.some(x => x !== null && x !== undefined)) return false;
+  const j = st.jours[d]; if (!j) return false;
+  const s = rangNom(st.eleves, ind.nom); if (s >= 0 && eleveActif(st, s, d) && eleveAbsent(st, d, s, p)) return true;
+  const c = rangNom(st.classeEleves, ind.nom); return c >= 0 && presentClasse(st.classeEleves[c], d) && ((j.cl || {})[`${c}.${p}`] || "").includes(CODE_ABSENT);
+}
 /** Absence longue d'un enseignant (du … au …), avec un remplaçant éventuel ; undefined s'il n'est pas absent ce jour-là. */
 const absenceLongue = (st, prof, date) => (prof ? (st.absencesProf || []).find(a => a.prof && a.prof.trim() === String(prof).trim() && a.du && a.au && date >= a.du && date <= a.au) : undefined);   // les deux dates sont nécessaires
 function profAbsent(st, date, p) { const j = st.jours[date]; return !!(j && j.profAbs && j.profAbs[p]); }

@@ -988,6 +988,9 @@ table.indiv.dense col.c-cd { width: 17px; } table.indiv.dense col.c-mat { width:
 /* colonne étroite : le champ s'élargit pendant la saisie, le texte complet est dans l'infobulle */
 table.indiv td.rq input:focus { background: #fff; outline: 2px solid var(--accent); width: max(240px, 100%); z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.18); color: #111; }
 table.indiv td.rq input.vers-g:focus { left: auto; right: 0; }   /* près du bord droit de la feuille : s'élargit vers la gauche */
+/* élève absent à ce cours (v1.94.0) ; l'aide est hors de la palette, qui reste collée en haut : une ligne de plus y recouvrait « Imprimer l'évolution » à 1024 px */
+.aide-abs { margin: 0 0 8px; }
+table.indiv td.abs-el { background: repeating-linear-gradient(45deg, #e3e6ea 0 3px, #f4f5f7 3px 6px); color: #333; font-weight: 600; font-style: italic; font-size: 10px; } table.indiv td.abs-el.court { font-size: 9px; } table.indiv td.abs-el[data-iabs] { cursor: pointer; }
 table.indiv .ferme { background: repeating-linear-gradient(45deg, #eee 0 4px, #fff 4px 8px); } table.indiv td.jour-off { font-size: 12px; }
 table.indiv-pied { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
 table.indiv-pied th, table.indiv-pied td { border: 1px solid #444; font-size: 11px; padding: 3px; height: 13mm; }
@@ -1298,6 +1301,7 @@ table.evol.bmi td.sep, table.evol.bmi th.sep { border-left: 2px solid var(--ink)
 html[data-theme="sombre"] table.evol.bmi tr.faible { background: rgba(255,120,120,.08); }
 /* cours d'un créneau : absent, remplacé */
 .crn-b { cursor: pointer; } .crn-b:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+#boite .abs-q { gap: 6px; flex-wrap: wrap; margin: 8px 0; } #boite .abs-c { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; }
 #boite .crn { display: grid; gap: 6px; margin: 8px 0; } #boite .crn-o { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; cursor: pointer; }
 #boite .crn-o:has(input:checked) { border-color: var(--accent); background: var(--accent-weak); } #boite .crn-o input { width: 18px; height: 18px; flex: none; margin: 2px 0 0; } #boite .crn-o small { display: block; color: var(--muted); }
 #boite .crn-r { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 0 0 28px; } #boite .crn-r small { grid-column: 1 / -1; } #boite .crn-r.off { opacity: .45; }
