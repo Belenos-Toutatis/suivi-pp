@@ -270,13 +270,27 @@ peux laisser sans enseignant ou en mettre un ; le remplir le plus vite possible 
 (`editerCreneau`, clic sur la matière dans toutes les fiches) : **Autre activité**, nom tiré de `ACTIVITES` (ou tapé), enseignant
 facultatif, et les **créneaux du jour** à cocher (« Toute la journée ») pour tout poser d'un coup. Même donnée qu'un remplacement
 (`j.mat[p]`, `j.prof[p]` seulement si un enseignant est donné) : rien de neuf à normaliser. Rouvert, un créneau dont la matière du
-jour n'est pas une matière de la classe s'affiche comme activité. ⚠️ Livré sans vérification complète (demandé « vite ») : à vérifier.
+jour n'est pas une matière de la classe s'affiche comme activité. Livré vite (v1.96.0), vérifié ensuite (v1.96.2, ci-dessous).
 
 - **Une partie de la classe seulement** (v1.96.1, l'utilisateur : *« tous les élèves ne les font pas »*) : « Pour : toute la classe /
   certains élèves seulement » et la liste des élèves à cocher. Rangé à part : `jours[d].act[p] = { mat, prof, noms }` (normalisé,
   absent = aucune), les autres gardent leur cours. Lu élève par élève : `creneau()` pose `actEl` (clé `cleNom`), `coursPour(cr, grps,
   nom)` rend l'activité pour un inscrit — ⚠️ tout appel qui calcule le cours d'UN élève passe son nom en 3e argument. Les renommages
   venus de Suivi PP suivent. Depuis une fiche individuelle, la fenêtre coche d'office cet élève seul.
+- **Vérification du 2026-11-27** (`fiches-suivi/e2e_activite.js`, 32 vérifications : trois familles, fiche imprimée, réouverture,
+  Ctrl+Z, absence, enseignant absent, relecture, renommage, thème sombre) — trois défauts corrigés (v1.96.2) :
+  - ⚠️ rouvrir l'activité d'une PARTIE de la classe cochait tous les créneaux du jour (`j0.mat[q] === j0.mat[p]`, vrai pour deux
+    `undefined`) : l'enregistrer l'étendait à toute la journée. Cochés : ses créneaux à elle (`j0.act[q]` de même nom).
+  - ⚠️ après un message d'erreur, la boîte remet le curseur dans son premier champ (celui de « Remplacé ») et le choix basculait seul
+    sur « Remplacé » (`focusin`) : seul un geste dans un bloc (clic, frappe) choisit maintenant son option.
+  - un nom d'activité long (« Formation aux gestes qui sauvent ») grandissait la ligne de la fiche individuelle à 1024 px : trois lignes
+    au plus, en plus petit (`.mat-act`), le nom entier dans l'infobulle ; la fiche imprimée tenait déjà sur une page.
+  - à 1024 × 768, un champ atteint d'un clic ou au clavier pouvait rester sous les boutons de la fenêtre : `scroll-padding-bottom`.
+  - un nom d'activité était abrégé en « Sortie au . » dans la colonne des matières de la fiche de classe et dans la liste des
+    créneaux de la fenêtre : `nomCours` n'abrège que les matières de la classe, l'affichage coupe le reste proprement.
+  - ⚠️ `e2e_evol_indiv` et `e2e_parallele` dépendaient de la date du jour (l'avis compte la fiche de la semaine à partir de son jour de
+    remise) : verts le 25/11, en échec le 27/11, sur toutes les versions. Date figée dans les deux tests. Tout nouveau test qui lit un
+    avis, une retenue « en cours » ou une fiche « à venir » fige `aujourdhui`.
 
 ### Absence d'un élève : notée une fois, sur toutes ses fiches (v1.94.0, demandé le 2026-11-25)
 

@@ -5,7 +5,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const b = await puppeteer.launch({ executablePath: "/opt/google/chrome/chrome", headless: true, userDataDir: prof, args: ["--no-sandbox"] });
   const p = await b.newPage(); await require("./boites")(p, {}); await p.setViewport({ width: 1024, height: 768 }); const errs = []; p.on("pageerror", e => errs.push(e.message));
   await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
-  await p.evaluate(() => { doDemo(); window.__t = []; window.print = () => { window.__t.push([document.title, document.querySelectorAll("#print-area .page").length]); }; location.hash = "#indivtous"; }); await wait(500);
+  await p.evaluate(() => { doDemo(); window.aujourdhui = () => "2026-11-25"; /* date figée (le test échouait à partir du 27/11) */ window.__t = []; window.print = () => { window.__t.push([document.title, document.querySelectorAll("#print-area .page").length]); }; location.hash = "#indivtous"; }); await wait(500);
   const r = await p.evaluate(() => ({ lignes: [...document.querySelectorAll(".indiv-parallele table.evol tbody tr")].map(tr => tr.querySelector("th").textContent.trim()), cols: document.querySelectorAll(".indiv-parallele table.evol thead th").length, courbes: document.querySelectorAll(".indiv-parallele svg polyline").length, avis: [...document.querySelectorAll(".indiv-parallele .avis-chip")].map(x => x.textContent) }));
   console.log(JSON.stringify(r));
   ok(r.lignes.join() === "BRIDGE Michael,MOSTOWSKI Michał,PODEANU Mihaela" && r.courbes >= 3, "menu « Tous les suivis » : une ligne et une courbe par élève suivi");

@@ -6,7 +6,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const p = await b.newPage(); await require("./boites")(p, {}); await p.setViewport({ width: 1024, height: 768 });
   const errs = []; p.on("pageerror", e => errs.push(e.message));
   await p.goto("file://" + DIR + "/app/Fiche de suivi collective.html"); await p.evaluate(() => localStorage.clear()); await p.reload();
-  await p.evaluate(() => doDemo()); await wait(200);
+  await p.evaluate(() => { doDemo(); window.aujourdhui = () => "2026-11-25"; /* date figée : les avis dépendent du jour de remise (le test échouait à partir du 27/11) */ }); await wait(200);
   await p.evaluate(() => { window.__titres = []; const o = window.print; window.print = () => { window.__titres.push(document.title); window.__pages = document.querySelectorAll("#print-area .page").length; }; });
   const go = async h => { await p.evaluate(h => { location.hash = h; }, h); await wait(400); };
   await go("#indiv");

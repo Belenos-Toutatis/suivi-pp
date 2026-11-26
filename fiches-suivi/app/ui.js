@@ -2136,7 +2136,7 @@ async function editerCreneau(d, p, ind = null) {
     <div class="crn-a"><label class="champ">Activité <input type="text" id="crn-act" list="crn-acts" value="${esc(part ? part.mat : etat === "act" ? j0.mat[p] : "")}" placeholder="ex. Sortie au cinéma" autocomplete="off"></label>
       <label class="champ">Enseignant <input type="text" id="crn-act-prof" list="crn-profs" value="${esc(part ? part.prof : etat === "act" ? (j0.prof && j0.prof[p]) || "" : "")}" placeholder="facultatif" autocomplete="off"></label>
       <datalist id="crn-acts">${acts.map(x => `<option value="${esc(x)}">`).join("")}</datalist>
-      ${jourCr.length > 1 ? `<div class="crn-j"><span class="muted">Créneaux :</span> ${jourCr.map(x => `<label title="${esc(x.m)}"><input type="checkbox" data-actq="${x.q}"${x.q === p || (etat === "act" && j0.mat && j0.mat[x.q] === j0.mat[p]) ? " checked" : ""}> <b>${PERIODS[x.q]}</b> <small>${esc(abrege(x.m))}</small></label>`).join("")} <button type="button" class="ghost" data-acttout>Toute la journée</button></div>` : ""}
+      ${jourCr.length > 1 ? `<div class="crn-j"><span class="muted">Créneaux :</span> ${jourCr.map(x => `<label title="${esc(x.m)}"><input type="checkbox" data-actq="${x.q}"${x.q === p || (part ? !!(j0.act[x.q] && j0.act[x.q].mat === part.mat) : etat === "act" && j0.mat && p in j0.mat && j0.mat[x.q] === j0.mat[p]) ? " checked" : ""}> <b>${PERIODS[x.q]}</b> <small>${esc(nomCours(x.m))}</small></label>`).join("")} <button type="button" class="ghost" data-acttout>Toute la journée</button></div>` : ""}
       <div class="crn-j"><span class="muted">Pour :</span> <label><input type="radio" name="crn-pour" value="classe"${pourEl ? "" : " checked"}> toute la classe</label> <label><input type="radio" name="crn-pour" value="eleves"${pourEl ? " checked" : ""}> certains élèves seulement</label></div>
       <div class="crn-l${pourEl ? "" : " off"}">${nomsAct.map(n => `<label><input type="checkbox" data-actel="${esc(n)}"${inscrits.has(cleNom(n)) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div></div></div>`;
   const v = await saisir(`${DAYS[dj]} ${fmtDM(d)} · ${PERIODS[p]}`, "Ce qui se passe sur ce créneau : les fiches individuelles, la fiche collective et la fiche de classe en tiennent compte.",
@@ -2144,7 +2144,10 @@ async function editerCreneau(d, p, ind = null) {
           dlg.querySelector(".crn-r").classList.toggle("off", !r); dlg.querySelector(".crn-a").classList.toggle("off", !a);
           if (focus && r && !dlg.querySelector("#crn-prof").value) dlg.querySelector("#crn-prof").focus(); if (focus && a && !dlg.querySelector("#crn-act").value) dlg.querySelector("#crn-act").focus(); };
         bloc.addEventListener("change", e => { if (e.target.name === "crn") maj(); });
-        bloc.addEventListener("focusin", e => { for (const [z, val] of [[".crn-r", "rempl"], [".crn-a", "act"]]) if (e.target.closest(z)) { dlg.querySelector(`input[value="${val}"]`).checked = true; maj(false); } });
+        /* un geste dans un bloc (clic, frappe) choisit son option — pas le focus : après un message d'erreur, la boîte remet le curseur dans
+           son premier champ (celui de « Remplacé »), et le choix basculait de lui-même (vérification du 2026-11-27) */
+        const choisir = e => { for (const [z, val] of [[".crn-r", "rempl"], [".crn-a", "act"]]) if (e.target.closest(z) && !dlg.querySelector(`input[value="${val}"]`).checked) { dlg.querySelector(`input[value="${val}"]`).checked = true; maj(false); } };
+        bloc.addEventListener("pointerdown", choisir); bloc.addEventListener("input", choisir);
         dlg.querySelectorAll('input[name="crn-pour"]').forEach(x => x.addEventListener("change", () => dlg.querySelector(".crn-l").classList.toggle("off", dlg.querySelector('input[name="crn-pour"]:checked').value !== "eleves")));
         const tout = dlg.querySelector("[data-acttout]"); if (tout) tout.addEventListener("click", () => { const l = [...dlg.querySelectorAll("[data-actq]")], on = !l.every(x => x.checked); l.forEach(x => { x.checked = on || Number(x.dataset.actq) === p; }); });
         maj(false);
