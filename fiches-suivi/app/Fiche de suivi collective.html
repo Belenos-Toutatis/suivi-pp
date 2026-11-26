@@ -1307,6 +1307,7 @@ html[data-theme="sombre"] table.evol.bmi tr.faible { background: rgba(255,120,12
 #boite .crn { display: grid; gap: 6px; margin: 8px 0; } #boite .crn-o { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; cursor: pointer; }
 #boite .crn-o:has(input:checked) { border-color: var(--accent); background: var(--accent-weak); } #boite .crn-o input { width: 18px; height: 18px; flex: none; margin: 2px 0 0; } #boite .crn-o small { display: block; color: var(--muted); }
 #boite .crn-a { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 0 0 28px; } #boite .crn-a.off { opacity: .45; } #boite .crn-j { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 13px; } #boite .crn-j label { display: inline-flex; gap: 3px; align-items: center; } #boite .crn-j input { width: auto; }
+#boite .crn-l { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1px 10px; max-height: 190px; overflow-y: auto; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; } #boite .crn-l.off { display: none; } #boite .crn-l label { display: flex; gap: 5px; align-items: center; } #boite .crn-l input { width: auto; }
 #boite .crn-r { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 0 0 28px; } #boite .crn-r small { grid-column: 1 / -1; } #boite .crn-r.off { opacity: .45; }
 /* suivi individuel : réglages repliables */
 details.reg-ind { margin-bottom: 14px; padding: 0; } details.reg-ind > summary { cursor: pointer; list-style: none; display: flex; gap: 10px; align-items: center; padding: 12px 16px; font-weight: 600; }
@@ -2019,6 +2020,9 @@ function normalizeState(st) {
       const l = (typeof v === "string" ? ABS_PRESETS[v] || [] : arr(v)).filter(p => Number.isInteger(p) && p >= 0 && p < NB_P);
       if (l.length) n.abs[Number(s)] = [...new Set(l)].sort((a, b) => a - b);
     }
+    { const a = {}; for (const [p, v0] of Object.entries(obj(j.act))) { const v = obj(v0), m = str(v.mat).trim().slice(0, 60), noms = [...new Set(arr(v.noms).map(x => str(x).trim()).filter(Boolean))].slice(0, 60);
+        if (okP(p) && m && noms.length) a[p] = { mat: m, prof: str(v.prof).trim(), noms }; }
+      if (Object.keys(a).length) n.act = a; }   /* activité d'une partie de la classe (v1.96.1) ; absent = aucune */
     out.jours[d] = n;
   }
   // types de semaine forcés : indexés par le lundi
@@ -2203,6 +2207,8 @@ function creneau(st, sems, date, p) {
   const absL = !remplace && mat ? absenceLongue(st, prof, date) : null;
   if (absL && absL.remplacant) { prof = absL.remplacant; remplace = true; }
   const r = { mat, salle, prof, remplace, forced, absent: !!mat && (profAbsent(st, date, p) || (!!absL && !absL.remplacant)), grp: [], divise: false, baseMat: mat, baseSalle: salle, baseProf: mat ? prof : "", demi: demi ? demi.label || (demi.moment === "matin" ? "matinée sans cours" : "après-midi sans cours") : "" };
+  const act = !off && j && j.act && j.act[p];   /* activité d'une partie de la classe (v1.96.1) : lue élève par élève par coursPour */
+  if (act && Array.isArray(act.noms)) { r.actEl = {}; for (const n of act.noms) r.actEl[cleNom(n)] = { mat: act.mat, prof: act.prof || "" }; r.actPart = act; }
   if (grp.length) {          // créneau partagé entre groupes ou options : libellé pour toute la classe, cours de chaque élève avec coursPour()
     r.divise = true; r.grp = grp.map(x => { let pr = remplace && j && j.prof && j.prof[p] ? j.prof[p] : profDe(st, x.mat, date); const a = !(j && j.prof && j.prof[p]) ? absenceLongue(st, pr, date) : null;
       if (a && a.remplacant) pr = a.remplacant; return { g: x.g, mat: x.mat, salle: x.salle, prof: pr, absent: !!a && !a.remplacant }; });
@@ -2218,7 +2224,11 @@ const cleNom = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toU
 /** Groupes et options d'un élève, d'après la liste de la classe ; null si l'élève n'y est pas (il suit alors tous les cours). */
 function groupesDe(st, nom) { const k = cleNom(nom); if (!k) return null; const e = st.classeEleves.find(x => cleNom(x.nom) === k); return e ? e.groupes || [] : null; }
 /** Cours d'un élève sur un créneau partagé : celui de son groupe, sinon celui des autres élèves (ou rien). */
-function coursPour(cr, grps) {
+/* Cours d'un élève sur un créneau. `nom` (v1.96.1) : un élève inscrit à une activité qui ne concerne qu'une partie de la classe
+   (jours[d].act[p]) a cette activité, quel que soit le cours des autres ; sans `nom`, le cours de la classe. */
+function coursPour(cr, grps, nom) {
+  const a = nom && cr.actEl && cr.actEl[cleNom(nom)];
+  if (a) return { ...cr, mat: a.mat, prof: a.prof, salle: "", remplace: false, absent: false, divise: false, grp: [], activite: true };
   if (!cr.divise) return cr;
   if (!grps) return cr.grp.every(g => g.absent) && (!cr.baseMat || cr.baseAbsent) ? { ...cr, absent: true } : cr;   /* élève hors de la liste de la classe : annulé si tous les cours du créneau le sont */
   const m = cr.grp.find(x => grps.includes(x.g));
@@ -2254,7 +2264,7 @@ const toutesEdt = st => [st.edt, ...(st.edtSuivants || [])];
 const edtPour = (st, date) => { let e = st.edt; for (const v of st.edtSuivants || []) if (date >= v.depuis) e = v; return e; };
 function croix(st, date, s, o, p) { const j = st.jours[date]; const v = j && j.x && j.x[`${s}.${o}.${p}`]; return v === undefined ? -1 : v; }
 /** Créneau où l'élève doit être évalué : un cours a lieu, l'enseignant et l'élève sont présents, l'élève est suivi ce jour-là. */
-function creneauAttendu(st, date, s, p, cr) { cr = coursPour(cr, groupesDe(st, (st.eleves[s] || {}).nom)); return !!cr.mat && !cr.absent && eleveActif(st, s, date) && !eleveAbsent(st, date, s, p); }
+function creneauAttendu(st, date, s, p, cr) { cr = coursPour(cr, groupesDe(st, (st.eleves[s] || {}).nom), (st.eleves[s] || {}).nom); return !!cr.mat && !cr.absent && eleveActif(st, s, date) && !eleveAbsent(st, date, s, p); }
 function setCroix(st, date, s, o, p, lvl) {
   const j = jour(st, date, true), k = `${s}.${o}.${p}`;
   if (lvl < 0 || j.x[k] === lvl) delete j.x[k]; else j.x[k] = lvl;
@@ -2284,7 +2294,7 @@ function statsSemaine(st, sems, wi) {
       actifSemaine = true;
       for (const p of creneauxDu(st, date)) {
         const cr = creneau(st, sems, date, p);
-        const cE = coursPour(cr, groupesDe(st, (st.eleves[s] || {}).nom));   /* créneau partagé : le cours de l'élève */
+        const cE = coursPour(cr, groupesDe(st, (st.eleves[s] || {}).nom), (st.eleves[s] || {}).nom);   /* créneau partagé : le cours de l'élève */
         if (cE.mat && !cE.absent && eleveAbsent(st, date, s, p)) absences++;
         if (!creneauAttendu(st, date, s, p, cr)) continue;     // croix d'un créneau sans cours ou d'une absence : ignorées
         attendus++;
@@ -2348,7 +2358,7 @@ function bilan(st, sems) {
     for (let s = 0; s < nb; s++) for (let o = 0; o < nbObj(st); o++) {
       if (!creneauAttendu(st, date, s, p, cr)) break;      // mêmes règles que les totaux (élève suivi et présent)
       const l = croix(st, date, s, o, p); if (l < 0 || l >= NB_NIV) continue;
-      const mt = coursPour(cr, groupesDe(st, st.eleves[s].nom)).mat; pr.note(mt, date); const c = get(mt)[s]; c.obs++; if (l >= 2) c.neg++; if (l === 3) c.i++;
+      const mt = coursPour(cr, groupesDe(st, st.eleves[s].nom), st.eleves[s].nom).mat; pr.note(mt, date); const c = get(mt)[s]; c.obs++; if (l >= 2) c.neg++; if (l === 3) c.i++;
     }
   }
   const ordre = ordreMatieres(st).filter(n => res.has(n));   // rangées par champ disciplinaire
@@ -3436,7 +3446,7 @@ function ficheHTML(date, edit, part = null) {
       if (o === 0) body += `<th rowspan="${nbObj(S)}" class="nom${tl(e.nom.split(/\s+/).reduce((a, m) => (m.length > a.length ? m : a), ""), 11, 14)}">${s + 1}. ${esc(e.nom)}${hors ? `<small>${hors}</small>` : ""}${edit ? absSel : ""}${edit && absL.length ? "" : absTxt}</th>`;
       body += `<td class="obj${tl(S.objectifs[o].court, 27, 33)}"${edit && S.objectifs[o].desc ? ` title="Objectif ${o + 1} « ${esc(S.objectifs[o].court)} »\n${esc(S.objectifs[o].desc)}"` : ""}>${o + 1}. ${esc(S.objectifs[o].court)}</td>`;
       for (const p of ps) for (let l = 0; l < 4; l++) {
-        const crS = coursPour(cr[p], grS);
+        const crS = coursPour(cr[p], grS, e.nom);
         if (named && actif && cr[p].mat && !crS.mat) { body += `<td class="c hors ${l ? "" : "g0"}" title="${l ? "" : `Pas concerné(e)\n${esc(e.nom)} n’a pas ce cours (${esc(cr[p].mat)}) : autre groupe ou option.`}"></td>`; continue; }
         if (named && actif && (crS.absent || eleveAbsent(S, date, s, p))) { body += `<td class="c abs ${l ? "" : "g0"}"${edit ? ` data-abs="${s}.${p}"` : ""}></td>`; continue; }
         const v = croix(S, date, s, o, p) === l;
@@ -4623,12 +4633,16 @@ async function editerCreneau(d, p, ind = null) {
   const edtMat = base.grp && base.grp.length ? [...base.grp.map(x => x.mat), ...(base.mat ? [base.mat] : [])].join(" / ") : base.mat, edtProf = base.mat ? profDe(S, base.mat) : "";
   /* « Autre activité » (v1.96.0) : une sortie, une formation… à la place du cours, avec ou sans enseignant, sur un ou plusieurs
      créneaux du jour d'un coup. Même donnée qu'un remplacement (j.mat, j.prof) : une activité est un cours remplacé sans enseignant imposé. */
-  const etat = cr.absent ? "absent" : j0.prof && j0.prof[p] && !(j0.mat && p in j0.mat && !ordreMatieres(S).includes(j0.mat[p])) ? "rempl" : j0.mat && p in j0.mat ? (ordreMatieres(S).includes(j0.mat[p]) ? "rempl" : "act") : "normal";
+  const part = j0.act && j0.act[p];   /* activité d'une partie de la classe (v1.96.1) */
+  const etat = part ? "act" : cr.absent ? "absent" : j0.prof && j0.prof[p] && !(j0.mat && p in j0.mat && !ordreMatieres(S).includes(j0.mat[p])) ? "rempl" : j0.mat && p in j0.mat ? (ordreMatieres(S).includes(j0.mat[p]) ? "rempl" : "act") : "normal";
   const jourCr = creneauxDu(S, d).map(q => ({ q, m: creneau(S, sems, d, q).mat || (w && dj < nbJours(S) ? edtPour(S, d)[w.type][dj][q].mat : "") })).filter(x => x.m);
+  const nomsAct = [...new Set([...S.classeEleves, ...S.eleves, ...S.individuels].map(e => (e.nom || "").trim()).filter(Boolean).map(n => n))].filter((n, i, l) => l.findIndex(x => cleNom(x) === cleNom(n)) === i).sort((a, b) => a.localeCompare(b, "fr"));
+  /* d'office : les inscrits de l'activité ; ouverte depuis une fiche individuelle sans activité de la classe, cet élève seul */
+  const pourEl = !!part || (!!ind && etat !== "act"), inscrits = new Set(part ? part.noms.map(cleNom) : ind && etat !== "act" ? [cleNom(ind.nom)] : []);
   const acts = [...new Set([...ACTIVITES, ...Object.values(S.jours).flatMap(x => Object.values(x.mat || {}))].filter(x => x && !ordreMatieres(S).includes(x)))];
   const profs = [...new Set([...S.matieres.map(m => m.prof), ...Object.values(S.jours).flatMap(j => Object.values(j.prof || {}))].map(x => (x || "").trim()).filter(Boolean))].sort();
   const mats = [...new Set([...ordreMatieres(S), "Permanence", "Étude", "Sortie scolaire", ...Object.values(S.jours).flatMap(j => Object.values(j.mat || {}))].filter(Boolean))];
-  const avecEl = ind && !cr.absent && !coursPour(cr, groupesDe(S, ind.nom)).absent, elAbs = avecEl && absIndiv(S, ind, d, p);
+  const avecEl = ind && !cr.absent && !coursPour(cr, groupesDe(S, ind.nom), ind.nom).absent, elAbs = avecEl && absIndiv(S, ind, d, p);
   const html = `${avecEl ? `<div class="crn"><label class="crn-o"><input type="checkbox" id="crn-el"${elAbs ? " checked" : ""}><span><b>${esc(ind.nom || "Élève")} : absent(e) à ce cours</b><small>ne compte ni dans la réussite ni dans la retenue ; noté sur toutes ses fiches (toute la journée : clic sur le jour)</small></span></label></div>` : ""}<div class="crn">
     <label class="crn-o"><input type="radio" name="crn" value="normal"${etat === "normal" ? " checked" : ""}><span><b>Cours normal</b><small>${edtMat ? `${esc(edtMat)}${edtProf ? " – " + esc(edtProf) : ""} (emploi du temps)` : "pas de cours à l’emploi du temps"}</small></span></label>
     <label class="crn-o"><input type="radio" name="crn" value="absent"${etat === "absent" ? " checked" : ""}><span><b>Enseignant absent</b><small>pas de cours : rien à noter sur ce créneau, sur toutes les fiches</small></span></label>
@@ -4638,22 +4652,26 @@ async function editerCreneau(d, p, ind = null) {
       <datalist id="crn-profs">${profs.map(x => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="crn-mats">${mats.map(x => `<option value="${esc(x)}">`).join("")}</datalist>
       <small class="muted">Choisissez dans la liste ou tapez un nouveau nom.</small></div>
     <label class="crn-o"><input type="radio" name="crn" value="act"${etat === "act" ? " checked" : ""}><span><b>Autre activité</b><small>une sortie, une formation, une conférence… à la place du cours, avec ou sans enseignant</small></span></label>
-    <div class="crn-a"><label class="champ">Activité <input type="text" id="crn-act" list="crn-acts" value="${esc(etat === "act" ? j0.mat[p] : "")}" placeholder="ex. Sortie au cinéma" autocomplete="off"></label>
-      <label class="champ">Enseignant <input type="text" id="crn-act-prof" list="crn-profs" value="${esc(etat === "act" ? (j0.prof && j0.prof[p]) || "" : "")}" placeholder="facultatif" autocomplete="off"></label>
+    <div class="crn-a"><label class="champ">Activité <input type="text" id="crn-act" list="crn-acts" value="${esc(part ? part.mat : etat === "act" ? j0.mat[p] : "")}" placeholder="ex. Sortie au cinéma" autocomplete="off"></label>
+      <label class="champ">Enseignant <input type="text" id="crn-act-prof" list="crn-profs" value="${esc(part ? part.prof : etat === "act" ? (j0.prof && j0.prof[p]) || "" : "")}" placeholder="facultatif" autocomplete="off"></label>
       <datalist id="crn-acts">${acts.map(x => `<option value="${esc(x)}">`).join("")}</datalist>
-      ${jourCr.length > 1 ? `<div class="crn-j"><span class="muted">Créneaux :</span> ${jourCr.map(x => `<label title="${esc(x.m)}"><input type="checkbox" data-actq="${x.q}"${x.q === p || (etat === "act" && j0.mat && j0.mat[x.q] === j0.mat[p]) ? " checked" : ""}> <b>${PERIODS[x.q]}</b> <small>${esc(abrege(x.m))}</small></label>`).join("")} <button type="button" class="ghost" data-acttout>Toute la journée</button></div>` : ""}</div></div>`;
+      ${jourCr.length > 1 ? `<div class="crn-j"><span class="muted">Créneaux :</span> ${jourCr.map(x => `<label title="${esc(x.m)}"><input type="checkbox" data-actq="${x.q}"${x.q === p || (etat === "act" && j0.mat && j0.mat[x.q] === j0.mat[p]) ? " checked" : ""}> <b>${PERIODS[x.q]}</b> <small>${esc(abrege(x.m))}</small></label>`).join("")} <button type="button" class="ghost" data-acttout>Toute la journée</button></div>` : ""}
+      <div class="crn-j"><span class="muted">Pour :</span> <label><input type="radio" name="crn-pour" value="classe"${pourEl ? "" : " checked"}> toute la classe</label> <label><input type="radio" name="crn-pour" value="eleves"${pourEl ? " checked" : ""}> certains élèves seulement</label></div>
+      <div class="crn-l${pourEl ? "" : " off"}">${nomsAct.map(n => `<label><input type="checkbox" data-actel="${esc(n)}"${inscrits.has(cleNom(n)) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div></div></div>`;
   const v = await saisir(`${DAYS[dj]} ${fmtDM(d)} · ${PERIODS[p]}`, "Ce qui se passe sur ce créneau : les fiches individuelles, la fiche collective et la fiche de classe en tiennent compte.",
     { html, init: dlg => { const bloc = dlg.querySelector(".crn-r").closest(".crn"), maj = (focus = true) => { const v = dlg.querySelector('input[name="crn"]:checked').value, r = v === "rempl", a = v === "act";
           dlg.querySelector(".crn-r").classList.toggle("off", !r); dlg.querySelector(".crn-a").classList.toggle("off", !a);
           if (focus && r && !dlg.querySelector("#crn-prof").value) dlg.querySelector("#crn-prof").focus(); if (focus && a && !dlg.querySelector("#crn-act").value) dlg.querySelector("#crn-act").focus(); };
         bloc.addEventListener("change", e => { if (e.target.name === "crn") maj(); });
         bloc.addEventListener("focusin", e => { for (const [z, val] of [[".crn-r", "rempl"], [".crn-a", "act"]]) if (e.target.closest(z)) { dlg.querySelector(`input[value="${val}"]`).checked = true; maj(false); } });
+        dlg.querySelectorAll('input[name="crn-pour"]').forEach(x => x.addEventListener("change", () => dlg.querySelector(".crn-l").classList.toggle("off", dlg.querySelector('input[name="crn-pour"]:checked').value !== "eleves")));
         const tout = dlg.querySelector("[data-acttout]"); if (tout) tout.addEventListener("click", () => { const l = [...dlg.querySelectorAll("[data-actq]")], on = !l.every(x => x.checked); l.forEach(x => { x.checked = on || Number(x.dataset.actq) === p; }); });
         maj(false);
         setTimeout(() => { const c = dlg.querySelector("#crn-el") || dlg.querySelector('input[name="crn"]:checked'); if (c && !dlg.querySelector(".crn-r").contains(document.activeElement) && !dlg.querySelector(".crn-a").contains(document.activeElement)) c.focus(); }, 0); },
       lire: dlg => ({ el: !!(dlg.querySelector("#crn-el") || {}).checked, etat: dlg.querySelector('input[name="crn"]:checked').value, prof: dlg.querySelector("#crn-prof").value.trim(), mat: dlg.querySelector("#crn-mat").value.trim(),
-        act: dlg.querySelector("#crn-act").value.trim().replace(/\s+/g, " ").slice(0, 60), actProf: dlg.querySelector("#crn-act-prof").value.trim(), actPs: [...new Set([p, ...[...dlg.querySelectorAll("[data-actq]:checked")].map(x => Number(x.dataset.actq))])] }),
-      valider: v => v.etat === "rempl" && !v.prof && !(v.mat && v.mat !== edtMat) ? "Indiquez au moins l’enseignant ou la matière du remplacement." : v.etat === "act" && !v.act ? "Indiquez l’activité (ex. Sortie au cinéma)." : "" }, { ok: "Enregistrer" });
+        act: dlg.querySelector("#crn-act").value.trim().replace(/\s+/g, " ").slice(0, 60), actProf: dlg.querySelector("#crn-act-prof").value.trim(), actPs: [...new Set([p, ...[...dlg.querySelectorAll("[data-actq]:checked")].map(x => Number(x.dataset.actq))])],
+        pour: (dlg.querySelector('input[name="crn-pour"]:checked') || {}).value || "classe", actEl: [...dlg.querySelectorAll("[data-actel]:checked")].map(x => x.dataset.actel) }),
+      valider: v => v.etat === "rempl" && !v.prof && !(v.mat && v.mat !== edtMat) ? "Indiquez au moins l’enseignant ou la matière du remplacement." : v.etat === "act" && !v.act ? "Indiquez l’activité (ex. Sortie au cinéma)." : v.etat === "act" && v.pour === "eleves" && !v.actEl.length ? "Cochez les élèves qui ont cette activité (ou choisissez « toute la classe »)." : "" }, { ok: "Enregistrer" });
   if (!v) return;
   const j = jour(S, d, true);
   if (v.etat === "absent") {
@@ -4665,13 +4683,20 @@ async function editerCreneau(d, p, ind = null) {
     if (v.mat && v.mat !== edtMat) j.mat[p] = v.mat; else delete j.mat[p];
     if (!v.prof && !(p in j.mat)) { toast("Indiquez au moins l’enseignant ou la matière du remplacement."); return; }
   } else if (v.etat === "act") {
-    for (const q of v.actPs) { delete j.profAbs[q]; j.mat[q] = v.act; if (v.actProf) j.prof[q] = v.actProf; else delete j.prof[q]; }
+    if (!j.act) j.act = {};
+    for (const q of v.actPs) {
+      if (v.pour === "eleves") {   /* une partie de la classe : les autres gardent leur cours (une activité de toute la classe posée avant est retirée) */
+        j.act[q] = { mat: v.act, prof: v.actProf, noms: v.actEl.slice() };
+        if (j.mat && q in j.mat && !ordreMatieres(S).includes(j.mat[q])) { delete j.mat[q]; delete j.prof[q]; }
+      } else { delete j.act[q]; delete j.profAbs[q]; j.mat[q] = v.act; if (v.actProf) j.prof[q] = v.actProf; else delete j.prof[q]; } }
+    if (!Object.keys(j.act).length) delete j.act;
   } else { delete j.profAbs[p]; delete j.prof[p]; delete j.mat[p]; }
+  if (v.etat !== "act" && j.act) { delete j.act[p]; if (!Object.keys(j.act).length) delete j.act; }
   const cur = avecEl ? ABS_PRESETS.jour.filter(x => absIndiv(S, ind, d, x)) : [], change = avecEl && v.etat !== "absent" && v.el !== elAbs;
   if (change && !(await fixerAbsIndiv(ind, d, v.el ? [...cur, p] : cur.filter(x => x !== p)))) { commit(); return; }
   commit();
   if (change && v.etat === etat) { toast(`${ind.nom} : ${v.el ? "absent(e)" : "présent(e)"} en ${PERIODS[p]}. Ctrl+Z pour annuler.`, 5000); return; }
-  if (v.etat === "act") { toast(`${v.actPs.sort((a, b) => ORDRE_P.indexOf(a) - ORDRE_P.indexOf(b)).map(q => PERIODS[q]).join(", ")} : ${v.act}${v.actProf ? " avec " + v.actProf : ""}. Ctrl+Z pour annuler.`, 5000); return; }
+  if (v.etat === "act") { toast(`${v.actPs.sort((a, b) => ORDRE_P.indexOf(a) - ORDRE_P.indexOf(b)).map(q => PERIODS[q]).join(", ")} : ${v.act}${v.actProf ? " avec " + v.actProf : ""}${v.pour === "eleves" ? ` (${v.actEl.length === 1 ? v.actEl[0] : nbMot(v.actEl.length, "élève")} ; les autres ont cours)` : ""}. Ctrl+Z pour annuler.`, 5000); return; }
   toast(v.etat === "absent" ? `${PERIODS[p]} : enseignant absent.` : v.etat === "rempl" ? `${PERIODS[p]} : remplacé${v.prof ? " par " + v.prof : ""}${p in j.mat ? " (" + j.mat[p] + ")" : ""}.` : `${PERIODS[p]} : cours normal.`, 5000);
 }
 document.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-crn]")) { e.preventDefault(); e.target.click(); } });   /* cours d’un créneau : aussi au clavier */
@@ -4683,9 +4708,9 @@ async function effacerCoursAnnules() {
   const sems = semaines(S), x = [], cl = [], ind = [];
   for (const w of sems) for (const d of w.jours) { const j = S.jours[d]; if (!j) continue;
     for (const p of creneauxDu(S, d)) { const cr = creneau(S, sems, d, p); if (profAbsent(S, d, p) || !(cr.absent || cr.divise && (cr.baseAbsent || cr.grp.some(g => g.absent)))) continue;   /* créneau partagé : élève par élève */
-      for (const k of Object.keys(j.x || {})) if (Number(k.split(".")[2]) === p && coursPour(cr, groupesDe(S, (S.eleves[k.split(".")[0]] || {}).nom)).absent) x.push([j, k]);
-      for (const k of Object.keys(j.cl || {})) if (Number(k.split(".")[1]) === p && coursPour(cr, (S.classeEleves[k.split(".")[0]] || {}).groupes || []).absent) cl.push([j, k]);   // les « A » seuls aussi (comme annulerCours)
-      for (const i of S.individuels) if (i.saisies[`${d}.${p}`] && coursPour(cr, groupesDe(S, i.nom)).absent) ind.push([i, `${d}.${p}`]); } }
+      for (const k of Object.keys(j.x || {})) if (Number(k.split(".")[2]) === p && coursPour(cr, groupesDe(S, (S.eleves[k.split(".")[0]] || {}).nom), (S.eleves[k.split(".")[0]] || {}).nom).absent) x.push([j, k]);
+      for (const k of Object.keys(j.cl || {})) if (Number(k.split(".")[1]) === p && coursPour(cr, (S.classeEleves[k.split(".")[0]] || {}).groupes || [], (S.classeEleves[k.split(".")[0]] || {}).nom).absent) cl.push([j, k]);   // les « A » seuls aussi (comme annulerCours)
+      for (const i of S.individuels) if (i.saisies[`${d}.${p}`] && coursPour(cr, groupesDe(S, i.nom), i.nom).absent) ind.push([i, `${d}.${p}`]); } }
   const clCodes = cl.filter(([j, k]) => j.cl[k].replace(CODE_ABSENT, ""));
   if (!x.length && !clCodes.length && !ind.length) { cl.forEach(([j, k]) => delete j.cl[k]); return true; }   // seulement des absences d'élèves : effacées sans question
   if (!(await demander("Absence longue", `Des saisies existent déjà sur des cours qui sont maintenant annulés :\n${[ind.length && `• ${ind.length} cours de suivis individuels`, x.length && `• ${x.length} croix sur les fiches collectives`, clCodes.length && `• des codes de ${clCodes.length} élève${clCodes.length > 1 ? "s" : ""} sur les fiches de classe`].filter(Boolean).join("\n")}\n\nLes effacer ?`, { ok: "Effacer et enregistrer l’absence", danger: true }))) return false;
@@ -4753,7 +4778,7 @@ async function fixerAbsIndiv(ind, d, list) {
 }
 /** Cours d'un élève un jour donné : [{ p, mat }] dans l'ordre de la journée, enseignants absents exceptés. */
 const coursDuJour = (ind, d) => { if (sansCours(S, d)) return []; const sems = semaines(S), grs = groupesDe(S, ind.nom);
-  return creneauxDu(S, d).map(p => ({ p, cr: coursPour(creneau(S, sems, d, p), grs) })).filter(x => x.cr.mat && !x.cr.absent).map(x => ({ p: x.p, mat: x.cr.mat })); };
+  return creneauxDu(S, d).map(p => ({ p, cr: coursPour(creneau(S, sems, d, p), grs, ind.nom) })).filter(x => x.cr.mat && !x.cr.absent).map(x => ({ p: x.p, mat: x.cr.mat })); };
 /** Cours cochés → liste enregistrée : toute la journée, matin et après-midi entiers gardent leur sens sur la fiche collective. */
 function listeAbs(cours, ps) {
   const l = new Set(ps), moitie = k => { const m = cours.filter(x => ABS_PRESETS[k].includes(x.p)); return m.length > 0 && m.every(x => l.has(x.p)) ? m : null; }, m = moitie("matin"), a = moitie("aprem");
@@ -5722,7 +5747,8 @@ function initHote() {
 function appliquerClasseHote(st, cl) {
   if (!st || !cl || !Array.isArray(cl.eleves)) return false;
   const avant = JSON.stringify(st), cleTriee = n => cleNom(n).split(" ").sort().join(" ");
-  const renommer = (a, b) => { const k = cleNom(a); if (!k || k === cleNom(b)) return; for (const l of [st.classeEleves, st.eleves, st.individuels]) for (const e of l) if (e && cleNom(e.nom) === k) e.nom = b; };
+  const renommer = (a, b) => { const k = cleNom(a); if (!k || k === cleNom(b)) return; for (const l of [st.classeEleves, st.eleves, st.individuels]) for (const e of l) if (e && cleNom(e.nom) === k) e.nom = b;
+    for (const j of Object.values(st.jours)) for (const a of Object.values(j.act || {})) a.noms = a.noms.map(n => (cleNom(n) === k ? b : n)); };
   for (const r of Array.isArray(cl.renommer) ? cl.renommer : []) { const [a, b] = Array.isArray(r) ? r.map(x => String(x || "").trim()) : [];
     if (a && b && !st.classeEleves.some(e => cleNom(e.nom) === cleNom(b))) renommer(a, b); }
   const grHote = (Array.isArray(cl.groupes) ? cl.groupes : []).map(g => String(g || "").trim()).filter(Boolean), kHote = new Set(grHote.map(cleNom));
@@ -5876,7 +5902,7 @@ function creneauxSemaine(sems, d) {
 function caseClasseActive(sems, d, p, e, cache) {
   if (sansCours(S, d) || !creneauxDu(S, d).includes(p) || !presentClasse(e, d)) return false;
   const k = d + "." + p, cr = cache && cache.has(k) ? cache.get(k) : creneau(S, sems, d, p); if (cache) cache.set(k, cr);
-  if (!cr.mat || cr.absent) return false; const c = coursPour(cr, e.groupes || []); return !!c.mat && !c.absent;   /* créneau partagé : le cours de l'élève, et son enseignant présent */
+  if (!cr.mat || cr.absent) return false; const c = coursPour(cr, e.groupes || [], e.nom); return !!c.mat && !c.absent;   /* créneau partagé : le cours de l'élève, et son enseignant présent */
 }
 /** Calculs mis en cache le temps d'un affichage (vidé à chaque rendu et à chaque modification). */
 let cacheCalc = new Map();
@@ -5912,11 +5938,11 @@ function classeSemaineHTML(wi, edit) {
     const jourTh = i === 0 ? `<th class="cs-jour" rowspan="${ps.length}"><span>${DAYS[k]}</span>${off ? `<small>${esc(motifSansCours(S, d))}</small>` : ""}</th>` : "";
     const cases = S.classeEleves.map((e, s) => { if (!actif) return `<td class="ferme"></td>`;
       if (!presentClasse(e, d)) return `<td class="ferme hors" title="${esc(e.nom)}\n${e.fin && d > e.fin ? "Parti(e) de la classe le " + fmtDM(e.fin) : "Arrivé(e) dans la classe le " + fmtDM(e.debut)}."></td>`;
-      const cE = cr.divise ? coursPour(cr, e.groupes || []) : cr;
+      const cE = coursPour(cr, e.groupes || [], e.nom);
       if (!cE.mat) return `<td class="ferme hors" title="${esc(e.nom)} · ${DAYS[k]} ${PERIODS[p]}\nPas concerné(e) : ${esc(cr.mat)}."></td>`;
       if (cE.absent) return `<td class="ferme hors prof-abs" title="${esc(e.nom)} · ${DAYS[k]} ${PERIODS[p]}\nPas de cours : ${esc(cE.mat)}, enseignant absent${cE.prof ? ` (${esc(cE.prof)})` : ""}."></td>`;
       const v = cl[`${s}.${p}`] || "";
-      return edit ? `<td class="clc${v.includes(CODE_ABSENT) ? " absent" : ""}${clOuvert === `${s}.${p}` && ficheDate === d ? " ouvert" : ""}" data-cl="${s}.${p}" data-d="${d}" tabindex="-1" role="button" aria-label="${esc(e.nom)}, ${DAYS[k]} ${PERIODS[p]} ${esc(cr.mat)} : ${v ? [...v].map(sensCode).join(", ") : "rien à signaler"}" title="${esc(e.nom)} · ${DAYS[k]} ${PERIODS[p]} · ${esc(cr.mat)}\n${v ? [...v].map(x => `• **${x === CODE_ABSENT ? "abs" : esc(x)}** ${esc(sensCode(x))}`).join("\n") : "Rien à signaler"}\n${codeCl === "?" ? "Clic : choisir les codes" : codeCl === "-" ? "Clic ou glisser : effacer" : codeCl === null ? "Clic : choisir la case, puis la lettre du code ou la palette" : `Clic ou glisser : ajouter « ${esc(codeCl)} »`} · au clavier : la lettre du code">${[...v].map(codeClasseHTML).join("")}</td>`
+      return edit ? `<td class="clc${v.includes(CODE_ABSENT) ? " absent" : ""}${clOuvert === `${s}.${p}` && ficheDate === d ? " ouvert" : ""}" data-cl="${s}.${p}" data-d="${d}" tabindex="-1" role="button" aria-label="${esc(e.nom)}, ${DAYS[k]} ${PERIODS[p]} ${esc(cE.mat)} : ${v ? [...v].map(sensCode).join(", ") : "rien à signaler"}" title="${esc(e.nom)} · ${DAYS[k]} ${PERIODS[p]} · ${esc(cE.mat)}\n${v ? [...v].map(x => `• **${x === CODE_ABSENT ? "abs" : esc(x)}** ${esc(sensCode(x))}`).join("\n") : "Rien à signaler"}\n${codeCl === "?" ? "Clic : choisir les codes" : codeCl === "-" ? "Clic ou glisser : effacer" : codeCl === null ? "Clic : choisir la case, puis la lettre du code ou la palette" : `Clic ou glisser : ajouter « ${esc(codeCl)} »`} · au clavier : la lettre du code">${[...v].map(codeClasseHTML).join("")}</td>`
         : `<td class="${v.includes(CODE_ABSENT) ? "absent" : ""}">${[...v].map(x => esc(x === CODE_ABSENT ? "abs" : x)).join("")}</td>`; }).join("");
     return `<tr class="${i === 0 ? "j1" : ""}${off ? " off" : ""}">${jourTh}<th class="cs-cr">${PERIODS[p]}</th><td class="cs-mat${actif ? "" : " ferme"}${actif && cr.divise ? " deux" : ""}${edit && !off && (cr.mat || cr.absent) ? " crn-b" : ""}"${edit && !off && (cr.mat || cr.absent) ? ` data-crn="${d}|${p}" role="button" tabindex="0"` : ""} title="${esc(cr.mat || cr.demi || "Pas de cours")}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${cr.absent ? "\nenseignant absent" : ""}${edit && !off && (cr.mat || cr.absent) ? "\nClic : enseignant absent ou remplacé" : ""}">${actif ? esc(cr.divise ? [...cr.grp.map(x => abrege(x.mat)), ...(cr.baseMat ? [abrege(cr.baseMat)] : [])].join(" / ") : abrege(cr.mat)) : off ? "" : cr.absent ? "<small>abs.</small>" : cr.demi ? `<small>${esc(cr.demi)}</small>` : ""}</td>${cases}</tr>`; }).join("")).join("");
   const ligneP = (lib, cls, f) => `<tr class="${cls}"><th colspan="3" class="cs-plib" title="${lib}">${lib}</th>${bil.map(b => `<td>${f(b) || ""}</td>`).join("")}</tr>`;
@@ -5954,7 +5980,7 @@ document.addEventListener("click", async e => { const b = e.target.closest && e.
     <label class="champ" title="Heure du cours\nLa matière et l’enseignant s’en déduisent (emploi du temps, groupes de l’élève).">Heure <select id="rem-p"></select></label></div>
     <label class="champ">Remarque <textarea id="rem-t" rows="3" placeholder="ex. Exclu de cours, rapport au professeur principal"></textarea></label>`;
   const sems = semaines(S), heures = d => { const s = Number(d.querySelector("#rem-el").value), dt = d.querySelector("#rem-j").value, g = (S.classeEleves[s] || {}).groupes || [];
-    d.querySelector("#rem-p").innerHTML = `<option value="">— heure non précisée —</option>` + creneauxDu(S, dt).map(p => [p, coursPour(creneau(S, sems, dt, p), g)]).filter(([, c]) => c.mat).map(([p, c]) => `<option value="${p}">${PERIODS[p]} — ${esc(c.mat)}${c.prof ? ` (${esc(c.prof)})` : ""}</option>`).join(""); };
+    d.querySelector("#rem-p").innerHTML = `<option value="">— heure non précisée —</option>` + creneauxDu(S, dt).map(p => [p, coursPour(creneau(S, sems, dt, p), g, (S.classeEleves[s] || {}).nom)]).filter(([, c]) => c.mat).map(([p, c]) => `<option value="${p}">${PERIODS[p]} — ${esc(c.mat)}${c.prof ? ` (${esc(c.prof)})` : ""}</option>`).join(""); };
   const r = await saisir("Remarque au dos de la fiche", `Semaine ${w.num} : recopiez la remarque d’un enseignant.`, { html, init: d => { heures(d); d.querySelector("#rem-el").addEventListener("change", () => heures(d)); d.querySelector("#rem-j").addEventListener("change", () => heures(d)); },
     lire: d => ({ s: d.querySelector("#rem-el").value, d: d.querySelector("#rem-j").value, p: d.querySelector("#rem-p").value, t: d.querySelector("#rem-t").value.trim() }),
     valider: v => v.s === "" || v.s === null ? "Choisissez l’élève concerné." : !v.t ? "Recopiez la remarque." : "" }, { ok: "Ajouter" });
@@ -6045,7 +6071,7 @@ const caseCl = k => k && document.querySelector(current.view === "classesem" ? `
 function placerPopCl() {
   const td = caseCl(clOuvert);
   if (!td || (current.view !== "classe" && current.view !== "classesem")) { popCl.hidden = true; return; }
-  const [s, p] = clOuvert.split(".").map(Number), v = ((S.jours[ficheDate] || {}).cl || {})[clOuvert] || "", cr = coursPour(creneau(S, semaines(S), ficheDate, p), S.classeEleves[s].groupes || []);
+  const [s, p] = clOuvert.split(".").map(Number), v = ((S.jours[ficheDate] || {}).cl || {})[clOuvert] || "", cr = coursPour(creneau(S, semaines(S), ficheDate, p), S.classeEleves[s].groupes || [], S.classeEleves[s].nom);
   popCl.innerHTML = `<div class="row"><b>${esc(S.classeEleves[s].nom)} · ${PERIODS[p]} ${esc(cr.mat)}</b><span class="spacer"></span><button class="ghost" data-clferme aria-label="Fermer">✕</button></div>
     <div class="chips-codes">${codesClasse(S).map(c => `<button type="button" data-clcode="${esc(c)}" aria-pressed="${v.includes(c)}" class="${v.includes(c) ? "on" : ""}">${codeClasseHTML(c)} ${esc(sensCode(c))}</button>`).join("")}</div>
     <div class="row"><button class="ghost" data-clvide ${v ? "" : "disabled"}>Vider la case</button><span class="spacer"></span><span class="small muted">au clavier : la lettre du code</span></div>`;
@@ -6304,7 +6330,7 @@ function ligneRetenue(ind, c) {
 }
 /** Réussite d'une fiche pour chaque objectif : [TB+S, total, nb I, nb par code]. */
 /** Une saisie compte si le cours a bien lieu (comme sur la grille) : un jour sans cours, un cours annulé ou retiré de l'emploi du temps après coup ne comptent plus. */
-const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs); return !!cr.mat && !cr.absent && !absIndiv(S, ind, d, p); };
+const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs, ind.nom); return !!cr.mat && !cr.absent && !absIndiv(S, ind, d, p); };
 function statsIndiv(ind, c) {
   const r = ind.objectifs.map(() => [0, 0, 0, [0, 0, 0, 0]]), sems = semaines(S), grs = groupesDe(S, ind.nom);
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !coursIndivActif(ind, d, p, sems, grs)) continue;
@@ -6335,7 +6361,7 @@ const repriseIndiv = (ind, c) => { const d = repriseDateIndiv(ind, c); return d 
 function coursBordIndiv(ind, d, dernier) {
   if (!d || sansCours(S, d)) return null;
   const sems = semaines(S), grs = groupesDe(S, ind.nom), ps = creneauxDu(S, d);
-  for (const p of dernier ? [...ps].reverse() : ps) { const cr = coursPour(creneau(S, sems, d, p), grs); if (cr.mat && !cr.absent) return { d, p, mat: cr.mat, prof: cr.prof || "", salle: String(cr.salle || "").trim() }; }
+  for (const p of dernier ? [...ps].reverse() : ps) { const cr = coursPour(creneau(S, sems, d, p), grs, ind.nom); if (cr.mat && !cr.absent) return { d, p, mat: cr.mat, prof: cr.prof || "", salle: String(cr.salle || "").trim() }; }
   return null;
 }
 /** Passage d'une fiche à la suivante : dernier cours du jour de remise, premier cours du jour où la fiche suivante commence. */
@@ -6423,7 +6449,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
     const nomJ = DAYS[jourSemaine(d) - 1], per = PERIODS[p];
     if (sansCours(S, d)) return ip === 0 ? `<td colspan="${no + 2}" rowspan="${rangs.length}" class="g ferme jour-off">Pas de cours<br>(${esc(motifSansCours(S, d))})</td>` : "";
     if (!creneauxDu(S, d).includes(p)) return `<td colspan="${no + 2}" class="g ferme"></td>`;     // samedi après-midi
-    const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
+    const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom), ind.nom);
     if (!cr.mat || cr.absent) return `<td colspan="${no + 2}" class="g ferme${edit && cr.absent ? " crn-b" : ""}"${edit && cr.absent ? ` data-crn="${d}|${p}" role="button" tabindex="0" title="${esc(cr.mat)} : enseignant absent\nClic : rétablir le cours ou indiquer un remplaçant"` : ""}>${cr.absent ? `<small>${esc(cr.mat)} : prof absent</small>` : cr.demi ? `<small>${esc(cr.demi)}</small>` : ""}</td>`;
     const s = ind.saisies[`${d}.${p}`] || { c: [], r: "" };
     const absEl = absIndiv(S, ind, d, p);   /* élève absent : une seule case grisée à la place des codes ; la remarque reste */
@@ -6447,7 +6473,7 @@ function bilanFamilleHTML(ind, c) {
     return `<tr><td class="num">${NUM_OBJ[n]}</td><td class="l">${esc(o)}</td><td>${v === null ? "—" : `<span class="pn${NIV_CLASSE[niveauReussite(S, v, x[2])] || ""}">${pctTxt(v)}</span>`}</td>
       <td class="det">${x[1] ? x[3].map((nb, l) => nb ? `${nb} ${codes[l]}` : "").filter(Boolean).join(" · ") : "rien de noté"}</td><td class="ev">${ev ? `${ev} <small>(${pctTxt(vp)})</small>` : ""}</td></tr>`; }).join("");
   const rem = [];
-  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
+  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom), ind.nom);
     rem.push(`<li><b>${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${esc(cr.mat)}</b>${cr.prof ? ` (${esc(cr.prof)})` : ""} : ${esc(s.r)}</li>`); }
   const nCours = c.jours.reduce((a, d) => a + ORDRE_P.filter(p => ind.saisies[`${d}.${p}`] && !absIndiv(S, ind, d, p)).length, 0), absT = absencesTxt(ind, c);
   return `<div class="bilan-famille">${enteteEtab()}<div class="f-head"><div class="f-title" role="heading" aria-level="2">Suivi individuel – bilan pour la famille</div></div>
@@ -6466,7 +6492,7 @@ function donneesBilanIa(ind, c) {
   const cy = cyclesIndiv(ind), k = cy.findIndex(x => x.fin === c.fin), prec = k > 0 ? cy[k - 1] : null, sems = semaines(S), grs = groupesDe(S, ind.nom);
   const st = statsIndiv(ind, c), sp = prec ? statsIndiv(ind, prec) : null, mats = new Map(), rem = [], mots = [...S.codage.flatMap(x => [x.code, x.sens]), ...DAYS];
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || sansCours(S, d)) continue;
-    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent) continue; mots.push(cr.mat);
+    const cr = coursPour(creneau(S, sems, d, p), grs, ind.nom); if (!cr.mat || cr.absent) continue; mots.push(cr.mat);
     if (s.r.trim()) rem.push(`- ${cr.mat}, ${DAYS[jourSemaine(d) - 1].toLowerCase()} : ${s.r.trim()}`);
     if (absIndiv(S, ind, d, p)) continue;
     const m = mats.get(cr.mat) || [0, 0, 0]; s.c.forEach(x => { if (x === null || x === undefined) return; m[1]++; if (x < 2) m[0]++; if (x === 3) m[2]++; }); if (m[1]) mats.set(cr.mat, m); }
@@ -6516,7 +6542,7 @@ function bilanCourriel(ind, c, html) {
   const objs = ind.objectifs.map((o, n) => { const x = st[n], v = x[1] ? x[0] / x[1] : null, vp = sp && sp[n][1] ? sp[n][0] / sp[n][1] : null;
     return { o, v, niv: v === null ? "" : niveauReussite(S, v, x[2]), det: x[1] ? x[3].map((nb, l) => nb ? `${nb} ${S.codage[l].code}` : "").filter(Boolean).join(" · ") : "rien de noté", evo: evo(v, vp) }; });
   const rem = [];
-  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
+  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom), ind.nom);
     rem.push({ quand: `${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${cr.mat}${cr.prof ? ` (${cr.prof})` : ""}`, r: s.r.trim() }); }
   const ret = ligneRetenue(ind, c), absT = absencesTxt(ind, c);
   const bilan = bilanCycle(ind, c).trim(), legende = `Réussite = part des cours notés « ${S.codage[0].sens} » ou « ${S.codage[1].sens} ».`;
@@ -6630,7 +6656,7 @@ function bilanMatiereIndiv(ind, o = -1) {
   const sems = semaines(S), grs = groupesDe(S, ind.nom), serie = serieIndiv(ind), res = new Map(), tous = [0, 0, 0], pr = profsPeriode(S);
   for (const f of serie) for (const d of f.c.jours) for (const p of creneauxDu(S, d)) {
     const s = ind.saisies[`${d}.${p}`]; if (!s) continue;
-    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent || absIndiv(S, ind, d, p)) continue;
+    const cr = coursPour(creneau(S, sems, d, p), grs, ind.nom); if (!cr.mat || cr.absent || absIndiv(S, ind, d, p)) continue;
     if (!res.has(cr.mat)) res.set(cr.mat, { mat: cr.mat, prof: "", par: new Map(), tot: [0, 0, 0] }); pr.note(cr.mat, d); res.get(cr.mat).prof = pr.de(cr.mat) || cr.prof;
     const m = res.get(cr.mat); if (!m.par.has(f.c.fin)) m.par.set(f.c.fin, [0, 0, 0]);
     const cel = m.par.get(f.c.fin);
@@ -6819,7 +6845,7 @@ function bilanMatiereClasse(s0) {
   sems.forEach((w, wi) => { if (!w.jours.some(d => Object.keys(((S.jours[d] || {}).cl) || {}).length)) return; cols.push({ w, wi });
     for (const d of w.jours) { if (sansCours(S, d)) continue; const cl = ((S.jours[d] || {}).cl) || {};
       for (const p of creneauxDu(S, d)) { const cr = creneau(S, sems, d, p); if (!cr.mat || cr.absent) continue;
-        (s0 >= 0 ? [[S.classeEleves[s0], s0]] : S.classeEleves.map((e, s) => [e, s])).forEach(([e, s]) => { if (!presentClasse(e, d)) return; const c = coursPour(cr, e.groupes || []); if (!c.mat || c.absent) return;
+        (s0 >= 0 ? [[S.classeEleves[s0], s0]] : S.classeEleves.map((e, s) => [e, s])).forEach(([e, s]) => { if (!presentClasse(e, d)) return; const c = coursPour(cr, e.groupes || [], e.nom); if (!c.mat || c.absent) return;
           pr.note(c.mat, d); if (!res.has(c.mat)) res.set(c.mat, { mat: c.mat, prof: "", cours: new Set(), coursSem: new Map(), parSem: new Map(), par: Object.fromEntries(codes.map(x => [x.code, 0])), neg: 0, pos: 0, qui: new Map() });
           const m = res.get(c.mat); m.prof = pr.de(c.mat) || c.prof; m.cours.add(`${d}.${p}`); if (!m.coursSem.has(wi)) m.coursSem.set(wi, new Set()); m.coursSem.get(wi).add(`${d}.${p}`);
           for (const x of cl[`${s}.${p}`] || "") { if (x === CODE_ABSENT) continue; if (x in m.par) m.par[x]++;

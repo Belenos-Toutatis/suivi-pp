@@ -19,7 +19,7 @@ function creneauxSemaine(sems, d) {
 function caseClasseActive(sems, d, p, e, cache) {
   if (sansCours(S, d) || !creneauxDu(S, d).includes(p) || !presentClasse(e, d)) return false;
   const k = d + "." + p, cr = cache && cache.has(k) ? cache.get(k) : creneau(S, sems, d, p); if (cache) cache.set(k, cr);
-  if (!cr.mat || cr.absent) return false; const c = coursPour(cr, e.groupes || []); return !!c.mat && !c.absent;   /* créneau partagé : le cours de l'élève, et son enseignant présent */
+  if (!cr.mat || cr.absent) return false; const c = coursPour(cr, e.groupes || [], e.nom); return !!c.mat && !c.absent;   /* créneau partagé : le cours de l'élève, et son enseignant présent */
 }
 /** Calculs mis en cache le temps d'un affichage (vidé à chaque rendu et à chaque modification). */
 let cacheCalc = new Map();
@@ -55,11 +55,11 @@ function classeSemaineHTML(wi, edit) {
     const jourTh = i === 0 ? `<th class="cs-jour" rowspan="${ps.length}"><span>${DAYS[k]}</span>${off ? `<small>${esc(motifSansCours(S, d))}</small>` : ""}</th>` : "";
     const cases = S.classeEleves.map((e, s) => { if (!actif) return `<td class="ferme"></td>`;
       if (!presentClasse(e, d)) return `<td class="ferme hors" title="${esc(e.nom)}\n${e.fin && d > e.fin ? "Parti(e) de la classe le " + fmtDM(e.fin) : "Arrivé(e) dans la classe le " + fmtDM(e.debut)}."></td>`;
-      const cE = cr.divise ? coursPour(cr, e.groupes || []) : cr;
+      const cE = coursPour(cr, e.groupes || [], e.nom);
       if (!cE.mat) return `<td class="ferme hors" title="${esc(e.nom)} · ${DAYS[k]} ${PERIODS[p]}\nPas concerné(e) : ${esc(cr.mat)}."></td>`;
       if (cE.absent) return `<td class="ferme hors prof-abs" title="${esc(e.nom)} · ${DAYS[k]} ${PERIODS[p]}\nPas de cours : ${esc(cE.mat)}, enseignant absent${cE.prof ? ` (${esc(cE.prof)})` : ""}."></td>`;
       const v = cl[`${s}.${p}`] || "";
-      return edit ? `<td class="clc${v.includes(CODE_ABSENT) ? " absent" : ""}${clOuvert === `${s}.${p}` && ficheDate === d ? " ouvert" : ""}" data-cl="${s}.${p}" data-d="${d}" tabindex="-1" role="button" aria-label="${esc(e.nom)}, ${DAYS[k]} ${PERIODS[p]} ${esc(cr.mat)} : ${v ? [...v].map(sensCode).join(", ") : "rien à signaler"}" title="${esc(e.nom)} · ${DAYS[k]} ${PERIODS[p]} · ${esc(cr.mat)}\n${v ? [...v].map(x => `• **${x === CODE_ABSENT ? "abs" : esc(x)}** ${esc(sensCode(x))}`).join("\n") : "Rien à signaler"}\n${codeCl === "?" ? "Clic : choisir les codes" : codeCl === "-" ? "Clic ou glisser : effacer" : codeCl === null ? "Clic : choisir la case, puis la lettre du code ou la palette" : `Clic ou glisser : ajouter « ${esc(codeCl)} »`} · au clavier : la lettre du code">${[...v].map(codeClasseHTML).join("")}</td>`
+      return edit ? `<td class="clc${v.includes(CODE_ABSENT) ? " absent" : ""}${clOuvert === `${s}.${p}` && ficheDate === d ? " ouvert" : ""}" data-cl="${s}.${p}" data-d="${d}" tabindex="-1" role="button" aria-label="${esc(e.nom)}, ${DAYS[k]} ${PERIODS[p]} ${esc(cE.mat)} : ${v ? [...v].map(sensCode).join(", ") : "rien à signaler"}" title="${esc(e.nom)} · ${DAYS[k]} ${PERIODS[p]} · ${esc(cE.mat)}\n${v ? [...v].map(x => `• **${x === CODE_ABSENT ? "abs" : esc(x)}** ${esc(sensCode(x))}`).join("\n") : "Rien à signaler"}\n${codeCl === "?" ? "Clic : choisir les codes" : codeCl === "-" ? "Clic ou glisser : effacer" : codeCl === null ? "Clic : choisir la case, puis la lettre du code ou la palette" : `Clic ou glisser : ajouter « ${esc(codeCl)} »`} · au clavier : la lettre du code">${[...v].map(codeClasseHTML).join("")}</td>`
         : `<td class="${v.includes(CODE_ABSENT) ? "absent" : ""}">${[...v].map(x => esc(x === CODE_ABSENT ? "abs" : x)).join("")}</td>`; }).join("");
     return `<tr class="${i === 0 ? "j1" : ""}${off ? " off" : ""}">${jourTh}<th class="cs-cr">${PERIODS[p]}</th><td class="cs-mat${actif ? "" : " ferme"}${actif && cr.divise ? " deux" : ""}${edit && !off && (cr.mat || cr.absent) ? " crn-b" : ""}"${edit && !off && (cr.mat || cr.absent) ? ` data-crn="${d}|${p}" role="button" tabindex="0"` : ""} title="${esc(cr.mat || cr.demi || "Pas de cours")}${cr.prof ? "\n" + esc(cr.prof) : ""}${cr.remplace ? " (remplaçant)" : ""}${cr.absent ? "\nenseignant absent" : ""}${edit && !off && (cr.mat || cr.absent) ? "\nClic : enseignant absent ou remplacé" : ""}">${actif ? esc(cr.divise ? [...cr.grp.map(x => abrege(x.mat)), ...(cr.baseMat ? [abrege(cr.baseMat)] : [])].join(" / ") : abrege(cr.mat)) : off ? "" : cr.absent ? "<small>abs.</small>" : cr.demi ? `<small>${esc(cr.demi)}</small>` : ""}</td>${cases}</tr>`; }).join("")).join("");
   const ligneP = (lib, cls, f) => `<tr class="${cls}"><th colspan="3" class="cs-plib" title="${lib}">${lib}</th>${bil.map(b => `<td>${f(b) || ""}</td>`).join("")}</tr>`;
@@ -97,7 +97,7 @@ document.addEventListener("click", async e => { const b = e.target.closest && e.
     <label class="champ" title="Heure du cours\nLa matière et l’enseignant s’en déduisent (emploi du temps, groupes de l’élève).">Heure <select id="rem-p"></select></label></div>
     <label class="champ">Remarque <textarea id="rem-t" rows="3" placeholder="ex. Exclu de cours, rapport au professeur principal"></textarea></label>`;
   const sems = semaines(S), heures = d => { const s = Number(d.querySelector("#rem-el").value), dt = d.querySelector("#rem-j").value, g = (S.classeEleves[s] || {}).groupes || [];
-    d.querySelector("#rem-p").innerHTML = `<option value="">— heure non précisée —</option>` + creneauxDu(S, dt).map(p => [p, coursPour(creneau(S, sems, dt, p), g)]).filter(([, c]) => c.mat).map(([p, c]) => `<option value="${p}">${PERIODS[p]} — ${esc(c.mat)}${c.prof ? ` (${esc(c.prof)})` : ""}</option>`).join(""); };
+    d.querySelector("#rem-p").innerHTML = `<option value="">— heure non précisée —</option>` + creneauxDu(S, dt).map(p => [p, coursPour(creneau(S, sems, dt, p), g, (S.classeEleves[s] || {}).nom)]).filter(([, c]) => c.mat).map(([p, c]) => `<option value="${p}">${PERIODS[p]} — ${esc(c.mat)}${c.prof ? ` (${esc(c.prof)})` : ""}</option>`).join(""); };
   const r = await saisir("Remarque au dos de la fiche", `Semaine ${w.num} : recopiez la remarque d’un enseignant.`, { html, init: d => { heures(d); d.querySelector("#rem-el").addEventListener("change", () => heures(d)); d.querySelector("#rem-j").addEventListener("change", () => heures(d)); },
     lire: d => ({ s: d.querySelector("#rem-el").value, d: d.querySelector("#rem-j").value, p: d.querySelector("#rem-p").value, t: d.querySelector("#rem-t").value.trim() }),
     valider: v => v.s === "" || v.s === null ? "Choisissez l’élève concerné." : !v.t ? "Recopiez la remarque." : "" }, { ok: "Ajouter" });
@@ -188,7 +188,7 @@ const caseCl = k => k && document.querySelector(current.view === "classesem" ? `
 function placerPopCl() {
   const td = caseCl(clOuvert);
   if (!td || (current.view !== "classe" && current.view !== "classesem")) { popCl.hidden = true; return; }
-  const [s, p] = clOuvert.split(".").map(Number), v = ((S.jours[ficheDate] || {}).cl || {})[clOuvert] || "", cr = coursPour(creneau(S, semaines(S), ficheDate, p), S.classeEleves[s].groupes || []);
+  const [s, p] = clOuvert.split(".").map(Number), v = ((S.jours[ficheDate] || {}).cl || {})[clOuvert] || "", cr = coursPour(creneau(S, semaines(S), ficheDate, p), S.classeEleves[s].groupes || [], S.classeEleves[s].nom);
   popCl.innerHTML = `<div class="row"><b>${esc(S.classeEleves[s].nom)} · ${PERIODS[p]} ${esc(cr.mat)}</b><span class="spacer"></span><button class="ghost" data-clferme aria-label="Fermer">✕</button></div>
     <div class="chips-codes">${codesClasse(S).map(c => `<button type="button" data-clcode="${esc(c)}" aria-pressed="${v.includes(c)}" class="${v.includes(c) ? "on" : ""}">${codeClasseHTML(c)} ${esc(sensCode(c))}</button>`).join("")}</div>
     <div class="row"><button class="ghost" data-clvide ${v ? "" : "disabled"}>Vider la case</button><span class="spacer"></span><span class="small muted">au clavier : la lettre du code</span></div>`;
@@ -447,7 +447,7 @@ function ligneRetenue(ind, c) {
 }
 /** Réussite d'une fiche pour chaque objectif : [TB+S, total, nb I, nb par code]. */
 /** Une saisie compte si le cours a bien lieu (comme sur la grille) : un jour sans cours, un cours annulé ou retiré de l'emploi du temps après coup ne comptent plus. */
-const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs); return !!cr.mat && !cr.absent && !absIndiv(S, ind, d, p); };
+const coursIndivActif = (ind, d, p, sems = semaines(S), grs = groupesDe(S, ind.nom)) => { if (sansCours(S, d)) return false; const cr = coursPour(creneau(S, sems, d, p), grs, ind.nom); return !!cr.mat && !cr.absent && !absIndiv(S, ind, d, p); };
 function statsIndiv(ind, c) {
   const r = ind.objectifs.map(() => [0, 0, 0, [0, 0, 0, 0]]), sems = semaines(S), grs = groupesDe(S, ind.nom);
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !coursIndivActif(ind, d, p, sems, grs)) continue;
@@ -478,7 +478,7 @@ const repriseIndiv = (ind, c) => { const d = repriseDateIndiv(ind, c); return d 
 function coursBordIndiv(ind, d, dernier) {
   if (!d || sansCours(S, d)) return null;
   const sems = semaines(S), grs = groupesDe(S, ind.nom), ps = creneauxDu(S, d);
-  for (const p of dernier ? [...ps].reverse() : ps) { const cr = coursPour(creneau(S, sems, d, p), grs); if (cr.mat && !cr.absent) return { d, p, mat: cr.mat, prof: cr.prof || "", salle: String(cr.salle || "").trim() }; }
+  for (const p of dernier ? [...ps].reverse() : ps) { const cr = coursPour(creneau(S, sems, d, p), grs, ind.nom); if (cr.mat && !cr.absent) return { d, p, mat: cr.mat, prof: cr.prof || "", salle: String(cr.salle || "").trim() }; }
   return null;
 }
 /** Passage d'une fiche à la suivante : dernier cours du jour de remise, premier cours du jour où la fiche suivante commence. */
@@ -566,7 +566,7 @@ function indivHTML(ind, c, edit, famille = false, avecBilanImpose) {   /* avecBi
     const nomJ = DAYS[jourSemaine(d) - 1], per = PERIODS[p];
     if (sansCours(S, d)) return ip === 0 ? `<td colspan="${no + 2}" rowspan="${rangs.length}" class="g ferme jour-off">Pas de cours<br>(${esc(motifSansCours(S, d))})</td>` : "";
     if (!creneauxDu(S, d).includes(p)) return `<td colspan="${no + 2}" class="g ferme"></td>`;     // samedi après-midi
-    const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
+    const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom), ind.nom);
     if (!cr.mat || cr.absent) return `<td colspan="${no + 2}" class="g ferme${edit && cr.absent ? " crn-b" : ""}"${edit && cr.absent ? ` data-crn="${d}|${p}" role="button" tabindex="0" title="${esc(cr.mat)} : enseignant absent\nClic : rétablir le cours ou indiquer un remplaçant"` : ""}>${cr.absent ? `<small>${esc(cr.mat)} : prof absent</small>` : cr.demi ? `<small>${esc(cr.demi)}</small>` : ""}</td>`;
     const s = ind.saisies[`${d}.${p}`] || { c: [], r: "" };
     const absEl = absIndiv(S, ind, d, p);   /* élève absent : une seule case grisée à la place des codes ; la remarque reste */
@@ -590,7 +590,7 @@ function bilanFamilleHTML(ind, c) {
     return `<tr><td class="num">${NUM_OBJ[n]}</td><td class="l">${esc(o)}</td><td>${v === null ? "—" : `<span class="pn${NIV_CLASSE[niveauReussite(S, v, x[2])] || ""}">${pctTxt(v)}</span>`}</td>
       <td class="det">${x[1] ? x[3].map((nb, l) => nb ? `${nb} ${codes[l]}` : "").filter(Boolean).join(" · ") : "rien de noté"}</td><td class="ev">${ev ? `${ev} <small>(${pctTxt(vp)})</small>` : ""}</td></tr>`; }).join("");
   const rem = [];
-  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
+  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom), ind.nom);
     rem.push(`<li><b>${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${esc(cr.mat)}</b>${cr.prof ? ` (${esc(cr.prof)})` : ""} : ${esc(s.r)}</li>`); }
   const nCours = c.jours.reduce((a, d) => a + ORDRE_P.filter(p => ind.saisies[`${d}.${p}`] && !absIndiv(S, ind, d, p)).length, 0), absT = absencesTxt(ind, c);
   return `<div class="bilan-famille">${enteteEtab()}<div class="f-head"><div class="f-title" role="heading" aria-level="2">Suivi individuel – bilan pour la famille</div></div>
@@ -609,7 +609,7 @@ function donneesBilanIa(ind, c) {
   const cy = cyclesIndiv(ind), k = cy.findIndex(x => x.fin === c.fin), prec = k > 0 ? cy[k - 1] : null, sems = semaines(S), grs = groupesDe(S, ind.nom);
   const st = statsIndiv(ind, c), sp = prec ? statsIndiv(ind, prec) : null, mats = new Map(), rem = [], mots = [...S.codage.flatMap(x => [x.code, x.sens]), ...DAYS];
   for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || sansCours(S, d)) continue;
-    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent) continue; mots.push(cr.mat);
+    const cr = coursPour(creneau(S, sems, d, p), grs, ind.nom); if (!cr.mat || cr.absent) continue; mots.push(cr.mat);
     if (s.r.trim()) rem.push(`- ${cr.mat}, ${DAYS[jourSemaine(d) - 1].toLowerCase()} : ${s.r.trim()}`);
     if (absIndiv(S, ind, d, p)) continue;
     const m = mats.get(cr.mat) || [0, 0, 0]; s.c.forEach(x => { if (x === null || x === undefined) return; m[1]++; if (x < 2) m[0]++; if (x === 3) m[2]++; }); if (m[1]) mats.set(cr.mat, m); }
@@ -659,7 +659,7 @@ function bilanCourriel(ind, c, html) {
   const objs = ind.objectifs.map((o, n) => { const x = st[n], v = x[1] ? x[0] / x[1] : null, vp = sp && sp[n][1] ? sp[n][0] / sp[n][1] : null;
     return { o, v, niv: v === null ? "" : niveauReussite(S, v, x[2]), det: x[1] ? x[3].map((nb, l) => nb ? `${nb} ${S.codage[l].code}` : "").filter(Boolean).join(" · ") : "rien de noté", evo: evo(v, vp) }; });
   const rem = [];
-  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom));
+  for (const d of c.jours) for (const p of creneauxDu(S, d)) { const s = ind.saisies[`${d}.${p}`]; if (!s || !s.r.trim()) continue; const cr = coursPour(creneau(S, sems, d, p), groupesDe(S, ind.nom), ind.nom);
     rem.push({ quand: `${DAYS[jourSemaine(d) - 1]} ${fmtDM(d)}, ${cr.mat}${cr.prof ? ` (${cr.prof})` : ""}`, r: s.r.trim() }); }
   const ret = ligneRetenue(ind, c), absT = absencesTxt(ind, c);
   const bilan = bilanCycle(ind, c).trim(), legende = `Réussite = part des cours notés « ${S.codage[0].sens} » ou « ${S.codage[1].sens} ».`;
@@ -773,7 +773,7 @@ function bilanMatiereIndiv(ind, o = -1) {
   const sems = semaines(S), grs = groupesDe(S, ind.nom), serie = serieIndiv(ind), res = new Map(), tous = [0, 0, 0], pr = profsPeriode(S);
   for (const f of serie) for (const d of f.c.jours) for (const p of creneauxDu(S, d)) {
     const s = ind.saisies[`${d}.${p}`]; if (!s) continue;
-    const cr = coursPour(creneau(S, sems, d, p), grs); if (!cr.mat || cr.absent || absIndiv(S, ind, d, p)) continue;
+    const cr = coursPour(creneau(S, sems, d, p), grs, ind.nom); if (!cr.mat || cr.absent || absIndiv(S, ind, d, p)) continue;
     if (!res.has(cr.mat)) res.set(cr.mat, { mat: cr.mat, prof: "", par: new Map(), tot: [0, 0, 0] }); pr.note(cr.mat, d); res.get(cr.mat).prof = pr.de(cr.mat) || cr.prof;
     const m = res.get(cr.mat); if (!m.par.has(f.c.fin)) m.par.set(f.c.fin, [0, 0, 0]);
     const cel = m.par.get(f.c.fin);
@@ -962,7 +962,7 @@ function bilanMatiereClasse(s0) {
   sems.forEach((w, wi) => { if (!w.jours.some(d => Object.keys(((S.jours[d] || {}).cl) || {}).length)) return; cols.push({ w, wi });
     for (const d of w.jours) { if (sansCours(S, d)) continue; const cl = ((S.jours[d] || {}).cl) || {};
       for (const p of creneauxDu(S, d)) { const cr = creneau(S, sems, d, p); if (!cr.mat || cr.absent) continue;
-        (s0 >= 0 ? [[S.classeEleves[s0], s0]] : S.classeEleves.map((e, s) => [e, s])).forEach(([e, s]) => { if (!presentClasse(e, d)) return; const c = coursPour(cr, e.groupes || []); if (!c.mat || c.absent) return;
+        (s0 >= 0 ? [[S.classeEleves[s0], s0]] : S.classeEleves.map((e, s) => [e, s])).forEach(([e, s]) => { if (!presentClasse(e, d)) return; const c = coursPour(cr, e.groupes || [], e.nom); if (!c.mat || c.absent) return;
           pr.note(c.mat, d); if (!res.has(c.mat)) res.set(c.mat, { mat: c.mat, prof: "", cours: new Set(), coursSem: new Map(), parSem: new Map(), par: Object.fromEntries(codes.map(x => [x.code, 0])), neg: 0, pos: 0, qui: new Map() });
           const m = res.get(c.mat); m.prof = pr.de(c.mat) || c.prof; m.cours.add(`${d}.${p}`); if (!m.coursSem.has(wi)) m.coursSem.set(wi, new Set()); m.coursSem.get(wi).add(`${d}.${p}`);
           for (const x of cl[`${s}.${p}`] || "") { if (x === CODE_ABSENT) continue; if (x in m.par) m.par[x]++;

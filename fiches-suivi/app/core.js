@@ -428,6 +428,9 @@ function normalizeState(st) {
       const l = (typeof v === "string" ? ABS_PRESETS[v] || [] : arr(v)).filter(p => Number.isInteger(p) && p >= 0 && p < NB_P);
       if (l.length) n.abs[Number(s)] = [...new Set(l)].sort((a, b) => a - b);
     }
+    { const a = {}; for (const [p, v0] of Object.entries(obj(j.act))) { const v = obj(v0), m = str(v.mat).trim().slice(0, 60), noms = [...new Set(arr(v.noms).map(x => str(x).trim()).filter(Boolean))].slice(0, 60);
+        if (okP(p) && m && noms.length) a[p] = { mat: m, prof: str(v.prof).trim(), noms }; }
+      if (Object.keys(a).length) n.act = a; }   /* activité d'une partie de la classe (v1.96.1) ; absent = aucune */
     out.jours[d] = n;
   }
   // types de semaine forcés : indexés par le lundi
@@ -612,6 +615,8 @@ function creneau(st, sems, date, p) {
   const absL = !remplace && mat ? absenceLongue(st, prof, date) : null;
   if (absL && absL.remplacant) { prof = absL.remplacant; remplace = true; }
   const r = { mat, salle, prof, remplace, forced, absent: !!mat && (profAbsent(st, date, p) || (!!absL && !absL.remplacant)), grp: [], divise: false, baseMat: mat, baseSalle: salle, baseProf: mat ? prof : "", demi: demi ? demi.label || (demi.moment === "matin" ? "matinée sans cours" : "après-midi sans cours") : "" };
+  const act = !off && j && j.act && j.act[p];   /* activité d'une partie de la classe (v1.96.1) : lue élève par élève par coursPour */
+  if (act && Array.isArray(act.noms)) { r.actEl = {}; for (const n of act.noms) r.actEl[cleNom(n)] = { mat: act.mat, prof: act.prof || "" }; r.actPart = act; }
   if (grp.length) {          // créneau partagé entre groupes ou options : libellé pour toute la classe, cours de chaque élève avec coursPour()
     r.divise = true; r.grp = grp.map(x => { let pr = remplace && j && j.prof && j.prof[p] ? j.prof[p] : profDe(st, x.mat, date); const a = !(j && j.prof && j.prof[p]) ? absenceLongue(st, pr, date) : null;
       if (a && a.remplacant) pr = a.remplacant; return { g: x.g, mat: x.mat, salle: x.salle, prof: pr, absent: !!a && !a.remplacant }; });
@@ -627,7 +632,11 @@ const cleNom = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toU
 /** Groupes et options d'un élève, d'après la liste de la classe ; null si l'élève n'y est pas (il suit alors tous les cours). */
 function groupesDe(st, nom) { const k = cleNom(nom); if (!k) return null; const e = st.classeEleves.find(x => cleNom(x.nom) === k); return e ? e.groupes || [] : null; }
 /** Cours d'un élève sur un créneau partagé : celui de son groupe, sinon celui des autres élèves (ou rien). */
-function coursPour(cr, grps) {
+/* Cours d'un élève sur un créneau. `nom` (v1.96.1) : un élève inscrit à une activité qui ne concerne qu'une partie de la classe
+   (jours[d].act[p]) a cette activité, quel que soit le cours des autres ; sans `nom`, le cours de la classe. */
+function coursPour(cr, grps, nom) {
+  const a = nom && cr.actEl && cr.actEl[cleNom(nom)];
+  if (a) return { ...cr, mat: a.mat, prof: a.prof, salle: "", remplace: false, absent: false, divise: false, grp: [], activite: true };
   if (!cr.divise) return cr;
   if (!grps) return cr.grp.every(g => g.absent) && (!cr.baseMat || cr.baseAbsent) ? { ...cr, absent: true } : cr;   /* élève hors de la liste de la classe : annulé si tous les cours du créneau le sont */
   const m = cr.grp.find(x => grps.includes(x.g));
@@ -663,7 +672,7 @@ const toutesEdt = st => [st.edt, ...(st.edtSuivants || [])];
 const edtPour = (st, date) => { let e = st.edt; for (const v of st.edtSuivants || []) if (date >= v.depuis) e = v; return e; };
 function croix(st, date, s, o, p) { const j = st.jours[date]; const v = j && j.x && j.x[`${s}.${o}.${p}`]; return v === undefined ? -1 : v; }
 /** Créneau où l'élève doit être évalué : un cours a lieu, l'enseignant et l'élève sont présents, l'élève est suivi ce jour-là. */
-function creneauAttendu(st, date, s, p, cr) { cr = coursPour(cr, groupesDe(st, (st.eleves[s] || {}).nom)); return !!cr.mat && !cr.absent && eleveActif(st, s, date) && !eleveAbsent(st, date, s, p); }
+function creneauAttendu(st, date, s, p, cr) { cr = coursPour(cr, groupesDe(st, (st.eleves[s] || {}).nom), (st.eleves[s] || {}).nom); return !!cr.mat && !cr.absent && eleveActif(st, s, date) && !eleveAbsent(st, date, s, p); }
 function setCroix(st, date, s, o, p, lvl) {
   const j = jour(st, date, true), k = `${s}.${o}.${p}`;
   if (lvl < 0 || j.x[k] === lvl) delete j.x[k]; else j.x[k] = lvl;
@@ -693,7 +702,7 @@ function statsSemaine(st, sems, wi) {
       actifSemaine = true;
       for (const p of creneauxDu(st, date)) {
         const cr = creneau(st, sems, date, p);
-        const cE = coursPour(cr, groupesDe(st, (st.eleves[s] || {}).nom));   /* créneau partagé : le cours de l'élève */
+        const cE = coursPour(cr, groupesDe(st, (st.eleves[s] || {}).nom), (st.eleves[s] || {}).nom);   /* créneau partagé : le cours de l'élève */
         if (cE.mat && !cE.absent && eleveAbsent(st, date, s, p)) absences++;
         if (!creneauAttendu(st, date, s, p, cr)) continue;     // croix d'un créneau sans cours ou d'une absence : ignorées
         attendus++;
@@ -757,7 +766,7 @@ function bilan(st, sems) {
     for (let s = 0; s < nb; s++) for (let o = 0; o < nbObj(st); o++) {
       if (!creneauAttendu(st, date, s, p, cr)) break;      // mêmes règles que les totaux (élève suivi et présent)
       const l = croix(st, date, s, o, p); if (l < 0 || l >= NB_NIV) continue;
-      const mt = coursPour(cr, groupesDe(st, st.eleves[s].nom)).mat; pr.note(mt, date); const c = get(mt)[s]; c.obs++; if (l >= 2) c.neg++; if (l === 3) c.i++;
+      const mt = coursPour(cr, groupesDe(st, st.eleves[s].nom), st.eleves[s].nom).mat; pr.note(mt, date); const c = get(mt)[s]; c.obs++; if (l >= 2) c.neg++; if (l === 3) c.i++;
     }
   }
   const ordre = ordreMatieres(st).filter(n => res.has(n));   // rangées par champ disciplinaire

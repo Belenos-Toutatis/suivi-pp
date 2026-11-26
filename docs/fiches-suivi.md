@@ -272,6 +272,12 @@ facultatif, et les **créneaux du jour** à cocher (« Toute la journée ») pou
 (`j.mat[p]`, `j.prof[p]` seulement si un enseignant est donné) : rien de neuf à normaliser. Rouvert, un créneau dont la matière du
 jour n'est pas une matière de la classe s'affiche comme activité. ⚠️ Livré sans vérification complète (demandé « vite ») : à vérifier.
 
+- **Une partie de la classe seulement** (v1.96.1, l'utilisateur : *« tous les élèves ne les font pas »*) : « Pour : toute la classe /
+  certains élèves seulement » et la liste des élèves à cocher. Rangé à part : `jours[d].act[p] = { mat, prof, noms }` (normalisé,
+  absent = aucune), les autres gardent leur cours. Lu élève par élève : `creneau()` pose `actEl` (clé `cleNom`), `coursPour(cr, grps,
+  nom)` rend l'activité pour un inscrit — ⚠️ tout appel qui calcule le cours d'UN élève passe son nom en 3e argument. Les renommages
+  venus de Suivi PP suivent. Depuis une fiche individuelle, la fenêtre coche d'office cet élève seul.
+
 ### Absence d'un élève : notée une fois, sur toutes ses fiches (v1.94.0, demandé le 2026-11-25)
 
 L'utilisateur : *« ajoute-le, pour tous les types de fiches de suivi »*. Une absence se note depuis n'importe quelle fiche et vaut pour
