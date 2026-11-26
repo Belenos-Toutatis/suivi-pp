@@ -263,6 +263,15 @@ quatrième étape de « après la remise » sur la page du suivi (`envoiCaseHTML
 - Test : `fiches-suivi/e2e_remarque_clic.js` (vrais clics en haut, au milieu et en bas, 1 à 4 objectifs, 1024 et 1366 px, chaque jour).
 - `app/assemble.py` écrit en LF et lit en UTF-8 sur tous les postes : sous Windows il écrivait « suivi pp.html » en CRLF.
 
+### Autre activité à la place d'un cours (v1.96.0, demandé le 2026-11-26)
+
+L'utilisateur : *« marquer qu'ils ont eu autre chose, par exemple une sortie au cinéma ou une formation au geste qui sauve, que je
+peux laisser sans enseignant ou en mettre un ; le remplir le plus vite possible »*. Quatrième choix de la fenêtre d'un créneau
+(`editerCreneau`, clic sur la matière dans toutes les fiches) : **Autre activité**, nom tiré de `ACTIVITES` (ou tapé), enseignant
+facultatif, et les **créneaux du jour** à cocher (« Toute la journée ») pour tout poser d'un coup. Même donnée qu'un remplacement
+(`j.mat[p]`, `j.prof[p]` seulement si un enseignant est donné) : rien de neuf à normaliser. Rouvert, un créneau dont la matière du
+jour n'est pas une matière de la classe s'affiche comme activité. ⚠️ Livré sans vérification complète (demandé « vite ») : à vérifier.
+
 ### Absence d'un élève : notée une fois, sur toutes ses fiches (v1.94.0, demandé le 2026-11-25)
 
 L'utilisateur : *« ajoute-le, pour tous les types de fiches de suivi »*. Une absence se note depuis n'importe quelle fiche et vaut pour

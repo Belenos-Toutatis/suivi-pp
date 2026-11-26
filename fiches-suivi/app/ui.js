@@ -2106,11 +2106,17 @@ function tracer(el) {
 }
 /* ---------- un cours en particulier : enseignant absent, ou remplacé (autre enseignant, autre matière), pour toutes les fiches ---------- */
 /** Fenêtre « Cours de ce créneau » : cours normal, enseignant absent, ou remplacé par un enseignant et une matière au choix (noms nouveaux acceptés). */
+/** Activités proposées à la place d'un cours (v1.96.0) ; celles déjà tapées s'y ajoutent. */
+const ACTIVITES = ["Sortie scolaire", "Sortie au cinéma", "Formation aux gestes qui sauvent", "Conférence", "Spectacle", "Devoir commun", "Permanence", "Étude", "Vie de classe"];
 async function editerCreneau(d, p, ind = null) {
   const sems = semaines(S), j0 = S.jours[d] || {}, cr = creneau(S, sems, d, p);
   const w = semaineDuJour(sems, d), dj = (parseD(d).getUTCDay() + 6) % 7, base = w && dj < nbJours(S) ? edtPour(S, d)[w.type][dj][p] : { mat: "" };
   const edtMat = base.grp && base.grp.length ? [...base.grp.map(x => x.mat), ...(base.mat ? [base.mat] : [])].join(" / ") : base.mat, edtProf = base.mat ? profDe(S, base.mat) : "";
-  const etat = cr.absent ? "absent" : (j0.prof && j0.prof[p]) || (j0.mat && p in j0.mat) ? "rempl" : "normal";
+  /* « Autre activité » (v1.96.0) : une sortie, une formation… à la place du cours, avec ou sans enseignant, sur un ou plusieurs
+     créneaux du jour d'un coup. Même donnée qu'un remplacement (j.mat, j.prof) : une activité est un cours remplacé sans enseignant imposé. */
+  const etat = cr.absent ? "absent" : j0.prof && j0.prof[p] && !(j0.mat && p in j0.mat && !ordreMatieres(S).includes(j0.mat[p])) ? "rempl" : j0.mat && p in j0.mat ? (ordreMatieres(S).includes(j0.mat[p]) ? "rempl" : "act") : "normal";
+  const jourCr = creneauxDu(S, d).map(q => ({ q, m: creneau(S, sems, d, q).mat || (w && dj < nbJours(S) ? edtPour(S, d)[w.type][dj][q].mat : "") })).filter(x => x.m);
+  const acts = [...new Set([...ACTIVITES, ...Object.values(S.jours).flatMap(x => Object.values(x.mat || {}))].filter(x => x && !ordreMatieres(S).includes(x)))];
   const profs = [...new Set([...S.matieres.map(m => m.prof), ...Object.values(S.jours).flatMap(j => Object.values(j.prof || {}))].map(x => (x || "").trim()).filter(Boolean))].sort();
   const mats = [...new Set([...ordreMatieres(S), "Permanence", "Étude", "Sortie scolaire", ...Object.values(S.jours).flatMap(j => Object.values(j.mat || {}))].filter(Boolean))];
   const avecEl = ind && !cr.absent && !coursPour(cr, groupesDe(S, ind.nom)).absent, elAbs = avecEl && absIndiv(S, ind, d, p);
@@ -2121,13 +2127,24 @@ async function editerCreneau(d, p, ind = null) {
     <div class="crn-r"><label class="champ">Enseignant <input type="text" id="crn-prof" list="crn-profs" value="${esc((j0.prof && j0.prof[p]) || (etat === "rempl" ? cr.prof : ""))}" placeholder="ex. Mme LIMANDE" autocomplete="off"></label>
       <label class="champ">Matière ou activité <input type="text" id="crn-mat" list="crn-mats" value="${esc(etat === "rempl" ? cr.mat : edtMat || "")}" placeholder="ex. Permanence" autocomplete="off"></label>
       <datalist id="crn-profs">${profs.map(x => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="crn-mats">${mats.map(x => `<option value="${esc(x)}">`).join("")}</datalist>
-      <small class="muted">Choisissez dans la liste ou tapez un nouveau nom.</small></div></div>`;
+      <small class="muted">Choisissez dans la liste ou tapez un nouveau nom.</small></div>
+    <label class="crn-o"><input type="radio" name="crn" value="act"${etat === "act" ? " checked" : ""}><span><b>Autre activité</b><small>une sortie, une formation, une conférence… à la place du cours, avec ou sans enseignant</small></span></label>
+    <div class="crn-a"><label class="champ">Activité <input type="text" id="crn-act" list="crn-acts" value="${esc(etat === "act" ? j0.mat[p] : "")}" placeholder="ex. Sortie au cinéma" autocomplete="off"></label>
+      <label class="champ">Enseignant <input type="text" id="crn-act-prof" list="crn-profs" value="${esc(etat === "act" ? (j0.prof && j0.prof[p]) || "" : "")}" placeholder="facultatif" autocomplete="off"></label>
+      <datalist id="crn-acts">${acts.map(x => `<option value="${esc(x)}">`).join("")}</datalist>
+      ${jourCr.length > 1 ? `<div class="crn-j"><span class="muted">Créneaux :</span> ${jourCr.map(x => `<label title="${esc(x.m)}"><input type="checkbox" data-actq="${x.q}"${x.q === p || (etat === "act" && j0.mat && j0.mat[x.q] === j0.mat[p]) ? " checked" : ""}> <b>${PERIODS[x.q]}</b> <small>${esc(abrege(x.m))}</small></label>`).join("")} <button type="button" class="ghost" data-acttout>Toute la journée</button></div>` : ""}</div></div>`;
   const v = await saisir(`${DAYS[dj]} ${fmtDM(d)} · ${PERIODS[p]}`, "Ce qui se passe sur ce créneau : les fiches individuelles, la fiche collective et la fiche de classe en tiennent compte.",
-    { html, init: dlg => { const bloc = dlg.querySelector(".crn-r").closest(".crn"), maj = () => { const r = dlg.querySelector('input[name="crn"]:checked').value === "rempl"; dlg.querySelector(".crn-r").classList.toggle("off", !r); if (r && !dlg.querySelector("#crn-prof").value) dlg.querySelector("#crn-prof").focus(); };
-        bloc.addEventListener("change", maj); bloc.addEventListener("focusin", e => { if (e.target.closest(".crn-r")) dlg.querySelector('input[value="rempl"]').checked = true, dlg.querySelector(".crn-r").classList.remove("off"); }); maj();
-        setTimeout(() => { const c = dlg.querySelector("#crn-el") || dlg.querySelector('input[name="crn"]:checked'); if (c && !dlg.querySelector(".crn-r").contains(document.activeElement)) c.focus(); }, 0); },
-      lire: dlg => ({ el: !!(dlg.querySelector("#crn-el") || {}).checked, etat: dlg.querySelector('input[name="crn"]:checked').value, prof: dlg.querySelector("#crn-prof").value.trim(), mat: dlg.querySelector("#crn-mat").value.trim() }),
-      valider: v => v.etat === "rempl" && !v.prof && !(v.mat && v.mat !== edtMat) ? "Indiquez au moins l’enseignant ou la matière du remplacement." : "" }, { ok: "Enregistrer" });
+    { html, init: dlg => { const bloc = dlg.querySelector(".crn-r").closest(".crn"), maj = (focus = true) => { const v = dlg.querySelector('input[name="crn"]:checked').value, r = v === "rempl", a = v === "act";
+          dlg.querySelector(".crn-r").classList.toggle("off", !r); dlg.querySelector(".crn-a").classList.toggle("off", !a);
+          if (focus && r && !dlg.querySelector("#crn-prof").value) dlg.querySelector("#crn-prof").focus(); if (focus && a && !dlg.querySelector("#crn-act").value) dlg.querySelector("#crn-act").focus(); };
+        bloc.addEventListener("change", e => { if (e.target.name === "crn") maj(); });
+        bloc.addEventListener("focusin", e => { for (const [z, val] of [[".crn-r", "rempl"], [".crn-a", "act"]]) if (e.target.closest(z)) { dlg.querySelector(`input[value="${val}"]`).checked = true; maj(false); } });
+        const tout = dlg.querySelector("[data-acttout]"); if (tout) tout.addEventListener("click", () => { const l = [...dlg.querySelectorAll("[data-actq]")], on = !l.every(x => x.checked); l.forEach(x => { x.checked = on || Number(x.dataset.actq) === p; }); });
+        maj(false);
+        setTimeout(() => { const c = dlg.querySelector("#crn-el") || dlg.querySelector('input[name="crn"]:checked'); if (c && !dlg.querySelector(".crn-r").contains(document.activeElement) && !dlg.querySelector(".crn-a").contains(document.activeElement)) c.focus(); }, 0); },
+      lire: dlg => ({ el: !!(dlg.querySelector("#crn-el") || {}).checked, etat: dlg.querySelector('input[name="crn"]:checked').value, prof: dlg.querySelector("#crn-prof").value.trim(), mat: dlg.querySelector("#crn-mat").value.trim(),
+        act: dlg.querySelector("#crn-act").value.trim().replace(/\s+/g, " ").slice(0, 60), actProf: dlg.querySelector("#crn-act-prof").value.trim(), actPs: [...new Set([p, ...[...dlg.querySelectorAll("[data-actq]:checked")].map(x => Number(x.dataset.actq))])] }),
+      valider: v => v.etat === "rempl" && !v.prof && !(v.mat && v.mat !== edtMat) ? "Indiquez au moins l’enseignant ou la matière du remplacement." : v.etat === "act" && !v.act ? "Indiquez l’activité (ex. Sortie au cinéma)." : "" }, { ok: "Enregistrer" });
   if (!v) return;
   const j = jour(S, d, true);
   if (v.etat === "absent") {
@@ -2138,11 +2155,14 @@ async function editerCreneau(d, p, ind = null) {
     if (v.prof) j.prof[p] = v.prof; else delete j.prof[p];
     if (v.mat && v.mat !== edtMat) j.mat[p] = v.mat; else delete j.mat[p];
     if (!v.prof && !(p in j.mat)) { toast("Indiquez au moins l’enseignant ou la matière du remplacement."); return; }
+  } else if (v.etat === "act") {
+    for (const q of v.actPs) { delete j.profAbs[q]; j.mat[q] = v.act; if (v.actProf) j.prof[q] = v.actProf; else delete j.prof[q]; }
   } else { delete j.profAbs[p]; delete j.prof[p]; delete j.mat[p]; }
   const cur = avecEl ? ABS_PRESETS.jour.filter(x => absIndiv(S, ind, d, x)) : [], change = avecEl && v.etat !== "absent" && v.el !== elAbs;
   if (change && !(await fixerAbsIndiv(ind, d, v.el ? [...cur, p] : cur.filter(x => x !== p)))) { commit(); return; }
   commit();
   if (change && v.etat === etat) { toast(`${ind.nom} : ${v.el ? "absent(e)" : "présent(e)"} en ${PERIODS[p]}. Ctrl+Z pour annuler.`, 5000); return; }
+  if (v.etat === "act") { toast(`${v.actPs.sort((a, b) => ORDRE_P.indexOf(a) - ORDRE_P.indexOf(b)).map(q => PERIODS[q]).join(", ")} : ${v.act}${v.actProf ? " avec " + v.actProf : ""}. Ctrl+Z pour annuler.`, 5000); return; }
   toast(v.etat === "absent" ? `${PERIODS[p]} : enseignant absent.` : v.etat === "rempl" ? `${PERIODS[p]} : remplacé${v.prof ? " par " + v.prof : ""}${p in j.mat ? " (" + j.mat[p] + ")" : ""}.` : `${PERIODS[p]} : cours normal.`, 5000);
 }
 document.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-crn]")) { e.preventDefault(); e.target.click(); } });   /* cours d’un créneau : aussi au clavier */
